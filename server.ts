@@ -6,7 +6,7 @@ import { fetchPolandCadastralParcel } from './server/adapters/poland';
 import { getCountryProfile } from './server/adapters/countries';
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;;
 
 // CORS & Iframe embedding headers middleware
 app.use((req, res, next) => {
