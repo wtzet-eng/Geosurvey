@@ -22,7 +22,7 @@ import { Header } from './components/Header';
 import { ReportView } from './components/ReportView';
 import { SavedReportsModal } from './components/SavedReportsModal';
 import { EmbedModal } from './components/EmbedModal';
-import { GoogleDriveModal } from './components/GoogleDriveModal';
+
 
 export default function App() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
