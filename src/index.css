@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* Fix Leaflet tile z-index and controls */
+.leaflet-container {
+  font-family: inherit;
+  z-index: 1;
+}
+
+.leaflet-control-attribution {
+  font-size: 10px !important;
+}
+
