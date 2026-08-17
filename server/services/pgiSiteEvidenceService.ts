@@ -41,6 +41,25 @@ async function findCollection(pattern: RegExp): Promise<any | null> {
   return collections.find((c: any) => pattern.test(`${c.id || ''} ${c.title || ''}`)) || null;
 }
 
+function profileFromProperties(properties: any): any {
+  if (!properties || typeof properties !== 'object') return null;
+  const keys = Object.keys(properties);
+  const interesting: Record<string, any> = {};
+  const patterns = [/litolog/i, /strat/i, /warstw/i, /profil/i, /otwor/i, /głęb/i, /gleb/i, /depth/i, /groundwater/i, /woda/i, /utwor/i, /osad/i, /wiek/i, /age/i, /opis/i, /description/i, /rock/i, /soil/i];
+  for (const key of keys) if (patterns.some(p => p.test(key))) interesting[key] = properties[key];
+  return Object.keys(interesting).length ? interesting : null;
+}
+
+function selectMapLayer(layers: string[], mapId: string): string | null {
+  const keywords: Record<string, RegExp> = {
+    'smgp-50k': /smgp|geolog|litolog|utw|czwart/i,
+    'mlp-50k': /mlp|litogen|geneza|utw/i,
+    'mgp-200k': /mgp|geolog/i,
+    'engineering-50k': /inz|inż|engineering|geolog/i
+  };
+  return layers.find(l => keywords[mapId]?.test(l)) || layers.find(l => !/legend|index|overview|ramka|arkusz/i.test(l)) || layers[0] || null;
+}
+
 export async function queryPolandBoreholes(lat: number, lng: number, radiusKm = 2): Promise<PgiSiteEvidence[]> {
   const collection = await findCollection(/odwiert|borehole/i);
   if (!collection) return [{ id: 'pgi-boreholes-unavailable', category: 'Boreholes', claim: 'PIG-PIB OGC API borehole collection could not be discovered.', status: 'UNAVAILABLE', sourceName: SOURCE, sourceUrl: `${OGC_API}/collections`, datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: 'Within requested search radius', calculationMethod: 'OGC API Features collection discovery', confidence: 'Low', value: null, limitation: 'No conclusion about absence of boreholes can be drawn.' }];
@@ -50,7 +69,8 @@ export async function queryPolandBoreholes(lat: number, lng: number, radiusKm = 
   const bbox = `${lng - dLng},${lat - dLat},${lng + dLng},${lat + dLat}`;
   const url = `${OGC_API}/collections/${encodeURIComponent(collection.id)}/items?bbox=${bbox}&limit=100`;
   const data = await fetchJson(url, 10000);
-  const features = data?.features || [];
+  if (!data) return [{ id: 'pgi-boreholes-query-unavailable', category: 'Boreholes', claim: 'PIG-PIB borehole collection was discovered but the spatial query failed.', status: 'UNAVAILABLE', sourceName: SOURCE, sourceUrl: url, datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: `Within ${radiusKm} km search window`, calculationMethod: 'PIG-PIB OGC API Features spatial query', confidence: 'Low', value: null, limitation: 'Query failure is not evidence that boreholes are absent.' }];
+  const features = data.features || [];
   const results = features.map((f: any, i: number) => {
     const coords = f?.geometry?.coordinates;
     const flng = Array.isArray(coords) ? Number(coords[0]) : NaN;
@@ -59,20 +79,25 @@ export async function queryPolandBoreholes(lat: number, lng: number, radiusKm = 
     return { feature: f, distanceKm, index: i };
   }).filter((x: any) => x.distanceKm === null || x.distanceKm <= radiusKm).sort((a: any, b: any) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999)).slice(0, 20);
 
-  return results.map((x: any) => ({
-    id: `pgi-borehole-${x.feature.id ?? x.index}`,
-    category: 'Boreholes',
-    claim: `PIG-PIB borehole record identified${x.distanceKm !== null ? ` ${x.distanceKm.toFixed(2)} km from the site centre` : ''}.`,
-    status: 'VERIFIED' as const,
-    sourceName: SOURCE,
-    sourceUrl: url,
-    datasetDate: new Date().toISOString().slice(0, 10),
-    spatialRelationship: x.distanceKm !== null ? `${x.distanceKm.toFixed(2)} km from site centre` : `Within ${radiusKm} km search window`,
-    calculationMethod: 'PIG-PIB OGC API Features spatial query',
-    confidence: x.distanceKm !== null && x.distanceKm < 0.5 ? 'High' as const : 'Medium' as const,
-    value: { featureId: x.feature.id, properties: x.feature.properties, coordinates: x.feature.geometry?.coordinates, distanceKm: x.distanceKm, collection: collection.id },
-    limitation: 'A nearby borehole is supporting regional evidence; its lithological and groundwater observations must be interpreted from the original record before being treated as site-specific conditions.'
-  }));
+  if (!results.length) return [{ id: 'pgi-boreholes-none-found', category: 'Boreholes', claim: `PIG-PIB borehole collection was queried successfully, but no borehole feature was returned within ${radiusKm} km of the site centre.`, status: 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: url, datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: `No returned feature within ${radiusKm} km`, calculationMethod: 'PIG-PIB OGC API Features spatial query', confidence: 'Low', value: { collection: collection.id, featureCount: 0 }, limitation: 'No mapped borehole in this dataset is not proof that no borehole exists. Local archives and additional drilling records may contain information.' }];
+
+  return results.map((x: any) => {
+    const profile = profileFromProperties(x.feature.properties);
+    return {
+      id: `pgi-borehole-${x.feature.id ?? x.index}`,
+      category: 'Boreholes',
+      claim: `PIG-PIB borehole record identified${x.distanceKm !== null ? ` ${x.distanceKm.toFixed(2)} km from the site centre` : ''}${profile ? '; geological/profile properties were returned with the feature.' : '.'}`,
+      status: 'VERIFIED' as const,
+      sourceName: SOURCE,
+      sourceUrl: url,
+      datasetDate: new Date().toISOString().slice(0, 10),
+      spatialRelationship: x.distanceKm !== null ? `${x.distanceKm.toFixed(2)} km from site centre` : `Within ${radiusKm} km search window`,
+      calculationMethod: 'PIG-PIB OGC API Features spatial query',
+      confidence: x.distanceKm !== null && x.distanceKm < 0.5 ? 'High' as const : 'Medium' as const,
+      value: { featureId: x.feature.id, coordinates: x.feature.geometry?.coordinates, distanceKm: x.distanceKm, collection: collection.id, properties: x.feature.properties, geologicalProfileProperties: profile },
+      limitation: profile ? 'Returned borehole properties are evidence from a nearby record, not a continuous site-specific ground model. Interpret depths, lithology and groundwater observations from the original borehole documentation before design use.' : 'A nearby borehole is supporting regional evidence; its lithological and groundwater observations must be interpreted from the original record before being treated as site-specific conditions.'
+    };
+  });
 }
 
 async function wmsGetInfo(serviceUrl: string, layer: string, lat: number, lng: number): Promise<any | null> {
@@ -103,9 +128,10 @@ export async function queryPolandGeologicalMaps(lat: number, lng: number): Promi
   for (const map of maps) {
     const layers = await wmsLayers(map.url);
     if (!layers.length) { evidence.push({ id: `pgi-${map.id}-unavailable`, category: map.title, claim: `${map.title}: WMS service could not be queried.`, status: 'UNAVAILABLE', sourceName: SOURCE, sourceUrl: map.url, datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: 'Site coordinate', calculationMethod: 'WMS GetCapabilities', confidence: 'Low', value: null, limitation: 'Service failure is not evidence of absence.' }); continue; }
-    let info: any = null; let selectedLayer = '';
-    for (const layer of layers.slice(0, 12)) { const candidate = await wmsGetInfo(map.url, layer, lat, lng); if (candidate && (candidate.features?.length || candidate.FeatureInfo?.length || Object.keys(candidate).length)) { info = candidate; selectedLayer = layer; break; } }
-    evidence.push({ id: `pgi-${map.id}-site`, category: map.title, claim: info ? `${map.title}: site coordinate returned map feature information.` : `${map.title}: map service is available, but no feature information was returned at the tested coordinate.`, status: info ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: map.url, datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: 'Exact site centre queried', calculationMethod: 'OGC WMS GetFeatureInfo at site coordinate', confidence: info ? 'Medium' : 'Low', value: { scale: map.scale, queriedLayer: selectedLayer || null, featureInfo: info }, limitation: info ? 'Raster/map-service interpretation is desktop evidence and should be verified against the map sheet, explanatory text and site investigation.' : 'A reachable map service without returned feature information does not establish the geological unit.' });
+    const selectedLayer = selectMapLayer(layers, map.id);
+    const info = selectedLayer ? await wmsGetInfo(map.url, selectedLayer, lat, lng) : null;
+    const features = info?.features || info?.FeatureInfo || [];
+    evidence.push({ id: `pgi-${map.id}-site`, category: map.title, claim: info && (features.length || Object.keys(info).length) ? `${map.title}: site coordinate returned map feature information.` : `${map.title}: map service is available, but no feature information was returned at the tested coordinate.`, status: info && (features.length || Object.keys(info).length) ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: map.url, datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: 'Exact site centre queried', calculationMethod: 'OGC WMS GetFeatureInfo at selected geological layer', confidence: info && (features.length || Object.keys(info).length) ? 'Medium' : 'Low', value: { scale: map.scale, availableLayers: layers.slice(0, 100), queriedLayer: selectedLayer, featureInfo: info }, limitation: info ? 'Map-service evidence should be cross-checked against the map sheet, explanatory text and site investigation before design use.' : 'A reachable map service without returned feature information does not establish the geological unit.' });
   }
   return evidence;
 }
