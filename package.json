@@ -7,6 +7,7 @@
     "dev": "tsx server.ts",
     "build": "vite build",
     "build:server": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:render": "npm run build:server",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
