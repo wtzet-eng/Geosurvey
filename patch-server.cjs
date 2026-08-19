@@ -21,5 +21,18 @@ source = source
   .replaceAll('evidenceReport.geosurvey_context.geological_period_era', 'reportContext.geological_period_era')
   .replaceAll('evidenceReport.geosurvey_context.evidence_level', 'reportContext.evidence_level');
 
+// Never expose the generic Germany fallback for UK. If BGS cannot resolve a
+// feature, show an honest UK-specific message instead of a foreign regional unit.
+source = source.replace(
+  "let geologicalUnitName = `${cProfile.countryName} Regional Sedimentary Province`;",
+  "let geologicalUnitName = countryCode === 'GB' ? 'BGS geological unit not resolved from the returned DiGMapGB feature' : `${cProfile.countryName} Regional Sedimentary Province`;"
+);
+
+// Pass the selected report language into the UK checklist generator.
+source = source.replace(
+  'getUKVerificationChecklist(municipality, stateName)',
+  'getUKVerificationChecklist(municipality, stateName, language)'
+);
+
 fs.writeFileSync(file, source);
-console.log('Applied resilient geology/report-assembly patch to server.ts');
+console.log('Applied resilient geology, UK fallback, and localized checklist patch to server.ts');
