@@ -244,21 +244,30 @@ export default function App() {
         throw new Error('Failed to analyze site. Please try again.');
       }
 
-      const reportData = await res.json();
+      const reportPayload = await res.json();
 
-      const newReport: SiteReport = {
-        id: 'rep_' + Math.random().toString(36).substring(2, 9),
-        created_at: new Date().toISOString(),
-        location_name: reportData.location_name || `${center[0].toFixed(4)}, ${center[1].toFixed(4)}`,
-        country: currentCountry.name,
-        country_code: currentCountry.code,
-        language: languageCode,
-        latitude: center[0],
-        longitude: center[1],
-        area_size: Math.round(areaSize),
-        boundary: shape,
-        report_data: reportData,
-      };
+const newReport: SiteReport = reportPayload?.report_data ? {
+  ...reportPayload,
+  country: reportPayload.country || currentCountry.name,
+  country_code: reportPayload.country_code || currentCountry.code,
+  language: reportPayload.language || languageCode,
+  latitude: Number(reportPayload.latitude ?? center[0]),
+  longitude: Number(reportPayload.longitude ?? center[1]),
+  area_size: Number(reportPayload.area_size ?? Math.round(areaSize)),
+  boundary: reportPayload.boundary || shape,
+} : {
+  id: 'rep_' + Math.random().toString(36).substring(2, 9),
+  created_at: new Date().toISOString(),
+  location_name: reportPayload.location_name || `${center[0].toFixed(4)}, ${center[1].toFixed(4)}`,
+  country: currentCountry.name,
+  country_code: currentCountry.code,
+  language: languageCode,
+  latitude: center[0],
+  longitude: center[1],
+  area_size: Math.round(areaSize),
+  boundary: shape,
+  report_data: reportPayload,
+};
 
       saveReportToStore(newReport);
       setActiveReport(newReport);
