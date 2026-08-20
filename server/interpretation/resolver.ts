@@ -26,10 +26,14 @@ export function validateInterpretationRecord(record: GeologicalInterpretationRec
 }
 
 export function resolveGeologicalInterpretation(geology: CanonicalReport['geology'], records = GEOLOGICAL_INTERPRETATIONS): ResolvedGeologicalInterpretation | null {
-  const identities = [geology.unitName, geology.lithology].filter((value): value is string => Boolean(value));
   const matches = records
     .filter(record => validateInterpretationRecord(record).valid)
-    .flatMap(record => identities.flatMap(identity => [record.geologicalIdentity, ...record.aliases].some(alias => normalized(alias) === normalized(identity)) ? [{ record, matchedGeologicalIdentity: identity, matchLevel: record.matchLevel }] : []))
+    .flatMap(record => {
+      const identity = record.matchLevel === 'LITHOLOGY' ? geology.lithology : geology.unitName;
+      if (!identity) return [];
+      const matched = [record.geologicalIdentity, ...record.aliases].some(alias => normalized(alias) === normalized(identity));
+      return matched ? [{ record, matchedGeologicalIdentity: identity, matchLevel: record.matchLevel }] : [];
+    })
     .sort((a, b) => rank[b.matchLevel] - rank[a.matchLevel]);
   return matches[0] || null;
 }
