@@ -1,4 +1,7 @@
 import { EvidenceLevel } from '../types';
+import { resolveSource } from '../sources/resolver';
+import { sourceEndpoints } from '../sources/registry';
+import { LogicalSourceId, SourceEndpoint, SourceProvenance } from '../sources/sourceTypes';
 
 export type EvidenceTier = 1 | 2 | 3 | 4;
 export interface BgsGeologyEvidence {
@@ -14,6 +17,7 @@ export interface BgsGeologyEvidence {
   sourceUrl: string;
   scale: string | null;
   limitation: string;
+  resolverProvenance?: SourceProvenance;
 }
 export interface BgsGroundwaterEvidence {
   available: boolean;
@@ -23,6 +27,7 @@ export interface BgsGroundwaterEvidence {
   sourceName: string;
   sourceUrl: string;
   limitation: string;
+  resolverProvenance?: SourceProvenance;
 }
 export interface BgsBoreholeContext {
   available: boolean;
@@ -33,6 +38,7 @@ export interface BgsBoreholeContext {
   sourceName: string;
   sourceUrl: string;
   limitation: string;
+  resolverProvenance?: SourceProvenance;
 }
 export interface BgsSiteEvidence { geology: BgsGeologyEvidence; groundwater: BgsGroundwaterEvidence; boreholes: BgsBoreholeContext; }
 
@@ -48,10 +54,11 @@ type FetchLike = typeof fetch;
 type ArcLayer = { id: number; name?: string; maxScale?: number; minScale?: number };
 type Endpoint = { url: string; tier: 1 | 2; scale: string; label: string; bedrockLayerId: number; superficialLayerId: number };
 
+const registeredUrl = (id: LogicalSourceId) => sourceEndpoints(id)[0]?.url || '';
 export const BGS_ENDPOINTS = {
-  detailed: 'https://map.bgs.ac.uk/arcgis/rest/services/BGS_Detailed_Geology/MapServer',
-  regional: 'https://map.bgs.ac.uk/arcgis/rest/services/SDDS/Geology_625k/MapServer',
-  geoIndex: 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/MapServer'
+  detailed: registeredUrl('BGS_DETAILED_GEOLOGY'),
+  regional: registeredUrl('BGS_REGIONAL_GEOLOGY'),
+  geoIndex: registeredUrl('BGS_BOREHOLES')
 } as const;
 type BgsEndpoints = { detailed: string; regional: string; geoIndex: string };
 
@@ -145,15 +152,40 @@ async function queryContext(fetcher: FetchLike, endpoint: string, lat: number, l
   return { groundwater, boreholes };
 }
 
+async function resolveArcGisSource(id: LogicalSourceId, fetcher: FetchLike) {
+  return resolveSource(id, async (endpoint: SourceEndpoint) => {
+    if (!endpoint.expectedLayers.length) {
+      try { const response = await fetcher(`${endpoint.url}?f=pjson`, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 (source validation)' } }); const payload:any = response.ok ? await response.json() : null; const layers = Array.isArray(payload?.layers) ? payload.layers : []; return { connectivity: response.status > 0, httpStatus: response.status, serviceAvailable: Boolean(payload), observedLayers: layers.map((layer:any)=>layer.id), observedFields: [], capabilities: payload?.capabilities && /query/i.test(payload.capabilities) ? ['query'] : ['query'] }; }
+      catch { return { connectivity:false, serviceAvailable:false, observedLayers:[], observedFields:[], capabilities:[] }; }
+    }
+    const layerResponses = await Promise.all(endpoint.expectedLayers.map(async layer => {
+      try { const response = await fetcher(`${endpoint.url}/${layer}?f=pjson`, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 (source validation)' } }); const payload: any = response.ok ? await response.json() : null; return { layer, status: response.status, payload }; }
+      catch { return { layer, status: 0, payload: null }; }
+    }));
+    const status = layerResponses.find(item => item.status !== 200)?.status || (layerResponses.length ? 200 : 0);
+    const observedFields = layerResponses.flatMap(item => Array.isArray(item.payload?.fields) ? item.payload.fields.map((field:any)=>({name:String(field.name),type:String(field.type||'')})) : []);
+    return { connectivity: status > 0, httpStatus: status || undefined, serviceAvailable: layerResponses.length > 0 && layerResponses.every(item => item.status === 200 && item.payload), observedLayers: layerResponses.filter(item => item.status === 200).map(item => item.layer), observedFields, capabilities: layerResponses.every(item => item.payload?.capabilities ? /query/i.test(item.payload.capabilities) : true) ? ['query'] : [] };
+  }, { useCachedResolution: true });
+}
+
 /** BGS-first UK acquisition: detailed mapping, regional fallback, then explicit unavailability. */
-export async function fetchBgsSiteEvidence(lat: number, lng: number, fetcher: FetchLike = fetch, endpoints: BgsEndpoints = BGS_ENDPOINTS): Promise<BgsSiteEvidence> {
-  const detailed: Endpoint = { url: endpoints.detailed, tier: 1, scale: '1:50,000', label: 'Detailed Geology', bedrockLayerId: 4, superficialLayerId: 3 };
-  const regional: Endpoint = { url: endpoints.regional, tier: 2, scale: '1:625,000', label: 'Regional Geology', bedrockLayerId: 3, superficialLayerId: 2 };
-  const detailedResult = await queryGeologyEndpoint(fetcher, detailed, lat, lng);
+export async function fetchBgsSiteEvidence(lat: number, lng: number, fetcher: FetchLike = fetch, endpoints?: BgsEndpoints): Promise<BgsSiteEvidence> {
+  const detailedResolution = endpoints ? null : await resolveArcGisSource('BGS_DETAILED_GEOLOGY', fetcher);
+  const detailed: Endpoint = { url: endpoints?.detailed || detailedResolution?.endpoint?.url || '', tier: 1, scale: '1:50,000', label: 'Detailed Geology', bedrockLayerId: 4, superficialLayerId: 3 };
+  const detailedResult = detailed.url ? await queryGeologyEndpoint(fetcher, detailed, lat, lng) : null;
   const detailedHasBedrock = Boolean(detailedResult?.unitName || detailedResult?.lithology || detailedResult?.geologicalAge);
-  let geology = detailedHasBedrock ? detailedResult! : await queryGeologyEndpoint(fetcher, regional, lat, lng) || detailedResult || unavailableGeology();
+  const regionalResolution = detailedHasBedrock || endpoints ? null : await resolveArcGisSource('BGS_REGIONAL_GEOLOGY', fetcher);
+  const regional: Endpoint = { url: endpoints?.regional || regionalResolution?.endpoint?.url || '', tier: 2, scale: '1:625,000', label: 'Regional Geology', bedrockLayerId: 3, superficialLayerId: 2 };
+  let geology = detailedHasBedrock ? detailedResult! : (regional.url ? await queryGeologyEndpoint(fetcher, regional, lat, lng) : null) || detailedResult || unavailableGeology();
   if (geology.tier === 2 && detailedResult?.superficialDeposit) geology = { ...geology, superficialDeposit: detailedResult.superficialDeposit, superficialLithology: detailedResult.superficialLithology };
   console.info('[BGS acquisition]', { selectedTier: geology.tier, sourceUrl: geology.sourceUrl, available: geology.available });
-  const context = await queryContext(fetcher, endpoints.geoIndex, lat, lng);
+  if (geology.tier === 1 && detailedResolution?.provenance) geology.resolverProvenance = detailedResolution.provenance;
+  if (geology.tier === 2 && regionalResolution?.provenance) geology.resolverProvenance = regionalResolution.provenance;
+  const boreholeResolution = endpoints ? null : await resolveArcGisSource('BGS_BOREHOLES', fetcher);
+  const hydroResolution = endpoints ? null : await resolveArcGisSource('BGS_HYDROGEOLOGY', fetcher);
+  const geoIndex = endpoints?.geoIndex || boreholeResolution?.endpoint?.url || hydroResolution?.endpoint?.url || '';
+  const context = geoIndex ? await queryContext(fetcher, geoIndex, lat, lng) : { groundwater: unavailableGroundwater(), boreholes: unavailableBoreholes() };
+  if (hydroResolution?.provenance) context.groundwater.resolverProvenance = hydroResolution.provenance;
+  if (boreholeResolution?.provenance) context.boreholes.resolverProvenance = boreholeResolution.provenance;
   return { geology, ...context };
 }

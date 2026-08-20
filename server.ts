@@ -9,6 +9,7 @@ import { queryPolandSiteEvidence } from './server/services/pgiSiteEvidenceServic
 import { queryPolandHydroAndHazards } from './server/services/pgiSupplementEvidenceService';
 import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
+import { resolveGeologicalInterpretation, renderGeologicalInterpretation } from './server/interpretation/resolver';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -62,12 +63,15 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const canonicalReport = createCanonicalReport(evidenceReport, cProfile);
     const acquisitionContext = (evidenceReport as typeof evidenceReport & { geosurvey_context?: Record<string, unknown> }).geosurvey_context || {};
     const presentation = renderLocalizedReport(canonicalReport, language);
+    const resolvedInterpretation = countryCode === 'GB' ? resolveGeologicalInterpretation(canonicalReport.geology) : null;
+    const engineeringGeologyContext = resolvedInterpretation ? renderGeologicalInterpretation(resolvedInterpretation, language) : null;
     const titles = presentation.titles;
     const reportData = {
       site_value_estimate: { min: evidenceReport.valuation.indicativeMinPrice, max: evidenceReport.valuation.indicativeMaxPrice, median: evidenceReport.valuation.indicativeMedianPrice, currency: evidenceReport.valuation.currency, basis: presentation.valuationMethodology, evidence_level: evidenceReport.valuation.status, uncertainty_rating: evidenceReport.valuation.uncertaintyRating },
       confidence_level: evidenceReport.evidenceScore.ratingClass,
       evidence_score: evidenceReport.evidenceScore,
       canonical_evidence: canonicalReport,
+      engineering_geology_context: engineeringGeologyContext,
       evidence_registry: presentation.evidenceRegistry,
       verification_checklist: presentation.verificationChecklist,
       summary: presentation.summary,

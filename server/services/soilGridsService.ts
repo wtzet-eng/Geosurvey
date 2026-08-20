@@ -1,3 +1,7 @@
+import { sourceEndpoints } from '../sources/registry';
+import { resolveSource } from '../sources/resolver';
+import { SourceProvenance } from '../sources/sourceTypes';
+
 /**
  * ISRIC SoilGrids 2.0 REST API Integration Service
  * Fetches genuine global scientific soil data (0-200 cm depth profiles):
@@ -51,11 +55,14 @@ export interface SoilGridsResult {
   topsoilStrippingDepthCm: number;
   stratigraphyProfile: SoilLayerDepth[];
   limitation: string;
+  resolverProvenance?: SourceProvenance;
 }
 
-const SOILGRIDS_WMS = 'https://maps.isric.org/mapserv';
+const soilRoutes = sourceEndpoints('SOILGRIDS_MODEL');
+const SOILGRIDS_REST = soilRoutes.find(endpoint => endpoint.type === 'REST_JSON')?.url || '';
+const SOILGRIDS_WMS = soilRoutes.find(endpoint => endpoint.type === 'WMS')?.url || '';
 
-async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGridsResult): Promise<SoilGridsResult> {
+async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGridsResult, resolverProvenance?: SourceProvenance): Promise<SoilGridsResult> {
   const properties = ['sand', 'silt', 'clay', 'soc', 'bdod', 'phh2o'] as const;
   const depths = ['0-5cm', '30-60cm'] as const;
   const numericValue = (input: any): number | null => {
@@ -98,7 +105,7 @@ async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGri
     return { depthRange: `${top} – ${bottom} cm`, topDepthCm: top, bottomDepthCm: bottom, sandPct: sand, siltPct: silt, clayPct: clay, bulkDensityGcm3: density, soilOrganicCarbonPct: soc, phH2O: ph, cec: NaN, textureClass: getUsdaTextureClass(sand, silt, clay), estimatedBearingCapacityKpa: NaN, mechanicalDescription: 'Modelled pedological properties only; no engineering design parameters inferred.' };
   };
   const top = layer('0-5cm', 0, 5), sub = layer('30-60cm', 30, 60);
-  return { ...fallback, success: true, sourceName: 'ISRIC SoilGrids 2.0 (WMS raster point access)', sourceUrl: SOILGRIDS_WMS, datasetVersion: 'SoilGrids 2.0 — 250 m raster, mean values at 0–5 cm and 30–60 cm', usdaTextureClass: top.textureClass, topsoilSandPct: top.sandPct, topsoilSiltPct: top.siltPct, topsoilClayPct: top.clayPct, subsoilSandPct: sub.sandPct, subsoilSiltPct: sub.siltPct, subsoilClayPct: sub.clayPct, meanBulkDensityGcm3: (top.bulkDensityGcm3 + sub.bulkDensityGcm3) / 2, meanPhH2O: (top.phH2O + sub.phH2O) / 2, meanOrganicCarbonPct: (top.soilOrganicCarbonPct + sub.soilOrganicCarbonPct) / 2, stratigraphyProfile: [top, sub], limitation: 'SoilGrids 250 m modelled raster values. Depth intervals and resolution are preserved. No bearing capacity, friction angle, cohesion, settlement or foundation recommendation is inferred.' };
+  return { ...fallback, resolverProvenance, success: true, sourceName: 'ISRIC SoilGrids 2.0 (WMS raster point access)', sourceUrl: SOILGRIDS_WMS, datasetVersion: 'SoilGrids 2.0 — 250 m raster, mean values at 0–5 cm and 30–60 cm', usdaTextureClass: top.textureClass, topsoilSandPct: top.sandPct, topsoilSiltPct: top.siltPct, topsoilClayPct: top.clayPct, subsoilSandPct: sub.sandPct, subsoilSiltPct: sub.siltPct, subsoilClayPct: sub.clayPct, meanBulkDensityGcm3: (top.bulkDensityGcm3 + sub.bulkDensityGcm3) / 2, meanPhH2O: (top.phH2O + sub.phH2O) / 2, meanOrganicCarbonPct: (top.soilOrganicCarbonPct + sub.soilOrganicCarbonPct) / 2, stratigraphyProfile: [top, sub], limitation: 'SoilGrids 250 m modelled raster values. Depth intervals and resolution are preserved. No bearing capacity, friction angle, cohesion, settlement or foundation recommendation is inferred.' };
 }
 
 /**
@@ -230,28 +237,23 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
   try {
     const propsQuery = properties.map(p => `property=${p}`).join('&');
     const depthsQuery = depthIntervals.map(d => `depth=${d}`).join('&');
-    const url = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lng}&lat=${lat}&${propsQuery}&${depthsQuery}`;
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6500);
-
-    const res = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'EuropeanLandValuationEngine/5.0 (Research & Geospatial Verification)'
-      },
-      signal: controller.signal
+    const resolution = await resolveSource('SOILGRIDS_MODEL', async endpoint => {
+      const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 6500);
+      try {
+        if (endpoint.type === 'REST_JSON') {
+          const response = await fetch(`${endpoint.url}?lon=${lng}&lat=${lat}&${propsQuery}&${depthsQuery}`, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 (SoilGrids source validation)' }, signal: controller.signal });
+          const payload: any = response.ok ? await response.json() : null; const layers = Array.isArray(payload?.properties?.layers) ? payload.properties.layers : [];
+          return { connectivity: response.status > 0, httpStatus: response.status, serviceAvailable: Boolean(payload), observedLayers: [], observedFields: layers.map((layer:any)=>({name:String(layer.name),type:'soil-property'})), capabilities: ['point-query'], payload };
+        }
+        const layer = 'sand_0-5cm_mean'; const delta = .001; const params = new URLSearchParams({ map:'/map/sand.map', SERVICE:'WMS', VERSION:'1.1.1', REQUEST:'GetFeatureInfo', SRS:'EPSG:4326', BBOX:`${lng-delta},${lat-delta},${lng+delta},${lat+delta}`, WIDTH:'3', HEIGHT:'3', X:'1', Y:'1', LAYERS:layer, QUERY_LAYERS:layer, INFO_FORMAT:'text/plain' });
+        const response = await fetch(`${endpoint.url}?${params}`, { headers: { Accept:'text/plain, application/json, application/xml, text/xml', 'User-Agent':'GeoSurvey/1.0 (SoilGrids source validation)' }, signal:controller.signal }); const body = response.ok ? await response.text() : '';
+        return { connectivity: response.status > 0, httpStatus: response.status, serviceAvailable: response.ok && body.length > 0, observedLayers: response.ok && body.length ? endpoint.expectedLayers : [], observedFields: [], capabilities: response.ok && body.length ? ['GetFeatureInfo'] : [] };
+      } catch { return { connectivity:false, serviceAvailable:false, observedLayers:[], observedFields:[], capabilities:[] }; } finally { clearTimeout(timer); }
     });
-    clearTimeout(timer);
-
-    if (!res.ok) {
-      return await fetchSoilGridsWmsData(lat, lng, fallback);
-    }
-
-    const json: any = await res.json();
-    if (!json || !Array.isArray(json.properties?.layers)) {
-      return await fetchSoilGridsWmsData(lat, lng, fallback);
-    }
+    if (!resolution.endpoint) return fallback;
+    if (resolution.endpoint.type === 'WMS') return await fetchSoilGridsWmsData(lat, lng, fallback, resolution.provenance || undefined);
+    const json: any = resolution.probe?.payload;
+    if (!json || !Array.isArray(json.properties?.layers)) return await fetchSoilGridsWmsData(lat, lng, fallback);
 
     const layers = json.properties.layers;
     const findProp = (name: string) => layers.find((l: any) => l.name === name);
@@ -365,8 +367,9 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
 
     return {
       success: true,
+      resolverProvenance: resolution.provenance || undefined,
       sourceName: 'ISRIC SoilGrids 2.0 (Direct High-Resolution Scientific REST API)',
-      sourceUrl: 'https://rest.isric.org/soilgrids/v2.0/properties/query',
+      sourceUrl: SOILGRIDS_REST,
       datasetVersion: 'ISRIC SoilGrids 2.0 (250m Global Spatial Grid)',
       usdaTextureClass: overallTexture,
       topsoilClayPct: topClay,

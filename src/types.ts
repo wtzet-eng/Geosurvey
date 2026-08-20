@@ -215,11 +215,23 @@ export interface EuropeanSurveyContext {
   evidence_level?: EvidenceLevel;
 }
 
+
+export interface EngineeringGeologyContext {
+  evidenceType: 'PUBLISHED_REGIONAL_INTERPRETATION';
+  matchedGeologicalIdentity: string;
+  matchLevel: 'FORMATION' | 'GROUP' | 'LITHOLOGY';
+  summary: string;
+  disclaimer: string;
+  siteSpecific: false;
+  source: { publicationIdentity: string; title: string; publisher: string; publicationId: string; url: string; year?: number };
+}
+
 export interface ReportData {
   site_value_estimate: SiteValueEstimate;
   confidence_level: 'High' | 'Medium' | 'Low' | string;
   evidence_score?: EvidenceQualityScore;
   canonical_evidence?: unknown;
+  engineering_geology_context?: EngineeringGeologyContext | null;
   evidence_registry?: EvidenceItem[];
   verification_checklist?: VerificationRequirement[];
   summary: string;

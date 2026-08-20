@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fetchBgsSiteEvidence, ukGeotechnicalDesignFallback } from './bgsEvidenceService';
+import { clearOperationalMetadata } from '../sources/resolver';
 
 const endpoints = { detailed: 'https://test/detailed', regional: 'https://test/regional', geoIndex: 'https://test/geo' };
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
@@ -9,6 +10,20 @@ const mockFetch = (routes: (url: string) => unknown): typeof fetch => (async (in
 const liveBedrockShape = { features: [{ attributes: { OBJECTID: 42, LEX: 'WAW', LEX_RCS_I: 'WAW-MDST', LEX_RCS_D: 'WARWICKSHIRE GROUP - MUDSTONE, SILTSTONE AND SANDSTONE', LEX_D: 'WARWICKSHIRE GROUP', RCS: 'MDST', RCS_D: 'MUDSTONE, SILTSTONE AND SANDSTONE', MIN_TIME_D: 'DUCKMANTIAN', MAX_TIME_D: 'BOLSOVIAN', MIN_PERIOD: 'CARBONIFEROUS', MAX_PERIOD: 'CARBONIFEROUS', MAX_EPOCH: 'PENNSYLVANIAN', MAX_ERA: 'PALAEOZOIC', RANK: 'GROUP', NOM_SCALE: '1:50 000' } }] };
 const liveSuperficialShape = { features: [{ attributes: { OBJECTID: 99, LEX: 'ALV', LEX_RCS_D: 'ALLUVIUM - CLAY, SILT, SAND AND GRAVEL', LEX_D: 'ALLUVIUM', RCS: 'CLSS', RCS_D: 'CLAY, SILT, SAND AND GRAVEL', MAX_PERIOD: 'QUATERNARY', NOM_SCALE: '1:50 000' } }] };
 const emptyContext = (url: string) => url === `${endpoints.geoIndex}?f=pjson` ? { layers: [] } : undefined;
+
+test('registered BGS route resolves before the unchanged scientific parser runs', async () => {
+  clearOperationalMetadata();
+  const result = await fetchBgsSiteEvidence(52, -1, mockFetch(url => {
+    if (/MapServer\/[34]\?f=pjson/.test(url)) return { capabilities: 'Query', fields: [{ name: 'LEX_D', type: 'esriFieldTypeString' }, { name: 'RCS_D', type: 'esriFieldTypeString' }, { name: 'MIN_TIME_D', type: 'esriFieldTypeString' }] };
+    if (url.includes('BGS_Detailed_Geology/MapServer/4/query')) return liveBedrockShape;
+    if (url.includes('BGS_Detailed_Geology/MapServer/3/query')) return liveSuperficialShape;
+    if (url.includes('GeoIndex_Onshore/MapServer?f=pjson')) return { layers: [] };
+  }));
+  assert.equal(result.geology.unitName, 'WARWICKSHIRE GROUP');
+  assert.equal(result.geology.resolverProvenance?.logicalSourceId, 'BGS_DETAILED_GEOLOGY');
+  assert.equal(result.geology.resolverProvenance?.evidenceTier, 1);
+  assert.ok(result.geology.resolverProvenance?.schemaFingerprint);
+});
 
 test('live BGS detailed fields map explicitly and superficial geology remains separate', async () => {
   const result = await fetchBgsSiteEvidence(52, -1, mockFetch(url => {
