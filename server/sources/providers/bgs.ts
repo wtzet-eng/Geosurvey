@@ -11,6 +11,9 @@ const common = {
   approval: 'APPROVED' as const
 };
 
+const bedrockGroups = [['LEX_D', 'LEX_RCS_D', 'LEX'], ['RCS_D', 'RCS_X', 'LEX_RCS_D'], ['MIN_TIME_D', 'MIN_PERIOD', 'MAX_PERIOD']];
+const superficialGroups = [['LEX_D', 'LEX_RCS_D', 'LEX'], ['RCS_D', 'RCS_X', 'LEX_RCS_D']];
+
 export const BGS_SOURCE_ENDPOINTS: SourceEndpoint[] = [
   {
     ...common,
@@ -21,7 +24,11 @@ export const BGS_SOURCE_ENDPOINTS: SourceEndpoint[] = [
     evidenceTier: 1,
     compatibilityGroup: 'bgs-detailed-50k',
     expectedLayers: [3, 4],
-    requiredFieldGroups: [['LEX_D', 'LEX_RCS_D', 'LEX'], ['RCS_D', 'RCS_X', 'LEX_RCS_D'], ['MIN_TIME_D', 'MIN_PERIOD', 'MAX_PERIOD']],
+    requiredFieldGroups: [],
+    layerSchemaRequirements: [
+      { layer: 4, requiredFieldGroups: bedrockGroups },
+      { layer: 3, requiredFieldGroups: superficialGroups }
+    ],
     provenance: 'BGS Detailed Geology, bedrock layer 4 and superficial layer 3'
   },
   {
@@ -33,7 +40,11 @@ export const BGS_SOURCE_ENDPOINTS: SourceEndpoint[] = [
     evidenceTier: 2,
     compatibilityGroup: 'bgs-regional-625k',
     expectedLayers: [2, 3],
-    requiredFieldGroups: [['LEX_D', 'LEX_RCS_D', 'LEX'], ['RCS_D', 'RCS_X', 'LEX_RCS_D']],
+    requiredFieldGroups: [],
+    layerSchemaRequirements: [
+      { layer: 3, requiredFieldGroups: superficialGroups },
+      { layer: 2, requiredFieldGroups: superficialGroups }
+    ],
     provenance: 'BGS 1:625,000 regional geology, bedrock layer 3 and superficial layer 2'
   },
   {
