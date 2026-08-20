@@ -1,4 +1,5 @@
 import { CanonicalReport, ReportLanguage, RiskClassification, normalizeReportLanguage } from './canonicalReport';
+import { renderGeologicalInterpretation, resolveGeologicalInterpretation } from '../interpretation/resolver';
 
 type Section = { summary: string; detail: string; evidence_level: string; source_cited?: string; limitation_notice?: string };
 
@@ -32,6 +33,10 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const terrainText = canonical.terrain.elevationM === null ? t.terrainMissing as string : interpolate(t.terrain as string, { elevation: canonical.terrain.elevationM, slope: value(canonical.terrain.slopeDegrees, unavailable) });
   const soilText = interpolate(t.soil as string, { texture: value(canonical.soil.texture, unavailable), bearing: value(canonical.soil.bearingCapacity, unavailable) });
   const geologyText = canonical.geology.unitName ? interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: canonical.geology.unitName }) : t.geologyMissing as string;
+  const resolvedInterpretation = canonical.countryCode === 'GB' ? resolveGeologicalInterpretation(canonical.geology) : null;
+  const interpretation = resolvedInterpretation ? renderGeologicalInterpretation(resolvedInterpretation, language) : null;
+  const geologyDetail = interpretation ? `${geologyText} ${interpretation.summary} ${interpretation.disclaimer}` : geologyText;
+  const geologySource = interpretation ? `${canonical.geology.sourceName}; ${interpretation.source.title} (${interpretation.source.publicationId}) — ${interpretation.source.url}` : canonical.geology.sourceName;
   const floodText = interpolate(t.flood as string, { risk: risk(canonical.flood.classification, language) });
   const hazardText = hazardCopy[language];
   const roadText = interpolate(t.road as string, { road: value(canonical.infrastructure.roadName || canonical.infrastructure.roadType, unavailable), distance: value(canonical.infrastructure.distanceM, unavailable) });
@@ -55,7 +60,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     titles: language === 'pl' ? { estimated_value: 'Orientacyjna wartość statystyczna', confidence: 'Jakość dowodów', executive_summary: 'Podsumowanie wykonawcze' } : language === 'de' ? { estimated_value: 'Indikativer statistischer Wert', confidence: 'Evidenzqualität', executive_summary: 'Zusammenfassung' } : { estimated_value: 'Indicative statistical value', confidence: 'Evidence quality', executive_summary: 'Executive summary' },
     sections: {
       soil_and_ground: section(soilText, canonical.soil.reasonCode ? t.sourceUnavailable as string : t.authoritative as string, canonical.soil.status, canonical.soil.sourceName, unavailableNotice(canonical.soil.reasonCode)),
-      geohazard_risk: section(interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: geologyUnit }), geologyText, canonical.geology.status, canonical.geology.sourceName, unavailableNotice(canonical.geology.reasonCode)),
+      geohazard_risk: section(interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: geologyUnit }), geologyDetail, canonical.geology.status, geologySource, unavailableNotice(canonical.geology.reasonCode)),
       flooding_risk: section(floodText, canonical.flood.reasonCode ? t.sourceUnavailable as string : t.authoritative as string, canonical.flood.status, canonical.flood.sourceName, unavailableNotice(canonical.flood.reasonCode)),
       zoning_and_land_use: section(interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), t.authoritative as string, canonical.planning.status, canonical.planning.sourceName),
       building_regulations: section(t.authoritative as string, interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), canonical.planning.status, canonical.planning.authorityName),
