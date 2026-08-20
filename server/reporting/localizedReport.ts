@@ -11,9 +11,15 @@ const copy = {
 const interpolate = (template: string, values: Record<string, unknown>) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), template);
 const value = (input: unknown, unavailable: string) => input === null || input === undefined || input === '' ? unavailable : String(input);
 const risk = (classification: RiskClassification, language: ReportLanguage) => {
-  const labels = { en: { NEGLIGIBLE: 'negligible', LOW: 'low', MODERATE: 'moderate', HIGH: 'high' }, de: { NEGLIGIBLE: 'vernachlässigbar', LOW: 'gering', MODERATE: 'mäßig', HIGH: 'hoch' }, pl: { NEGLIGIBLE: 'pomijalne', LOW: 'niskie', MODERATE: 'umiarkowane', HIGH: 'wysokie' } };
+  const labels = { en: { NEGLIGIBLE: 'Negligible', LOW: 'Low', MODERATE: 'Moderate', HIGH: 'High' }, de: { NEGLIGIBLE: 'Vernachlässigbar', LOW: 'Gering', MODERATE: 'Mäßig', HIGH: 'Hoch' }, pl: { NEGLIGIBLE: 'Znikome', LOW: 'Niskie', MODERATE: 'Umiarkowane', HIGH: 'Wysokie' } };
   return classification ? labels[language][classification] : copy[language].unavailable as string;
 };
+
+const hazardCopy = {
+  en: { landslide: 'Landslide susceptibility classification: {risk}.', seismic: 'Seismic screening value: {value}.', radon: 'Radon screening classification: {value}.', mining: 'Mining-subsidence screening classification: {value}.' },
+  de: { landslide: 'Klassifizierung der Hangrutschungsanfälligkeit: {risk}.', seismic: 'Wert der seismischen Vorprüfung: {value}.', radon: 'Klassifizierung der Radonvorprüfung: {value}.', mining: 'Klassifizierung der Bergsenkungsvorprüfung: {value}.' },
+  pl: { landslide: 'Klasyfikacja podatności na osuwiska: {risk}.', seismic: 'Wartość wstępnej oceny sejsmicznej: {value}.', radon: 'Klasyfikacja wstępnej oceny radonowej: {value}.', mining: 'Klasyfikacja wstępnej oceny szkód górniczych: {value}.' }
+} satisfies Record<ReportLanguage, Record<string, string>>;
 
 /** Renders reader-facing prose from canonical evidence without mutating scientific facts. */
 export function renderLocalizedReport(canonical: CanonicalReport, requestedLanguage: string) {
@@ -27,6 +33,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const soilText = interpolate(t.soil as string, { texture: value(canonical.soil.texture, unavailable), bearing: value(canonical.soil.bearingCapacity, unavailable) });
   const geologyText = canonical.geology.unitName ? interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: canonical.geology.unitName }) : t.geologyMissing as string;
   const floodText = interpolate(t.flood as string, { risk: risk(canonical.flood.classification, language) });
+  const hazardText = hazardCopy[language];
   const roadText = interpolate(t.road as string, { road: value(canonical.infrastructure.roadName || canonical.infrastructure.roadType, unavailable), distance: value(canonical.infrastructure.distanceM, unavailable) });
   const environmentText = canonical.environment.protectedAreaName ? interpolate(t.environment as string, { area: canonical.environment.protectedAreaName }) : t.environmentClear as string;
   const valuationText = interpolate(t.valuation as string, { min: canonical.valuation.min.toLocaleString(language), max: canonical.valuation.max.toLocaleString(language), currency: canonical.valuation.currency });
@@ -72,10 +79,10 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
       utility_status: t.authoritative as string
     },
     riskMatrix: [
-      { category: language === 'pl' ? 'Osuwiska' : language === 'de' ? 'Hangrutschung' : 'Landslide', level: canonical.hazards.landslide.classification, evidence_level: canonical.hazards.landslide.status, detail: canonical.hazards.landslide.classification ? floodText : t.sourceUnavailable as string },
-      { category: language === 'pl' ? 'Sejsmika' : language === 'de' ? 'Seismik' : 'Seismic', level: canonical.hazards.seismic.classification, evidence_level: canonical.hazards.seismic.status, detail: value(canonical.hazards.seismic.pga, unavailable) },
-      { category: 'Radon', level: canonical.hazards.radon.classification, evidence_level: canonical.hazards.radon.status, detail: canonical.hazards.radon.classification || t.sourceUnavailable as string },
-      { category: language === 'pl' ? 'Szkody górnicze' : language === 'de' ? 'Bergbausenkung' : 'Mining subsidence', level: canonical.hazards.mining.classification, evidence_level: canonical.hazards.mining.status, detail: canonical.hazards.mining.classification || t.sourceUnavailable as string }
+      { category: language === 'pl' ? 'Osuwiska' : language === 'de' ? 'Hangrutschung' : 'Landslide', level: canonical.hazards.landslide.classification ? risk(canonical.hazards.landslide.classification, language) : unavailable, evidence_level: canonical.hazards.landslide.status, detail: canonical.hazards.landslide.classification ? interpolate(hazardText.landslide, { risk: risk(canonical.hazards.landslide.classification, language) }) : t.sourceUnavailable as string },
+      { category: language === 'pl' ? 'Sejsmika' : language === 'de' ? 'Seismik' : 'Seismic', level: value(canonical.hazards.seismic.classification, unavailable), evidence_level: canonical.hazards.seismic.status, detail: interpolate(hazardText.seismic, { value: value(canonical.hazards.seismic.pga, unavailable) }) },
+      { category: 'Radon', level: value(canonical.hazards.radon.classification, unavailable), evidence_level: canonical.hazards.radon.status, detail: canonical.hazards.radon.classification ? interpolate(hazardText.radon, { value: canonical.hazards.radon.classification }) : t.sourceUnavailable as string },
+      { category: language === 'pl' ? 'Szkody górnicze' : language === 'de' ? 'Bergbausenkung' : 'Mining subsidence', level: value(canonical.hazards.mining.classification, unavailable), evidence_level: canonical.hazards.mining.status, detail: canonical.hazards.mining.classification ? interpolate(hazardText.mining, { value: canonical.hazards.mining.classification }) : t.sourceUnavailable as string }
     ],
     keyRisks: (t.checklist as string[]).slice(0, 3),
     opportunities: language === 'pl' ? ['Kanoniczny model zachowuje pochodzenie i status dowodów.', 'Dane terenowe, glebowe i źródłowe są prezentowane we wspólnym widoku.'] : language === 'de' ? ['Das kanonische Modell bewahrt Herkunft und Status der Evidenz.', 'Gelände-, Boden- und Quelldaten werden gemeinsam dargestellt.'] : ['The canonical model preserves evidence provenance and status.', 'Terrain, soil and source evidence are presented in one view.']

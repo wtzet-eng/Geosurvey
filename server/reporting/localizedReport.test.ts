@@ -87,3 +87,14 @@ test('Polish reader-facing prose has no known English leakage and preserves sour
   assert.equal(canonical.geology.sourceUrl, 'https://geolog.pgi.gov.pl');
   assert.equal(canonical.evidenceRecords[0].value.geologicalUnit, 'Niecka Mazowiecka');
 });
+
+test('landslide presentation never contains flood narrative', () => {
+  const canonical = createCanonicalReport(fixture('GB'), getCountryProfile('GB'));
+  for (const language of ['en', 'de', 'pl'] as const) {
+    const rendered = renderLocalizedReport(canonical, language);
+    const landslide = rendered.riskMatrix.find(item => ['Landslide', 'Hangrutschung', 'Osuwiska'].includes(item.category));
+    assert.ok(landslide);
+    assert.doesNotMatch(landslide.detail, /flood|Hochwasser|powodzi/i);
+    assert.match(landslide.detail, /landslide|Hangrutsch|osuwisk/i);
+  }
+});
