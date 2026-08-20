@@ -1,0 +1,1 @@
+PR #12 activates only literature-backed geological interpretation in report presentation. It deliberately leaves BGS/SoilGrids acquisition services unchanged so runtime source routing can be reviewed separately.
