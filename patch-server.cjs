@@ -9,8 +9,10 @@ if (!source.includes('report.geosurvey_context = report.geosurvey_context || {};
   source = source.replace(enrichMarker, `${enrichMarker}\n  // External geology evidence is optional; never let missing context crash report generation.\n  report.geosurvey_context = report.geosurvey_context || {};`);
 }
 
-const assemblyMarker = "stage = 'report-assembly'; const cProfile = getCountryProfile(countryCode);";
-if (!source.includes(assemblyMarker)) throw new Error('Expected report assembly marker not found');
+// Match the report-assembly stage independently of the following statement layout.
+// server.ts may format these statements on separate lines, so the patch must not depend on whitespace.
+const assemblyMarker = "stage = 'report-assembly';";
+if (!source.includes(assemblyMarker)) throw new Error('Expected report assembly stage marker not found');
 if (!source.includes('const reportContext = evidenceReport.geosurvey_context || {}')) {
   source = source.replace(assemblyMarker, `${assemblyMarker} const reportContext = evidenceReport.geosurvey_context || { geological_unit_name: evidenceReport.soil?.geologicalUnit, lithology_type: evidenceReport.soil?.lithologyType, geological_period_era: evidenceReport.soil?.stratigraphicPeriod, evidence_level: evidenceReport.soil?.status };`);
 }
@@ -34,7 +36,7 @@ source = source.replace(
 );
 
 // Country + language aware source labels.
-const sourceLocalizationMarker = "const assemblyMarker = \"stage = 'report-assembly'; const cProfile = getCountryProfile(countryCode);\";";
+const sourceLocalizationMarker = "const assemblyMarker = \"stage = 'report-assembly';\";";
 if (!source.includes('function localizeEvidenceSourceName(')) {
   const sourceLocalization = `function localizeEvidenceSourceName(name: any, countryCode: string, language: string): string {
   const raw = String(name || '').trim();
