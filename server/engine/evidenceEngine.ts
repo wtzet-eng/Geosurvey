@@ -15,6 +15,7 @@ import {
 import { calculateTerrainFromGrid } from '../services/elevationService';
 import { queryOverpassSurroundings } from '../services/osmOverpassService';
 import { fetchGenuineSoilGridsData } from '../services/soilGridsService';
+import { fetchBgsSiteEvidence, ukGeotechnicalDesignFallback } from '../services/bgsEvidenceService';
 import { fetchPolandCadastralParcel, getPolandGeologicalModel } from '../adapters/poland';
 import { getCountryProfile } from '../adapters/countries';
 
@@ -40,11 +41,12 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
-    countryCode === 'PL' ? fetchPolandCadastralParcel(lat, lng) : Promise.resolve(null)
+    countryCode === 'PL' ? fetchPolandCadastralParcel(lat, lng) : Promise.resolve(null),
+    countryCode === 'GB' ? fetchBgsSiteEvidence(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
@@ -244,12 +246,26 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     stratPeriod = plGeo.stratigraphicPeriod;
     groundRegime = plGeo.groundwaterRegime;
     plGroundwaterNotice = plGeo.groundwaterNotice;
+  } else if (countryCode === 'GB' && bgsEvidence) {
+    if (bgsEvidence.geology.available) {
+      geologicalUnitName = bgsEvidence.geology.unitName || 'Not available';
+      lithologyDesc = bgsEvidence.geology.lithology || 'Not available';
+      stratPeriod = bgsEvidence.geology.geologicalAge || 'Not available';
+    }
+    if (bgsEvidence.groundwater.available) {
+      groundRegime = `Modelled groundwater depth: ${bgsEvidence.groundwater.modelledDepth}`;
+      plGroundwaterNotice = bgsEvidence.groundwater.limitation;
+    } else {
+      plGroundwaterNotice = 'No measured or validated modelled groundwater level was returned. Site investigation is required for design groundwater level.';
+    }
   }
 
   const stratigraphyLayers = soilGridsData.stratigraphyProfile.map(l => ({
     depthRange: l.depthRange,
     soilType: `${l.textureClass} (Sand: ${l.sandPct}%, Silt: ${l.siltPct}%, Clay: ${l.clayPct}%)`,
-    mechanicalStatus: l.estimatedBearingCapacityKpa > 0
+    mechanicalStatus: countryCode === 'GB'
+      ? 'No verified site-specific engineering data'
+      : l.estimatedBearingCapacityKpa > 0
       ? `Modelled pedological bearing capacity: ~${l.estimatedBearingCapacityKpa} kPa (Bulk density: ${l.bulkDensityGcm3} g/cm³)`
       : 'Organic humus topsoil layer (Non-bearing, stripping mandatory)',
     description: l.mechanicalDescription,
@@ -260,6 +276,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     ph: l.phH2O,
     soc: l.soilOrganicCarbonPct
   }));
+  const ukEngineering = ukGeotechnicalDesignFallback();
 
   const soilInfo: SoilAnalysis = {
     status: soilGridsData.success ? 'MODELLED' : 'REQUIRES_VERIFICATION',
@@ -276,13 +293,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     meanBulkDensityGcm3: soilGridsData.meanBulkDensityGcm3,
     meanPhH2O: soilGridsData.meanPhH2O,
     meanOrganicCarbonPct: soilGridsData.meanOrganicCarbonPct,
-    estimatedWaterTableDepthM: 'Not directly measured (Requires on-site borehole)',
+    estimatedWaterTableDepthM: countryCode === 'GB' && bgsEvidence?.groundwater.available ? `Modelled: ${bgsEvidence.groundwater.modelledDepth}` : 'Not directly measured (Requires on-site borehole)',
     groundwaterNotice: plGroundwaterNotice,
-    estimatedBearingCapacityKpa: soilGridsData.success ? `Preliminary pedological estimate: ~${soilGridsData.estimatedBearingCapacityKpa} (Requires Eurocode 7 verification)` : 'Not available — SoilGrids query unavailable and site investigation required',
-    effectiveFrictionAngleDeg: soilGridsData.effectiveFrictionAngleDeg,
-    cohesionKpa: soilGridsData.cohesionKpa,
-    hydraulicConductivityMs: soilGridsData.hydraulicConductivityMs,
-    drainageClass: soilGridsData.drainageClass,
+    estimatedBearingCapacityKpa: countryCode === 'GB' ? ukEngineering.bearingCapacity : soilGridsData.success ? `Preliminary pedological estimate: ~${soilGridsData.estimatedBearingCapacityKpa} (Requires Eurocode 7 verification)` : 'Not available — SoilGrids query unavailable and site investigation required',
+    effectiveFrictionAngleDeg: countryCode === 'GB' ? ukEngineering.frictionAngle : soilGridsData.effectiveFrictionAngleDeg,
+    cohesionKpa: countryCode === 'GB' ? ukEngineering.cohesion : soilGridsData.cohesionKpa,
+    hydraulicConductivityMs: countryCode === 'GB' ? ukEngineering.hydraulicConductivity : soilGridsData.hydraulicConductivityMs,
+    drainageClass: countryCode === 'GB' ? ukEngineering.drainageClass : soilGridsData.drainageClass,
     frostSusceptibilityClass: soilGridsData.frostSusceptibilityClass,
     topsoilStrippingDepthCm: soilGridsData.topsoilStrippingDepthCm,
     groundwaterRegime: groundRegime,
@@ -306,8 +323,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     calculationMethod: 'ISRIC Machine-Learned Pedometric Horizon Inversion (0–200 cm depth profile)',
     confidence: soilGridsData.success ? 'Medium' : 'Low',
     limitation: soilGridsData.limitation,
-    value: { texture: soilGridsData.usdaTextureClass, meanPh: soilGridsData.meanPhH2O, meanDensity: soilGridsData.meanBulkDensityGcm3 }
+    value: { evidenceTier: 3, resolutionM: 250, depthIntervals: soilGridsData.stratigraphyProfile.map(layer => layer.depthRange), texture: soilGridsData.usdaTextureClass, meanPh: soilGridsData.meanPhH2O, meanDensity: soilGridsData.meanBulkDensityGcm3 }
   });
+
+  if (countryCode === 'GB' && bgsEvidence) {
+    evidenceRegistry.push({ id: 'bgs-geology-site', category: 'Geology', claim: bgsEvidence.geology.available ? `BGS mapped geology returned ${bgsEvidence.geology.unitName || bgsEvidence.geology.lithology} at the site centre (evidence tier ${bgsEvidence.geology.tier}).` : 'BGS detailed and regional geology queries returned no usable mapped unit.', status: bgsEvidence.geology.status, sourceName: bgsEvidence.geology.sourceName, sourceUrl: bgsEvidence.geology.sourceUrl, datasetDate: todayStr, spatialRelationship: 'Site-centre point intersection', calculationMethod: 'BGS ArcGIS feature query; detailed mapping before regional fallback', confidence: bgsEvidence.geology.tier === 1 ? 'High' : bgsEvidence.geology.tier === 2 ? 'Medium' : 'Low', limitation: bgsEvidence.geology.limitation, value: { evidenceTier: bgsEvidence.geology.tier, scale: bgsEvidence.geology.scale, geologicalUnit: bgsEvidence.geology.unitName, lithology: bgsEvidence.geology.lithology, geologicalAge: bgsEvidence.geology.geologicalAge, superficialDeposit: bgsEvidence.geology.superficialDeposit } });
+    evidenceRegistry.push({ id: 'bgs-groundwater-site', category: 'Hydrogeology', claim: bgsEvidence.groundwater.available ? `BGS modelled groundwater context returned: ${bgsEvidence.groundwater.modelledDepth}.` : 'No validated BGS modelled groundwater value was returned.', status: bgsEvidence.groundwater.status, sourceName: bgsEvidence.groundwater.sourceName, sourceUrl: bgsEvidence.groundwater.sourceUrl, datasetDate: todayStr, spatialRelationship: 'Site-centre model query', calculationMethod: 'BGS GeoIndex layer discovery and point query', confidence: bgsEvidence.groundwater.available ? 'Medium' : 'Low', limitation: bgsEvidence.groundwater.limitation, value: { evidenceTier: bgsEvidence.groundwater.tier, modelledDepth: bgsEvidence.groundwater.modelledDepth } });
+    evidenceRegistry.push({ id: 'bgs-borehole-context', category: 'Boreholes', claim: bgsEvidence.boreholes.available ? `${bgsEvidence.boreholes.count} nearby BGS borehole record(s); nearest approximately ${bgsEvidence.boreholes.nearestDistanceKm?.toFixed(2) ?? 'unknown'} km away.` : 'No queryable nearby BGS borehole context was returned.', status: bgsEvidence.boreholes.available ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: bgsEvidence.boreholes.sourceName, sourceUrl: bgsEvidence.boreholes.sourceUrl, datasetDate: todayStr, spatialRelationship: 'Approximately 5 km search envelope around site centre', calculationMethod: 'BGS GeoIndex spatial feature query', confidence: bgsEvidence.boreholes.available ? 'Medium' : 'Low', limitation: bgsEvidence.boreholes.limitation, value: { evidenceTier: bgsEvidence.boreholes.tier, count: bgsEvidence.boreholes.count, nearestDistanceKm: bgsEvidence.boreholes.nearestDistanceKm, nearestRecordId: bgsEvidence.boreholes.nearestRecordId } });
+  }
 
   // =========================================================================
   // 4. Planning & Statutory Zoning Parameters (Priority 3)
@@ -687,9 +710,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       status: soilGridsData.success ? 'MODELLED' as const : 'REQUIRES_VERIFICATION' as const
     },
     {
-      name: cProfile.geologyAuthority,
-      organization: 'National Geological Survey Institute (PIG-PIB)',
-      url: cProfile.geologyPortalUrl,
+      name: bgsEvidence?.geology.sourceName || cProfile.geologyAuthority,
+      organization: countryCode === 'GB' ? 'British Geological Survey' : 'National Geological Survey Institute (PIG-PIB)',
+      url: bgsEvidence?.geology.sourceUrl || cProfile.geologyPortalUrl,
       type: 'Geological Survey' as const,
       status: soilInfo.status
     },
@@ -743,7 +766,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     'TOTAL LIMITATION OF LEGAL & FINANCIAL LIABILITY: Neither the platform operators nor spatial data providers accept any legal or financial liability for investment decisions or construction costs arising from reliance upon this automated dossier.'
   ];
 
-  return {
+  const report: VerifiedSiteReport & { geosurvey_context?: Record<string, unknown> } = {
     id: `REP-${countryCode}-${Date.now().toString(36).toUpperCase()}`,
     generatedAt: nowIso,
     countryCode,
@@ -762,4 +785,20 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     dataSourcesCited,
     statutoryDisclaimers
   };
+  if (countryCode === 'GB' && bgsEvidence) report.geosurvey_context = {
+    geological_unit_name: bgsEvidence.geology.unitName,
+    lithology_type: bgsEvidence.geology.lithology,
+    geological_period_era: bgsEvidence.geology.geologicalAge,
+    superficial_deposit: bgsEvidence.geology.superficialDeposit,
+    groundwater_regime: bgsEvidence.groundwater.modelledDepth ? `Modelled groundwater depth: ${bgsEvidence.groundwater.modelledDepth}` : null,
+    evidence_level: bgsEvidence.geology.status,
+    evidence_tier: bgsEvidence.geology.tier,
+    source_name: bgsEvidence.geology.sourceName,
+    source_url: bgsEvidence.geology.sourceUrl,
+    source_scale: bgsEvidence.geology.scale,
+    nearby_borehole_count: bgsEvidence.boreholes.count,
+    nearest_borehole_distance_km: bgsEvidence.boreholes.nearestDistanceKm,
+    nearest_borehole_record_id: bgsEvidence.boreholes.nearestRecordId
+  };
+  return report;
 }
