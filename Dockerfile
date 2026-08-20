@@ -6,7 +6,6 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
-RUN node patch-server.cjs
 RUN bun run build:server
 
 FROM node:22-bookworm-slim AS runtime
