@@ -9,6 +9,8 @@ import { queryPolandSiteEvidence } from './server/services/pgiSiteEvidenceServic
 import { queryPolandHydroAndHazards } from './server/services/pgiSupplementEvidenceService';
 import { queryUKSiteEvidence, enrichGeologyFromBgs } from './server/services/ukSiteEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
+import { createCanonicalReport } from './server/reporting/canonicalReport';
+import { renderLocalizedReport } from './server/reporting/localizedReport';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -68,71 +70,14 @@ function enrichGeologyFromPgi(report: any, pgiEvidence: any[]) {
   report.geosurvey_context.evidence_level = 'VERIFIED';
 }
 
-function section(summary: string, detail: string, evidence_level: any, source_cited?: string, limitation_notice?: string) {
-  return { summary, detail, evidence_level, source_cited, limitation_notice };
-}
-
-function buildLocalizedSections(evidenceReport: any, cProfile: any, language: string) {
-  const lang = String(language || 'en').toLowerCase();
-  const unavailable = lang === 'pl' ? 'brak danych' : lang === 'de' ? 'nicht verfügbar' : 'not available';
-  const display = (value: unknown) => value === null || value === undefined || value === '' || (typeof value === 'number' && !Number.isFinite(value)) ? unavailable : String(value);
-  const formatValue = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString(lang) : unavailable;
-  const terrain = evidenceReport?.terrain || {};
-  const geohazards = terrain.geohazards || {};
-  terrain.geohazards = {
-    ...geohazards,
-    landslideSusceptibility: geohazards.landslideSusceptibility || { status: 'REQUIRES_VERIFICATION', level: unavailable, description: unavailable },
-    seismicRisk: geohazards.seismicRisk || { status: 'REQUIRES_VERIFICATION', zone: unavailable },
-    radonPotential: geohazards.radonPotential || { status: 'REQUIRES_VERIFICATION', classification: unavailable },
-    miningSubsidence: geohazards.miningSubsidence || { status: 'REQUIRES_VERIFICATION', classification: unavailable }
-  };
-  terrain.floodInundationRisk ||= { status: 'REQUIRES_VERIFICATION', level: unavailable, description: unavailable };
-  const soil = evidenceReport?.soil || {};
-  const planning = evidenceReport?.planning || {};
-  const infrastructure = evidenceReport?.infrastructure || {};
-  infrastructure.roadAccess ||= { status: 'REQUIRES_VERIFICATION', nearestRoadType: unavailable, estimatedDistanceM: undefined, directAccessVerified: false };
-  const environment = evidenceReport?.environment || {};
-  const valuation = evidenceReport?.valuation || {};
-
-  if (lang === 'pl') return {
-    soil_and_ground: section(`Model SoilGrids wskazuje klasę ${display(soil.usdaTextureClass)}.`, `Nośność: ${display(soil.estimatedBearingCapacityKpa)}. Poziom wód gruntowych: ${display(soil.estimatedWaterTableDepthM)}. Parametry wymagają badań terenowych zgodnie z Eurokodem 7.`, soil.status, soil.sourceName, soil.limitation),
-    geohazard_risk: section(`Nachylenie terenu: ${display(terrain.averageSlopeDegrees)}°; ryzyko osuwiskowe: ${display(terrain.geohazards.landslideSusceptibility.level)}.`, `${display(terrain.geohazards.landslideSusceptibility.description)}\nStrefa sejsmiczna: ${display(terrain.geohazards.seismicRisk.zone)}. Radon: ${display(terrain.geohazards.radonPotential.classification)}. Górnictwo: ${display(terrain.geohazards.miningSubsidence.classification)}.`, terrain.geohazards.landslideSusceptibility.status, terrain.geohazards.landslideSusceptibility.sourceName),
-    flooding_risk: section(`Wstępny wskaźnik hydrologiczny: ${display(terrain.floodInundationRisk.level)}.`, display(terrain.floodInundationRisk.description), terrain.floodInundationRisk.status, terrain.floodInundationRisk.sourceName, terrain.floodInundationRisk.limitation),
-    zoning_and_land_use: section('Parametry planistyczne wymagają potwierdzenia w gminie.', `${display(planning.planDesignation)}. ${display(planning.permittedUseCategory)}. Dokument wymagany: ${display(planning.documentRequired)}.`, planning.status, planning.sourceName, planning.limitation),
-    building_regulations: section('Wiążące wymogi budowlane zależą od aktualnych dokumentów urzędowych.', `Linie zabudowy i odległości: ${display(planning.setbackRules)}.`, 'REQUIRES_VERIFICATION', planning.authorityName),
-    environmental_factors: section(environment.status === 'REQUIRES_VERIFICATION' ? 'Dane o ograniczeniach środowiskowych są niedostępne.' : environment.nearestProtectedAreaName ? `W pobliżu wykryto obszar chroniony: ${environment.nearestProtectedAreaName}.` : 'Nie wykryto bezpośredniego przecięcia z obszarem Natura 2000 w analizie wstępnej.', `Odległość wskaźnikowa do obszaru chronionego: ${display(environment.distanceToNatura2000M)} m.`, environment.status, environment.sourceName, environment.limitation),
-    infrastructure_and_access: section(`Najbliższa droga: ${display(infrastructure.roadAccess.nearestRoadName || infrastructure.roadAccess.nearestRoadType)}, ok. ${display(infrastructure.roadAccess.estimatedDistanceM)} m.`, `Bezpośredni dostęp: ${infrastructure.roadAccess.directAccessVerified ? 'tak' : 'do potwierdzenia'}. Media wymagają formalnych warunków przyłączenia.`, infrastructure.roadAccess.status, infrastructure.roadAccess.sourceName),
-    market_and_comparables: section(`Orientacyjna wartość statystyczna: ${formatValue(valuation.indicativeMinPrice)}–${formatValue(valuation.indicativeMaxPrice)} ${cProfile.symbol}.`, valuation.marketTrendDescription || unavailable, valuation.status, cProfile.valuationDataSource, valuation.disclaimer),
-    development_cost_outlook: section('Największe niepewności kosztowe dotyczą badań gruntu, mediów i planowania.', 'Przed decyzją inwestycyjną należy uzyskać dokument planistyczny, warunki przyłączeniowe oraz opinię geotechniczną.', 'REQUIRES_VERIFICATION')
-  };
-
-  if (lang === 'de') return {
-    soil_and_ground: section(`SoilGrids weist die Bodenklasse ${display(soil.usdaTextureClass)} aus.`, `Tragfähigkeit: ${display(soil.estimatedBearingCapacityKpa)}. Grundwasser: ${display(soil.estimatedWaterTableDepthM)}. Die Werte sind modelliert und nach Eurocode 7 vor Ort zu prüfen.`, soil.status, soil.sourceName, soil.limitation),
-    geohazard_risk: section(`Geländeneigung: ${display(terrain.averageSlopeDegrees)}°; Hangrutschindikator: ${display(terrain.geohazards.landslideSusceptibility.level)}.`, `${display(terrain.geohazards.landslideSusceptibility.description)}\nErdbebenzone: ${display(terrain.geohazards.seismicRisk.zone)}. Radon: ${display(terrain.geohazards.radonPotential.classification)}. Bergbau: ${display(terrain.geohazards.miningSubsidence.classification)}.`, terrain.geohazards.landslideSusceptibility.status, terrain.geohazards.landslideSusceptibility.sourceName),
-    flooding_risk: section(`Vorläufiger Hydrologieindikator: ${display(terrain.floodInundationRisk.level)}.`, display(terrain.floodInundationRisk.description), terrain.floodInundationRisk.status, terrain.floodInundationRisk.sourceName, terrain.floodInundationRisk.limitation),
-    zoning_and_land_use: section('Planungsparameter müssen behördlich bestätigt werden.', `${display(planning.planDesignation)}. ${display(planning.permittedUseCategory)}. Erforderliches Dokument: ${display(planning.documentRequired)}.`, planning.status, planning.sourceName, planning.limitation),
-    building_regulations: section('Verbindliche Bauanforderungen hängen von aktuellen amtlichen Unterlagen ab.', `Abstands-/Bauflinienregeln: ${display(planning.setbackRules)}.`, 'REQUIRES_VERIFICATION', planning.authorityName),
-    environmental_factors: section(environment.status === 'REQUIRES_VERIFICATION' ? 'Daten zu Umweltauflagen sind nicht verfügbar.' : environment.nearestProtectedAreaName ? `Geschütztes Gebiet in der Nähe: ${environment.nearestProtectedAreaName}.` : 'In der Vorprüfung wurde keine direkte Natura-2000-Überlagerung erkannt.', `Indikative Entfernung zum Schutzgebiet: ${display(environment.distanceToNatura2000M)} m.`, environment.status, environment.sourceName, environment.limitation),
-    infrastructure_and_access: section(`Nächste Straße: ${display(infrastructure.roadAccess.nearestRoadName || infrastructure.roadAccess.nearestRoadType)}, ca. ${display(infrastructure.roadAccess.estimatedDistanceM)} m.`, `Direkter Zugang: ${infrastructure.roadAccess.directAccessVerified ? 'ja' : 'zu prüfen'}. Versorgungsanschlüsse erfordern formelle Anschlussbedingungen.`, infrastructure.roadAccess.status, infrastructure.roadAccess.sourceName),
-    market_and_comparables: section(`Indikativer statistischer Wert: ${formatValue(valuation.indicativeMinPrice)}–${formatValue(valuation.indicativeMaxPrice)} ${cProfile.symbol}.`, valuation.marketTrendDescription || unavailable, valuation.status, cProfile.valuationDataSource, valuation.disclaimer),
-    development_cost_outlook: section('Die wichtigsten Kostenunsicherheiten betreffen Baugrund, Anschlüsse und Planung.', 'Vor einer Investitionsentscheidung sind Planungsunterlagen, Anschlussbedingungen und ein Baugrundgutachten einzuholen.', 'REQUIRES_VERIFICATION')
-  };
-
-  return {
-    soil_and_ground: section(`SoilGrids indicates ${display(soil.usdaTextureClass)} soil.`, `Bearing capacity: ${display(soil.estimatedBearingCapacityKpa)}. Groundwater: ${display(soil.estimatedWaterTableDepthM)}. Values are modelled and require Eurocode 7 site investigation.`, soil.status, soil.sourceName, soil.limitation),
-    geohazard_risk: section(`Slope is ${display(terrain.averageSlopeDegrees)}°; landslide screening is ${display(terrain.geohazards.landslideSusceptibility.level)}.`, `${display(terrain.geohazards.landslideSusceptibility.description)}\nSeismic zone: ${display(terrain.geohazards.seismicRisk.zone)}. Radon: ${display(terrain.geohazards.radonPotential.classification)}. Mining: ${display(terrain.geohazards.miningSubsidence.classification)}.`, terrain.geohazards.landslideSusceptibility.status, terrain.geohazards.landslideSusceptibility.sourceName),
-    flooding_risk: section(`Preliminary hydrology indicator: ${display(terrain.floodInundationRisk.level)}.`, display(terrain.floodInundationRisk.description), terrain.floodInundationRisk.status, terrain.floodInundationRisk.sourceName, terrain.floodInundationRisk.limitation),
-    zoning_and_land_use: section('Planning parameters require municipal confirmation.', `${display(planning.planDesignation)}. ${display(planning.permittedUseCategory)}. Required document: ${display(planning.documentRequired)}.`, planning.status, planning.sourceName, planning.limitation),
-    building_regulations: section('Binding building requirements depend on current official documents.', `Setback/building-line rules: ${display(planning.setbackRules)}.`, 'REQUIRES_VERIFICATION', planning.authorityName),
-    environmental_factors: section(environment.status === 'REQUIRES_VERIFICATION' ? 'Environmental constraints data is not available.' : environment.nearestProtectedAreaName ? `Protected area nearby: ${environment.nearestProtectedAreaName}.` : 'No direct Natura 2000 overlap was detected in the preliminary screen.', `Indicative distance to protected area: ${display(environment.distanceToNatura2000M)} m.`, environment.status, environment.sourceName, environment.limitation),
-    infrastructure_and_access: section(`Nearest road: ${display(infrastructure.roadAccess.nearestRoadName || infrastructure.roadAccess.nearestRoadType)}, approx. ${display(infrastructure.roadAccess.estimatedDistanceM)} m.`, `Direct access: ${infrastructure.roadAccess.directAccessVerified ? 'yes' : 'requires verification'}. Utilities require formal connection terms.`, infrastructure.roadAccess.status, infrastructure.roadAccess.sourceName),
-    market_and_comparables: section(`Indicative statistical value: ${formatValue(valuation.indicativeMinPrice)}–${formatValue(valuation.indicativeMaxPrice)} ${cProfile.symbol}.`, valuation.marketTrendDescription || unavailable, valuation.status, cProfile.valuationDataSource, valuation.disclaimer),
-    development_cost_outlook: section('Primary cost uncertainties are ground investigation, utilities and planning confirmation.', 'Obtain planning documentation, utility connection terms and a geotechnical report before investment decisions.', 'REQUIRES_VERIFICATION')
-  };
-}
-
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
-app.get('/api/cadastre/query', async (req, res) => { const lat = Number(req.query.lat); const lng = Number(req.query.lng); const country = String(req.query.country || 'PL').toUpperCase(); if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Valid lat and lng query parameters are required.' }); if (country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng)); const profile = getCountryProfile(country); return res.json({ success: false, message: `Direct ULDK API query is specific to Poland. Location resolved under ${profile.cadastreAuthority}.`, cadastreAuthority: profile.cadastreAuthority, portalUrl: profile.cadastrePortalUrl }); });
+app.get('/api/cadastre/query', async (req, res) => {
+  const lat = Number(req.query.lat); const lng = Number(req.query.lng); const country = String(req.query.country || 'PL').toUpperCase();
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Valid lat and lng query parameters are required.' });
+  if (country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
+  const profile = getCountryProfile(country);
+  return res.json({ success: false, message: `Direct ULDK API query is specific to Poland. Location resolved under ${profile.cadastreAuthority}.`, cadastreAuthority: profile.cadastreAuthority, portalUrl: profile.cadastrePortalUrl });
+});
 
 async function handleAnalyzeSite(req: express.Request, res: express.Response) {
   const diagnosticId = randomUUID();
@@ -142,18 +87,19 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const requestedArea = Number(req.body.areaSize);
     const areaSize = Number.isFinite(requestedArea) && requestedArea > 0 ? requestedArea : 1000;
     const countryCode = String(req.body.countryCode || req.body.country || 'PL').toUpperCase();
+    const country = req.body.country || getCountryProfile(countryCode).countryName;
     const language = String(req.body.language || req.body.languageCode || (countryCode === 'PL' ? 'pl' : 'en')).toLowerCase();
+
     stage = 'site-centre';
     const [lat, lng] = getCenterFromShape(shape, req.body);
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return res.status(400).json({ error: 'Valid latitude and longitude are required.' });
-    let locationName = `${lat.toFixed(5)}, ${lng.toFixed(5)} (${countryCode})`;
+    let locationName = `${lat.toFixed(5)}, ${lng.toFixed(5)} (${country})`;
     let municipality = '', countyName = '', stateName = '', roadName = '';
     let resolvedCountryCode = '';
 
     stage = 'reverse-geocoding';
     try {
-      const ctrl = new AbortController();
-      const id = setTimeout(() => ctrl.abort(), 3500);
+      const ctrl = new AbortController(); const id = setTimeout(() => ctrl.abort(), 3500);
       const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, { headers: { 'User-Agent': 'GeoSurveyEvidenceApp/4.0' }, signal: ctrl.signal });
       clearTimeout(id);
       if (r.ok) {
@@ -170,25 +116,19 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
     } catch (e) { console.warn(`[${diagnosticId}] Geocoding notice:`, e); }
 
-    const countryLocationMismatch = Boolean(resolvedCountryCode && resolvedCountryCode !== countryCode && !((countryCode === 'GB') && resolvedCountryCode === 'UK'));
+    const countryLocationMismatch = Boolean(resolvedCountryCode && resolvedCountryCode !== countryCode && !(countryCode === 'GB' && resolvedCountryCode === 'UK'));
     stage = 'geospatial-analysis-pipeline';
     const evidenceReport: any = await runGeospatialAnalysisPipeline({ lat, lng, areaSizeM2: areaSize, countryCode, language, locationName, municipality, county: countyName, state: stateName, roadName });
 
     let pgiSiteEvidence: any[] = [];
     let ukSiteEvidence: any[] = [];
     if (countryCode === 'PL') {
-      stage = 'pgi-site-evidence';
-      try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
-      stage = 'pgi-hydro-hazards';
-      try { pgiSiteEvidence.push(...await queryPolandHydroAndHazards(lat, lng, 5)); } catch (e) { console.warn(`[${diagnosticId}] PIG hydro/hazard evidence notice:`, e); }
-      stage = 'pgi-report-enrichment';
-      if (pgiSiteEvidence.length) evidenceReport.evidenceRegistry.push(...pgiSiteEvidence);
-      enrichGeologyFromPgi(evidenceReport, pgiSiteEvidence);
+      stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
+      stage = 'pgi-hydro-hazards'; try { pgiSiteEvidence.push(...await queryPolandHydroAndHazards(lat, lng, 5)); } catch (e) { console.warn(`[${diagnosticId}] PIG hydro/hazard evidence notice:`, e); }
+      stage = 'pgi-report-enrichment'; if (pgiSiteEvidence.length) evidenceReport.evidenceRegistry.push(...pgiSiteEvidence); enrichGeologyFromPgi(evidenceReport, pgiSiteEvidence);
     } else if (countryCode === 'GB') {
-      stage = 'uk-site-evidence';
-      try { ukSiteEvidence = await queryUKSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] UK national evidence notice:`, e); }
-      stage = 'uk-report-enrichment';
-      if (ukSiteEvidence.length) evidenceReport.evidenceRegistry.push(...ukSiteEvidence);
+      stage = 'uk-site-evidence'; try { ukSiteEvidence = await queryUKSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] UK national evidence notice:`, e); }
+      stage = 'uk-report-enrichment'; if (ukSiteEvidence.length) evidenceReport.evidenceRegistry.push(...ukSiteEvidence);
       try { enrichGeologyFromBgs(evidenceReport, ukSiteEvidence); } catch (e) { console.warn(`[${diagnosticId}] BGS geology enrichment notice:`, e); }
       evidenceReport.verificationChecklist = getUKVerificationChecklist(municipality, stateName);
     }
@@ -198,97 +138,34 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
 
     stage = 'report-assembly';
     const cProfile = getCountryProfile(countryCode);
-    const localizedSections = buildLocalizedSections(evidenceReport, cProfile, language);
-    const geoContext = evidenceReport.geosurvey_context || {};
-    const titles = {
-      estimated_value: language === 'pl' ? 'Szacunkowa Wartość Statystyczna Gruntu' : language === 'de' ? 'Statistische Grundstücks-Wertermittlung' : language === 'fr' ? 'Valeur Vénale Indicative' : 'Indicative Statistical Land Valuation',
-      confidence: language === 'pl' ? 'Wskaźnik Jakości Dowodów (Evidence Score)' : language === 'de' ? 'Evidenz-Qualitätsindex (Evidence Score)' : 'Evidence Quality Score',
-      executive_summary: language === 'pl' ? 'Synteza Wykonawcza (Evidence Summary)' : language === 'de' ? 'Zusammenfassung des Gutachtens' : 'Executive Evidence Synthesis'
-    };
-
-    const technicalParameters = {
-      cadastral_id_format: evidenceReport.parcel?.cadastralSource,
-      cadastral_parcel_id: evidenceReport.parcel?.parcelId || 'Unconfirmed (Requires local cadastre extract)',
-      cadastral_teryt: evidenceReport.parcel?.teryt,
-      cadastral_commune: evidenceReport.parcel?.commune,
-      cadastral_county: evidenceReport.parcel?.county,
-      cadastral_voivodeship: evidenceReport.parcel?.voivodeship,
-      cadastre_evidence_level: evidenceReport.parcel?.status,
-      is_official_parcel: evidenceReport.parcel?.isOfficialGeometry,
-      official_area_m2: evidenceReport.parcel?.officialAreaM2 || evidenceReport.parcel?.areaCalculatedM2,
-      elevation_amsl: evidenceReport.terrain?.elevationAmsl,
-      slope_degrees: evidenceReport.terrain?.averageSlopeDegrees,
-      slope_percent: evidenceReport.terrain?.averageSlopePercent,
-      slope_category: evidenceReport.terrain?.slopeCategory,
-      aspect_direction: evidenceReport.terrain?.aspectDirection,
-      zoning_code: evidenceReport.planning?.planDesignation,
-      zoning_name: evidenceReport.planning?.permittedUseCategory,
-      max_far: evidenceReport.planning?.maxFar,
-      max_building_coverage_pct: evidenceReport.planning?.maxCoveragePct,
-      min_biologically_active_pct: evidenceReport.planning?.minBiologicallyActivePct,
-      max_height_m: evidenceReport.planning?.maxBuildingHeightM,
-      setback_m: evidenceReport.planning?.setbackRules,
-      utility_status: (evidenceReport.infrastructure?.utilities || []).map((u: any) => `${u.utility}: ${u.status}`).join('; '),
-      groundwater_depth_m: evidenceReport.soil?.estimatedWaterTableDepthM,
-      groundwater_notice: evidenceReport.soil?.groundwaterNotice,
-      frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass,
-      radon_index: evidenceReport.terrain?.geohazards?.radonPotential?.classification,
-      soil_bearing_capacity_kpa: evidenceReport.soil?.estimatedBearingCapacityKpa
-    };
-
-    const soilMetrics = {
-      usda_texture: evidenceReport.soil?.usdaTextureClass,
-      topsoil_sand_pct: evidenceReport.soil?.topsoilSandPct,
-      topsoil_silt_pct: evidenceReport.soil?.topsoilSiltPct,
-      topsoil_clay_pct: evidenceReport.soil?.topsoilClayPct,
-      subsoil_sand_pct: evidenceReport.soil?.subsoilSandPct,
-      subsoil_silt_pct: evidenceReport.soil?.subsoilSiltPct,
-      subsoil_clay_pct: evidenceReport.soil?.subsoilClayPct,
-      mean_bulk_density: evidenceReport.soil?.meanBulkDensityGcm3,
-      mean_ph: evidenceReport.soil?.meanPhH2O,
-      mean_soc: evidenceReport.soil?.meanOrganicCarbonPct,
-      bearing_capacity_kpa: evidenceReport.soil?.estimatedBearingCapacityKpa,
-      friction_angle_deg: evidenceReport.soil?.effectiveFrictionAngleDeg,
-      cohesion_kpa: evidenceReport.soil?.cohesionKpa,
-      hydraulic_conductivity: evidenceReport.soil?.hydraulicConductivityMs,
-      drainage_class: evidenceReport.soil?.drainageClass,
-      frost_class: evidenceReport.soil?.frostSusceptibilityClass,
-      topsoil_stripping_cm: evidenceReport.soil?.topsoilStrippingDepthCm,
-      source_name: evidenceReport.soil?.sourceName
-    };
-
-    const stratigraphy = (evidenceReport.soil?.stratigraphyLayers || []).map((l: any) => ({ depth_range: l.depthRange, soil_type: l.soilType, bearing_capacity: l.mechanicalStatus, description: l.description, sand_pct: l.sandPct, silt_pct: l.siltPct, clay_pct: l.clayPct, bulk_density: l.bulkDensity, ph: l.ph, soc: l.soc }));
-    const riskMatrix = [
-      { category: 'Landslide susceptibility', level: evidenceReport.terrain?.geohazards?.landslideSusceptibility?.level, evidence_level: evidenceReport.terrain?.geohazards?.landslideSusceptibility?.status, detail: evidenceReport.terrain?.geohazards?.landslideSusceptibility?.description },
-      { category: 'Seismic hazard', level: evidenceReport.terrain?.geohazards?.seismicRisk?.zone, evidence_level: evidenceReport.terrain?.geohazards?.seismicRisk?.status, detail: evidenceReport.terrain?.geohazards?.seismicRisk?.pgaG },
-      { category: 'Radon potential', level: evidenceReport.terrain?.geohazards?.radonPotential?.classification, evidence_level: evidenceReport.terrain?.geohazards?.radonPotential?.status, detail: evidenceReport.terrain?.geohazards?.radonPotential?.sourceName },
-      { category: 'Mining subsidence', level: evidenceReport.terrain?.geohazards?.miningSubsidence?.classification, evidence_level: evidenceReport.terrain?.geohazards?.miningSubsidence?.status, detail: evidenceReport.terrain?.geohazards?.miningSubsidence?.sourceName }
-    ];
-
+    const canonicalReport = createCanonicalReport(evidenceReport, cProfile);
+    const presentation = renderLocalizedReport(canonicalReport, language);
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && areaSize > 0 ? value / areaSize : null;
+
     const reportData = {
-      site_value_estimate: { min: evidenceReport.valuation?.indicativeMinPrice, max: evidenceReport.valuation?.indicativeMaxPrice, median: evidenceReport.valuation?.indicativeMedianPrice, currency: evidenceReport.valuation?.currency, basis: evidenceReport.valuation?.methodology, evidence_level: evidenceReport.valuation?.status, uncertainty_rating: evidenceReport.valuation?.uncertaintyRating },
+      site_value_estimate: { min: evidenceReport.valuation?.indicativeMinPrice, max: evidenceReport.valuation?.indicativeMaxPrice, median: evidenceReport.valuation?.indicativeMedianPrice, currency: evidenceReport.valuation?.currency, basis: presentation.valuationMethodology, evidence_level: evidenceReport.valuation?.status, uncertainty_rating: evidenceReport.valuation?.uncertaintyRating },
       confidence_level: evidenceReport.evidenceScore?.ratingClass,
       evidence_score: evidenceReport.evidenceScore,
-      evidence_registry: evidenceReport.evidenceRegistry || [],
-      verification_checklist: evidenceReport.verificationChecklist || [],
-      summary: evidenceReport.executiveSummary,
-      titles,
-      geosurvey_context: { ...geoContext, survey_authority: evidenceReport.soil?.sourceName, geological_unit_name: geoContext.geological_unit_name || evidenceReport.soil?.geologicalUnit, lithology_type: geoContext.lithology_type || evidenceReport.soil?.lithologyType, geological_period_era: geoContext.geological_period_era || evidenceReport.soil?.stratigraphicPeriod, groundwater_regime: evidenceReport.soil?.groundwaterRegime, seismic_hazard_zone: evidenceReport.terrain?.geohazards?.seismicRisk?.zone, radon_class: evidenceReport.terrain?.geohazards?.radonPotential?.classification, official_portal_url: cProfile.geologyPortalUrl, evidence_level: geoContext.evidence_level || evidenceReport.soil?.status },
-      valuation_metrics: { price_per_sqm_min: safePerSqm(evidenceReport.valuation?.indicativeMinPrice), price_per_sqm_max: safePerSqm(evidenceReport.valuation?.indicativeMaxPrice), price_per_sqm_median: evidenceReport.valuation?.indicativePricePerSqm ?? safePerSqm(evidenceReport.valuation?.indicativeMedianPrice), annual_growth_pct: evidenceReport.valuation?.marketTrendDescription, feasibility_rating: evidenceReport.valuation?.uncertaintyRating, geohazard_risk_score: String(riskMatrix.filter((r: any) => r.level === 'High' || r.level === 'Moderate').length), permitting_timeline_months: 'Requires local planning confirmation', max_buildable_area_sqm: undefined, soil_bearing_capacity_kpa: evidenceReport.soil?.estimatedBearingCapacityKpa, comparable_evidence_count: evidenceReport.valuation?.comparableEvidenceCount },
-      technical_parameters: technicalParameters,
-      stratigraphy,
-      soil_metrics: soilMetrics,
-      amenity_index: (evidenceReport.infrastructure?.amenities || []).map((a: any) => ({ type: a.type, name: a.name, distance_m: a.distanceM, category: a.category })),
-      surrounding_buildings_count: evidenceReport.infrastructure?.surroundingBuildingsCount,
+      canonical_evidence: canonicalReport,
+      evidence_registry: presentation.evidenceRegistry,
+      verification_checklist: presentation.verificationChecklist,
+      summary: presentation.summary,
+      titles: presentation.titles,
+      geosurvey_context: { survey_authority: canonicalReport.geology.sourceName, geological_unit_name: canonicalReport.geology.unitName, lithology_type: canonicalReport.geology.lithology, geological_period_era: canonicalReport.geology.geologicalAge, groundwater_regime: canonicalReport.geology.groundwaterRegime, seismic_hazard_zone: canonicalReport.hazards.seismic.classification, radon_class: canonicalReport.hazards.radon.classification, official_portal_url: canonicalReport.geology.sourceUrl, evidence_level: canonicalReport.geology.status },
+      technical_parameters: { cadastral_id_format: evidenceReport.parcel?.cadastralSource, cadastral_parcel_id: evidenceReport.parcel?.parcelId || null, cadastral_teryt: evidenceReport.parcel?.teryt, cadastral_commune: evidenceReport.parcel?.commune, cadastral_county: evidenceReport.parcel?.county, cadastral_voivodeship: evidenceReport.parcel?.voivodeship, cadastre_evidence_level: evidenceReport.parcel?.status, is_official_parcel: evidenceReport.parcel?.isOfficialGeometry, official_area_m2: evidenceReport.parcel?.officialAreaM2 || evidenceReport.parcel?.areaCalculatedM2, elevation_amsl: canonicalReport.terrain.elevationM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: evidenceReport.planning?.setbackRules },
+      valuation_metrics: { price_per_sqm_min: safePerSqm(evidenceReport.valuation?.indicativeMinPrice), price_per_sqm_max: safePerSqm(evidenceReport.valuation?.indicativeMaxPrice), price_per_sqm_median: evidenceReport.valuation?.indicativePricePerSqm ?? safePerSqm(evidenceReport.valuation?.indicativeMedianPrice), comparable_evidence_count: evidenceReport.valuation?.comparableEvidenceCount, feasibility_rating: evidenceReport.valuation?.uncertaintyRating, soil_bearing_capacity_kpa: evidenceReport.soil?.estimatedBearingCapacityKpa },
+      soil_metrics: { usda_texture: evidenceReport.soil?.usdaTextureClass, topsoil_sand_pct: evidenceReport.soil?.topsoilSandPct, topsoil_silt_pct: evidenceReport.soil?.topsoilSiltPct, topsoil_clay_pct: evidenceReport.soil?.topsoilClayPct, subsoil_sand_pct: evidenceReport.soil?.subsoilSandPct, subsoil_silt_pct: evidenceReport.soil?.subsoilSiltPct, subsoil_clay_pct: evidenceReport.soil?.subsoilClayPct, mean_bulk_density: evidenceReport.soil?.meanBulkDensityGcm3, mean_ph: evidenceReport.soil?.meanPhH2O, mean_soc: evidenceReport.soil?.meanOrganicCarbonPct, bearing_capacity_kpa: evidenceReport.soil?.estimatedBearingCapacityKpa, friction_angle_deg: evidenceReport.soil?.effectiveFrictionAngleDeg, cohesion_kpa: evidenceReport.soil?.cohesionKpa, hydraulic_conductivity: evidenceReport.soil?.hydraulicConductivityMs, drainage_class: evidenceReport.soil?.drainageClass, frost_class: evidenceReport.soil?.frostSusceptibilityClass, topsoil_stripping_cm: evidenceReport.soil?.topsoilStrippingDepthCm, source_name: evidenceReport.soil?.sourceName },
+      stratigraphy: (evidenceReport.soil?.stratigraphyLayers || []).map((l: any) => ({ depth_range: l.depthRange, soil_type: l.soilType, bearing_capacity: l.mechanicalStatus, description: l.description, sand_pct: l.sandPct, silt_pct: l.siltPct, clay_pct: l.clayPct, bulk_density: l.bulkDensity, ph: l.ph, soc: l.soc })),
+      risk_matrix: presentation.riskMatrix,
       surrounding_landuse: evidenceReport.infrastructure?.surroundingLanduse,
-      utilities_checklist: (evidenceReport.infrastructure?.utilities || []).map((u: any) => ({ utility: u.utility, status: u.status, evidence_level: u.status, distance_m: u.distanceM, mapped_in_dataset: u.mappedInDataset, limitation: u.limitation })),
-      risk_matrix: riskMatrix,
-      ...localizedSections,
-      key_risks: riskMatrix.filter((r: any) => r.level === 'High' || r.level === 'Moderate').map((r: any) => `${r.category}: ${r.detail}`),
-      opportunities: (evidenceReport.infrastructure?.amenities || []).slice(0, 5).map((a: any) => `${a.name || a.type} (${Number.isFinite(a.distanceM) ? Math.round(a.distanceM) : 'n/a'} m)`),
+      surrounding_buildings_count: evidenceReport.infrastructure?.surroundingBuildingsCount,
+      amenity_index: (evidenceReport.infrastructure?.amenities || []).map((a: any) => ({ type: a.type, name: a.name, distance_m: a.distanceM, category: a.category })),
+      utilities_checklist: (evidenceReport.infrastructure?.utilities || []).map((u: any) => ({ utility: u.utility, status: u.availability, evidence_level: u.status, distance_m: u.distanceM, mapped_in_dataset: u.mappedInDataset, provider_type: u.sourceName, limitation: u.limitation })),
+      ...presentation.sections,
+      key_risks: presentation.keyRisks,
+      opportunities: presentation.opportunities,
       data_sources: (evidenceReport.dataSourcesCited || []).map((ds: any) => ({ name: ds.name, url: ds.url, authority: ds.organization, verification_status: ds.status })),
-      legal_disclaimers: evidenceReport.statutoryDisclaimers || [],
+      legal_disclaimers: presentation.legalDisclaimers,
       location_name: locationName,
       language,
       pgi_site_evidence_count: pgiSiteEvidence.length,
