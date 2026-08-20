@@ -21,8 +21,7 @@ source = source
   .replaceAll('evidenceReport.geosurvey_context.geological_period_era', 'reportContext.geological_period_era')
   .replaceAll('evidenceReport.geosurvey_context.evidence_level', 'reportContext.evidence_level');
 
-// Never expose the generic Germany fallback for UK. If BGS cannot resolve a
-// feature, show an honest UK-specific message instead of a foreign regional unit.
+// Never expose the generic Germany fallback for UK.
 source = source.replace(
   "let geologicalUnitName = `${cProfile.countryName} Regional Sedimentary Province`;",
   "let geologicalUnitName = countryCode === 'GB' ? 'BGS geological unit not resolved from the returned DiGMapGB feature' : `${cProfile.countryName} Regional Sedimentary Province`;"
@@ -34,11 +33,7 @@ source = source.replace(
   'getUKVerificationChecklist(municipality, stateName, language)'
 );
 
-// Keep evidence-source labels tied to the selected country and report language.
-// Official abbreviations remain intact, while explanatory authority names are
-// translated for readability. Most importantly, a source from another country
-// can never leak into the visible source library merely because a generic
-// pipeline component supplied a native-language label.
+// Country + language aware source labels.
 const sourceLocalizationMarker = "const assemblyMarker = \"stage = 'report-assembly'; const cProfile = getCountryProfile(countryCode);\";";
 if (!source.includes('function localizeEvidenceSourceName(')) {
   const sourceLocalization = `function localizeEvidenceSourceName(name: any, countryCode: string, language: string): string {
@@ -47,7 +42,6 @@ if (!source.includes('function localizeEvidenceSourceName(')) {
   const code = String(countryCode || '').toUpperCase();
   const lang = String(language || 'en').toLowerCase();
   const key = raw.toLowerCase();
-
   const dictionaries: Record<string, Record<string, string>> = {
     PL: {
       'państwowy instytut geologiczny – pib': lang === 'pl' ? 'Państwowy Instytut Geologiczny – PIB' : lang === 'de' ? 'Polnisches Staatliches Geologisches Institut – Nationales Forschungsinstitut (PIG-PIB)' : 'Polish Geological Institute – National Research Institute (PIG-PIB)',
@@ -64,14 +58,9 @@ if (!source.includes('function localizeEvidenceSourceName(')) {
       'historic england / local historic environment record': lang === 'pl' ? 'Historic England / lokalny rejestr dziedzictwa historycznego' : lang === 'de' ? 'Historic England / lokales Denkmal- und Umweltregister' : 'Historic England / local Historic Environment Record'
     }
   };
-
   const dict = dictionaries[code];
   if (dict?.[key]) return dict[key];
-
-  // If a Polish authority name appears in a non-Polish country report, replace
-  // it with a neutral national-source label rather than displaying the wrong
-  // country's institution.
-  const looksPolish = /p[ań]stwowy instytut geologiczny|g[łl]ówny urz[aą]d geodezji|wody polskie|wyższy urz[aą]d g[óo]rniczy|pgi-pib|gugik|wug/i.test(raw);
+  const looksPolish = /państwowy instytut geologiczny|główny urząd geodezji|wody polskie|wyższy urząd górniczy|pgi-pib|gugik|wug/i.test(raw);
   if (code !== 'PL' && looksPolish) {
     return lang === 'de' ? 'Nationale Fachbehörde / Geologischer Dienst' : lang === 'pl' ? 'Krajowy urząd / służba geologiczna' : 'National authority / geological survey';
   }
@@ -90,8 +79,9 @@ function localizeEvidenceSourceFields(reportData: any, countryCode: string, lang
   if (out.geosurvey_context?.survey_authority) {
     out.geosurvey_context = { ...out.geosurvey_context, survey_authority: localizeEvidenceSourceName(out.geosurvey_context.survey_authority, countryCode, language) };
   }
-  if (Array.isArray(out.soil_metrics)) return out;
-  if (out.soil_metrics?.source_name) out.soil_metrics = { ...out.soil_metrics, source_name: localizeEvidenceSourceName(out.soil_metrics.source_name, countryCode, language) };
+  if (out.soil_metrics?.source_name) {
+    out.soil_metrics = { ...out.soil_metrics, source_name: localizeEvidenceSourceName(out.soil_metrics.source_name, countryCode, language) };
+  }
   for (const key of Object.keys(out)) {
     const value = out[key];
     if (value && typeof value === 'object' && !Array.isArray(value) && value.source_cited) {
@@ -104,9 +94,7 @@ function localizeEvidenceSourceFields(reportData: any, countryCode: string, lang
   source = source.replace(sourceLocalizationMarker, `${sourceLocalizationMarker}\n${sourceLocalization}`);
 }
 
-// Replace the legacy Polish verification checklist with a genuinely Polish
-// version when the selected report language is Polish. Other languages retain
-// the existing fallback checklist until their dedicated localization is cleaned.
+// Replace the legacy Polish verification checklist with language-safe source code.
 const checklistStart = 'const verificationChecklist: VerificationRequirement[] = [';
 const checklistEnd = '  // =========================================================================\n  // 10. Executive Summary & Statutory Disclaimers';
 if (source.includes(checklistStart) && source.includes(checklistEnd)) {
@@ -114,12 +102,12 @@ if (source.includes(checklistStart) && source.includes(checklistEnd)) {
     {
       topic: 'Oficjalne ustalenia planistyczne (MPZP lub decyzja o warunkach zabudowy)',
       reason: 'Wiążące przeznaczenie terenu, parametry zabudowy, wysokość budynku, intensywność zabudowy, powierzchnia biologicznie czynna oraz wymagania dotyczące dachu i dostępu należy potwierdzić w aktualnych dokumentach planistycznych przed zleceniem projektu.',
-      recommendedAuthorityOrExpert: \\`${'${municipality || \'Gmina właściwa miejscowo\'}'} — właściwy urząd gminy/miasta, wydział planowania przestrzennego i architektury\\`,
+      recommendedAuthorityOrExpert: String(municipality || 'Gmina właściwa miejscowo') + ' — właściwy urząd gminy/miasta, wydział planowania przestrzennego i architektury',
       priority: 'High'
     },
     {
       topic: 'Badanie geotechniczne i opinia geotechniczna',
-      reason: \\`Dane SoilGrids wskazują modelowany profil gruntu (${ '${soilGridsData.usdaTextureClass}' }). Parametry nośności, warstwy gruntu i poziom wód gruntowych należy potwierdzić badaniami terenowymi, odwiertami lub sondowaniami oraz właściwą opinią geotechniczną zgodnie z Eurokodem 7.\\`,
+      reason: 'Dane SoilGrids wskazują modelowany profil gruntu (' + String(soilGridsData?.usdaTextureClass || 'nieokreślony') + '). Parametry nośności, warstwy gruntu i poziom wód gruntowych należy potwierdzić badaniami terenowymi, odwiertami lub sondowaniami oraz właściwą opinią geotechniczną zgodnie z Eurokodem 7.',
       recommendedAuthorityOrExpert: 'Uprawniony geolog / geotechnik lub projektant posiadający właściwe kwalifikacje',
       priority: 'High'
     },
@@ -150,7 +138,7 @@ if (source.includes(checklistStart) && source.includes(checklistEnd)) {
     },
     {
       topic: 'Geotechnical Site Investigation',
-      reason: \\`ISRIC SoilGrids data indicates ${ '${soilGridsData.usdaTextureClass}' } subsoil. Pursuant to Eurocode 7 (EN 1997-1), exact allowable bearing capacity (kPa), layer boundaries, and seasonal water table depth must be determined through on-site investigation.\\`,
+      reason: 'ISRIC SoilGrids data indicates the modelled subsoil. Exact allowable bearing capacity, layer boundaries, and seasonal water table depth must be determined through on-site investigation.',
       recommendedAuthorityOrExpert: 'Licensed Geotechnical Engineer / Geologist',
       priority: 'High'
     },
@@ -178,17 +166,14 @@ if (source.includes(checklistStart) && source.includes(checklistEnd)) {
   if (start >= 0 && end > start) source = source.slice(0, start) + localizedChecklist + source.slice(end);
 }
 
-// Apply the source-name localization immediately before the final report is returned.
+// Apply source-name localization immediately before the final report is returned.
 const finalReportMarker = 'const finalReport = {';
 if (source.includes(finalReportMarker) && !source.includes('localizeEvidenceSourceFields(reportData, countryCode, language)')) {
   source = source.replace(
     finalReportMarker,
     `const localizedReportData = localizeEvidenceSourceFields(reportData, countryCode, language);\n    ${finalReportMarker}`
   );
-  source = source.replace(
-    'report_data: reportData };',
-    'report_data: localizedReportData };'
-  );
+  source = source.replace('report_data: reportData };', 'report_data: localizedReportData };');
 }
 
 fs.writeFileSync(file, source);
