@@ -1,5 +1,9 @@
+interface AssetFetcher {
+  fetch(request: Request): Promise<Response>;
+}
+
 export interface Env {
-  ASSETS: Fetcher;
+  ASSETS: AssetFetcher;
   API_BACKEND_URL?: string;
 }
 

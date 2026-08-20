@@ -5,15 +5,17 @@ import { Database, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 interface EvidenceRegistryTableProps {
   items?: EvidenceItem[];
+  language?: string;
 }
 
-export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ items = [] }) => {
+export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ items = [], language = 'en' }) => {
   const [filter, setFilter] = useState<'ALL' | 'VERIFIED' | 'MODELLED' | 'REQUIRES_VERIFICATION'>('ALL');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (!items || items.length === 0) return null;
 
   const filteredItems = filter === 'ALL' ? items : items.filter(i => i.status === filter);
+  const text = language === 'pl' ? { title: 'Rejestr audytu dowodów', subtitle: 'Każdy parametr techniczny jest powiązany z pochodzeniem i ograniczeniem', all: 'Wszystkie', verified: 'Zweryfikowane', modelled: 'Modelowane', unverified: 'Niezweryfikowane', source: 'Źródło', authoritative: 'Źródło i data', portal: 'Otwórz portal', spatial: 'Relacja przestrzenna', method: 'Metoda pozyskania', confidence: 'Poziom pewności', limitation: 'Znane ograniczenie' } : language === 'de' ? { title: 'Evidenz-Auditregister', subtitle: 'Jeder technische Parameter ist mit Herkunft und Einschränkung verknüpft', all: 'Alle', verified: 'Verifiziert', modelled: 'Modelliert', unverified: 'Unverifiziert', source: 'Quelle', authoritative: 'Quelle und Datum', portal: 'Portal öffnen', spatial: 'Räumlicher Bezug', method: 'Erfassungsmethode', confidence: 'Konfidenzniveau', limitation: 'Bekannte Einschränkung' } : { title: 'Evidence Audit Registry', subtitle: 'Every technical parameter is mapped to its provenance and limitation', all: 'All', verified: 'Verified', modelled: 'Modelled', unverified: 'Unverified', source: 'Source', authoritative: 'Authoritative Source & Date', portal: 'Access Portal / Viewer', spatial: 'Spatial Relationship', method: 'Calculation / Ingestion Method', confidence: 'Confidence Level', limitation: 'Known Limitation & Caveat' };
 
   return (
     <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-5">
@@ -23,8 +25,8 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
             <Database className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">Evidence Audit Registry (Claim → Source → Method → Limitation)</h3>
-            <p className="text-xs text-slate-500">Every technical parameter mapped to its provenance and epistemic limitation</p>
+            <h3 className="text-base font-bold text-slate-900">{text.title}</h3>
+            <p className="text-xs text-slate-500">{text.subtitle}</p>
           </div>
         </div>
 
@@ -37,7 +39,7 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
               filter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            All ({items.length})
+            {text.all} ({items.length})
           </button>
           <button
             type="button"
@@ -46,7 +48,7 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
               filter === 'VERIFIED' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-emerald-50'
             }`}
           >
-            Verified ({items.filter(i => i.status === 'VERIFIED').length})
+            {text.verified} ({items.filter(i => i.status === 'VERIFIED').length})
           </button>
           <button
             type="button"
@@ -55,7 +57,7 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
               filter === 'MODELLED' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-800 hover:bg-amber-50'
             }`}
           >
-            Modelled ({items.filter(i => i.status === 'MODELLED').length})
+            {text.modelled} ({items.filter(i => i.status === 'MODELLED').length})
           </button>
           <button
             type="button"
@@ -64,7 +66,7 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
               filter === 'REQUIRES_VERIFICATION' ? 'bg-rose-600 text-white shadow-xs' : 'text-rose-800 hover:bg-rose-50'
             }`}
           >
-            Unverified ({items.filter(i => i.status === 'REQUIRES_VERIFICATION').length})
+            {text.unverified} ({items.filter(i => i.status === 'REQUIRES_VERIFICATION').length})
           </button>
         </div>
       </div>
@@ -84,20 +86,20 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{item.category}</span>
-                    <EvidenceBadge level={item.status} size="sm" />
+                    <EvidenceBadge level={item.status} size="sm" language={language} />
                   </div>
                   <h4 className="text-sm font-bold text-slate-900 leading-snug">{item.claim}</h4>
                 </div>
 
                 <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
                   <div className="text-right text-xs">
-                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Source</span>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">{text.source}</span>
                     <span className="font-semibold text-slate-700">{item.sourceName.slice(0, 32)}...</span>
                   </div>
                   <button
                     type="button"
                     className="p-1 text-slate-400 hover:text-slate-700 transition"
-                    aria-label="Toggle details"
+                    aria-label={language === 'pl' ? 'Pokaż lub ukryj szczegóły' : language === 'de' ? 'Details ein- oder ausblenden' : 'Toggle details'}
                   >
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </button>
@@ -107,7 +109,7 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
               {isExpanded && (
                 <div className="mt-4 pt-3 border-t border-slate-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="space-y-1 bg-white p-3 rounded-xl border border-slate-200/60">
-                    <span className="font-bold text-slate-700 block">Authoritative Source & Date</span>
+                    <span className="font-bold text-slate-700 block">{text.authoritative}</span>
                     <p className="text-slate-600">{item.sourceName} ({item.datasetDate})</p>
                     {item.sourceUrl && (
                       <a
@@ -116,25 +118,25 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold pt-1"
                       >
-                        <span>Access Portal / Viewer</span>
+                        <span>{text.portal}</span>
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     )}
                   </div>
 
                   <div className="space-y-1 bg-white p-3 rounded-xl border border-slate-200/60">
-                    <span className="font-bold text-slate-700 block">Spatial Relationship</span>
+                    <span className="font-bold text-slate-700 block">{text.spatial}</span>
                     <p className="text-slate-600">{item.spatialRelationship}</p>
                   </div>
 
                   <div className="space-y-1 bg-white p-3 rounded-xl border border-slate-200/60">
-                    <span className="font-bold text-slate-700 block">Calculation / Ingestion Method</span>
+                    <span className="font-bold text-slate-700 block">{text.method}</span>
                     <p className="text-slate-600">{item.calculationMethod}</p>
-                    <span className="text-[11px] text-slate-400">Confidence Level: <strong className="text-slate-700">{item.confidence}</strong></span>
+                    <span className="text-[11px] text-slate-400">{text.confidence}: <strong className="text-slate-700">{item.confidence}</strong></span>
                   </div>
 
                   <div className="space-y-1 bg-rose-50/60 p-3 rounded-xl border border-rose-200/60">
-                    <span className="font-bold text-rose-900 block">Known Limitation & Caveat</span>
+                    <span className="font-bold text-rose-900 block">{text.limitation}</span>
                     <p className="text-rose-800 font-medium">{item.limitation}</p>
                   </div>
                 </div>
