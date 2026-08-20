@@ -34,6 +34,76 @@ source = source.replace(
   'getUKVerificationChecklist(municipality, stateName, language)'
 );
 
+// Keep evidence-source labels tied to the selected country and report language.
+// Official abbreviations remain intact, while explanatory authority names are
+// translated for readability. Most importantly, a source from another country
+// can never leak into the visible source library merely because a generic
+// pipeline component supplied a native-language label.
+const sourceLocalizationMarker = "const assemblyMarker = \"stage = 'report-assembly'; const cProfile = getCountryProfile(countryCode);\";";
+if (!source.includes('function localizeEvidenceSourceName(')) {
+  const sourceLocalization = `function localizeEvidenceSourceName(name: any, countryCode: string, language: string): string {
+  const raw = String(name || '').trim();
+  if (!raw) return raw;
+  const code = String(countryCode || '').toUpperCase();
+  const lang = String(language || 'en').toLowerCase();
+  const key = raw.toLowerCase();
+
+  const dictionaries: Record<string, Record<string, string>> = {
+    PL: {
+      'państwowy instytut geologiczny – pib': lang === 'pl' ? 'Państwowy Instytut Geologiczny – PIB' : lang === 'de' ? 'Polnisches Staatliches Geologisches Institut – Nationales Forschungsinstitut (PIG-PIB)' : 'Polish Geological Institute – National Research Institute (PIG-PIB)',
+      'państwowy instytut geologiczny - pib': lang === 'pl' ? 'Państwowy Instytut Geologiczny – PIB' : lang === 'de' ? 'Polnisches Staatliches Geologisches Institut – Nationales Forschungsinstitut (PIG-PIB)' : 'Polish Geological Institute – National Research Institute (PIG-PIB)',
+      'główny urząd geodezji i kartografii (gugik / egib)': lang === 'pl' ? 'Główny Urząd Geodezji i Kartografii (GUGiK / EGiB)' : lang === 'de' ? 'Polnisches Hauptamt für Geodäsie und Kartografie (GUGiK / EGiB)' : 'Polish Head Office of Geodesy and Cartography (GUGiK / EGiB)',
+      'państwowe gospodarstwo wodne wody polskie (hydroportal isok)': lang === 'pl' ? 'Państwowe Gospodarstwo Wodne Wody Polskie (Hydroportal ISOK)' : lang === 'de' ? 'Polnische Staatliche Wasserwirtschaft Wody Polskie (Hydroportal ISOK)' : 'Polish State Water Holding Wody Polskie (ISOK Hydroportal)',
+      'wyższy urząd górniczy (wug) / pig-pib midas': lang === 'pl' ? 'Wyższy Urząd Górniczy (WUG) / PIG-PIB MIDAS' : lang === 'de' ? 'Polnisches Oberbergamt (WUG) / PIG-PIB MIDAS' : 'Polish State Mining Authority (WUG) / PIG-PIB MIDAS'
+    },
+    GB: {
+      'british geological survey (bgs / geoindex 1:50 000)': lang === 'pl' ? 'Brytyjska Służba Geologiczna (BGS / GeoIndex 1:50 000)' : lang === 'de' ? 'British Geological Survey (BGS / GeoIndex 1:50.000)' : 'British Geological Survey (BGS / GeoIndex 1:50,000)',
+      'hm land registry / ordnance survey (os mastermap)': lang === 'pl' ? 'Brytyjski Rejestr Gruntów (HM Land Registry) / Ordnance Survey (OS MasterMap)' : lang === 'de' ? 'Britisches Grundbuchamt (HM Land Registry) / Ordnance Survey (OS MasterMap)' : 'HM Land Registry / Ordnance Survey (OS MasterMap)',
+      'environment agency / natural resources wales (flood map for planning)': lang === 'pl' ? 'Environment Agency / Natural Resources Wales (mapy zagrożenia powodziowego)' : lang === 'de' ? 'Environment Agency / Natural Resources Wales (Hochwasser-Gefahrenkarten)' : 'Environment Agency / Natural Resources Wales (Flood Map for Planning)',
+      'coal authority': lang === 'pl' ? 'Brytyjski Urząd Górniczy (Coal Authority)' : lang === 'de' ? 'Britische Bergbaubehörde (Coal Authority)' : 'Coal Authority',
+      'historic england / local historic environment record': lang === 'pl' ? 'Historic England / lokalny rejestr dziedzictwa historycznego' : lang === 'de' ? 'Historic England / lokales Denkmal- und Umweltregister' : 'Historic England / local Historic Environment Record'
+    }
+  };
+
+  const dict = dictionaries[code];
+  if (dict?.[key]) return dict[key];
+
+  // If a Polish authority name appears in a non-Polish country report, replace
+  // it with a neutral national-source label rather than displaying the wrong
+  // country's institution.
+  const looksPolish = /p[ań]stwowy instytut geologiczny|g[łl]ówny urz[aą]d geodezji|wody polskie|wyższy urz[aą]d g[óo]rniczy|pgi-pib|gugik|wug/i.test(raw);
+  if (code !== 'PL' && looksPolish) {
+    return lang === 'de' ? 'Nationale Fachbehörde / Geologischer Dienst' : lang === 'pl' ? 'Krajowy urząd / służba geologiczna' : 'National authority / geological survey';
+  }
+  return raw;
+}
+
+function localizeEvidenceSourceFields(reportData: any, countryCode: string, language: string): any {
+  if (!reportData || typeof reportData !== 'object') return reportData;
+  const out = { ...reportData };
+  if (Array.isArray(out.evidence_registry)) {
+    out.evidence_registry = out.evidence_registry.map((item: any) => ({ ...item, sourceName: localizeEvidenceSourceName(item?.sourceName, countryCode, language) }));
+  }
+  if (Array.isArray(out.data_sources)) {
+    out.data_sources = out.data_sources.map((item: any) => ({ ...item, name: localizeEvidenceSourceName(item?.name, countryCode, language), authority: localizeEvidenceSourceName(item?.authority, countryCode, language) }));
+  }
+  if (out.geosurvey_context?.survey_authority) {
+    out.geosurvey_context = { ...out.geosurvey_context, survey_authority: localizeEvidenceSourceName(out.geosurvey_context.survey_authority, countryCode, language) };
+  }
+  if (Array.isArray(out.soil_metrics)) return out;
+  if (out.soil_metrics?.source_name) out.soil_metrics = { ...out.soil_metrics, source_name: localizeEvidenceSourceName(out.soil_metrics.source_name, countryCode, language) };
+  for (const key of Object.keys(out)) {
+    const value = out[key];
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.source_cited) {
+      out[key] = { ...value, source_cited: localizeEvidenceSourceName(value.source_cited, countryCode, language) };
+    }
+  }
+  return out;
+}
+`;
+  source = source.replace(sourceLocalizationMarker, `${sourceLocalizationMarker}\n${sourceLocalization}`);
+}
+
 // Replace the legacy Polish verification checklist with a genuinely Polish
 // version when the selected report language is Polish. Other languages retain
 // the existing fallback checklist until their dedicated localization is cleaned.
@@ -73,19 +143,19 @@ if (source.includes(checklistStart) && source.includes(checklistEnd)) {
     }
   ] : [
     {
-      topic: 'Official Planning Certificate (Wypis i Wyrys z MPZP lub Decyzja WZ)',
+      topic: 'Official Planning Certificate',
       reason: 'Binding building height, maximum building coverage ratio, floor area ratio (FAR), and allowed roof geometries must be legally verified before architectural commission.',
-      recommendedAuthorityOrExpert: \\`${'${municipality || \'Municipal\'}'} Spatial Planning & Architecture Department (Wydział Architektury / Urbanistyki)\\`,
+      recommendedAuthorityOrExpert: 'Local planning authority / municipal planning and architecture department',
       priority: 'High'
     },
     {
-      topic: 'Geotechnical Site Investigation (Badania Geotechniczne / Baugrunduntersuchung)',
+      topic: 'Geotechnical Site Investigation',
       reason: \\`ISRIC SoilGrids data indicates ${ '${soilGridsData.usdaTextureClass}' } subsoil. Pursuant to Eurocode 7 (EN 1997-1), exact allowable bearing capacity (kPa), layer boundaries, and seasonal water table depth must be determined through on-site investigation.\\`,
-      recommendedAuthorityOrExpert: 'Licensed Geotechnical Engineer / Geologist (Uprawniony Geolog / Geotechnik)',
+      recommendedAuthorityOrExpert: 'Licensed Geotechnical Engineer / Geologist',
       priority: 'High'
     },
     {
-      topic: 'Topographical Survey for Design (Mapa do Celów Projektowych - MDCP)',
+      topic: 'Topographical Survey for Design',
       reason: 'Confirm exact boundary markers, ground levels, structures and utilities before detailed design.',
       recommendedAuthorityOrExpert: 'Licensed Land Surveyor',
       priority: 'High'
@@ -97,9 +167,9 @@ if (source.includes(checklistStart) && source.includes(checklistEnd)) {
       priority: 'Medium'
     },
     {
-      topic: 'Land and Mortgage Register Verification (Księga Wieczysta)',
+      topic: 'Land and Mortgage Register Verification',
       reason: 'Verify ownership, easements, mortgages and third-party rights before acquisition or development.',
-      recommendedAuthorityOrExpert: 'District Court Land Registry / Notary Public',
+      recommendedAuthorityOrExpert: 'Land Registry / Notary Public / Property Solicitor',
       priority: 'High'
     }
   ];\n\n`;
@@ -108,5 +178,18 @@ if (source.includes(checklistStart) && source.includes(checklistEnd)) {
   if (start >= 0 && end > start) source = source.slice(0, start) + localizedChecklist + source.slice(end);
 }
 
+// Apply the source-name localization immediately before the final report is returned.
+const finalReportMarker = 'const finalReport = {';
+if (source.includes(finalReportMarker) && !source.includes('localizeEvidenceSourceFields(reportData, countryCode, language)')) {
+  source = source.replace(
+    finalReportMarker,
+    `const localizedReportData = localizeEvidenceSourceFields(reportData, countryCode, language);\n    ${finalReportMarker}`
+  );
+  source = source.replace(
+    'report_data: reportData };',
+    'report_data: localizedReportData };'
+  );
+}
+
 fs.writeFileSync(file, source);
-console.log('Applied resilient geology, UK fallback, UK language, and Polish checklist localization patches to server.ts');
+console.log('Applied resilient geology, UK language, checklist, and country/language source-label isolation patches to server.ts');
