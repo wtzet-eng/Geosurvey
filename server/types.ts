@@ -41,11 +41,11 @@ export interface TerrainAnalysis {
   elevationDifferenceM: number;
   averageSlopePercent: number; // %
   averageSlopeDegrees: number; // °
-  slopeCategory: 'Flat (0-2°)' | 'Gentle (2-5°)' | 'Moderate (5-10°)' | 'Steep (10-20°)' | 'Very Steep (>20°)';
+  slopeCategory: 'Flat (0-2°)' | 'Gentle (2-5°)' | 'Moderate (5-10°)' | 'Steep (10-20°)' | 'Very Steep (>20°)' | 'Not available';
   aspectDirection: string; // e.g., "South-Facing (180°)"
   floodInundationRisk: {
     status: EvidenceLevel;
-    level: 'Negligible' | 'Low' | 'Moderate' | 'High' | 'Proximity Indicator Only';
+    level: 'Negligible' | 'Low' | 'Moderate' | 'High' | 'Proximity Indicator Only' | 'Not available';
     distanceToWaterwayM?: number;
     waterwayName?: string;
     waterwayType?: string;
@@ -57,7 +57,7 @@ export interface TerrainAnalysis {
   geohazards: {
     landslideSusceptibility: {
       status: EvidenceLevel;
-      level: 'Negligible' | 'Low' | 'Moderate' | 'High';
+      level: 'Negligible' | 'Low' | 'Moderate' | 'High' | 'Not available';
       description: string;
       sourceName: string;
     };
@@ -177,8 +177,8 @@ export interface InfrastructureAnalysis {
 }
 
 export interface EnvironmentalAnalysis {
-  natura2000Intersect: boolean;
-  distanceToNatura2000M: number;
+  natura2000Intersect?: boolean;
+  distanceToNatura2000M?: number;
   nearestProtectedAreaName?: string;
   protectedAreaType?: string;
   landscapeParkOverlay: boolean;
