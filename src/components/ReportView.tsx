@@ -9,9 +9,9 @@ interface ReportViewProps {
 
 /**
  * The analysis pipeline already receives report.language. The evidence report
- * view, however, contains a number of presentation strings that were hard-coded
- * in English. Keep the working report component intact and localize its UI here.
- * Data values, dataset names and source names are deliberately not translated.
+ * view, however, contains presentation strings and narrative fragments that can
+ * still arrive in English. Keep scientific values, dataset names, authority
+ * names and URLs untouched, but localize reader-facing prose.
  */
 const UI_TRANSLATIONS: Record<string, Record<string, string>> = {
   de: {
@@ -36,9 +36,77 @@ const UI_TRANSLATIONS: Record<string, Record<string, string>> = {
     'Back': 'Retour', 'Share': 'Partager', 'Copied': 'Copié', 'Preliminary Site Assessment': 'Évaluation préliminaire du site', 'Evidence first': "Les preuves d'abord", 'Executive Summary': 'Synthèse exécutive', 'Site & Parcel': 'Site & parcelle', 'Location': 'Localisation', 'Coordinates': 'Coordonnées', 'Area': 'Surface', 'Elevation': 'Altitude', 'Slope': 'Pente', 'Geological Evidence': 'Données géologiques', 'Geological unit': 'Unité géologique', 'Lithology': 'Lithologie', 'Groundwater regime': 'Régime des eaux souterraines', 'Ground & Foundation Conditions': 'Sol & conditions de fondation', 'Soil texture': 'Texture du sol', 'Bearing capacity': 'Portance', 'Geohazard Screening': 'Dépistage des géorisques', 'Flooding & Hydrology': 'Inondation & hydrologie', 'Environment': 'Environnement', 'Archaeology & Heritage': 'Archéologie & patrimoine', 'Planning / Development Constraints': 'Contraintes d’aménagement', 'Building & Regulatory Requirements': 'Exigences de construction et réglementaires', 'Development Implications': 'Implications pour le développement', 'Market & Valuation Context': 'Marché & contexte de valorisation', 'Recommended Investigations': 'Investigations recommandées', 'Evidence Register & Source Library': 'Registre des preuves & bibliothèque des sources', 'Important limitations and professional disclaimer': 'Limites importantes et avertissement professionnel', 'Open source': 'Ouvrir la source', 'Requires verification': 'Vérification requise', 'Verified': 'Vérifié', 'Modelled': 'Modélisé'
   },
   pl: {
-    'Back': 'Wstecz', 'Share': 'Udostępnij', 'Copied': 'Skopiowano', 'Preliminary Site Assessment': 'Wstępna ocena lokalizacji', 'Evidence first': 'Najpierw dowody', 'Executive Summary': 'Podsumowanie', 'Site & Parcel': 'Lokalizacja i działka', 'Location': 'Lokalizacja', 'Coordinates': 'Współrzędne', 'Area': 'Powierzchnia', 'Elevation': 'Wysokość', 'Slope': 'Nachylenie', 'Geological Evidence': 'Dane geologiczne', 'Geological unit': 'Jednostka geologiczna', 'Lithology': 'Litologia', 'Groundwater regime': 'Warunki wodonośne', 'Ground & Foundation Conditions': 'Warunki gruntowe i fundamentowe', 'Soil texture': 'Tekstura gleby', 'Bearing capacity': 'Nośność', 'Geohazard Screening': 'Ocena zagrożeń geologicznych', 'Flooding & Hydrology': 'Powodzie i hydrologia', 'Environment': 'Środowisko', 'Archaeology & Heritage': 'Archeologia i dziedzictwo', 'Planning / Development Constraints': 'Ograniczenia planistyczne i inwestycyjne', 'Building & Regulatory Requirements': 'Wymogi budowlane i prawne', 'Development Implications': 'Implikacje inwestycyjne', 'Market & Valuation Context': 'Rynek i kontekst wyceny', 'Recommended Investigations': 'Zalecane badania', 'Evidence Register & Source Library': 'Rejestr dowodów i biblioteka źródeł', 'Important limitations and professional disclaimer': 'Ważne ograniczenia i zastrzeżenia zawodowe', 'Open source': 'Otwórz źródło', 'Requires verification': 'Wymaga weryfikacji', 'Verified': 'Zweryfikowane', 'Modelled': 'Modelowane'
+    'Back': 'Wstecz', 'Drive': 'Dysk', 'Embed': 'Osadź', 'Share': 'Udostępnij', 'Copied': 'Skopiowano', 'PDF': 'PDF',
+    'Preliminary Site Assessment': 'Wstępna ocena lokalizacji', 'Evidence first': 'Najpierw dowody',
+    '1. Executive Summary': '1. Podsumowanie', 'Evidence': 'Dowody', 'Verified': 'Zweryfikowane', 'Modelled': 'Modelowane', 'Needs verification': 'Wymaga weryfikacji', 'Not scored': 'Brak oceny',
+    '2. Site & Parcel': '2. Lokalizacja i działka', 'Site & Parcel': 'Lokalizacja i działka', 'Location': 'Lokalizacja', 'Coordinates': 'Współrzędne', 'Area': 'Powierzchnia', 'Cadastral parcel': 'Działka ewidencyjna', 'Official area': 'Powierzchnia urzędowa', 'Elevation': 'Wysokość', 'Slope': 'Nachylenie', 'Aspect': 'Ekspozycja',
+    '3. Geological Evidence': '3. Dane geologiczne', 'Geological Evidence': 'Dane geologiczne', 'Geological unit': 'Jednostka geologiczna', 'Lithology': 'Litologia', 'Stratigraphic context': 'Kontekst stratygraficzny', 'Groundwater regime': 'Warunki wodonośne', 'Interpretation boundary': 'Granica interpretacji', 'Pedological profile': 'Profil glebowy', 'Depth': 'Głębokość', 'Material / texture': 'Materiał / tekstura', 'Mechanical interpretation': 'Interpretacja mechaniczna', 'Sand': 'Piasek', 'Silt': 'Pył', 'Clay': 'Ił',
+    '4. Ground & Foundation Conditions': '4. Warunki gruntowe i fundamentowe', 'Ground & Foundation Conditions': 'Warunki gruntowe i fundamentowe', 'Soil texture': 'Tekstura gleby', 'Bearing capacity': 'Nośność', 'Friction angle': 'Kąt tarcia wewnętrznego', 'Cohesion': 'Spójność', 'Drainage': 'Drenaż', 'Hydraulic conductivity': 'Przewodność hydrauliczna', 'Bulk density': 'Gęstość objętościowa',
+    '5. Geohazard Screening': '5. Ocena zagrożeń geologicznych', 'Geohazard Screening': 'Ocena zagrożeń geologicznych', '5. Flooding & Hydrology': '5. Powodzie i hydrologia', 'Flooding & Hydrology': 'Powodzie i hydrologia', 'Groundwater depth': 'Głębokość wód gruntowych', 'Groundwater notice': 'Informacja o wodach gruntowych', 'Geological portal': 'Portal geologiczny', 'Flood / hydrology evidence': 'Dane o powodziach i hydrologii',
+    '6. Environment': '6. Środowisko', 'Environment': 'Środowisko', 'Surrounding land use': 'Użytkowanie terenu w otoczeniu', 'Source records': 'Rejestry źródłowe',
+    '7. Archaeology & Heritage': '7. Archeologia i dziedzictwo', 'Archaeology & Heritage': 'Archeologia i dziedzictwo',
+    '8. Planning / Development Constraints': '8. Ograniczenia planistyczne i inwestycyjne', 'Planning / Development Constraints': 'Ograniczenia planistyczne i inwestycyjne', 'Zoning designation': 'Przeznaczenie planistyczne', 'Building coverage': 'Powierzchnia zabudowy', 'Biologically active area': 'Powierzchnia biologicznie czynna', 'Maximum height': 'Maksymalna wysokość', 'Setbacks': 'Odległości od granic',
+    '8. Building & Regulatory Requirements': '8. Wymogi budowlane i prawne', 'Building & Regulatory Requirements': 'Wymogi budowlane i prawne',
+    '9. Development Implications': '9. Implikacje inwestycyjne', 'Development Implications': 'Implikacje inwestycyjne', 'Potential opportunities': 'Potencjalne możliwości', 'Key constraints / uncertainties': 'Kluczowe ograniczenia / niepewności',
+    '9. Market & Valuation Context': '9. Rynek i kontekst wyceny', 'Market & Valuation Context': 'Rynek i kontekst wyceny', 'Indicative range': 'Zakres orientacyjny', 'Median / unit': 'Mediana / jednostka', 'Valuation basis': 'Podstawa wyceny', 'Comparable evidence': 'Dane porównawcze',
+    'Section 10': 'Sekcja 10', 'Recommended Investigations': 'Zalecane badania', 'Section 11': 'Sekcja 11', 'Evidence Register & Source Library': 'Rejestr dowodów i biblioteka źródeł', 'direct source links': 'bezpośrednie linki do źródeł', 'Sources returned by the analysis pipeline': 'Źródła zwrócone przez moduł analizy',
+    'Evidence Audit Registry (Claim → Source → Method → Limitation)': 'Rejestr audytu dowodów (teza → źródło → metoda → ograniczenie)',
+    'Every technical parameter mapped to its provenance and epistemic limitation': 'Każdy parametr techniczny jest powiązany ze źródłem, metodą i ograniczeniem wiarygodności',
+    'All': 'Wszystkie', 'Unverified': 'Niezweryfikowane', 'Source': 'Źródło', 'Authoritative Source & Date': 'Źródło autorytatywne i data', 'Access Portal / Viewer': 'Otwórz portal / przeglądarkę', 'Spatial Relationship': 'Relacja przestrzenna', 'Calculation / Ingestion Method': 'Metoda obliczeń / pozyskania danych', 'Confidence Level:': 'Poziom pewności:', 'Known Limitation & Caveat': 'Znane ograniczenia i zastrzeżenia',
+    'Important limitations and professional disclaimer': 'Ważne ograniczenia i zastrzeżenia zawodowe', 'Limitation:': 'Ograniczenie:', 'Professional boundary:': 'Granica odpowiedzialności zawodowej:', 'Interpretation boundary:': 'Granica interpretacji:',
+    'Show fewer': 'Pokaż mniej', 'Show all sources': 'Pokaż wszystkie źródła', 'Open source': 'Otwórz źródło', 'Requires verification': 'Wymaga weryfikacji', 'Generated': 'Wygenerowano',
+    'Source cited by analysis:': 'Źródło wskazane przez analizę:', 'Modelled unless supported by site investigation': 'Modelowane, o ile nie potwierdzono badaniami terenowymi'
   }
 };
+
+const PL_PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/Not available from the datasets reviewed/gi, 'Brak danych w przeanalizowanych zbiorach'],
+  [/Not available — no location-specific national radon dataset was queried/gi, 'Brak danych — nie wykonano zapytania do krajowego zbioru danych radonowych dla tej lokalizacji'],
+  [/Not available — no location-specific mining registry query was completed/gi, 'Brak danych — nie wykonano zapytania do rejestru górniczego dla tej lokalizacji'],
+  [/Not available — national geological map not queried/gi, 'Brak danych — nie wykonano zapytania do krajowej mapy geologicznej'],
+  [/Not available — requires hydrogeological evidence/gi, 'Brak danych — wymagane są dane hydrogeologiczne'],
+  [/Not directly measured \(Requires on-site borehole\)/gi, 'Nie zmierzono bezpośrednio (wymagany odwiert terenowy)'],
+  [/Requires local cadastre extract/gi, 'Wymaga wypisu z właściwego rejestru katastralnego'],
+  [/Requires local planning confirmation/gi, 'Wymaga potwierdzenia w lokalnym urzędzie planistycznym'],
+  [/Requires municipal confirmation/gi, 'Wymaga potwierdzenia w gminie'],
+  [/Requires on-site investigation/gi, 'Wymaga badań terenowych'],
+  [/Requires verification/gi, 'Wymaga weryfikacji'],
+  [/Screening only; specialist verification may be required\./gi, 'Wyłącznie analiza przesiewowa; może być wymagana weryfikacja specjalistyczna.'],
+  [/Utility capacity and legal access require direct confirmation\./gi, 'Przepustowość sieci oraz prawny dostęp wymagają bezpośredniego potwierdzenia.'],
+  [/No construction cost quote is generated by this screening\./gi, 'Ta analiza przesiewowa nie stanowi kosztorysu robót budowlanych.'],
+  [/No structured hazard records were returned\. This is not evidence that hazards are absent\./gi, 'Nie zwrócono ustrukturyzowanych danych o zagrożeniach. Nie oznacza to, że zagrożenia nie występują.'],
+  [/current geological classification is preliminary regional\/modelled information\. It is not a site-specific geological investigation\./gi, 'Obecna klasyfikacja geologiczna ma charakter wstępny, regionalny lub modelowany. Nie jest to badanie geologiczne konkretnej działki.'],
+  [/The authoritative map and borehole services below are the evidence base for further verification\./gi, 'Poniższe autorytatywne mapy i bazy otworów stanowią podstawę do dalszej weryfikacji.'],
+  [/Terrain elevation data is not available; landslide susceptibility has not been inferred\./gi, 'Dane wysokościowe terenu są niedostępne; nie wyznaczono podatności na osuwiska.'],
+  [/Hydrology proximity data is not available because the spatial query did not complete\. No flood-risk classification has been inferred\./gi, 'Dane o bliskości cieków są niedostępne, ponieważ zapytanie przestrzenne nie zakończyło się poprawnie. Nie wyznaczono klasy ryzyka powodziowego.'],
+  [/Environmental spatial query unavailable; no protected-area overlap or distance conclusion was inferred\./gi, 'Zapytanie przestrzenne dotyczące środowiska jest niedostępne; nie wyciągnięto wniosku o nakładaniu się obszarów chronionych ani o odległości od nich.'],
+  [/SoilGrids query unavailable; no soil texture or engineering properties inferred\./gi, 'Zapytanie SoilGrids jest niedostępne; nie wyznaczono tekstury gleby ani parametrów inżynierskich.'],
+  [/Elevation dataset query unavailable; no elevation, slope, or aspect result inferred\./gi, 'Zapytanie do zbioru wysokościowego jest niedostępne; nie wyznaczono wysokości, nachylenia ani ekspozycji.'],
+  [/Nearest public road corridor unconfirmed in open dataset/gi, 'Najbliższy publiczny korytarz drogowy nie został potwierdzony w otwartym zbiorze danych'],
+  [/No power lines\/transformers mapped in immediate OpenStreetMap buffer\./gi, 'W bezpośrednim buforze OpenStreetMap nie zmapowano linii energetycznych ani transformatorów.'],
+  [/No municipal water pipeline mapped in open vector dataset\./gi, 'W otwartym zbiorze wektorowym nie zmapowano komunalnego wodociągu.'],
+  [/No sanitary sewer mapped in open dataset\./gi, 'W otwartym zbiorze danych nie zmapowano kanalizacji sanitarnej.'],
+  [/No gas pipeline mapped in immediate vector buffer\./gi, 'W bezpośrednim buforze wektorowym nie zmapowano gazociągu.'],
+  [/No telecom infrastructure mapped in immediate buffer\./gi, 'W bezpośrednim buforze nie zmapowano infrastruktury telekomunikacyjnej.'],
+  [/Preliminary pedological estimate/gi, 'Wstępne oszacowanie pedologiczne'],
+  [/Indicative Automated Econometric Benchmark/gi, 'Orientacyjny automatyczny model ekonometryczny'],
+  [/Indicative Valuation Benchmark/gi, 'Orientacyjny benchmark wartości'],
+  [/Soil Texture:/gi, 'Tekstura gleby:'],
+  [/Road access:/gi, 'Dostęp drogowy:'],
+  [/Direct access:/gi, 'Dostęp bezpośredni:'],
+  [/Surface:/gi, 'Nawierzchnia:'],
+  [/Landslide susceptibility/gi, 'Podatność na osuwiska'],
+  [/Seismic hazard/gi, 'Zagrożenie sejsmiczne'],
+  [/Radon potential/gi, 'Potencjał radonowy'],
+  [/Mining subsidence/gi, 'Osiadanie górnicze'],
+  [/Potential Mining Area/gi, 'Potencjalny obszar górniczy'],
+  [/No direct comparable deeds verified/gi, 'Nie zweryfikowano bezpośrednich transakcji porównawczych'],
+  [/0 Direct Comparable Deeds Verified/gi, '0 zweryfikowanych bezpośrednich transakcji porównawczych'],
+  [/High uncertainty/gi, 'Wysoka niepewność'],
+  [/Medium uncertainty/gi, 'Umiarkowana niepewność'],
+  [/Low uncertainty/gi, 'Niska niepewność'],
+  [/Not available/gi, 'Brak danych']
+];
 
 function localizeText(root: HTMLElement, language: string) {
   const map = UI_TRANSLATIONS[language];
@@ -48,10 +116,19 @@ function localizeText(root: HTMLElement, language: string) {
   let node: Node | null;
   while ((node = walker.nextNode())) nodes.push(node as Text);
   for (const textNode of nodes) {
-    const value = textNode.nodeValue?.trim();
-    if (!value) continue;
+    const raw = textNode.nodeValue;
+    const value = raw?.trim();
+    if (!raw || !value) continue;
     const translated = map[value];
-    if (translated) textNode.nodeValue = textNode.nodeValue!.replace(value, translated);
+    if (translated) {
+      textNode.nodeValue = raw.replace(value, translated);
+      continue;
+    }
+    if (language === 'pl') {
+      let localized = raw;
+      for (const [pattern, replacement] of PL_PHRASE_REPLACEMENTS) localized = localized.replace(pattern, replacement);
+      if (localized !== raw) textNode.nodeValue = localized;
+    }
   }
 }
 
