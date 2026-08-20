@@ -67,16 +67,31 @@ async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGri
     }
     return null;
   };
+  const responseValue = (body: string, contentType: string): number | null => {
+    if (/json/i.test(contentType) || /^\s*[\[{]/.test(body)) {
+      try { const parsed = numericValue(JSON.parse(body)); if (parsed !== null) return parsed; } catch { /* try text/XML below */ }
+    }
+    const keyed = body.match(/(?:GRAY_INDEX|value|mean)\s*(?:=|:)\s*["']?(-?\d+(?:\.\d+)?)/i)
+      || body.match(/(?:GRAY_INDEX|value|mean)=["'](-?\d+(?:\.\d+)?)["']/i);
+    if (keyed) return Number(keyed[1]);
+    const element = body.match(/<(?:[^:>]+:)?(?:GRAY_INDEX|value|mean)[^>]*>\s*(-?\d+(?:\.\d+)?)\s*</i);
+    return element ? Number(element[1]) : null;
+  };
   const point = async (property: typeof properties[number], depth: typeof depths[number]) => {
     const delta = 0.001; const layer = `${property}_${depth}_mean`;
-    const params = new URLSearchParams({ map: `/map/${property}.map`, SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetFeatureInfo', SRS: 'EPSG:4326', BBOX: `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`, WIDTH: '3', HEIGHT: '3', X: '1', Y: '1', LAYERS: layer, QUERY_LAYERS: layer, INFO_FORMAT: 'application/json', FEATURE_COUNT: '1' });
+    const params = new URLSearchParams({ map: `/map/${property}.map`, SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetFeatureInfo', SRS: 'EPSG:4326', BBOX: `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`, WIDTH: '3', HEIGHT: '3', X: '1', Y: '1', LAYERS: layer, QUERY_LAYERS: layer, INFO_FORMAT: 'text/plain', FEATURE_COUNT: '1' });
     const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 4500);
-    try { const response = await fetch(`${SOILGRIDS_WMS}?${params}`, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 (SoilGrids WMS point query)' }, signal: controller.signal }); if (!response.ok) return null; return numericValue(await response.json()); }
-    catch { return null; } finally { clearTimeout(timeout); }
+    try {
+      const response = await fetch(`${SOILGRIDS_WMS}?${params}`, { headers: { Accept: 'text/plain, application/json, application/xml, text/xml', 'User-Agent': 'GeoSurvey/1.0 (SoilGrids WMS point query)' }, signal: controller.signal });
+      const contentType = response.headers.get('content-type') || ''; const body = response.ok ? await response.text() : ''; const parsed = response.ok ? responseValue(body, contentType) : null;
+      return parsed;
+    } catch { return null; } finally { clearTimeout(timeout); }
   };
   const entries = await Promise.all(depths.flatMap(depth => properties.map(async property => [`${property}:${depth}`, await point(property, depth)] as const)));
   const values = Object.fromEntries(entries) as Record<string, number | null>;
-  if (Object.values(values).some(value => value === null)) return fallback;
+  const parsedLayerCount = Object.values(values).filter(value => value !== null).length;
+  console.info('[SoilGrids WMS]', { endpoint: SOILGRIDS_WMS, requestedLayerCount: entries.length, parsedLayerCount });
+  if (parsedLayerCount !== entries.length) return fallback;
   const scaled = (property: string, depth: string) => { const raw = values[`${property}:${depth}`]!; return property === 'soc' || property === 'bdod' ? raw / 100 : property === 'phh2o' ? raw / 10 : raw / 10; };
   const layer = (depth: typeof depths[number], top: number, bottom: number): SoilLayerDepth => {
     const sand = scaled('sand', depth), silt = scaled('silt', depth), clay = scaled('clay', depth), soc = scaled('soc', depth), density = scaled('bdod', depth), ph = scaled('phh2o', depth);

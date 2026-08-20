@@ -200,6 +200,7 @@ export interface EuropeanSurveyContext {
   lithology_type: string | null;
   geological_period_era?: string | null;
   superficial_deposit?: string | null;
+  superficial_lithology?: string | null;
   evidence_tier?: number;
   source_scale?: string | null;
   nearby_borehole_count?: number;
