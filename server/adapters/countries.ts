@@ -74,11 +74,11 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     currency: 'GBP',
     symbol: '£',
     cadastreAuthority: 'HM Land Registry / Ordnance Survey (OS MasterMap)',
-    cadastrePortalUrl: 'https://landregistry.gov.uk',
+    cadastrePortalUrl: 'https://use-land-property-data.service.gov.uk/datasets/inspire',
     geologyAuthority: 'British Geological Survey (BGS / GeoIndex 1:50 000)',
-    geologyPortalUrl: 'https://bgs.ac.uk',
+    geologyPortalUrl: 'https://mapapps2.bgs.ac.uk/geoindex/home.html',
     floodAuthority: 'Environment Agency / Natural Resources Wales (Flood Map for Planning)',
-    floodPortalUrl: 'https://flood-warning-information.service.gov.uk',
+    floodPortalUrl: 'https://environment.data.gov.uk/dataset/04532375-a198-476e-985e-0579a0a11b47',
     planningInstrumentName: 'Local Development Framework (LDF) / Planning Permission (NPPF)',
     standardSetbackRule: 'No fixed statutory setback; evaluated under Residential Design Guides',
     baseValuationPerSqm: 195,
@@ -163,10 +163,26 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'Landesbauordnungen (Bauwich typisch 3.0 m bzw. halbe Gebäudehöhe)',
     baseValuationPerSqm: 210,
     valuationDataSource: 'Grundbuch / Statistik Austria Immobilienpreisspiegel'
-  }
+  },
+  EU: {
+    countryCode: 'EU',
+    countryName: 'Europe',
+    currency: 'EUR',
+    symbol: '€',
+    cadastreAuthority: 'National cadastral authority / INSPIRE cadastral parcels',
+    cadastrePortalUrl: 'https://inspire.ec.europa.eu/',
+    geologyAuthority: 'EuroGeoSurveys / European Geological Data Infrastructure (EGDI)',
+    geologyPortalUrl: 'https://www.europe-geology.eu',
+    floodAuthority: 'Copernicus Emergency Management Service / national flood authority',
+    floodPortalUrl: 'https://emergency.copernicus.eu/',
+    planningInstrumentName: 'Local municipal planning instrument',
+    standardSetbackRule: 'Locally regulated; requires municipal planning/building-control confirmation',
+    baseValuationPerSqm: 160,
+    valuationDataSource: 'National transaction registers / Eurostat regional statistics'
+  },
 };
 
 export function getCountryProfile(countryCode: string): CountryAdapterProfile {
   const code = (countryCode || 'PL').toUpperCase();
-  return COUNTRY_ADAPTERS[code] || COUNTRY_ADAPTERS.PL;
+  return COUNTRY_ADAPTERS[code] || COUNTRY_ADAPTERS.EU;
 }
