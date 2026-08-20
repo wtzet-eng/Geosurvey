@@ -53,6 +53,39 @@ export interface SoilGridsResult {
   limitation: string;
 }
 
+const SOILGRIDS_WMS = 'https://maps.isric.org/mapserv';
+
+async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGridsResult): Promise<SoilGridsResult> {
+  const properties = ['sand', 'silt', 'clay', 'soc', 'bdod', 'phh2o'] as const;
+  const depths = ['0-5cm', '30-60cm'] as const;
+  const numericValue = (input: any): number | null => {
+    if (typeof input === 'number' && Number.isFinite(input)) return input;
+    if (!input || typeof input !== 'object') return null;
+    for (const [key, value] of Object.entries(input)) {
+      if (/value|mean|GRAY_INDEX/i.test(key) && Number.isFinite(Number(value))) return Number(value);
+      const nested = numericValue(value); if (nested !== null) return nested;
+    }
+    return null;
+  };
+  const point = async (property: typeof properties[number], depth: typeof depths[number]) => {
+    const delta = 0.001; const layer = `${property}_${depth}_mean`;
+    const params = new URLSearchParams({ map: `/map/${property}.map`, SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetFeatureInfo', SRS: 'EPSG:4326', BBOX: `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`, WIDTH: '3', HEIGHT: '3', X: '1', Y: '1', LAYERS: layer, QUERY_LAYERS: layer, INFO_FORMAT: 'application/json', FEATURE_COUNT: '1' });
+    const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 4500);
+    try { const response = await fetch(`${SOILGRIDS_WMS}?${params}`, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 (SoilGrids WMS point query)' }, signal: controller.signal }); if (!response.ok) return null; return numericValue(await response.json()); }
+    catch { return null; } finally { clearTimeout(timeout); }
+  };
+  const entries = await Promise.all(depths.flatMap(depth => properties.map(async property => [`${property}:${depth}`, await point(property, depth)] as const)));
+  const values = Object.fromEntries(entries) as Record<string, number | null>;
+  if (Object.values(values).some(value => value === null)) return fallback;
+  const scaled = (property: string, depth: string) => { const raw = values[`${property}:${depth}`]!; return property === 'soc' || property === 'bdod' ? raw / 100 : property === 'phh2o' ? raw / 10 : raw / 10; };
+  const layer = (depth: typeof depths[number], top: number, bottom: number): SoilLayerDepth => {
+    const sand = scaled('sand', depth), silt = scaled('silt', depth), clay = scaled('clay', depth), soc = scaled('soc', depth), density = scaled('bdod', depth), ph = scaled('phh2o', depth);
+    return { depthRange: `${top} – ${bottom} cm`, topDepthCm: top, bottomDepthCm: bottom, sandPct: sand, siltPct: silt, clayPct: clay, bulkDensityGcm3: density, soilOrganicCarbonPct: soc, phH2O: ph, cec: NaN, textureClass: getUsdaTextureClass(sand, silt, clay), estimatedBearingCapacityKpa: NaN, mechanicalDescription: 'Modelled pedological properties only; no engineering design parameters inferred.' };
+  };
+  const top = layer('0-5cm', 0, 5), sub = layer('30-60cm', 30, 60);
+  return { ...fallback, success: true, sourceName: 'ISRIC SoilGrids 2.0 (WMS raster point access)', sourceUrl: SOILGRIDS_WMS, datasetVersion: 'SoilGrids 2.0 — 250 m raster, mean values at 0–5 cm and 30–60 cm', usdaTextureClass: top.textureClass, topsoilSandPct: top.sandPct, topsoilSiltPct: top.siltPct, topsoilClayPct: top.clayPct, subsoilSandPct: sub.sandPct, subsoilSiltPct: sub.siltPct, subsoilClayPct: sub.clayPct, meanBulkDensityGcm3: (top.bulkDensityGcm3 + sub.bulkDensityGcm3) / 2, meanPhH2O: (top.phH2O + sub.phH2O) / 2, meanOrganicCarbonPct: (top.soilOrganicCarbonPct + sub.soilOrganicCarbonPct) / 2, stratigraphyProfile: [top, sub], limitation: 'SoilGrids 250 m modelled raster values. Depth intervals and resolution are preserved. No bearing capacity, friction angle, cohesion, settlement or foundation recommendation is inferred.' };
+}
+
 /**
  * Determine USDA Soil Texture Triangle Classification
  */
@@ -197,12 +230,12 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
     clearTimeout(timer);
 
     if (!res.ok) {
-      return fallback;
+      return await fetchSoilGridsWmsData(lat, lng, fallback);
     }
 
     const json: any = await res.json();
     if (!json || !Array.isArray(json.properties?.layers)) {
-      return fallback;
+      return await fetchSoilGridsWmsData(lat, lng, fallback);
     }
 
     const layers = json.properties.layers;
@@ -247,7 +280,7 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
       const rawCec = getVal(cecLayer, def.label);   // mmol(c)/kg
 
       if ([rawSand, rawSilt, rawClay, rawSoc, rawBdod, rawPh, rawCec].some(value => value === undefined) || (rawSand! + rawSilt! + rawClay!) <= 0) {
-        return fallback;
+        return await fetchSoilGridsWmsData(lat, lng, fallback);
       }
 
       const sandPct = Math.round((rawSand! / 10) * 10) / 10;
@@ -342,6 +375,6 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
     };
   } catch (err) {
     console.warn('SoilGrids API fetch notice:', err);
-    return fallback;
+    return await fetchSoilGridsWmsData(lat, lng, fallback);
   }
 }
