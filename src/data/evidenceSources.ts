@@ -187,9 +187,127 @@ export const EVIDENCE_SOURCES: Record<string, EvidenceSourceLink[]> = {
       url: 'https://infoterre.brgm.fr/page/geoservices-ogc',
       description: 'WMS/WFS and other standards-based geological services.'
     }
-  ]
+  ],
+  GB: [
+    {
+      id: 'bgs-geoindex-onshore',
+      title: 'BGS GeoIndex Onshore',
+      provider: 'British Geological Survey',
+      category: 'geology',
+      scale: '1:50,000',
+      url: 'https://mapapps2.bgs.ac.uk/geoindex/home.html',
+      description: 'UK onshore geological map viewer for bedrock, superficial deposits, boreholes and related BGS datasets.'
+    },
+    {
+      id: 'bgs-geology-wms',
+      title: 'BGS geology web map services',
+      provider: 'British Geological Survey',
+      category: 'geology',
+      scale: '1:50,000 / 1:625,000',
+      url: 'https://www.bgs.ac.uk/technologies/web-map-services-wms/',
+      description: 'OGC WMS services for BGS geology layers, including bedrock and superficial geology where licensed/available.'
+    },
+    {
+      id: 'bgs-geosure',
+      title: 'BGS GeoSure ground stability',
+      provider: 'British Geological Survey',
+      category: 'hazards',
+      url: 'https://www.bgs.ac.uk/datasets/geosure/',
+      description: 'Ground-stability hazard datasets covering shrink-swell, landslide, dissolution, compressible and collapsible ground indicators.'
+    },
+    {
+      id: 'bgs-borehole-records',
+      title: 'BGS borehole records',
+      provider: 'British Geological Survey',
+      category: 'boreholes',
+      url: 'https://www.bgs.ac.uk/information-hub/borehole-records/',
+      description: 'National Geological Repository index for UK borehole and site investigation records.'
+    },
+    {
+      id: 'hm-land-registry-inspire',
+      title: 'HM Land Registry INSPIRE Index Polygons',
+      provider: 'HM Land Registry',
+      category: 'planning',
+      url: 'https://use-land-property-data.service.gov.uk/datasets/inspire',
+      description: 'Indicative registered freehold property extents for England and Wales; useful for parcel-screening context, not legal boundary proof.'
+    },
+    {
+      id: 'ea-flood-map-planning',
+      title: 'Environment Agency Flood Map for Planning',
+      provider: 'Environment Agency',
+      category: 'hazards',
+      url: 'https://environment.data.gov.uk/dataset/04532375-a198-476e-985e-0579a0a11b47',
+      description: 'Flood Zones 2 and 3 planning dataset for river and sea flood-risk screening in England.'
+    },
+    {
+      id: 'ea-flood-monitoring-api',
+      title: 'Environment Agency flood-monitoring API',
+      provider: 'Environment Agency',
+      category: 'hydrogeology',
+      url: 'https://www.api.gov.uk/ea/flood-monitoring/',
+      description: 'Near-real-time flood warnings, flood areas, levels, flows and monitoring-station information.'
+    },
+    {
+      id: 'hm-land-registry-ppd',
+      title: 'HM Land Registry Price Paid Data',
+      provider: 'HM Land Registry',
+      category: 'planning',
+      url: 'https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads',
+      description: 'Open transaction-price dataset used for market-context checks; it does not replace a RICS valuation.'
+    },
+    {
+      id: 'planning-data-gov-uk',
+      title: 'Planning Data for England',
+      provider: 'Department for Levelling Up, Housing and Communities',
+      category: 'planning',
+      url: 'https://www.planning.data.gov.uk/',
+      description: 'Open planning and development-control datasets for England where available from local planning authorities.'
+    }
+  ],
+  EU: [
+    {
+      id: 'egdi-europe-geology',
+      title: 'European Geological Data Infrastructure',
+      provider: 'EuroGeoSurveys',
+      category: 'geology',
+      url: 'https://www.europe-geology.eu',
+      description: 'Pan-European geological data discovery and map services for countries without a dedicated GeoSurvey source list.'
+    },
+    {
+      id: 'soilgrids-global',
+      title: 'SoilGrids 2.0',
+      provider: 'ISRIC – World Soil Information',
+      category: 'engineering',
+      url: 'https://soilgrids.org/',
+      description: 'Global modelled soil properties used for preliminary soil texture and engineering-screening indicators.'
+    },
+    {
+      id: 'copernicus-dem',
+      title: 'Copernicus DEM',
+      provider: 'European Space Agency / Copernicus',
+      category: 'environment',
+      url: 'https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM',
+      description: 'European/global digital elevation data supporting slope, elevation and terrain analysis.'
+    },
+    {
+      id: 'eea-natura2000',
+      title: 'Natura 2000 data',
+      provider: 'European Environment Agency',
+      category: 'environment',
+      url: 'https://www.eea.europa.eu/en/datahub/datahubitem-view/6fc8ad2d-195d-40f4-bdec-576e7d1268e4',
+      description: 'European protected-area dataset for environmental screening.'
+    },
+    {
+      id: 'osm-overpass',
+      title: 'OpenStreetMap Overpass API',
+      provider: 'OpenStreetMap community',
+      category: 'planning',
+      url: 'https://overpass-turbo.eu/',
+      description: 'Open vector map data used for road, land-use, amenity and utility-proximity context.'
+    }
+  ],
 };
 
 export function getEvidenceSources(countryCode?: string): EvidenceSourceLink[] {
-  return EVIDENCE_SOURCES[(countryCode || 'PL').toUpperCase()] || EVIDENCE_SOURCES.PL;
+  return EVIDENCE_SOURCES[(countryCode || 'EU').toUpperCase()] || EVIDENCE_SOURCES.EU;
 }

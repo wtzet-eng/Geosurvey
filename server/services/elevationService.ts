@@ -11,7 +11,7 @@ export interface ElevationGridResult {
   elevationDifferenceM: number;
   slopeDegrees: number;
   slopePercent: number;
-  slopeCategory: 'Flat (0-2°)' | 'Gentle (2-5°)' | 'Moderate (5-10°)' | 'Steep (10-20°)' | 'Very Steep (>20°)';
+  slopeCategory: 'Flat (0-2°)' | 'Gentle (2-5°)' | 'Moderate (5-10°)' | 'Steep (10-20°)' | 'Very Steep (>20°)' | 'Not available';
   aspectDirection: string;
   sourceName: string;
   datasetDate: string;
@@ -25,7 +25,7 @@ const unavailable = (): ElevationGridResult => ({
   elevationDifferenceM: NaN,
   slopeDegrees: NaN,
   slopePercent: NaN,
-  slopeCategory: 'Flat (0-2°)',
+  slopeCategory: 'Not available',
   aspectDirection: 'Not established',
   sourceName: 'Official elevation dataset query unavailable',
   datasetDate: new Date().toISOString().slice(0, 10),
