@@ -196,14 +196,20 @@ export interface ValuationMetrics {
 
 export interface EuropeanSurveyContext {
   survey_authority: string;
-  geological_unit_name: string;
-  lithology_type: string;
-  geological_period_era?: string;
+  geological_unit_name: string | null;
+  lithology_type: string | null;
+  geological_period_era?: string | null;
+  superficial_deposit?: string | null;
+  evidence_tier?: number;
+  source_scale?: string | null;
+  nearby_borehole_count?: number;
+  nearest_borehole_distance_km?: number | null;
+  nearest_borehole_record_id?: string | null;
   stratigraphic_scale?: string;
   borehole_density_class?: string;
   seismic_hazard_zone?: string;
   radon_class?: string;
-  groundwater_regime?: string;
+  groundwater_regime?: string | null;
   official_portal_url?: string;
   evidence_level?: EvidenceLevel;
 }
@@ -212,6 +218,7 @@ export interface ReportData {
   site_value_estimate: SiteValueEstimate;
   confidence_level: 'High' | 'Medium' | 'Low' | string;
   evidence_score?: EvidenceQualityScore;
+  canonical_evidence?: unknown;
   evidence_registry?: EvidenceItem[];
   verification_checklist?: VerificationRequirement[];
   summary: string;

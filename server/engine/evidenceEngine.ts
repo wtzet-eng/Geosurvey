@@ -15,6 +15,7 @@ import {
 import { calculateTerrainFromGrid } from '../services/elevationService';
 import { queryOverpassSurroundings } from '../services/osmOverpassService';
 import { fetchGenuineSoilGridsData } from '../services/soilGridsService';
+import { fetchBgsSiteEvidence, ukGeotechnicalDesignFallback } from '../services/bgsEvidenceService';
 import { fetchPolandCadastralParcel, getPolandGeologicalModel } from '../adapters/poland';
 import { getCountryProfile } from '../adapters/countries';
 
@@ -40,12 +41,15 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
-    countryCode === 'PL' ? fetchPolandCadastralParcel(lat, lng) : Promise.resolve(null)
+    countryCode === 'PL' ? fetchPolandCadastralParcel(lat, lng) : Promise.resolve(null),
+    countryCode === 'GB' ? fetchBgsSiteEvidence(lat, lng) : Promise.resolve(null)
   ]);
+  const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
+  const osmAvailable = osmFeatures.success;
 
   // =========================================================================
   // 1. Cadastral Parcel Resolution & Official Geometry (Priority 1)
@@ -132,7 +136,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   // 2. Terrain, DEM Elevation & Topography (Priority 10)
   // =========================================================================
-  const hasWatercourseNearby = Boolean(osmFeatures.nearestWatercourse.distanceM !== undefined && osmFeatures.nearestWatercourse.distanceM <= 350);
+  const hasWatercourseNearby = Boolean(osmAvailable && osmFeatures.nearestWatercourse.distanceM !== undefined && osmFeatures.nearestWatercourse.distanceM <= 350);
   const watercourseDist = osmFeatures.nearestWatercourse.distanceM;
 
   const terrainAnalysis: TerrainAnalysis = {
@@ -145,8 +149,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     slopeCategory: terrainGrid.slopeCategory,
     aspectDirection: terrainGrid.aspectDirection,
     floodInundationRisk: {
-      status: hasWatercourseNearby ? 'REQUIRES_VERIFICATION' : 'MODELLED',
-      level: (watercourseDist !== undefined && watercourseDist <= 100)
+      status: !osmAvailable ? 'REQUIRES_VERIFICATION' : hasWatercourseNearby ? 'REQUIRES_VERIFICATION' : 'MODELLED',
+      level: !osmAvailable ? 'Not available' : (watercourseDist !== undefined && watercourseDist <= 100)
         ? 'Moderate'
         : (watercourseDist !== undefined && watercourseDist <= 250)
         ? 'Low'
@@ -155,7 +159,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       waterwayName: osmFeatures.nearestWatercourse.name,
       waterwayType: osmFeatures.nearestWatercourse.type,
       statutoryZoneStatus: 'Unconfirmed from open data (Requires ISOK Hydroportal / Wody Polskie check)',
-      description: watercourseDist !== undefined
+      description: !osmAvailable
+        ? 'Hydrology proximity data is not available because the spatial query did not complete. No flood-risk classification has been inferred.'
+        : watercourseDist !== undefined
         ? `Nearest mapped open water feature (${osmFeatures.nearestWatercourse.name || osmFeatures.nearestWatercourse.type}) located approximately ${watercourseDist} m from parcel. Spatial proximity indicator only.`
         : 'No open surface watercourses mapped within the 450 m analysis buffer.',
       sourceName: `${cProfile.floodAuthority} (ISOK Hydroportal) & OpenStreetMap Hydrology`,
@@ -163,9 +169,11 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     },
     geohazards: {
       landslideSusceptibility: {
-        status: terrainGrid.slopeDegrees > 12 ? 'REQUIRES_VERIFICATION' : 'MODELLED',
-        level: terrainGrid.slopeDegrees > 15 ? 'Moderate' : terrainGrid.slopeDegrees > 8 ? 'Low' : 'Negligible',
-        description: terrainGrid.slopeDegrees < 5
+        status: !terrainAvailable || terrainGrid.slopeDegrees > 12 ? 'REQUIRES_VERIFICATION' : 'MODELLED',
+        level: !terrainAvailable ? 'Not available' : terrainGrid.slopeDegrees > 15 ? 'Moderate' : terrainGrid.slopeDegrees > 8 ? 'Low' : 'Negligible',
+        description: !terrainAvailable
+          ? 'Terrain elevation data is not available; landslide susceptibility has not been inferred.'
+          : terrainGrid.slopeDegrees < 5
           ? `Terrain slope is gentle (${terrainGrid.slopeDegrees}° / ${terrainGrid.slopePercent}%), indicating very low natural slope instability.`
           : `Terrain slope gradient is ${terrainGrid.slopeDegrees}° (${terrainGrid.slopePercent}%). Slopes above 8° require geotechnical verification for mass movement susceptibility (SOPO registry).`,
         sourceName: `${cProfile.geologyAuthority} (SOPO Geohazard Register)`
@@ -177,15 +185,15 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
         sourceName: 'European-Mediterranean Seismological Centre (EMSC) / Eurocode 8 ESHM20'
       },
       radonPotential: {
-        status: 'MODELLED',
-        classification: 'Class 1 / Low potential (< 100 Bq/m³ expected annual average)',
+        status: 'REQUIRES_VERIFICATION',
+        classification: 'Not available — no location-specific national radon dataset was queried',
         sourceName: 'European Commission Joint Research Centre (JRC European Atlas of Natural Radiation)'
       },
       miningSubsidence: {
-        status: (countryCode === 'PL' && lat >= 50.0 && lat <= 50.5 && lng >= 18.4 && lng <= 19.5) ? 'REQUIRES_VERIFICATION' : 'MODELLED',
+        status: 'REQUIRES_VERIFICATION',
         classification: (countryCode === 'PL' && lat >= 50.0 && lat <= 50.5 && lng >= 18.4 && lng <= 19.5)
           ? 'Potential Mining Area (Górnośląskie Zagłębie Węglowe) - Requires Category I-V verification from State Mining Authority (WUG)'
-          : 'No historical mining exploitation recorded in regional database',
+          : 'Not available — no location-specific mining registry query was completed',
         sourceName: countryCode === 'PL' ? 'Wyższy Urząd Górniczy (WUG) / PIG-PIB MIDAS' : 'National Geological Survey Mining Database'
       }
     }
@@ -194,13 +202,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   evidenceRegistry.push({
     id: 'terrain-elevation-slope',
     category: 'Terrain & Topography',
-    claim: `Mean elevation ${terrainGrid.centerElevationM} m a.s.l. with slope gradient of ${terrainGrid.slopeDegrees}° (${terrainGrid.slopeCategory})`,
-    status: 'VERIFIED',
+    claim: terrainAvailable ? `Mean elevation ${terrainGrid.centerElevationM} m a.s.l. with slope gradient of ${terrainGrid.slopeDegrees}° (${terrainGrid.slopeCategory})` : 'Elevation dataset query unavailable; no elevation, slope, or aspect result inferred.',
+    status: terrainAvailable ? 'MODELLED' : 'REQUIRES_VERIFICATION',
     sourceName: terrainGrid.sourceName,
     datasetDate: terrainGrid.datasetDate,
     spatialRelationship: `9-point cross-sampling grid across parcel area (${areaSizeM2} m²)`,
     calculationMethod: 'Numerical finite-difference Horn filter from multi-point DEM elevation samples',
-    confidence: 'High',
+    confidence: terrainAvailable ? 'Medium' : 'Low',
     limitation: 'Derived from 30m/90m satellite DEM. Detailed foundation grading and earthwork calculations require a licensed surveyor\'s Situational-Height Map (MDCP).',
     value: { elevation: terrainGrid.centerElevationM, slopeDeg: terrainGrid.slopeDegrees, aspect: terrainGrid.aspectDirection }
   });
@@ -225,25 +233,39 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // 3. Soil, Lithology & Honest Groundwater (Priority 4, 5, 6)
   // Reclassified SoilGrids as MODELLED (not VERIFIED) with no fake groundwater depths
   // =========================================================================
-  let geologicalUnitName = `${cProfile.countryName} Regional Sedimentary Province`;
-  let lithologyDesc = `Sedimentary Deposits: ${soilGridsData.usdaTextureClass} (Topsoil Sand ${soilGridsData.topsoilSandPct}%, Silt ${soilGridsData.topsoilSiltPct}%, Clay ${soilGridsData.topsoilClayPct}%)`;
-  let stratPeriod = 'Quaternary (Holocene / Pleistocene)';
-  let groundRegime = 'Regional porous aquifer';
+  let geologicalUnitName = 'Not available — national geological map not queried';
+  let lithologyDesc = soilGridsData.success ? `Pedological texture only: ${soilGridsData.usdaTextureClass} (not a geological lithology classification)` : 'Not available';
+  let stratPeriod = 'Not available';
+  let groundRegime = 'Not available — requires hydrogeological evidence';
   let plGroundwaterNotice = 'Zwierciadło wód gruntowych nieustalone bezpośrednio (Wymaga piezometru w odwiercie geotechnicznym).';
 
   if (countryCode === 'PL') {
     const plGeo = getPolandGeologicalModel(lat, lng, terrainGrid.centerElevationM);
     geologicalUnitName = plGeo.geologicalUnit;
-    lithologyDesc = `${plGeo.lithologyType} | ISRIC Texture: ${soilGridsData.usdaTextureClass} (Sand ${soilGridsData.topsoilSandPct}%, Silt ${soilGridsData.topsoilSiltPct}%, Clay ${soilGridsData.topsoilClayPct}%)`;
+    lithologyDesc = soilGridsData.success ? `${plGeo.lithologyType} | ISRIC Texture: ${soilGridsData.usdaTextureClass} (Sand ${soilGridsData.topsoilSandPct}%, Silt ${soilGridsData.topsoilSiltPct}%, Clay ${soilGridsData.topsoilClayPct}%)` : `${plGeo.lithologyType} | ISRIC soil texture not available`;
     stratPeriod = plGeo.stratigraphicPeriod;
     groundRegime = plGeo.groundwaterRegime;
     plGroundwaterNotice = plGeo.groundwaterNotice;
+  } else if (countryCode === 'GB' && bgsEvidence) {
+    if (bgsEvidence.geology.available) {
+      geologicalUnitName = bgsEvidence.geology.unitName || 'Not available';
+      lithologyDesc = bgsEvidence.geology.lithology || 'Not available';
+      stratPeriod = bgsEvidence.geology.geologicalAge || 'Not available';
+    }
+    if (bgsEvidence.groundwater.available) {
+      groundRegime = `Modelled groundwater depth: ${bgsEvidence.groundwater.modelledDepth}`;
+      plGroundwaterNotice = bgsEvidence.groundwater.limitation;
+    } else {
+      plGroundwaterNotice = 'No measured or validated modelled groundwater level was returned. Site investigation is required for design groundwater level.';
+    }
   }
 
   const stratigraphyLayers = soilGridsData.stratigraphyProfile.map(l => ({
     depthRange: l.depthRange,
     soilType: `${l.textureClass} (Sand: ${l.sandPct}%, Silt: ${l.siltPct}%, Clay: ${l.clayPct}%)`,
-    mechanicalStatus: l.estimatedBearingCapacityKpa > 0
+    mechanicalStatus: countryCode === 'GB'
+      ? 'No verified site-specific engineering data'
+      : l.estimatedBearingCapacityKpa > 0
       ? `Modelled pedological bearing capacity: ~${l.estimatedBearingCapacityKpa} kPa (Bulk density: ${l.bulkDensityGcm3} g/cm³)`
       : 'Organic humus topsoil layer (Non-bearing, stripping mandatory)',
     description: l.mechanicalDescription,
@@ -254,9 +276,10 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     ph: l.phH2O,
     soc: l.soilOrganicCarbonPct
   }));
+  const ukEngineering = ukGeotechnicalDesignFallback();
 
   const soilInfo: SoilAnalysis = {
-    status: 'MODELLED', // Correctly reclassified: SoilGrids is a digital soil mapping model, not a physical site investigation
+    status: soilGridsData.success ? 'MODELLED' : 'REQUIRES_VERIFICATION',
     geologicalUnit: geologicalUnitName,
     lithologyType: lithologyDesc,
     stratigraphicPeriod: stratPeriod,
@@ -270,13 +293,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     meanBulkDensityGcm3: soilGridsData.meanBulkDensityGcm3,
     meanPhH2O: soilGridsData.meanPhH2O,
     meanOrganicCarbonPct: soilGridsData.meanOrganicCarbonPct,
-    estimatedWaterTableDepthM: 'Not directly measured (Requires on-site borehole)',
+    estimatedWaterTableDepthM: countryCode === 'GB' && bgsEvidence?.groundwater.available ? `Modelled: ${bgsEvidence.groundwater.modelledDepth}` : 'Not directly measured (Requires on-site borehole)',
     groundwaterNotice: plGroundwaterNotice,
-    estimatedBearingCapacityKpa: `Preliminary pedological estimate: ~${soilGridsData.estimatedBearingCapacityKpa} (Requires Eurocode 7 verification)`,
-    effectiveFrictionAngleDeg: soilGridsData.effectiveFrictionAngleDeg,
-    cohesionKpa: soilGridsData.cohesionKpa,
-    hydraulicConductivityMs: soilGridsData.hydraulicConductivityMs,
-    drainageClass: soilGridsData.drainageClass,
+    estimatedBearingCapacityKpa: countryCode === 'GB' ? ukEngineering.bearingCapacity : soilGridsData.success ? `Preliminary pedological estimate: ~${soilGridsData.estimatedBearingCapacityKpa} (Requires Eurocode 7 verification)` : 'Not available — SoilGrids query unavailable and site investigation required',
+    effectiveFrictionAngleDeg: countryCode === 'GB' ? ukEngineering.frictionAngle : soilGridsData.effectiveFrictionAngleDeg,
+    cohesionKpa: countryCode === 'GB' ? ukEngineering.cohesion : soilGridsData.cohesionKpa,
+    hydraulicConductivityMs: countryCode === 'GB' ? ukEngineering.hydraulicConductivity : soilGridsData.hydraulicConductivityMs,
+    drainageClass: countryCode === 'GB' ? ukEngineering.drainageClass : soilGridsData.drainageClass,
     frostSusceptibilityClass: soilGridsData.frostSusceptibilityClass,
     topsoilStrippingDepthCm: soilGridsData.topsoilStrippingDepthCm,
     groundwaterRegime: groundRegime,
@@ -284,24 +307,30 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     sourceName: 'ISRIC - World Soil Information (SoilGrids 2.0 250m Global Spatial Model)',
     sourceUrl: soilGridsData.sourceUrl,
     datasetVersion: soilGridsData.datasetVersion,
-    limitation: 'ISRIC SoilGrids is a 250 m resolution scientific prediction model. Direct allowable bearing capacity (kPa), layer boundaries, and groundwater depth MUST be confirmed by on-site boreholes pursuant to Eurocode 7 (EN 1997-1).',
+    limitation: soilGridsData.limitation,
     stratigraphyLayers
   };
 
   evidenceRegistry.push({
     id: 'soilgrids-isric-mechanics',
     category: 'Geology & Soil Mechanics',
-    claim: `Soil Texture: ${soilGridsData.usdaTextureClass} (Sand ${soilGridsData.topsoilSandPct}%, Silt ${soilGridsData.topsoilSiltPct}%, Clay ${soilGridsData.topsoilClayPct}%, Mean Density ${soilGridsData.meanBulkDensityGcm3} g/cm³, pH ${soilGridsData.meanPhH2O}) [MODELLED]`,
-    status: 'MODELLED',
+    claim: soilGridsData.success ? `Soil Texture: ${soilGridsData.usdaTextureClass} (Sand ${soilGridsData.topsoilSandPct}%, Silt ${soilGridsData.topsoilSiltPct}%, Clay ${soilGridsData.topsoilClayPct}%, Mean Density ${soilGridsData.meanBulkDensityGcm3} g/cm³, pH ${soilGridsData.meanPhH2O}) [MODELLED]` : 'SoilGrids query unavailable; no soil texture or engineering properties inferred.',
+    status: soilGridsData.success ? 'MODELLED' : 'REQUIRES_VERIFICATION',
     sourceName: soilGridsData.sourceName,
     sourceUrl: soilGridsData.sourceUrl,
     datasetDate: 'SoilGrids 2.0 Global Pedometric Database',
     spatialRelationship: `ISRIC 250 m cell query at ${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`,
     calculationMethod: 'ISRIC Machine-Learned Pedometric Horizon Inversion (0–200 cm depth profile)',
-    confidence: 'Medium',
-    limitation: 'Provides high-quality regional pedological indicators. Physical geotechnical boreholes and dynamic probing are mandatory under building law to establish design soil parameters.',
-    value: { texture: soilGridsData.usdaTextureClass, meanPh: soilGridsData.meanPhH2O, meanDensity: soilGridsData.meanBulkDensityGcm3 }
+    confidence: soilGridsData.success ? 'Medium' : 'Low',
+    limitation: soilGridsData.limitation,
+    value: { evidenceTier: 3, resolutionM: 250, depthIntervals: soilGridsData.stratigraphyProfile.map(layer => layer.depthRange), texture: soilGridsData.usdaTextureClass, meanPh: soilGridsData.meanPhH2O, meanDensity: soilGridsData.meanBulkDensityGcm3 }
   });
+
+  if (countryCode === 'GB' && bgsEvidence) {
+    evidenceRegistry.push({ id: 'bgs-geology-site', category: 'Geology', claim: bgsEvidence.geology.available ? `BGS mapped geology returned ${bgsEvidence.geology.unitName || bgsEvidence.geology.lithology} at the site centre (evidence tier ${bgsEvidence.geology.tier}).` : 'BGS detailed and regional geology queries returned no usable mapped unit.', status: bgsEvidence.geology.status, sourceName: bgsEvidence.geology.sourceName, sourceUrl: bgsEvidence.geology.sourceUrl, datasetDate: todayStr, spatialRelationship: 'Site-centre point intersection', calculationMethod: 'BGS ArcGIS feature query; detailed mapping before regional fallback', confidence: bgsEvidence.geology.tier === 1 ? 'High' : bgsEvidence.geology.tier === 2 ? 'Medium' : 'Low', limitation: bgsEvidence.geology.limitation, value: { evidenceTier: bgsEvidence.geology.tier, scale: bgsEvidence.geology.scale, geologicalUnit: bgsEvidence.geology.unitName, lithology: bgsEvidence.geology.lithology, geologicalAge: bgsEvidence.geology.geologicalAge, superficialDeposit: bgsEvidence.geology.superficialDeposit } });
+    evidenceRegistry.push({ id: 'bgs-groundwater-site', category: 'Hydrogeology', claim: bgsEvidence.groundwater.available ? `BGS modelled groundwater context returned: ${bgsEvidence.groundwater.modelledDepth}.` : 'No validated BGS modelled groundwater value was returned.', status: bgsEvidence.groundwater.status, sourceName: bgsEvidence.groundwater.sourceName, sourceUrl: bgsEvidence.groundwater.sourceUrl, datasetDate: todayStr, spatialRelationship: 'Site-centre model query', calculationMethod: 'BGS GeoIndex layer discovery and point query', confidence: bgsEvidence.groundwater.available ? 'Medium' : 'Low', limitation: bgsEvidence.groundwater.limitation, value: { evidenceTier: bgsEvidence.groundwater.tier, modelledDepth: bgsEvidence.groundwater.modelledDepth } });
+    evidenceRegistry.push({ id: 'bgs-borehole-context', category: 'Boreholes', claim: bgsEvidence.boreholes.available ? `${bgsEvidence.boreholes.count} nearby BGS borehole record(s); nearest approximately ${bgsEvidence.boreholes.nearestDistanceKm?.toFixed(2) ?? 'unknown'} km away.` : 'No queryable nearby BGS borehole context was returned.', status: bgsEvidence.boreholes.available ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: bgsEvidence.boreholes.sourceName, sourceUrl: bgsEvidence.boreholes.sourceUrl, datasetDate: todayStr, spatialRelationship: 'Approximately 5 km search envelope around site centre', calculationMethod: 'BGS GeoIndex spatial feature query', confidence: bgsEvidence.boreholes.available ? 'Medium' : 'Low', limitation: bgsEvidence.boreholes.limitation, value: { evidenceTier: bgsEvidence.boreholes.tier, count: bgsEvidence.boreholes.count, nearestDistanceKm: bgsEvidence.boreholes.nearestDistanceKm, nearestRecordId: bgsEvidence.boreholes.nearestRecordId } });
+  }
 
   // =========================================================================
   // 4. Planning & Statutory Zoning Parameters (Priority 3)
@@ -421,10 +450,10 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     claim: roadDist > 0
       ? `Road access: ${osmFeatures.nearestRoad.name || osmFeatures.nearestRoad.type} located ~${roadDist} m from plot boundary (Surface: ${osmFeatures.nearestRoad.surface || 'Paved'}, Direct access: ${roadDirect ? 'Yes' : 'Unconfirmed'})`
       : 'Nearest public road corridor unconfirmed in open dataset',
-    status: roadDist <= 20 && roadDist > 0 ? 'VERIFIED' : 'MODELLED',
+    status: !osmAvailable ? 'REQUIRES_VERIFICATION' : roadDist <= 20 && roadDist > 0 ? 'MODELLED' : 'REQUIRES_VERIFICATION',
     sourceName: osmFeatures.sourceName,
     datasetDate: osmFeatures.datasetDate,
-    spatialRelationship: `Distance vector from parcel centroid to nearest road axis: ${roadDist} m`,
+    spatialRelationship: Number.isFinite(roadDist) ? `Distance vector from parcel centroid to nearest road axis: ${roadDist} m` : 'Road proximity query unavailable',
     calculationMethod: 'Haversine distance calculation to nearest mapped highway polyline in OSM',
     confidence: roadDist > 0 ? 'High' : 'Low',
     limitation: 'Legal right-of-way (służebność drogowa / zjazd z drogi publicznej) must be confirmed in the land register and municipal road department.'
@@ -434,13 +463,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // 6. Environmental Overlays (Priority 11)
   // =========================================================================
   const environmentalAnalysis: EnvironmentalAnalysis = {
-    natura2000Intersect: false,
-    distanceToNatura2000M: osmFeatures.protectedAreaNearby.found ? (osmFeatures.protectedAreaNearby.distanceM || 300) : 1500,
+    natura2000Intersect: osmAvailable ? false : undefined,
+    distanceToNatura2000M: osmAvailable && osmFeatures.protectedAreaNearby.found ? osmFeatures.protectedAreaNearby.distanceM : undefined,
     nearestProtectedAreaName: osmFeatures.protectedAreaNearby.name,
     protectedAreaType: osmFeatures.protectedAreaNearby.type,
     landscapeParkOverlay: false,
     waterProtectionZone: false,
-    status: 'MODELLED',
+    status: osmAvailable ? 'MODELLED' : 'REQUIRES_VERIFICATION',
     sourceName: 'European Environment Agency (EEA Natura 2000) & General Directorate for Environmental Protection (GDOŚ)',
     limitation: 'Regional spatial overlay. Local environmental constraints (e.g. tree felling permits under art. 83 ustawy o ochronie przyrody, protected species habitats) require on-site inspection.'
   };
@@ -448,15 +477,17 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   evidenceRegistry.push({
     id: 'environmental-natura2000',
     category: 'Environmental & Conservation',
-    claim: osmFeatures.protectedAreaNearby.found
+    claim: !osmAvailable
+      ? 'Environmental spatial query unavailable; no protected-area overlap or distance conclusion was inferred.'
+      : osmFeatures.protectedAreaNearby.found
       ? `Protected environmental area (${osmFeatures.protectedAreaNearby.name || 'Nature Reserve'}) detected within ~${osmFeatures.protectedAreaNearby.distanceM} m`
       : 'No Natura 2000 special protection areas directly overlapping the parcel footprint in open regional vector index',
-    status: 'MODELLED',
+    status: osmAvailable ? 'MODELLED' : 'REQUIRES_VERIFICATION',
     sourceName: 'EEA / General Directorate for Environmental Protection (GDOŚ)',
     datasetDate: '2025/2026 Register',
     spatialRelationship: `Spatial buffer intersection check across parcel extent (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E)`,
     calculationMethod: 'Geospatial buffer query against European protected area registers',
-    confidence: 'High',
+    confidence: osmAvailable ? 'Medium' : 'Low',
     limitation: 'Does not replace an on-site dendrological inspection for tree felling permissions or local environmental screening.'
   });
 
@@ -489,13 +520,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     indicativeMedianPrice: totalMedian,
     indicativePricePerSqm: unitMedianPrice,
     currency: cProfile.currency,
-    methodology: `Indicative Automated Econometric Benchmark (0 Direct Comparable Deeds Verified). Model synthesizes regional cadastral price indexes (${cProfile.valuationDataSource}) adjusted for plot size (${areaSizeM2} m²), terrain slope (${terrainGrid.slopeDegrees}°), and road infrastructure proximity.`,
+    methodology: `Indicative Automated Econometric Benchmark (0 Direct Comparable Deeds Verified). Model synthesizes regional cadastral price indexes (${cProfile.valuationDataSource}) adjusted for plot size (${areaSizeM2} m²). ${terrainAvailable ? `A terrain slope adjustment used the modelled slope of ${terrainGrid.slopeDegrees}°.` : 'No terrain adjustment was applied because elevation data was unavailable.'} ${Number.isFinite(roadDist) ? 'Mapped road proximity was considered.' : 'No road-proximity adjustment was applied because infrastructure data was unavailable.'}`,
     comparableEvidenceCount: 0,
     marketTrendDescription: `Indicative statistical benchmark: ${unitMinPrice.toLocaleString()} – ${unitMaxPrice.toLocaleString()} ${cProfile.symbol}/m². Note: High variance exists depending on binding MPZP planning rights and actual utility connection conditions.`,
     priceDrivers: [
       { factor: 'Location & Settlement Tier', impact: isCapitalOrMajorCity ? '+85% (Metropolitan Tier)' : '+15% (Regional Municipality)', weight: 'High' },
       { factor: 'Road Proximity & Infrastructure', impact: roadDirect ? 'Neutral / Standard' : '-18% (Off-road / Access required)', weight: 'Medium' },
-      { factor: 'Terrain Topography & Slope', impact: terrainGrid.slopeDegrees > 8 ? '-12% (Earthworks & Retaining Costs)' : 'Neutral (Flat Terrain)', weight: 'Medium' },
+      { factor: 'Terrain Topography & Slope', impact: !terrainAvailable ? 'Not applied (terrain data unavailable)' : terrainGrid.slopeDegrees > 8 ? '-12% (Earthworks & Retaining Costs)' : 'Neutral (modelled gentle terrain)', weight: 'Medium' },
       { factor: 'Parcel Area Scale', impact: areaSizeM2 > 2000 ? '-10% (Economy of Scale)' : 'Standard', weight: 'Low' }
     ],
     uncertaintyRating: 'High',
@@ -528,10 +559,10 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     cadScore = 6;  // Unverified parcel ID
   }
 
-  let terrainScore = terrainGrid.isMeasured ? 20 : 14; // Multi-point Copernicus DEM
-  let geoScore = soilGridsData.success ? 14 : 8;       // SoilGrids is MODELLED, capped at 14/20 because physical boreholes are unperformed
-  let infraScore = osmFeatures.success ? 12 : 6;      // Live OSM vector query
-  let envScore = 11;                                  // Spatial protected area & watercourse buffer
+  let terrainScore = terrainAvailable ? 14 : 0;
+  let geoScore = soilGridsData.success ? 14 : 0;
+  let infraScore = osmAvailable ? 12 : 0;
+  let envScore = osmAvailable ? 11 : 0;
   let planScore = 4;                                  // Planning unverified, capped at 4/10
 
   let rawTotalScore = cadScore + terrainScore + geoScore + infraScore + envScore + planScore;
@@ -572,22 +603,22 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       terrainAndElevation: {
         score: terrainScore,
         max: 20,
-        rationale: '9-point high-resolution DEM cross-grid sampling with mathematical finite-difference slope and aspect calculation.'
+        rationale: terrainAvailable ? '9-point DEM cross-grid sampling with mathematical finite-difference slope and aspect calculation.' : 'Elevation query unavailable; no terrain classification inferred.'
       },
       geologyAndGroundwater: {
         score: geoScore,
         max: 20,
-        rationale: 'ISRIC SoilGrids 2.0 scientific multi-depth soil profile (Sand/Silt/Clay%, Bulk Density, pH) classified as MODELLED. Physical boreholes unperformed.'
+        rationale: soilGridsData.success ? 'ISRIC SoilGrids 2.0 scientific multi-depth soil profile classified as MODELLED; physical boreholes remain outstanding.' : 'SoilGrids query unavailable or malformed; no soil or groundwater evidence points awarded.'
       },
       infrastructureAndAccess: {
         score: infraScore,
         max: 15,
-        rationale: 'Live OSM spatial vector query for road access geometry, surface type, power infrastructure, and surrounding urban amenities.'
+        rationale: osmAvailable ? 'Live OSM spatial vector query for road access geometry, surface type, power infrastructure, and surrounding urban amenities.' : 'OSM spatial query unavailable or malformed; no infrastructure evidence points awarded.'
       },
       environmentalAndFlood: {
         score: envScore,
         max: 15,
-        rationale: 'Spatial buffer analysis to nearest surface watercourse and European protected areas. Statutory ISOK Q100 flood maps unretrieved.'
+        rationale: osmAvailable ? 'Spatial buffer analysis to nearest surface watercourse and mapped protected areas. Statutory flood maps unretrieved.' : 'Spatial query unavailable; no flood-proximity or protected-area conclusion inferred.'
       },
       planningAndMarket: {
         score: planScore,
@@ -640,9 +671,21 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   // 10. Executive Summary & Statutory Disclaimers
   // =========================================================================
+  const terrainSummary = terrainAvailable
+    ? `${terrainGrid.centerElevationM} m a.s.l.; slope ${terrainGrid.slopeDegrees}° (${terrainGrid.slopeCategory})`
+    : 'not available (elevation query failed)';
+  const soilSummary = soilGridsData.success
+    ? `${soilGridsData.usdaTextureClass}; sand ${soilGridsData.topsoilSandPct}%, silt ${soilGridsData.topsoilSiltPct}%, clay ${soilGridsData.topsoilClayPct}%, pH ${soilGridsData.meanPhH2O}`
+    : 'not available (SoilGrids query failed)';
+  const roadSummary = Number.isFinite(roadDist)
+    ? `${osmFeatures.nearestRoad.name || osmFeatures.nearestRoad.type}, approximately ${roadDist} m away`
+    : 'not available (spatial query failed)';
+  const siteLabel = parcelInfo.parcelId ? `cadastral parcel ${parcelInfo.parcelId}` : 'site';
   const executiveSummary = language === 'pl'
-    ? `Niniejszy operat przestrzenny stanowi opartą na dowodach analizę działki ${parcelInfo.parcelId ? `o identyfikatorze ${parcelInfo.parcelId}` : ''} (${parcelInfo.isOfficialGeometry ? 'z geometrii GUGiK ULDK' : 'z obrysu użytkownika'}) o powierzchni ${areaSizeM2.toLocaleString()} m² w obrębie: ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Wskaźnik jakości dowodów wynosi ${totalScore}/100 (${ratingClass}). Analiza topograficzna wykazała średnią wysokość ${terrainGrid.centerElevationM} m n.p.m. oraz spadek terenu ${terrainGrid.slopeDegrees}° (${terrainGrid.slopeCategory}). Pobrano modelowane dane glebowe z bazy ISRIC SoilGrids 2.0 (${soilGridsData.usdaTextureClass}, piasek: ${soilGridsData.topsoilSandPct}%, pył: ${soilGridsData.topsoilSiltPct}%, ił: ${soilGridsData.topsoilClayPct}%, pH: ${soilGridsData.meanPhH2O}). Poziom wód gruntowych nie został zmierzony bezpośrednio. Droga dojazdowa (${osmFeatures.nearestRoad.name || osmFeatures.nearestRoad.type}) znajduje się w odległości ok. ${roadDist} m. Orientacyjny model wyceny wskazuje ${totalMin.toLocaleString()} – ${totalMax.toLocaleString()} ${cProfile.symbol}. Wiążące parametry budowlane i prawne wymagają uzyskania wypisu z MPZP oraz terenowych badań geotechnicznych (Eurokod 7).`
-    : `This spatial due diligence report synthesizes multi-source evidence for ${parcelInfo.parcelId ? `cadastral parcel ${parcelInfo.parcelId}` : 'site'} (${parcelInfo.isOfficialGeometry ? 'official GUGiK ULDK geometry' : 'user boundary'}) with an area of ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). The Evidence Quality Score is ${totalScore}/100 (${ratingClass}). Topographic sampling indicates mean elevation of ${terrainGrid.centerElevationM} m a.s.l. with a slope gradient of ${terrainGrid.slopeDegrees}° (${terrainGrid.slopeCategory}). Scientific ISRIC SoilGrids 2.0 data indicates ${soilGridsData.usdaTextureClass} subsoil (Sand: ${soilGridsData.topsoilSandPct}%, Silt: ${soilGridsData.topsoilSiltPct}%, Clay: ${soilGridsData.topsoilClayPct}%, pH: ${soilGridsData.meanPhH2O}) [MODELLED]. Groundwater depth is not directly measured. Road access (${osmFeatures.nearestRoad.name || osmFeatures.nearestRoad.type}) is situated approx. ${roadDist} m away. The indicative statistical land valuation range is ${totalMin.toLocaleString()} – ${totalMax.toLocaleString()} ${cProfile.symbol}. Binding building rights strictly require an official municipal planning extract (MPZP / B-Plan) and Eurocode 7 on-site geotechnical boreholes.`;
+    ? `Niniejszy raport due diligence obejmuje ${siteLabel} o powierzchni ${areaSizeM2.toLocaleString()} m² w lokalizacji ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Wskaźnik jakości dowodów: ${totalScore}/100 (${ratingClass}). Teren: ${terrainSummary.replace('not available', 'brak danych')}. Gleba: ${soilSummary.replace('not available', 'brak danych')}. Dostęp drogowy: ${roadSummary.replace('not available', 'brak danych')}. Orientacyjna wycena statystyczna: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Wiążące parametry wymagają dokumentów planistycznych i badań terenowych.`
+    : language === 'de'
+    ? `Dieser Due-Diligence-Bericht untersucht den Standort ${siteLabel} mit ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidenz-Qualitätsindex: ${totalScore}/100 (${ratingClass}). Gelände: ${terrainSummary.replace('not available', 'nicht verfügbar')}. Boden: ${soilSummary.replace('not available', 'nicht verfügbar')}. Straßenzugang: ${roadSummary.replace('not available', 'nicht verfügbar')}. Indikative statistische Bewertung: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Verbindliche Parameter erfordern amtliche Planungsunterlagen und Vor-Ort-Untersuchungen.`
+    : `This spatial due-diligence report assesses the ${siteLabel} with an area of ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidence Quality Score: ${totalScore}/100 (${ratingClass}). Terrain: ${terrainSummary}. Soil: ${soilSummary}. Road access: ${roadSummary}. Indicative statistical valuation: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Binding parameters require official planning documents and on-site investigations.`;
 
   const dataSourcesCited = [
     {
@@ -657,21 +700,21 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       organization: 'European Space Agency (ESA) & Copernicus Land Monitoring Service',
       url: 'https://land.copernicus.eu',
       type: 'Elevation DEM' as const,
-      status: 'VERIFIED' as const
+      status: terrainAvailable ? 'MODELLED' as const : 'REQUIRES_VERIFICATION' as const
     },
     {
       name: soilGridsData.sourceName,
       organization: 'ISRIC - World Soil Information (Global Pedometric Database)',
       url: soilGridsData.sourceUrl,
       type: 'Scientific Soil Database' as const,
-      status: 'MODELLED' as const
+      status: soilGridsData.success ? 'MODELLED' as const : 'REQUIRES_VERIFICATION' as const
     },
     {
-      name: cProfile.geologyAuthority,
-      organization: 'National Geological Survey Institute (PIG-PIB)',
-      url: cProfile.geologyPortalUrl,
+      name: bgsEvidence?.geology.sourceName || cProfile.geologyAuthority,
+      organization: countryCode === 'GB' ? 'British Geological Survey' : 'National Geological Survey Institute (PIG-PIB)',
+      url: bgsEvidence?.geology.sourceUrl || cProfile.geologyPortalUrl,
       type: 'Geological Survey' as const,
-      status: 'MODELLED' as const
+      status: soilInfo.status
     },
     {
       name: cProfile.floodAuthority,
@@ -685,7 +728,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       organization: 'OpenStreetMap Foundation & Community Contributors',
       url: 'https://overpass-turbo.eu',
       type: 'Spatial Overpass' as const,
-      status: 'VERIFIED' as const
+      status: osmAvailable ? 'MODELLED' as const : 'REQUIRES_VERIFICATION' as const
     },
     {
       name: cProfile.valuationDataSource,
@@ -723,7 +766,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     'TOTAL LIMITATION OF LEGAL & FINANCIAL LIABILITY: Neither the platform operators nor spatial data providers accept any legal or financial liability for investment decisions or construction costs arising from reliance upon this automated dossier.'
   ];
 
-  return {
+  const report: VerifiedSiteReport & { geosurvey_context?: Record<string, unknown> } = {
     id: `REP-${countryCode}-${Date.now().toString(36).toUpperCase()}`,
     generatedAt: nowIso,
     countryCode,
@@ -742,4 +785,20 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     dataSourcesCited,
     statutoryDisclaimers
   };
+  if (countryCode === 'GB' && bgsEvidence) report.geosurvey_context = {
+    geological_unit_name: bgsEvidence.geology.unitName,
+    lithology_type: bgsEvidence.geology.lithology,
+    geological_period_era: bgsEvidence.geology.geologicalAge,
+    superficial_deposit: bgsEvidence.geology.superficialDeposit,
+    groundwater_regime: bgsEvidence.groundwater.modelledDepth ? `Modelled groundwater depth: ${bgsEvidence.groundwater.modelledDepth}` : null,
+    evidence_level: bgsEvidence.geology.status,
+    evidence_tier: bgsEvidence.geology.tier,
+    source_name: bgsEvidence.geology.sourceName,
+    source_url: bgsEvidence.geology.sourceUrl,
+    source_scale: bgsEvidence.geology.scale,
+    nearby_borehole_count: bgsEvidence.boreholes.count,
+    nearest_borehole_distance_km: bgsEvidence.boreholes.nearestDistanceKm,
+    nearest_borehole_record_id: bgsEvidence.boreholes.nearestRecordId
+  };
+  return report;
 }
