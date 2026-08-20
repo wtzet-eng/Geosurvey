@@ -3,6 +3,11 @@ export type EndpointType = 'ARCGIS_REST' | 'WMS' | 'REST_JSON' | 'OGC_API' | 'WC
 export type SourceHealthStatus = 'HEALTHY' | 'DEGRADED' | 'FALLBACK_ACTIVE' | 'UNAVAILABLE' | 'SCHEMA_CHANGED' | 'ENDPOINT_MOVED' | 'RATE_LIMITED' | 'AUTH_REQUIRED' | 'CANDIDATE_REPLACEMENT';
 export type ApprovalStatus = 'APPROVED' | 'CANDIDATE';
 
+export interface LayerSchemaRequirement {
+  layer: string | number;
+  requiredFieldGroups: string[][];
+}
+
 export interface SourceEndpoint {
   id: string;
   logicalSourceId: LogicalSourceId;
@@ -17,9 +22,15 @@ export interface SourceEndpoint {
   expectedCapabilities: string[];
   expectedLayers: Array<string | number>;
   requiredFieldGroups: string[][];
+  layerSchemaRequirements?: LayerSchemaRequirement[];
   licence?: string;
   provenance: string;
   approval: ApprovalStatus;
+}
+
+export interface ObservedLayerSchema {
+  layer: string | number;
+  fields: Array<{ name: string; type?: string }>;
 }
 
 export interface EndpointProbeResult<T = unknown> {
@@ -28,6 +39,7 @@ export interface EndpointProbeResult<T = unknown> {
   serviceAvailable: boolean;
   observedLayers: Array<string | number>;
   observedFields: Array<{ name: string; type?: string }>;
+  observedLayerSchemas?: ObservedLayerSchema[];
   capabilities: string[];
   payload?: T;
 }
