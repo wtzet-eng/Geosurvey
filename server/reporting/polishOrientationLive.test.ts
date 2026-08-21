@@ -36,8 +36,8 @@ const base = (countryCode: 'PL' | 'GB'): CanonicalReport => ({
 
 test('Polish live report exposes genesis-aware indicative orientation and not-for-design disclaimer', () => {
   const rendered = renderLocalizedReport(base('PL'), 'pl');
+  assert.match(rendered.sections.geohazard_risk.detail, /Piaski wodnolodowcowe/i);
   assert.match(rendered.sections.soil_and_ground.detail, /Orientacyjna ocena geotechniczna: Zmienne \/ zależne od warunków/i);
-  assert.match(rendered.sections.soil_and_ground.detail, /wodnolodow/i);
   assert.match(rendered.sections.soil_and_ground.detail, /nie może być używana do projektowania/i);
 });
 
