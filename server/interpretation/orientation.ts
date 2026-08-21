@@ -113,10 +113,10 @@ export function resolveIndicativeGroundOrientation(input: GroundOrientationInput
     return makeResult('SPECIAL_CONCERN', basis, signals);
   }
 
-  // Resolve specific genetic origins before generic fluvial wording.
+  // Resolve specific genetic origins before broader lexical roots.
   const glaciofluvial = containsAny(joined, ['glaciofluvial', 'fluvioglacial', 'wodnolodowcow', 'wodno-lodowcow']);
   const alluvial = !glaciofluvial && containsAny(joined, ['alluv', 'aluw', 'rzecz', 'mady', 'river deposit', 'fluvial']);
-  const till = containsAny(joined, ['glacial till', 'lodowcow', 'glina zwałowa', 'glina zwalowa', 'moren']);
+  const till = !glaciofluvial && containsAny(joined, ['glacial till', 'lodowcow', 'glina zwałowa', 'glina zwalowa', 'moren']);
   const recent = containsAny(joined, ['holocene', 'holoceń', 'holocen', 'recent', 'współczesn']);
   const sand = containsAny(joined, ['sand', 'piasek', 'piaski']);
   const dense = containsAny(joined, ['dense', 'very dense', 'zagęszcz', 'zageszcz', 'zwarty']);
