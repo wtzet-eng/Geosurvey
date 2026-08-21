@@ -1,5 +1,6 @@
 import { CanonicalReport, ReportLanguage, RiskClassification, normalizeReportLanguage } from './canonicalReport';
 import { renderGeologicalInterpretation, resolveGeologicalInterpretation } from '../interpretation/resolver';
+import { renderIndicativeGroundOrientation, resolveIndicativeGroundOrientation } from '../interpretation/orientation';
 
 type Section = { summary: string; detail: string; evidence_level: string; source_cited?: string; limitation_notice?: string };
 
@@ -37,6 +38,14 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const interpretation = resolvedInterpretation ? renderGeologicalInterpretation(resolvedInterpretation, language) : null;
   const geologyDetail = interpretation ? `${geologyText} ${interpretation.summary} ${interpretation.disclaimer}` : geologyText;
   const geologySource = interpretation ? `${canonical.geology.sourceName}; ${interpretation.source.title} (${interpretation.source.publicationId}) — ${interpretation.source.url}` : canonical.geology.sourceName;
+  const polishOrientation = canonical.countryCode === 'PL'
+    ? renderIndicativeGroundOrientation(resolveIndicativeGroundOrientation({ geology: canonical.geology, texture: canonical.soil.texture }), language)
+    : null;
+  const orientationHeading = language === 'pl' ? 'Orientacyjna ocena geotechniczna' : language === 'de' ? 'Orientierende geotechnische Einschätzung' : 'Indicative geotechnical orientation';
+  const orientationFocus = language === 'pl' ? 'Co sprawdzić' : language === 'de' ? 'Zu prüfen' : 'What to investigate';
+  const groundDetail = polishOrientation
+    ? `${canonical.soil.reasonCode ? t.sourceUnavailable as string : t.authoritative as string} ${orientationHeading}: ${polishOrientation.label}. ${polishOrientation.summary} ${orientationFocus}: ${polishOrientation.investigationFocus} ${polishOrientation.disclaimer}`
+    : canonical.soil.reasonCode ? t.sourceUnavailable as string : t.authoritative as string;
   const floodText = interpolate(t.flood as string, { risk: risk(canonical.flood.classification, language) });
   const hazardText = hazardCopy[language];
   const roadText = interpolate(t.road as string, { road: value(canonical.infrastructure.roadName || canonical.infrastructure.roadType, unavailable), distance: value(canonical.infrastructure.distanceM, unavailable) });
@@ -59,7 +68,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     summary: interpolate(t.summary as string, { country: countryName, unit: geologyUnit, terrain: terrainText, soil: value(canonical.soil.texture, unavailable), score: canonical.evidenceScore.totalScore, min: canonical.valuation.min.toLocaleString(language), max: canonical.valuation.max.toLocaleString(language), currency: canonical.valuation.currency }),
     titles: language === 'pl' ? { estimated_value: 'Orientacyjna wartość statystyczna', confidence: 'Jakość dowodów', executive_summary: 'Podsumowanie wykonawcze' } : language === 'de' ? { estimated_value: 'Indikativer statistischer Wert', confidence: 'Evidenzqualität', executive_summary: 'Zusammenfassung' } : { estimated_value: 'Indicative statistical value', confidence: 'Evidence quality', executive_summary: 'Executive summary' },
     sections: {
-      soil_and_ground: section(soilText, canonical.soil.reasonCode ? t.sourceUnavailable as string : t.authoritative as string, canonical.soil.status, canonical.soil.sourceName, unavailableNotice(canonical.soil.reasonCode)),
+      soil_and_ground: section(soilText, groundDetail, canonical.soil.status, canonical.soil.sourceName, unavailableNotice(canonical.soil.reasonCode)),
       geohazard_risk: section(interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: geologyUnit }), geologyDetail, canonical.geology.status, geologySource, unavailableNotice(canonical.geology.reasonCode)),
       flooding_risk: section(floodText, canonical.flood.reasonCode ? t.sourceUnavailable as string : t.authoritative as string, canonical.flood.status, canonical.flood.sourceName, unavailableNotice(canonical.flood.reasonCode)),
       zoning_and_land_use: section(interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), t.authoritative as string, canonical.planning.status, canonical.planning.sourceName),
