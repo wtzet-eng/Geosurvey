@@ -93,11 +93,7 @@ const copy = {
   }
 } as const;
 
-/**
- * Conservative, qualitative screening only.
- * It never creates numerical geotechnical parameters and only uses origin/state
- * when those signals are explicitly present in the supplied evidence text.
- */
+/** Conservative qualitative screening only; never creates design parameters. */
 export function resolveIndicativeGroundOrientation(input: GroundOrientationInput): GroundOrientationResult {
   const joined = [input.geology.unitName, input.geology.lithology, input.geology.geologicalAge, input.texture, input.stateDescriptor, input.additionalContext]
     .map(norm)
@@ -106,13 +102,8 @@ export function resolveIndicativeGroundOrientation(input: GroundOrientationInput
 
   const basis = new Set<OrientationBasis>();
   const signals: string[] = [];
+  const mark = (basisType: OrientationBasis, signal: string) => { basis.add(basisType); signals.push(signal); };
 
-  const mark = (basisType: OrientationBasis, signal: string) => {
-    basis.add(basisType);
-    signals.push(signal);
-  };
-
-  // High-priority concern signals: do not let a generic material name override these.
   if (containsAny(joined, ['torf', 'peat', 'gyttja', 'organic soil', 'organic deposit', 'namuł organiczny'])) {
     mark('MATERIAL', 'organic deposit');
     return makeResult('SPECIAL_CONCERN', basis, signals);
@@ -122,8 +113,9 @@ export function resolveIndicativeGroundOrientation(input: GroundOrientationInput
     return makeResult('SPECIAL_CONCERN', basis, signals);
   }
 
-  const alluvial = containsAny(joined, ['alluv', 'aluw', 'rzecz', 'mady', 'river deposit', 'fluvial']);
+  // Resolve specific genetic origins before generic fluvial wording.
   const glaciofluvial = containsAny(joined, ['glaciofluvial', 'fluvioglacial', 'wodnolodowcow', 'wodno-lodowcow']);
+  const alluvial = !glaciofluvial && containsAny(joined, ['alluv', 'aluw', 'rzecz', 'mady', 'river deposit', 'fluvial']);
   const till = containsAny(joined, ['glacial till', 'lodowcow', 'glina zwałowa', 'glina zwalowa', 'moren']);
   const recent = containsAny(joined, ['holocene', 'holoceń', 'holocen', 'recent', 'współczesn']);
   const sand = containsAny(joined, ['sand', 'piasek', 'piaski']);
@@ -142,7 +134,6 @@ export function resolveIndicativeGroundOrientation(input: GroundOrientationInput
   if (loose) mark('OBSERVED_STATE', 'loose state');
   if (soft) mark('OBSERVED_STATE', 'soft/plastic state');
 
-  // Explicit state outweighs generic material, but origin still modifies confidence/class.
   if (loose || soft) return makeResult('POTENTIALLY_CHALLENGING', basis, signals);
   if (alluvial && recent) return makeResult('VARIABLE', basis, signals);
   if (alluvial) return makeResult('VARIABLE', basis, signals);
@@ -151,22 +142,11 @@ export function resolveIndicativeGroundOrientation(input: GroundOrientationInput
   if (sand && dense) return makeResult('GENERALLY_FAVOURABLE', basis, signals);
   if (glaciofluvial && sand) return makeResult('VARIABLE', basis, signals);
   if (clayey) return makeResult('VARIABLE', basis, signals);
-
   return makeResult('INSUFFICIENT_EVIDENCE', basis, signals);
 }
 
 function makeResult(classification: OrientationClass, basis: Set<OrientationBasis>, matchedSignals: string[]): GroundOrientationResult {
-  return {
-    classification,
-    evidenceType: 'INDICATIVE_GEOTECHNICAL_ORIENTATION',
-    siteSpecific: false,
-    designUse: false,
-    basis: [...basis],
-    matchedSignals,
-    summary: copy[classification].summary,
-    investigationFocus: copy[classification].focus,
-    disclaimer: copy.disclaimer
-  };
+  return { classification, evidenceType: 'INDICATIVE_GEOTECHNICAL_ORIENTATION', siteSpecific: false, designUse: false, basis: [...basis], matchedSignals, summary: copy[classification].summary, investigationFocus: copy[classification].focus, disclaimer: copy.disclaimer };
 }
 
 export function renderIndicativeGroundOrientation(result: GroundOrientationResult, language: ReportLanguage) {
@@ -175,15 +155,5 @@ export function renderIndicativeGroundOrientation(result: GroundOrientationResul
     de: { GENERALLY_FAVOURABLE: 'Grundsätzlich günstig', VARIABLE: 'Variabel / zustandsabhängig', POTENTIALLY_CHALLENGING: 'Potenziell anspruchsvoll', SPECIAL_CONCERN: 'Besondere Aufmerksamkeit', INSUFFICIENT_EVIDENCE: 'Unzureichende Datengrundlage' },
     pl: { GENERALLY_FAVOURABLE: 'Ogólnie korzystne', VARIABLE: 'Zmienne / zależne od warunków', POTENTIALLY_CHALLENGING: 'Potencjalnie trudne', SPECIAL_CONCERN: 'Wymaga szczególnej uwagi', INSUFFICIENT_EVIDENCE: 'Niewystarczające dane' }
   };
-  return {
-    label: labels[language][result.classification],
-    summary: result.summary[language],
-    investigationFocus: result.investigationFocus[language],
-    disclaimer: result.disclaimer[language],
-    evidenceType: result.evidenceType,
-    siteSpecific: result.siteSpecific,
-    designUse: result.designUse,
-    basis: result.basis,
-    matchedSignals: result.matchedSignals
-  };
+  return { label: labels[language][result.classification], summary: result.summary[language], investigationFocus: result.investigationFocus[language], disclaimer: result.disclaimer[language], evidenceType: result.evidenceType, siteSpecific: result.siteSpecific, designUse: result.designUse, basis: result.basis, matchedSignals: result.matchedSignals };
 }
