@@ -16,7 +16,7 @@ import { calculateTerrainFromGrid } from '../services/elevationService';
 import { queryOverpassSurroundings } from '../services/osmOverpassService';
 import { fetchGenuineSoilGridsData } from '../services/soilGridsService';
 import { fetchBgsSiteEvidence, ukGeotechnicalDesignFallback } from '../services/bgsEvidenceService';
-import { fetchPolandCadastralParcel, getPolandGeologicalModel } from '../adapters/poland';
+import { fetchPolandCadastralParcel } from '../adapters/poland';
 import { getCountryProfile } from '../adapters/countries';
 
 export interface AnalysisInput {
@@ -240,12 +240,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   let plGroundwaterNotice = 'Zwierciadło wód gruntowych nieustalone bezpośrednio (Wymaga piezometru w odwiercie geotechnicznym).';
 
   if (countryCode === 'PL') {
-    const plGeo = getPolandGeologicalModel(lat, lng, terrainGrid.centerElevationM);
-    geologicalUnitName = plGeo.geologicalUnit;
-    lithologyDesc = soilGridsData.success ? `${plGeo.lithologyType} | ISRIC Texture: ${soilGridsData.usdaTextureClass} (Sand ${soilGridsData.topsoilSandPct}%, Silt ${soilGridsData.topsoilSiltPct}%, Clay ${soilGridsData.topsoilClayPct}%)` : `${plGeo.lithologyType} | ISRIC soil texture not available`;
-    stratPeriod = plGeo.stratigraphicPeriod;
-    groundRegime = plGeo.groundwaterRegime;
-    plGroundwaterNotice = plGeo.groundwaterNotice;
+    // The live PGI acquisition enriches these fields after validated source
+    // queries. Coordinate-only regional prose is not a mapped geological unit.
+    geologicalUnitName = 'Not available — requires validated PGI-PIB map evidence';
+    lithologyDesc = 'Not available — requires validated PGI-PIB map evidence';
+    stratPeriod = 'Not available — requires validated PGI-PIB map evidence';
+    groundRegime = 'Not available — requires authoritative hydrogeological evidence';
+    plGroundwaterNotice = 'Poziom wód gruntowych nie został ustalony na podstawie pomiaru dla działki. Wymagane są dane obserwacyjne lub badania terenowe.';
   } else if (countryCode === 'GB' && bgsEvidence) {
     if (bgsEvidence.geology.available) {
       geologicalUnitName = bgsEvidence.geology.unitName || 'Not available';
@@ -262,13 +263,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
 
   const stratigraphyLayers = soilGridsData.stratigraphyProfile.map(l => ({
     depthRange: l.depthRange,
-    soilType: `${l.textureClass} (Sand: ${l.sandPct}%, Silt: ${l.siltPct}%, Clay: ${l.clayPct}%)`,
-    mechanicalStatus: countryCode === 'GB'
-      ? 'No verified site-specific engineering data'
-      : l.estimatedBearingCapacityKpa > 0
-      ? `Modelled pedological bearing capacity: ~${l.estimatedBearingCapacityKpa} kPa (Bulk density: ${l.bulkDensityGcm3} g/cm³)`
-      : 'Organic humus topsoil layer (Non-bearing, stripping mandatory)',
-    description: l.mechanicalDescription,
+    soilType: l.textureClass,
+    mechanicalStatus: 'Not available — no verified site-specific engineering evidence',
+    description: 'Pedological model values only; no engineering design parameter inferred.',
     sandPct: l.sandPct,
     siltPct: l.siltPct,
     clayPct: l.clayPct,
@@ -295,11 +292,11 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     meanOrganicCarbonPct: soilGridsData.meanOrganicCarbonPct,
     estimatedWaterTableDepthM: countryCode === 'GB' && bgsEvidence?.groundwater.available ? `Modelled: ${bgsEvidence.groundwater.modelledDepth}` : 'Not directly measured (Requires on-site borehole)',
     groundwaterNotice: plGroundwaterNotice,
-    estimatedBearingCapacityKpa: countryCode === 'GB' ? ukEngineering.bearingCapacity : soilGridsData.success ? `Preliminary pedological estimate: ~${soilGridsData.estimatedBearingCapacityKpa} (Requires Eurocode 7 verification)` : 'Not available — SoilGrids query unavailable and site investigation required',
-    effectiveFrictionAngleDeg: countryCode === 'GB' ? ukEngineering.frictionAngle : soilGridsData.effectiveFrictionAngleDeg,
-    cohesionKpa: countryCode === 'GB' ? ukEngineering.cohesion : soilGridsData.cohesionKpa,
-    hydraulicConductivityMs: countryCode === 'GB' ? ukEngineering.hydraulicConductivity : soilGridsData.hydraulicConductivityMs,
-    drainageClass: countryCode === 'GB' ? ukEngineering.drainageClass : soilGridsData.drainageClass,
+    estimatedBearingCapacityKpa: ukEngineering.bearingCapacity,
+    effectiveFrictionAngleDeg: ukEngineering.frictionAngle,
+    cohesionKpa: ukEngineering.cohesion,
+    hydraulicConductivityMs: ukEngineering.hydraulicConductivity,
+    drainageClass: ukEngineering.drainageClass,
     frostSusceptibilityClass: soilGridsData.frostSusceptibilityClass,
     topsoilStrippingDepthCm: soilGridsData.topsoilStrippingDepthCm,
     groundwaterRegime: groundRegime,
@@ -745,7 +742,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const statutoryDisclaimers = isPl ? [
     'KLAUZULA INFORMACYJNA I STATUS DANYCH PRZESTRZENNYCH (Dyrektywa 2007/2/WE INSPIRE & Ustawa o Infrastrukturze Informacji Przestrzennej): Niniejsze opracowanie ma charakter wyłącznie wstępny, poglądowy i screeningowy. Zostało wygenerowane automatycznie w oparciu o otwarte zbiory danych przestrzennych (GUGiK, PIG-PIB, ISRIC SoilGrids 2.0, Copernicus DEM, OpenStreetMap). Żadna informacja zawarta w niniejszym raporcie nie stanowi oficjalnego zaświadczenia administracyjnego ani dokumentu urzędowego w rozumieniu Kodeksu postępowania administracyjnego (KPA).',
     'BRAK MOCY PRAWNEJ OPERATU SZACUNKOWEGO (Ustawa o gospodarce nieruchomościami z dn. 21 sierpnia 1997 r., Dz.U. 2023 poz. 344): Prezentowane wartości liczbowe stanowią orientacyjny model statystyczny oparty na zagregowanych danych transakcyjnych (0 bezpośrednich transakcji porównawczych). Niniejszy raport NIE JEST operatem szacunkowym sporządzonym przez uprawnionego rzeczoznawcę majątkowego i nie może być podstawą zabezpieczenia wierzytelności bankowych, wyceny podatkowej, postępowań sądowych ani wiążących transakcji kupna/sprzedaży nieruchomości.',
-    'ZASTRZEŻENIE GEOTECHNICZNE (Eurokod 7 / PN-EN 1997-1 oraz Rozporządzenie MTBiGM z dn. 25 kwietnia 2012 r. w sprawie ustalania geotechnicznych warunków posadowienia obiektów budowlanych): Właściwości pedologiczne, wskaźniki uziarnienia (frakcje piasku, pyłu, iłu) oraz orientacyjna nośność podłoża (kPa) pochodzą z globalnych modeli przestrzennych ISRIC (dane modelowane, brak odwiertów na działce). Głębokość zwierciadła wody gruntowej nie została zmierzona. Przed przystąpieniem do projektowania fundamentów BEZWZGLĘDNIE WYMAGANE jest wykonanie terenowych badań podłoża gruntowego (odwierty geotechniczne, sondowania) przez uprawnionego geologa.',
+    'ZASTRZEŻENIE GEOTECHNICZNE (Eurokod 7 / PN-EN 1997-1 oraz Rozporządzenie MTBiGM z dn. 25 kwietnia 2012 r. w sprawie ustalania geotechnicznych warunków posadowienia obiektów budowlanych): Właściwości pedologiczne i wskaźniki uziarnienia (frakcje piasku, pyłu i iłu) pochodzą z globalnego modelu przestrzennego ISRIC i nie stanowią parametrów geotechnicznych. Nie wyznaczono nośności, kąta tarcia, spójności, osiadania ani projektowego poziomu wód gruntowych. Przed projektowaniem wymagane są terenowe badania podłoża wykonane przez osoby posiadające odpowiednie uprawnienia.',
     'WARUNKI PLANISTYCZNE I PRZEPISY BUDOWLANE (Ustawa o planowaniu i zagospodarowaniu przestrzennym oraz Prawo Budowlane): Wiążące parametry inwestycyjne (maksymalna intensywność zabudowy, wysokość, powierzchnia biologicznie czynna, linia zabudowy) wynikają wyłącznie z aktualnego Miejscowego Planu Zagospodarowania Przestrzennego (Wypis i Wyrys z MPZP) lub ostatecznej Decyzji o Warunkach Zabudowy (Decyzja WZ) wydanej przez właściwy Urząd Gminy/Miasta.',
     'GRANICE EWIDENCYJNE I STAN PRAWNY (EGiB / Księgi Wieczyste): Prezentowana geometria i identyfikatory działek pochodzą z publicznych rejestrów GUGiK ULDK. Przebieg granic ewidencyjnych oraz stan prawny nieruchomości (służebności, hipoteki, roszczenia osób trzecich) podlegają weryfikacji w Państwowym Zasobie Geodezyjnym i Kartograficznym (PODGiK) oraz we właściwym Wydziale Ksiąg Wieczystych Sądu Rejonowego.',
     'DOSTĘPNOŚĆ MEDIÓW I INFRASTRUKTURY TECHNICZNEJ: Wyniki analizy sieci w korytarzu drogowym opierają się na danych wektorowych i nie gwarantują możliwości przyłączenia. Rzeczywiste warunki, rezerwy mocy i koszty budowy przyłączy wymagają uzyskania pisemnych Technicznych Warunków Przyłączenia (TWP) od poszczególnych gestorów sieci dystrybucyjnych.',

@@ -53,7 +53,7 @@ export async function queryPolandHydroAndHazards(lat: number, lng: number, radiu
     }).filter((x: any) => x.d === null || x.d <= radiusKm).sort((a: any, b: any) => (a.d ?? 999) - (b.d ?? 999)).slice(0, 10);
     out.push(evidence('Hydrogeology', nearby.length ? `PIG-PIB hydrogeological features were identified within the ${radiusKm} km desktop search area.` : `The PIG-PIB hydrogeology collection was queried successfully, but returned no feature within ${radiusKm} km.`, nearby.length ? 'VERIFIED' : 'REQUIRES_VERIFICATION', result.url, 'PIG-PIB OGC API Features spatial query', { collection: hydro.id, features: nearby.map((x: any) => ({ id: x.f.id, distanceKm: x.d, properties: x.f.properties, geometry: x.f.geometry })) }, 'Hydrogeological database coverage and nearby observations do not establish the groundwater level beneath the proposed development. Site-specific groundwater measurements may be required.', nearby.length ? 'Medium' : 'Low'));
   } else {
-    out.push(evidence('Hydrogeology', 'PIG-PIB hydrogeological OGC API collection could not be discovered at analysis time.', 'UNAVAILABLE', `${OGC_API}/collections`, 'OGC API collection discovery', null, 'This is a service/coverage limitation, not evidence that hydrogeological information does not exist.', 'Low'));
+    out.push(evidence('Hydrogeology', 'PIG-PIB hydrogeological OGC API collection could not be discovered at analysis time.', 'REQUIRES_VERIFICATION', `${OGC_API}/collections`, 'OGC API collection discovery', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'This is a service/coverage limitation, not evidence that hydrogeological information does not exist.', 'Low'));
   }
 
   const hazards = await find(/zagrożenia geologiczne|geohazard|hazard/i);
@@ -62,7 +62,7 @@ export async function queryPolandHydroAndHazards(lat: number, lng: number, radiu
     const relevant = result.features.slice(0, 25);
     out.push(evidence('Geological Hazards', relevant.length ? `PIG-PIB geological-hazard features were returned for the site search area.` : `The PIG-PIB geological-hazard collection was queried successfully, but no feature was returned for the ${radiusKm} km search area.`, relevant.length ? 'VERIFIED' : 'REQUIRES_VERIFICATION', result.url, 'PIG-PIB OGC API Features spatial query', { collection: hazards.id, featureCount: relevant.length, features: relevant.map((f: any) => ({ id: f.id, properties: f.properties, geometry: f.geometry })) }, 'A negative desktop result does not prove that a hazard is absent. Hazard screening must consider map scale, dataset completeness and, where relevant, specialist investigation.', relevant.length ? 'Medium' : 'Low'));
   } else {
-    out.push(evidence('Geological Hazards', 'PIG-PIB geological-hazard collection could not be discovered at analysis time.', 'UNAVAILABLE', `${OGC_API}/collections`, 'OGC API collection discovery', null, 'This is a service/coverage limitation, not evidence that geological hazards are absent.', 'Low'));
+    out.push(evidence('Geological Hazards', 'PIG-PIB geological-hazard collection could not be discovered at analysis time.', 'REQUIRES_VERIFICATION', `${OGC_API}/collections`, 'OGC API collection discovery', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'This is a service/coverage limitation, not evidence that geological hazards are absent.', 'Low'));
   }
 
   return out;

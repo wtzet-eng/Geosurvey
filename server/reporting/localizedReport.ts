@@ -1,4 +1,4 @@
-import { CanonicalReport, ReportLanguage, RiskClassification, normalizeReportLanguage } from './canonicalReport';
+import { AvailabilityReason, CanonicalReport, ReportLanguage, RiskClassification, normalizeReportLanguage } from './canonicalReport';
 import { renderGeologicalInterpretation, resolveGeologicalInterpretation } from '../interpretation/resolver';
 import { renderIndicativeGroundOrientation, resolveIndicativeGroundOrientation } from '../interpretation/orientation';
 
@@ -17,6 +17,50 @@ const risk = (classification: RiskClassification, language: ReportLanguage) => {
   return classification ? labels[language][classification] : copy[language].unavailable as string;
 };
 
+const reasonCopy: Record<ReportLanguage, Record<AvailabilityReason, string>> = {
+  en: {
+    NO_DATA: 'The source was queried successfully but returned no feature for this location. This is not evidence of absence.',
+    SOURCE_UNAVAILABLE: 'The source was temporarily unavailable or could not be reached. Verification is required.',
+    MALFORMED_DATA: 'The source responded, but its structure could not be validated safely. No value was inferred.',
+    PARAMETER_NOT_PROVIDED: 'This parameter is not provided by the dataset used for this assessment.',
+    INSUFFICIENT_EVIDENCE: 'The available evidence is insufficient to infer this value safely.',
+    NOT_SUPPORTED_FOR_COUNTRY: 'This automated source is not supported for the selected country. Consult the competent national authority.',
+    AUTHORITATIVE_DATA_REQUIRED: 'This information requires confirmation in an authoritative document or by the competent authority.'
+  },
+  de: {
+    NO_DATA: 'Die Quelle wurde erfolgreich abgefragt, lieferte für diesen Standort jedoch kein Objekt. Dies belegt keine Abwesenheit.',
+    SOURCE_UNAVAILABLE: 'Die Quelle war vorübergehend nicht verfügbar oder nicht erreichbar. Eine Prüfung ist erforderlich.',
+    MALFORMED_DATA: 'Die Quelle antwortete, ihre Struktur konnte jedoch nicht sicher validiert werden. Es wurde kein Wert abgeleitet.',
+    PARAMETER_NOT_PROVIDED: 'Dieser Parameter wird vom verwendeten Datensatz nicht bereitgestellt.',
+    INSUFFICIENT_EVIDENCE: 'Die verfügbare Evidenz reicht nicht aus, um diesen Wert sicher abzuleiten.',
+    NOT_SUPPORTED_FOR_COUNTRY: 'Diese automatisierte Quelle wird für das ausgewählte Land nicht unterstützt. Die zuständige nationale Behörde ist zu konsultieren.',
+    AUTHORITATIVE_DATA_REQUIRED: 'Diese Angabe muss durch ein amtliches Dokument oder die zuständige Behörde bestätigt werden.'
+  },
+  pl: {
+    NO_DATA: 'Źródło zostało odpytane prawidłowo, ale nie zwróciło obiektu dla tej lokalizacji. Nie stanowi to dowodu braku zjawiska.',
+    SOURCE_UNAVAILABLE: 'Źródło było czasowo niedostępne lub nie można było nawiązać połączenia. Wymagana jest weryfikacja.',
+    MALFORMED_DATA: 'Źródło odpowiedziało, ale nie udało się bezpiecznie potwierdzić struktury danych. Nie wyprowadzono wartości.',
+    PARAMETER_NOT_PROVIDED: 'Parametr nie jest udostępniany przez wykorzystany zbiór danych.',
+    INSUFFICIENT_EVIDENCE: 'Dostępne dowody są niewystarczające do bezpiecznego wyznaczenia tej wartości.',
+    NOT_SUPPORTED_FOR_COUNTRY: 'Automatyczne źródło nie jest obsługiwane dla wybranego kraju. Należy sprawdzić dane właściwego organu krajowego.',
+    AUTHORITATIVE_DATA_REQUIRED: 'Informacja wymaga potwierdzenia w dokumencie urzędowym lub przez właściwy organ.'
+  }
+};
+
+export const localizeAvailabilityReason = (reason: AvailabilityReason, language: ReportLanguage): string => reasonCopy[language][reason];
+
+const localizedClassification = (input: string | null, language: ReportLanguage, unavailable: string): string => {
+  if (!input) return unavailable;
+  const phrases: Record<ReportLanguage, Record<string, string>> = {
+    en: { 'LOW TO VERY LOW': 'Low to very low', LOW: 'Low', MODERATE: 'Moderate', HIGH: 'High' },
+    de: { 'LOW TO VERY LOW': 'Gering bis sehr gering', LOW: 'Gering', MODERATE: 'Mäßig', HIGH: 'Hoch' },
+    pl: { 'LOW TO VERY LOW': 'Niskie do bardzo niskiego', LOW: 'Niskie', MODERATE: 'Umiarkowane', HIGH: 'Wysokie' }
+  };
+  const exact = phrases[language][input.trim().toUpperCase()];
+  if (exact) return exact;
+  return input.replace(/\((Low to Very Low|Low|Moderate|High)\)/gi, match => `(${phrases[language][match.slice(1, -1).toUpperCase()] || match.slice(1, -1)})`);
+};
+
 const hazardCopy = {
   en: { landslide: 'Landslide susceptibility classification: {risk}.', seismic: 'Seismic screening value: {value}.', radon: 'Radon screening classification: {value}.', mining: 'Mining-subsidence screening classification: {value}.' },
   de: { landslide: 'Klassifizierung der Hangrutschungsanfälligkeit: {risk}.', seismic: 'Wert der seismischen Vorprüfung: {value}.', radon: 'Klassifizierung der Radonvorprüfung: {value}.', mining: 'Klassifizierung der Bergsenkungsvorprüfung: {value}.' },
@@ -32,7 +76,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const countryName = countryNames[language][canonical.countryCode] || canonical.countryName;
   const geologyUnit = value(canonical.geology.unitName, unavailable);
   const terrainText = canonical.terrain.elevationM === null ? t.terrainMissing as string : interpolate(t.terrain as string, { elevation: canonical.terrain.elevationM, slope: value(canonical.terrain.slopeDegrees, unavailable) });
-  const soilText = interpolate(t.soil as string, { texture: value(canonical.soil.texture, unavailable), bearing: value(canonical.soil.bearingCapacity, unavailable) });
+  const soilText = interpolate(t.soil as string, { texture: canonical.soil.texture || localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language), bearing: canonical.soil.bearingCapacity || localizeAvailabilityReason('INSUFFICIENT_EVIDENCE', language) });
   const geologyText = canonical.geology.unitName ? interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: canonical.geology.unitName }) : t.geologyMissing as string;
   const resolvedInterpretation = canonical.countryCode === 'GB' ? resolveGeologicalInterpretation(canonical.geology) : null;
   const interpretation = resolvedInterpretation ? renderGeologicalInterpretation(resolvedInterpretation, language) : null;
@@ -52,21 +96,47 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const environmentText = canonical.environment.protectedAreaName ? interpolate(t.environment as string, { area: canonical.environment.protectedAreaName }) : t.environmentClear as string;
   const valuationText = interpolate(t.valuation as string, { min: canonical.valuation.min.toLocaleString(language), max: canonical.valuation.max.toLocaleString(language), currency: canonical.valuation.currency });
   const section = (summary: string, detail: string, status: string, source?: string, limitation?: string): Section => ({ summary, detail, evidence_level: status, source_cited: source, limitation_notice: limitation });
-  const unavailableNotice = (reason?: string) => reason ? t.sourceUnavailable as string : undefined;
+  const unavailableNotice = (reason?: AvailabilityReason) => reason ? localizeAvailabilityReason(reason, language) : undefined;
   const localizedCategory = language === 'pl' ? 'Dowody naukowe' : language === 'de' ? 'Wissenschaftliche Evidenz' : 'Scientific evidence';
-  const evidenceRegistry = canonical.evidenceRecords.map(record => ({
+  const evidenceRegistry = canonical.evidenceRecords.map(record => {
+    const reason = (record.value as { reasonCode?: AvailabilityReason } | null)?.reasonCode;
+    return ({
     ...record,
     category: localizedCategory,
     claim: interpolate(t.claim as string, { category: localizedCategory }),
     spatialRelationship: t.spatial as string,
     calculationMethod: t.method as string,
-    limitation: record.status === 'REQUIRES_VERIFICATION' ? t.sourceUnavailable as string : t.authoritative as string
-  }));
+    confidence: language === 'pl' ? ({ High: 'Wysoka', Medium: 'Średnia', Low: 'Niska' }[record.confidence] || record.confidence) : language === 'de' ? ({ High: 'Hoch', Medium: 'Mittel', Low: 'Niedrig' }[record.confidence] || record.confidence) : record.confidence,
+    limitation: record.status === 'REQUIRES_VERIFICATION' ? localizeAvailabilityReason(reason || 'AUTHORITATIVE_DATA_REQUIRED', language) : t.authoritative as string
+  }); });
   const checklist = (t.checklist as string[]).map((reason, index) => ({ topic: (t.topics as string[])[index], reason, recommendedAuthorityOrExpert: index === 0 ? canonical.planning.authorityName : canonical.authorities.cadastre, priority: index === 3 ? 'Medium' : 'High' }));
+  const utilityNames = {
+    en: { ELECTRICITY: 'Electricity', WATER: 'Potable water', SEWER: 'Sanitary sewer', GAS: 'Natural gas', TELECOM: 'Telecommunications', OTHER: 'Utility' },
+    de: { ELECTRICITY: 'Strom', WATER: 'Trinkwasser', SEWER: 'Schmutzwasserkanal', GAS: 'Erdgas', TELECOM: 'Telekommunikation', OTHER: 'Versorgung' },
+    pl: { ELECTRICITY: 'Energia elektryczna', WATER: 'Woda pitna', SEWER: 'Kanalizacja sanitarna', GAS: 'Gaz ziemny', TELECOM: 'Telekomunikacja', OTHER: 'Sieć uzbrojenia' }
+  } as const;
+  const utilityAvailable = {
+    en: (distance: number | null) => distance === null ? 'Mapped in the reviewed open dataset.' : `Mapped approximately ${distance} m from the site. Connection terms require operator confirmation.`,
+    de: (distance: number | null) => distance === null ? 'Im geprüften offenen Datensatz kartiert.' : `Ungefähr ${distance} m vom Standort kartiert. Anschlussbedingungen müssen vom Betreiber bestätigt werden.`,
+    pl: (distance: number | null) => distance === null ? 'Zmapowano w przeanalizowanym otwartym zbiorze danych.' : `Zmapowano w odległości około ${distance} m od lokalizacji. Warunki przyłączenia wymagają potwierdzenia przez operatora.`
+  };
+  const utilitiesChecklist = (canonical.utilities || []).map(item => ({ utility: utilityNames[language][item.utilityCode], status: item.mapped ? utilityAvailable[language](item.distanceM) : localizeAvailabilityReason(item.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language), evidence_level: item.status, provider_type: item.sourceName, distance_m: item.distanceM ?? undefined, mapped_in_dataset: item.mapped, limitation: item.mapped ? localizeAvailabilityReason('AUTHORITATIVE_DATA_REQUIRED', language) : localizeAvailabilityReason(item.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language) }));
+  const statusLabels = { en: { VERIFIED: 'Verified', MODELLED: 'Modelled', REQUIRES_VERIFICATION: 'Requires verification' }, de: { VERIFIED: 'Verifiziert', MODELLED: 'Modelliert', REQUIRES_VERIFICATION: 'Prüfung erforderlich' }, pl: { VERIFIED: 'Zweryfikowane', MODELLED: 'Modelowane', REQUIRES_VERIFICATION: 'Wymaga weryfikacji' } } as const;
+  const dataSources = canonical.sourceRecords.map(source => ({ name: source.name, url: source.url, authority: source.name, verification_status: statusLabels[language][source.status] }));
   return {
     language,
-    summary: interpolate(t.summary as string, { country: countryName, unit: geologyUnit, terrain: terrainText, soil: value(canonical.soil.texture, unavailable), score: canonical.evidenceScore.totalScore, min: canonical.valuation.min.toLocaleString(language), max: canonical.valuation.max.toLocaleString(language), currency: canonical.valuation.currency }),
+    summary: interpolate(t.summary as string, { country: countryName, unit: geologyUnit, terrain: terrainText, soil: canonical.soil.texture || localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language), score: canonical.evidenceScore.totalScore, min: canonical.valuation.min.toLocaleString(language), max: canonical.valuation.max.toLocaleString(language), currency: canonical.valuation.currency }),
     titles: language === 'pl' ? { estimated_value: 'Orientacyjna wartość statystyczna', confidence: 'Jakość dowodów', executive_summary: 'Podsumowanie wykonawcze' } : language === 'de' ? { estimated_value: 'Indikativer statistischer Wert', confidence: 'Evidenzqualität', executive_summary: 'Zusammenfassung' } : { estimated_value: 'Indicative statistical value', confidence: 'Evidence quality', executive_summary: 'Executive summary' },
+    confidenceLabel: canonical.evidenceScore.totalScore >= 75 ? (language === 'pl' ? 'Wysoka jakość dowodów' : language === 'de' ? 'Hohe Evidenzqualität' : 'High evidence quality') : canonical.evidenceScore.totalScore >= 50 ? (language === 'pl' ? 'Umiarkowana jakość dowodów' : language === 'de' ? 'Mittlere Evidenzqualität' : 'Moderate evidence quality') : (language === 'pl' ? 'Wstępna jakość dowodów' : language === 'de' ? 'Vorläufige Evidenzqualität' : 'Preliminary evidence quality'),
+    unavailableReasons: {
+      geology: localizeAvailabilityReason(canonical.geology.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language),
+      soilTexture: localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language),
+      engineeringParameter: localizeAvailabilityReason('INSUFFICIENT_EVIDENCE', language),
+      groundwater: localizeAvailabilityReason('AUTHORITATIVE_DATA_REQUIRED', language),
+      planning: localizeAvailabilityReason('AUTHORITATIVE_DATA_REQUIRED', language),
+      sourceUnavailable: localizeAvailabilityReason('SOURCE_UNAVAILABLE', language),
+      noFeature: localizeAvailabilityReason('NO_DATA', language)
+    },
     sections: {
       soil_and_ground: section(soilText, groundDetail, canonical.soil.status, canonical.soil.sourceName, unavailableNotice(canonical.soil.reasonCode)),
       geohazard_risk: section(interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: geologyUnit }), geologyDetail, canonical.geology.status, geologySource, unavailableNotice(canonical.geology.reasonCode)),
@@ -80,6 +150,8 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     },
     evidenceRegistry,
     verificationChecklist: checklist,
+    utilitiesChecklist,
+    dataSources,
     legalDisclaimers: t.disclaimers as string[],
     valuationMethodology: valuationText,
     technicalNarrative: {
@@ -94,9 +166,9 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     },
     riskMatrix: [
       { category: language === 'pl' ? 'Osuwiska' : language === 'de' ? 'Hangrutschung' : 'Landslide', level: canonical.hazards.landslide.classification ? risk(canonical.hazards.landslide.classification, language) : unavailable, evidence_level: canonical.hazards.landslide.status, detail: canonical.hazards.landslide.classification ? interpolate(hazardText.landslide, { risk: risk(canonical.hazards.landslide.classification, language) }) : t.sourceUnavailable as string },
-      { category: language === 'pl' ? 'Sejsmika' : language === 'de' ? 'Seismik' : 'Seismic', level: value(canonical.hazards.seismic.classification, unavailable), evidence_level: canonical.hazards.seismic.status, detail: interpolate(hazardText.seismic, { value: value(canonical.hazards.seismic.pga, unavailable) }) },
-      { category: 'Radon', level: value(canonical.hazards.radon.classification, unavailable), evidence_level: canonical.hazards.radon.status, detail: canonical.hazards.radon.classification ? interpolate(hazardText.radon, { value: canonical.hazards.radon.classification }) : t.sourceUnavailable as string },
-      { category: language === 'pl' ? 'Szkody górnicze' : language === 'de' ? 'Bergbausenkung' : 'Mining subsidence', level: value(canonical.hazards.mining.classification, unavailable), evidence_level: canonical.hazards.mining.status, detail: canonical.hazards.mining.classification ? interpolate(hazardText.mining, { value: canonical.hazards.mining.classification }) : t.sourceUnavailable as string }
+      { category: language === 'pl' ? 'Sejsmika' : language === 'de' ? 'Seismik' : 'Seismic', level: localizedClassification(canonical.hazards.seismic.classification, language, unavailable), evidence_level: canonical.hazards.seismic.status, detail: interpolate(hazardText.seismic, { value: localizedClassification(canonical.hazards.seismic.pga, language, unavailable) }) },
+      { category: 'Radon', level: localizedClassification(canonical.hazards.radon.classification, language, unavailable), evidence_level: canonical.hazards.radon.status, detail: canonical.hazards.radon.classification ? interpolate(hazardText.radon, { value: localizedClassification(canonical.hazards.radon.classification, language, unavailable) }) : unavailableNotice(canonical.hazards.radon.reasonCode) },
+      { category: language === 'pl' ? 'Szkody górnicze' : language === 'de' ? 'Bergbausenkung' : 'Mining subsidence', level: localizedClassification(canonical.hazards.mining.classification, language, unavailable), evidence_level: canonical.hazards.mining.status, detail: canonical.hazards.mining.classification ? interpolate(hazardText.mining, { value: localizedClassification(canonical.hazards.mining.classification, language, unavailable) }) : unavailableNotice(canonical.hazards.mining.reasonCode) }
     ],
     keyRisks: (t.checklist as string[]).slice(0, 3),
     opportunities: language === 'pl' ? ['Kanoniczny model zachowuje pochodzenie i status dowodów.', 'Dane terenowe, glebowe i źródłowe są prezentowane we wspólnym widoku.'] : language === 'de' ? ['Das kanonische Modell bewahrt Herkunft und Status der Evidenz.', 'Gelände-, Boden- und Quelldaten werden gemeinsam dargestellt.'] : ['The canonical model preserves evidence provenance and status.', 'Terrain, soil and source evidence are presented in one view.']

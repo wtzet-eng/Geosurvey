@@ -131,73 +131,6 @@ export function getUsdaTextureClass(sand: number, silt: number, clay: number): s
   }
 }
 
-/**
- * Estimate Eurocode 7 preliminary allowable bearing capacity (kPa) and shear strength parameters
- */
-function estimateBearingParameters(sand: number, silt: number, clay: number, bulkDensity: number): {
-  bearingCapacityKpa: number;
-  bearingCapacityStr: string;
-  frictionAngleDeg: number;
-  cohesionKpa: number;
-  hydraulicConductivityMs: string;
-  drainageClass: string;
-  frostSusceptibility: 'F1 (Non-frost-susceptible)' | 'F2 (Low-to-medium frost susceptibility)' | 'F3 (High frost susceptibility)';
-} {
-  let frictionAngle = 30;
-  let cohesion = 5;
-  let baseBearing = 200;
-  let kSat = '1.0 × 10⁻⁵ m/s';
-  let drainage = 'Moderate permeability';
-  let frost: 'F1 (Non-frost-susceptible)' | 'F2 (Low-to-medium frost susceptibility)' | 'F3 (High frost susceptibility)' = 'F2 (Low-to-medium frost susceptibility)';
-
-  if (sand >= 65) {
-    // Sandy / Coarse soil
-    frictionAngle = Math.round(31 + (bulkDensity - 1.3) * 12);
-    cohesion = 2;
-    baseBearing = Math.round(180 + (bulkDensity - 1.3) * 120);
-    kSat = '5.0 × 10⁻⁴ m/s (Fast draining)';
-    drainage = 'High permeability / Good natural drainage';
-    frost = silt < 10 ? 'F1 (Non-frost-susceptible)' : 'F2 (Low-to-medium frost susceptibility)';
-  } else if (clay >= 35) {
-    // Clayey / Cohesive soil
-    frictionAngle = 18;
-    cohesion = Math.round(20 + (bulkDensity - 1.2) * 25);
-    baseBearing = Math.round(140 + (bulkDensity - 1.2) * 100);
-    kSat = '1.0 × 10⁻⁸ m/s (Low permeability)';
-    drainage = 'Poor natural permeability / Water retention potential';
-    frost = 'F3 (High frost susceptibility)';
-  } else if (silt >= 45) {
-    // Silty soil (Highly frost-susceptible)
-    frictionAngle = 24;
-    cohesion = 10;
-    baseBearing = Math.round(150 + (bulkDensity - 1.3) * 90);
-    kSat = '2.0 × 10⁻⁶ m/s';
-    drainage = 'Moderate to slow permeability';
-    frost = 'F3 (High frost susceptibility)';
-  } else {
-    // Loamy / Mixed soil
-    frictionAngle = 27;
-    cohesion = 12;
-    baseBearing = Math.round(190 + (bulkDensity - 1.3) * 110);
-    kSat = '5.0 × 10⁻⁶ m/s';
-    drainage = 'Moderate permeability';
-    frost = silt > 25 ? 'F3 (High frost susceptibility)' : 'F2 (Low-to-medium frost susceptibility)';
-  }
-
-  const minB = Math.max(120, Math.round(baseBearing * 0.85));
-  const maxB = Math.round(baseBearing * 1.25);
-
-  return {
-    bearingCapacityKpa: baseBearing,
-    bearingCapacityStr: `${minB} – ${maxB} kPa`,
-    frictionAngleDeg: frictionAngle,
-    cohesionKpa: cohesion,
-    hydraulicConductivityMs: kSat,
-    drainageClass: drainage,
-    frostSusceptibility: frost
-  };
-}
-
 export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promise<SoilGridsResult> {
   const depthIntervals = ['0-5cm', '5-15cm', '15-30cm', '30-60cm', '60-100cm', '100-200cm'];
   const properties = ['clay', 'sand', 'silt', 'soc', 'bdod', 'phh2o', 'cec'];
@@ -305,8 +238,6 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
       const cec = Math.round(rawCec! * 10) / 10;
 
       const textureClass = getUsdaTextureClass(sandPct, siltPct, clayPct);
-      const params = estimateBearingParameters(sandPct, siltPct, clayPct, bulkDensity);
-
       stratigraphyProfile.push({
         depthRange: `${def.top} – ${def.bottom} cm`,
         topDepthCm: def.top,
@@ -319,7 +250,7 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
         phH2O: ph,
         cec,
         textureClass,
-        estimatedBearingCapacityKpa: params.bearingCapacityKpa,
+        estimatedBearingCapacityKpa: NaN,
         mechanicalDescription: `${textureClass}; modelled pedological profile (not site-specific geotechnical testing)`
       });
     }
@@ -338,8 +269,6 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
     const meanPh = avg(stratigraphyProfile, 'phH2O');
     const meanSoc = avg(stratigraphyProfile, 'soilOrganicCarbonPct');
     const topTexture = getUsdaTextureClass(topSand, topSilt, topClay);
-    const mech = estimateBearingParameters(topSand, topSilt, topClay, meanDensity);
-
     return {
       success: true,
       sourceName: 'ISRIC - World Soil Information (SoilGrids 2.0 REST API)',
@@ -355,15 +284,15 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
       meanBulkDensityGcm3: Math.round(meanDensity * 100) / 100,
       meanPhH2O: Math.round(meanPh * 10) / 10,
       meanOrganicCarbonPct: Math.round(meanSoc * 100) / 100,
-      estimatedBearingCapacityKpa: mech.bearingCapacityStr,
-      effectiveFrictionAngleDeg: mech.frictionAngleDeg,
-      cohesionKpa: mech.cohesionKpa,
-      hydraulicConductivityMs: mech.hydraulicConductivityMs,
-      drainageClass: mech.drainageClass,
-      frostSusceptibilityClass: mech.frostSusceptibility,
-      topsoilStrippingDepthCm: 30,
+      estimatedBearingCapacityKpa: 'Not available',
+      effectiveFrictionAngleDeg: NaN,
+      cohesionKpa: NaN,
+      hydraulicConductivityMs: 'Not available',
+      drainageClass: 'Not available',
+      frostSusceptibilityClass: 'Not available',
+      topsoilStrippingDepthCm: NaN,
       stratigraphyProfile,
-      limitation: 'SoilGrids values are modelled 250 m pedological estimates. Engineering parameters derived from texture are preliminary only and require site-specific Eurocode 7 verification.'
+      limitation: 'SoilGrids values are modelled 250 m pedological estimates. No bearing capacity, friction angle, cohesion, settlement, hydraulic design value or foundation recommendation is inferred.'
     };
   } catch (err) {
     console.warn('SoilGrids API fetch notice:', err);
