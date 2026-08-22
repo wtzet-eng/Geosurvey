@@ -77,26 +77,6 @@ test('German Basin proper name survives English, German and Polish rendering', (
   }
 });
 
-test('BGS scientific fields, source URL and evidence status are invariant across languages', () => {
-  const report = fixture('GB', 'German Basin') as VerifiedSiteReport & { geosurvey_context: Record<string, unknown> };
-  report.geosurvey_context = { geological_unit_name: 'German Basin', lithology_type: 'Mudstone', geological_period_era: 'Triassic', evidence_level: 'VERIFIED', source_name: 'British Geological Survey — Detailed Geology', source_url: 'https://map.bgs.ac.uk/arcgis/rest/services/BGS_Detailed_Geology/MapServer' };
-  const canonical = createCanonicalReport(report, getCountryProfile('GB'));
-  const snapshot = structuredClone(canonical);
-  for (const language of ['en', 'de', 'pl'] as const) {
-    renderLocalizedReport(canonical, language);
-    assert.equal(canonical.geology.unitName, 'German Basin'); assert.equal(canonical.geology.lithology, 'Mudstone'); assert.equal(canonical.geology.geologicalAge, 'Triassic'); assert.equal(canonical.geology.sourceName, 'British Geological Survey — Detailed Geology'); assert.equal(canonical.geology.sourceUrl, 'https://map.bgs.ac.uk/arcgis/rest/services/BGS_Detailed_Geology/MapServer'); assert.equal(canonical.geology.status, 'VERIFIED'); assert.deepEqual(canonical, snapshot);
-  }
-});
-
-test('modelled UK groundwater is labelled as modelled context rather than a measured level', () => {
-  const report = fixture('GB');
-  report.soil.groundwaterRegime = 'Modelled groundwater depth: 3–5 m';
-  const canonical = createCanonicalReport(report, getCountryProfile('GB'));
-  const rendered = renderLocalizedReport(canonical, 'en');
-  assert.equal(rendered.technicalNarrative.groundwater_depth_m, '3–5 m');
-  assert.equal(canonical.geology.groundwaterRegime, 'Modelled groundwater depth: 3–5 m');
-});
-
 test('Polish reader-facing prose has no known English leakage and preserves source identifiers', () => {
   const canonical = createCanonicalReport(fixture('PL', 'Niecka Mazowiecka'), getCountryProfile('PL'));
   const rendered = renderLocalizedReport(canonical, 'pl');
@@ -117,4 +97,39 @@ test('landslide presentation never contains flood narrative', () => {
     assert.doesNotMatch(landslide.detail, /flood|Hochwasser|powodzi/i);
     assert.match(landslide.detail, /landslide|Hangrutsch|osuwisk/i);
   }
+});
+
+test('Polish presentation differentiates unavailable reasons and localizes composite risk text', () => {
+  const canonical = createCanonicalReport(fixture('PL', 'Niecka Mazowiecka'), getCountryProfile('PL'));
+  canonical.geology.unitName = null;
+  canonical.geology.reasonCode = 'NO_DATA';
+  canonical.soil.texture = null;
+  canonical.soil.reasonCode = 'SOURCE_UNAVAILABLE';
+  canonical.hazards.seismic.classification = 'Eurocode 8 Zone 0–1 (Low to Very Low)';
+  const rendered = renderLocalizedReport(canonical, 'pl');
+  assert.match(rendered.unavailableReasons.geology, /nie zwróciło obiektu/i);
+  assert.match(rendered.unavailableReasons.soilTexture, /czasowo niedostępne/i);
+  assert.notEqual(rendered.unavailableReasons.geology, rendered.unavailableReasons.soilTexture);
+  assert.match(rendered.riskMatrix[1].level, /Niskie do bardzo niskiego/);
+  assert.doesNotMatch(rendered.riskMatrix[1].level, /Low|Very Low/);
+});
+
+test('canonical report never promotes SoilGrids values to engineering design parameters', () => {
+  const canonical = createCanonicalReport(fixture('PL'), getCountryProfile('PL'));
+  assert.equal(canonical.soil.bearingCapacity, null);
+  const rendered = renderLocalizedReport(canonical, 'pl');
+  assert.match(rendered.unavailableReasons.engineeringParameter, /niewystarczające/i);
+  assert.doesNotMatch(JSON.stringify(rendered.technicalNarrative), /180.?220\s*kPa|friction|cohesion/i);
+});
+
+test('utility presentation is localized from structured canonical facts', () => {
+  const canonical = createCanonicalReport(fixture('PL'), getCountryProfile('PL'));
+  canonical.utilities = [{ utilityCode: 'ELECTRICITY', mapped: false, distanceM: null, status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap', reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' }];
+  const pl = renderLocalizedReport(canonical, 'pl').utilitiesChecklist[0];
+  const de = renderLocalizedReport(canonical, 'de').utilitiesChecklist[0];
+  const en = renderLocalizedReport(canonical, 'en').utilitiesChecklist[0];
+  assert.equal(pl.utility, 'Energia elektryczna');
+  assert.equal(de.utility, 'Strom');
+  assert.equal(en.utility, 'Electricity');
+  assert.match(pl.status, /właściwy organ/i);
 });

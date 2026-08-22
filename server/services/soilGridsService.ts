@@ -1,7 +1,3 @@
-import { sourceEndpoints } from '../sources/registry';
-import { resolveSource } from '../sources/resolver';
-import { SourceProvenance } from '../sources/sourceTypes';
-
 /**
  * ISRIC SoilGrids 2.0 REST API Integration Service
  * Fetches genuine global scientific soil data (0-200 cm depth profiles):
@@ -55,14 +51,11 @@ export interface SoilGridsResult {
   topsoilStrippingDepthCm: number;
   stratigraphyProfile: SoilLayerDepth[];
   limitation: string;
-  resolverProvenance?: SourceProvenance;
 }
 
-const soilRoutes = sourceEndpoints('SOILGRIDS_MODEL');
-const SOILGRIDS_REST = soilRoutes.find(endpoint => endpoint.type === 'REST_JSON')?.url || '';
-const SOILGRIDS_WMS = soilRoutes.find(endpoint => endpoint.type === 'WMS')?.url || '';
+const SOILGRIDS_WMS = 'https://maps.isric.org/mapserv';
 
-async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGridsResult, resolverProvenance?: SourceProvenance): Promise<SoilGridsResult> {
+async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGridsResult): Promise<SoilGridsResult> {
   const properties = ['sand', 'silt', 'clay', 'soc', 'bdod', 'phh2o'] as const;
   const depths = ['0-5cm', '30-60cm'] as const;
   const numericValue = (input: any): number | null => {
@@ -90,8 +83,9 @@ async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGri
     const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 4500);
     try {
       const response = await fetch(`${SOILGRIDS_WMS}?${params}`, { headers: { Accept: 'text/plain, application/json, application/xml, text/xml', 'User-Agent': 'GeoSurvey/1.0 (SoilGrids WMS point query)' }, signal: controller.signal });
-      const contentType = response.headers.get('content-type') || ''; const body = response.ok ? await response.text() : ''; const parsed = response.ok ? responseValue(body, contentType) : null;
-      return parsed;
+      const contentType = response.headers.get('content-type') || '';
+      const body = response.ok ? await response.text() : '';
+      return response.ok ? responseValue(body, contentType) : null;
     } catch { return null; } finally { clearTimeout(timeout); }
   };
   const entries = await Promise.all(depths.flatMap(depth => properties.map(async property => [`${property}:${depth}`, await point(property, depth)] as const)));
@@ -105,7 +99,7 @@ async function fetchSoilGridsWmsData(lat: number, lng: number, fallback: SoilGri
     return { depthRange: `${top} – ${bottom} cm`, topDepthCm: top, bottomDepthCm: bottom, sandPct: sand, siltPct: silt, clayPct: clay, bulkDensityGcm3: density, soilOrganicCarbonPct: soc, phH2O: ph, cec: NaN, textureClass: getUsdaTextureClass(sand, silt, clay), estimatedBearingCapacityKpa: NaN, mechanicalDescription: 'Modelled pedological properties only; no engineering design parameters inferred.' };
   };
   const top = layer('0-5cm', 0, 5), sub = layer('30-60cm', 30, 60);
-  return { ...fallback, resolverProvenance, success: true, sourceName: 'ISRIC SoilGrids 2.0 (WMS raster point access)', sourceUrl: SOILGRIDS_WMS, datasetVersion: 'SoilGrids 2.0 — 250 m raster, mean values at 0–5 cm and 30–60 cm', usdaTextureClass: top.textureClass, topsoilSandPct: top.sandPct, topsoilSiltPct: top.siltPct, topsoilClayPct: top.clayPct, subsoilSandPct: sub.sandPct, subsoilSiltPct: sub.siltPct, subsoilClayPct: sub.clayPct, meanBulkDensityGcm3: (top.bulkDensityGcm3 + sub.bulkDensityGcm3) / 2, meanPhH2O: (top.phH2O + sub.phH2O) / 2, meanOrganicCarbonPct: (top.soilOrganicCarbonPct + sub.soilOrganicCarbonPct) / 2, stratigraphyProfile: [top, sub], limitation: 'SoilGrids 250 m modelled raster values. Depth intervals and resolution are preserved. No bearing capacity, friction angle, cohesion, settlement or foundation recommendation is inferred.' };
+  return { ...fallback, success: true, sourceName: 'ISRIC SoilGrids 2.0 (WMS raster point access)', sourceUrl: SOILGRIDS_WMS, datasetVersion: 'SoilGrids 2.0 — 250 m raster, mean values at 0–5 cm and 30–60 cm', usdaTextureClass: top.textureClass, topsoilSandPct: top.sandPct, topsoilSiltPct: top.siltPct, topsoilClayPct: top.clayPct, subsoilSandPct: sub.sandPct, subsoilSiltPct: sub.siltPct, subsoilClayPct: sub.clayPct, meanBulkDensityGcm3: (top.bulkDensityGcm3 + sub.bulkDensityGcm3) / 2, meanPhH2O: (top.phH2O + sub.phH2O) / 2, meanOrganicCarbonPct: (top.soilOrganicCarbonPct + sub.soilOrganicCarbonPct) / 2, stratigraphyProfile: [top, sub], limitation: 'SoilGrids 250 m modelled raster values. Depth intervals and resolution are preserved. No bearing capacity, friction angle, cohesion, settlement or foundation recommendation is inferred.' };
 }
 
 /**
@@ -135,73 +129,6 @@ export function getUsdaTextureClass(sand: number, silt: number, clay: number): s
     if (silt + 2 * clay < 30) return 'Loamy Sand';
     return 'Sandy Loam';
   }
-}
-
-/**
- * Estimate Eurocode 7 preliminary allowable bearing capacity (kPa) and shear strength parameters
- */
-function estimateBearingParameters(sand: number, silt: number, clay: number, bulkDensity: number): {
-  bearingCapacityKpa: number;
-  bearingCapacityStr: string;
-  frictionAngleDeg: number;
-  cohesionKpa: number;
-  hydraulicConductivityMs: string;
-  drainageClass: string;
-  frostSusceptibility: 'F1 (Non-frost-susceptible)' | 'F2 (Low-to-medium frost susceptibility)' | 'F3 (High frost susceptibility)';
-} {
-  let frictionAngle = 30;
-  let cohesion = 5;
-  let baseBearing = 200;
-  let kSat = '1.0 × 10⁻⁵ m/s';
-  let drainage = 'Moderate permeability';
-  let frost: 'F1 (Non-frost-susceptible)' | 'F2 (Low-to-medium frost susceptibility)' | 'F3 (High frost susceptibility)' = 'F2 (Low-to-medium frost susceptibility)';
-
-  if (sand >= 65) {
-    // Sandy / Coarse soil
-    frictionAngle = Math.round(31 + (bulkDensity - 1.3) * 12);
-    cohesion = 2;
-    baseBearing = Math.round(180 + (bulkDensity - 1.3) * 120);
-    kSat = '5.0 × 10⁻⁴ m/s (Fast draining)';
-    drainage = 'High permeability / Good natural drainage';
-    frost = silt < 10 ? 'F1 (Non-frost-susceptible)' : 'F2 (Low-to-medium frost susceptibility)';
-  } else if (clay >= 35) {
-    // Clayey / Cohesive soil
-    frictionAngle = 18;
-    cohesion = Math.round(20 + (bulkDensity - 1.2) * 25);
-    baseBearing = Math.round(140 + (bulkDensity - 1.2) * 100);
-    kSat = '1.0 × 10⁻⁸ m/s (Low permeability)';
-    drainage = 'Poor natural permeability / Water retention potential';
-    frost = 'F3 (High frost susceptibility)';
-  } else if (silt >= 45) {
-    // Silty soil (Highly frost-susceptible)
-    frictionAngle = 24;
-    cohesion = 10;
-    baseBearing = Math.round(150 + (bulkDensity - 1.3) * 90);
-    kSat = '2.0 × 10⁻⁶ m/s';
-    drainage = 'Moderate to slow permeability';
-    frost = 'F3 (High frost susceptibility)';
-  } else {
-    // Loamy / Mixed soil
-    frictionAngle = 27;
-    cohesion = 12;
-    baseBearing = Math.round(190 + (bulkDensity - 1.3) * 110);
-    kSat = '5.0 × 10⁻⁶ m/s';
-    drainage = 'Moderate permeability';
-    frost = silt > 25 ? 'F3 (High frost susceptibility)' : 'F2 (Low-to-medium frost susceptibility)';
-  }
-
-  const minB = Math.max(120, Math.round(baseBearing * 0.85));
-  const maxB = Math.round(baseBearing * 1.25);
-
-  return {
-    bearingCapacityKpa: baseBearing,
-    bearingCapacityStr: `${minB} – ${maxB} kPa`,
-    frictionAngleDeg: frictionAngle,
-    cohesionKpa: cohesion,
-    hydraulicConductivityMs: kSat,
-    drainageClass: drainage,
-    frostSusceptibility: frost
-  };
 }
 
 export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promise<SoilGridsResult> {
@@ -237,23 +164,28 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
   try {
     const propsQuery = properties.map(p => `property=${p}`).join('&');
     const depthsQuery = depthIntervals.map(d => `depth=${d}`).join('&');
-    const resolution = await resolveSource('SOILGRIDS_MODEL', async endpoint => {
-      const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 6500);
-      try {
-        if (endpoint.type === 'REST_JSON') {
-          const response = await fetch(`${endpoint.url}?lon=${lng}&lat=${lat}&${propsQuery}&${depthsQuery}`, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 (SoilGrids source validation)' }, signal: controller.signal });
-          const payload: any = response.ok ? await response.json() : null; const layers = Array.isArray(payload?.properties?.layers) ? payload.properties.layers : [];
-          return { connectivity: response.status > 0, httpStatus: response.status, serviceAvailable: Boolean(payload), observedLayers: [], observedFields: layers.map((layer:any)=>({name:String(layer.name),type:'soil-property'})), capabilities: ['point-query'], payload };
-        }
-        const layer = 'sand_0-5cm_mean'; const delta = .001; const params = new URLSearchParams({ map:'/map/sand.map', SERVICE:'WMS', VERSION:'1.1.1', REQUEST:'GetFeatureInfo', SRS:'EPSG:4326', BBOX:`${lng-delta},${lat-delta},${lng+delta},${lat+delta}`, WIDTH:'3', HEIGHT:'3', X:'1', Y:'1', LAYERS:layer, QUERY_LAYERS:layer, INFO_FORMAT:'text/plain' });
-        const response = await fetch(`${endpoint.url}?${params}`, { headers: { Accept:'text/plain, application/json, application/xml, text/xml', 'User-Agent':'GeoSurvey/1.0 (SoilGrids source validation)' }, signal:controller.signal }); const body = response.ok ? await response.text() : '';
-        return { connectivity: response.status > 0, httpStatus: response.status, serviceAvailable: response.ok && body.length > 0, observedLayers: response.ok && body.length ? endpoint.expectedLayers : [], observedFields: [], capabilities: response.ok && body.length ? ['GetFeatureInfo'] : [] };
-      } catch { return { connectivity:false, serviceAvailable:false, observedLayers:[], observedFields:[], capabilities:[] }; } finally { clearTimeout(timer); }
+    const url = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lng}&lat=${lat}&${propsQuery}&${depthsQuery}`;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6500);
+
+    const res = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'EuropeanLandValuationEngine/5.0 (Research & Geospatial Verification)'
+      },
+      signal: controller.signal
     });
-    if (!resolution.endpoint) return fallback;
-    if (resolution.endpoint.type === 'WMS') return await fetchSoilGridsWmsData(lat, lng, fallback, resolution.provenance || undefined);
-    const json: any = resolution.probe?.payload;
-    if (!json || !Array.isArray(json.properties?.layers)) return await fetchSoilGridsWmsData(lat, lng, fallback);
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      return await fetchSoilGridsWmsData(lat, lng, fallback);
+    }
+
+    const json: any = await res.json();
+    if (!json || !Array.isArray(json.properties?.layers)) {
+      return await fetchSoilGridsWmsData(lat, lng, fallback);
+    }
 
     const layers = json.properties.layers;
     const findProp = (name: string) => layers.find((l: any) => l.name === name);
@@ -281,20 +213,17 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
       { label: '15-30cm', top: 15, bottom: 30 },
       { label: '30-60cm', top: 30, bottom: 60 },
       { label: '60-100cm', top: 60, bottom: 100 },
-      { label: '100-200cm', top: 100, bottom: 200 },
+      { label: '100-200cm', top: 100, bottom: 200 }
     ];
 
-    let totalSand = 0, totalSilt = 0, totalClay = 0, totalBdod = 0, totalPh = 0, totalSoc = 0;
-    let validCount = 0;
-
     for (const def of depthDefs) {
-      const rawSand = getVal(sandLayer, def.label); // g/kg
-      const rawSilt = getVal(siltLayer, def.label); // g/kg
-      const rawClay = getVal(clayLayer, def.label); // g/kg
-      const rawSoc = getVal(socLayer, def.label);   // dg/kg
-      const rawBdod = getVal(bdodLayer, def.label); // cg/cm³
-      const rawPh = getVal(phLayer, def.label);     // pH*10
-      const rawCec = getVal(cecLayer, def.label);   // mmol(c)/kg
+      const rawSand = getVal(sandLayer, def.label);
+      const rawSilt = getVal(siltLayer, def.label);
+      const rawClay = getVal(clayLayer, def.label);
+      const rawSoc = getVal(socLayer, def.label);
+      const rawBdod = getVal(bdodLayer, def.label);
+      const rawPh = getVal(phLayer, def.label);
+      const rawCec = getVal(cecLayer, def.label);
 
       if ([rawSand, rawSilt, rawClay, rawSoc, rawBdod, rawPh, rawCec].some(value => value === undefined) || (rawSand! + rawSilt! + rawClay!) <= 0) {
         return await fetchSoilGridsWmsData(lat, lng, fallback);
@@ -304,23 +233,11 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
       const siltPct = Math.round((rawSilt! / 10) * 10) / 10;
       const clayPct = Math.round((rawClay! / 10) * 10) / 10;
       const socPct = Math.round((rawSoc! / 100) * 100) / 100;
-      const bdodGcm3 = Math.round((rawBdod! / 100) * 100) / 100;
-      const phVal = Math.round((rawPh! / 10) * 10) / 10;
-      const cecVal = Math.round((rawCec! / 10) * 10) / 10;
+      const bulkDensity = Math.round((rawBdod! / 100) * 100) / 100;
+      const ph = Math.round((rawPh! / 10) * 10) / 10;
+      const cec = Math.round(rawCec! * 10) / 10;
 
-      totalSand += sandPct;
-      totalSilt += siltPct;
-      totalClay += clayPct;
-      totalBdod += bdodGcm3;
-      totalPh += phVal;
-      totalSoc += socPct;
-      validCount++;
-
-      const texture = getUsdaTextureClass(sandPct, siltPct, clayPct);
-      const params = estimateBearingParameters(sandPct, siltPct, clayPct, bdodGcm3);
-
-      const isTopsoil = def.bottom <= 30 && socPct >= 1.2;
-
+      const textureClass = getUsdaTextureClass(sandPct, siltPct, clayPct);
       stratigraphyProfile.push({
         depthRange: `${def.top} – ${def.bottom} cm`,
         topDepthCm: def.top,
@@ -328,68 +245,54 @@ export async function fetchGenuineSoilGridsData(lat: number, lng: number): Promi
         sandPct,
         siltPct,
         clayPct,
-        bulkDensityGcm3: bdodGcm3,
+        bulkDensityGcm3: bulkDensity,
         soilOrganicCarbonPct: socPct,
-        phH2O: phVal,
-        cec: cecVal,
-        textureClass: texture,
-        estimatedBearingCapacityKpa: isTopsoil ? 0 : params.bearingCapacityKpa,
-        mechanicalDescription: isTopsoil
-          ? `Topsoil layer (Organic matter ${socPct}% / pH ${phVal}). Non-bearing humus to be stripped prior to excavation.`
-          : `Mineral subsoil horizon (${texture}, bulk density ${bdodGcm3} g/cm³). Indicative bearing capacity: ${params.bearingCapacityStr}.`
+        phH2O: ph,
+        cec,
+        textureClass,
+        estimatedBearingCapacityKpa: NaN,
+        mechanicalDescription: `${textureClass}; modelled pedological profile (not site-specific geotechnical testing)`
       });
     }
 
-    const avgSand = Math.round(totalSand / Math.max(1, validCount));
-    const avgSilt = Math.round(totalSilt / Math.max(1, validCount));
-    const avgClay = Math.round(totalClay / Math.max(1, validCount));
-    const avgBdod = Math.round((totalBdod / Math.max(1, validCount)) * 100) / 100;
-    const avgPh = Math.round((totalPh / Math.max(1, validCount)) * 10) / 10;
-    const avgSoc = Math.round((totalSoc / Math.max(1, validCount)) * 100) / 100;
+    const topsoilLayers = stratigraphyProfile.filter(l => l.bottomDepthCm <= 30);
+    const subsoilLayers = stratigraphyProfile.filter(l => l.topDepthCm >= 30);
+    const avg = (arr: SoilLayerDepth[], key: keyof SoilLayerDepth) => arr.reduce((sum, l) => sum + (l[key] as number), 0) / arr.length;
 
-    const overallTexture = getUsdaTextureClass(avgSand, avgSilt, avgClay);
-    const overallParams = estimateBearingParameters(avgSand, avgSilt, avgClay, avgBdod);
-
-    const topsoilLayer = stratigraphyProfile.filter(l => l.bottomDepthCm <= 30);
-    const subsoilLayer = stratigraphyProfile.filter(l => l.topDepthCm >= 30);
-
-    const topSand = topsoilLayer.length ? Math.round(topsoilLayer.reduce((a, b) => a + b.sandPct, 0) / topsoilLayer.length) : avgSand;
-    const topSilt = topsoilLayer.length ? Math.round(topsoilLayer.reduce((a, b) => a + b.siltPct, 0) / topsoilLayer.length) : avgSilt;
-    const topClay = topsoilLayer.length ? Math.round(topsoilLayer.reduce((a, b) => a + b.clayPct, 0) / topsoilLayer.length) : avgClay;
-
-    const subSand = subsoilLayer.length ? Math.round(subsoilLayer.reduce((a, b) => a + b.sandPct, 0) / subsoilLayer.length) : avgSand;
-    const subSilt = subsoilLayer.length ? Math.round(subsoilLayer.reduce((a, b) => a + b.siltPct, 0) / subsoilLayer.length) : avgSilt;
-    const subClay = subsoilLayer.length ? Math.round(subsoilLayer.reduce((a, b) => a + b.clayPct, 0) / subsoilLayer.length) : avgClay;
-
-    let strippingDepth = 25;
-    if (stratigraphyProfile[0]?.soilOrganicCarbonPct > 2.0) strippingDepth = 30;
-    if (stratigraphyProfile[1]?.soilOrganicCarbonPct > 1.8) strippingDepth = 35;
-
+    const topSand = avg(topsoilLayers, 'sandPct');
+    const topSilt = avg(topsoilLayers, 'siltPct');
+    const topClay = avg(topsoilLayers, 'clayPct');
+    const subSand = avg(subsoilLayers, 'sandPct');
+    const subSilt = avg(subsoilLayers, 'siltPct');
+    const subClay = avg(subsoilLayers, 'clayPct');
+    const meanDensity = avg(stratigraphyProfile, 'bulkDensityGcm3');
+    const meanPh = avg(stratigraphyProfile, 'phH2O');
+    const meanSoc = avg(stratigraphyProfile, 'soilOrganicCarbonPct');
+    const topTexture = getUsdaTextureClass(topSand, topSilt, topClay);
     return {
       success: true,
-      resolverProvenance: resolution.provenance || undefined,
-      sourceName: 'ISRIC SoilGrids 2.0 (Direct High-Resolution Scientific REST API)',
-      sourceUrl: SOILGRIDS_REST,
-      datasetVersion: 'ISRIC SoilGrids 2.0 (250m Global Spatial Grid)',
-      usdaTextureClass: overallTexture,
-      topsoilClayPct: topClay,
-      topsoilSandPct: topSand,
-      topsoilSiltPct: topSilt,
-      subsoilClayPct: subClay,
-      subsoilSandPct: subSand,
-      subsoilSiltPct: subSilt,
-      meanBulkDensityGcm3: avgBdod,
-      meanPhH2O: avgPh,
-      meanOrganicCarbonPct: avgSoc,
-      estimatedBearingCapacityKpa: overallParams.bearingCapacityStr,
-      effectiveFrictionAngleDeg: overallParams.frictionAngleDeg,
-      cohesionKpa: overallParams.cohesionKpa,
-      hydraulicConductivityMs: overallParams.hydraulicConductivityMs,
-      drainageClass: overallParams.drainageClass,
-      frostSusceptibilityClass: overallParams.frostSusceptibility,
-      topsoilStrippingDepthCm: strippingDepth,
+      sourceName: 'ISRIC - World Soil Information (SoilGrids 2.0 REST API)',
+      sourceUrl: url,
+      datasetVersion: 'SoilGrids v2.0 (250m Resolution)',
+      usdaTextureClass: topTexture,
+      topsoilClayPct: Math.round(topClay * 10) / 10,
+      topsoilSandPct: Math.round(topSand * 10) / 10,
+      topsoilSiltPct: Math.round(topSilt * 10) / 10,
+      subsoilClayPct: Math.round(subClay * 10) / 10,
+      subsoilSandPct: Math.round(subSand * 10) / 10,
+      subsoilSiltPct: Math.round(subSilt * 10) / 10,
+      meanBulkDensityGcm3: Math.round(meanDensity * 100) / 100,
+      meanPhH2O: Math.round(meanPh * 10) / 10,
+      meanOrganicCarbonPct: Math.round(meanSoc * 100) / 100,
+      estimatedBearingCapacityKpa: 'Not available',
+      effectiveFrictionAngleDeg: NaN,
+      cohesionKpa: NaN,
+      hydraulicConductivityMs: 'Not available',
+      drainageClass: 'Not available',
+      frostSusceptibilityClass: 'Not available',
+      topsoilStrippingDepthCm: NaN,
       stratigraphyProfile,
-      limitation: 'ISRIC SoilGrids scientific model. While highly accurate for regional pedological classification, Eurocode 7 (EN 1997-1) mandates on-site geotechnical boreholes and dynamic probing before engineering foundation design.'
+      limitation: 'SoilGrids values are modelled 250 m pedological estimates. No bearing capacity, friction angle, cohesion, settlement, hydraulic design value or foundation recommendation is inferred.'
     };
   } catch (err) {
     console.warn('SoilGrids API fetch notice:', err);
