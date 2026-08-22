@@ -103,23 +103,23 @@ export interface SoilStratigraphyLayer {
 }
 
 export interface SoilMetrics {
-  usda_texture: string;
-  topsoil_sand_pct: number;
-  topsoil_silt_pct: number;
-  topsoil_clay_pct: number;
-  subsoil_sand_pct: number;
-  subsoil_silt_pct: number;
-  subsoil_clay_pct: number;
-  mean_bulk_density: number;
-  mean_ph: number;
-  mean_soc: number;
-  bearing_capacity_kpa: string;
-  friction_angle_deg: number;
-  cohesion_kpa: number;
-  hydraulic_conductivity: string;
-  drainage_class: string;
+  usda_texture: string | null;
+  topsoil_sand_pct: number | null;
+  topsoil_silt_pct: number | null;
+  topsoil_clay_pct: number | null;
+  subsoil_sand_pct: number | null;
+  subsoil_silt_pct: number | null;
+  subsoil_clay_pct: number | null;
+  mean_bulk_density: number | null;
+  mean_ph: number | null;
+  mean_soc: number | null;
+  bearing_capacity_kpa: string | null;
+  friction_angle_deg: number | null;
+  cohesion_kpa: number | null;
+  hydraulic_conductivity: string | null;
+  drainage_class: string | null;
   frost_class: string;
-  topsoil_stripping_cm: number;
+  topsoil_stripping_cm: number | null;
   source_name: string;
 }
 
@@ -178,7 +178,7 @@ export interface TechnicalParameters {
   groundwater_notice?: string;
   frost_depth_m?: string;
   radon_index?: string;
-  soil_bearing_capacity_kpa?: string;
+  soil_bearing_capacity_kpa?: string | null;
 }
 
 export interface ValuationMetrics {
@@ -217,6 +217,7 @@ export interface ReportData {
   verification_checklist?: VerificationRequirement[];
   summary: string;
   titles: Record<string, string>;
+  unavailable_reasons?: Partial<Record<'geology' | 'soilTexture' | 'engineeringParameter' | 'groundwater' | 'planning' | 'sourceUnavailable' | 'noFeature', string>>;
   geosurvey_context?: EuropeanSurveyContext;
   valuation_metrics?: ValuationMetrics;
   technical_parameters?: TechnicalParameters;

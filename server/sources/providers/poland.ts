@@ -16,6 +16,18 @@ const common = {
 export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
   {
     ...common,
+    id: 'pl-pgi-boreholes-ogc-api',
+    logicalSourceId: 'PL_ENGINEERING_BOREHOLES',
+    type: 'OGC_API',
+    url: 'https://ogcapi.pgi.gov.pl',
+    priority: 1,
+    evidenceTier: 1,
+    compatibilityGroup: 'pl-engineering-boreholes',
+    expectedCapabilities: ['collections', 'items'],
+    provenance: 'PGI-PIB OGC API borehole feature records'
+  },
+  {
+    ...common,
     id: 'pl-smgp-50k-wms',
     logicalSourceId: 'PL_SMGP_DETAILED_GEOLOGY',
     url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/kartografia/smgp50k/MapServer/WMSServer',
@@ -79,8 +91,8 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
     id: 'pl-engineering-boreholes-wms',
     logicalSourceId: 'PL_ENGINEERING_BOREHOLES',
     url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/atlas_gi_otwory/MapServer/WMSServer',
-    priority: 1,
-    evidenceTier: 1,
+    priority: 2,
+    evidenceTier: 2,
     compatibilityGroup: 'pl-engineering-boreholes',
     provenance: 'PGI-PIB engineering-geological borehole context'
   },
