@@ -9,6 +9,7 @@ import { enrichGeologyFromPgi, queryPolandSiteEvidence } from './server/services
 import { queryPolandHydroAndHazards } from './server/services/pgiSupplementEvidenceService';
 import { queryUKSiteEvidence, enrichGeologyFromBgs } from './server/services/ukSiteEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
+import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { getCountrySupport } from './src/data/countrySupport';
@@ -102,10 +103,45 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const evidenceReport: any = await runGeospatialAnalysisPipeline({ lat, lng, areaSizeM2: areaSize, countryCode: acquisitionCountryCode, language, locationName, municipality, county: countyName, state: stateName, roadName });
     evidenceReport.countryCode = countryCode;
 
+    const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
+      ? { type: 'polygon' as const, points: evidenceReport.parcel.geometryPoints }
+      : shape;
+    const groundSamplingLayout = buildGroundSamplingLayout(lat, lng, areaSize, samplingBoundary);
+    stage = 'soilgrids-spatial-variability';
+    try {
+      const existingSiteSoil = {
+        success: evidenceReport.soil?.status !== 'REQUIRES_VERIFICATION',
+        sourceName: evidenceReport.soil?.sourceName,
+        datasetVersion: evidenceReport.soil?.datasetVersion,
+        usdaTextureClass: evidenceReport.soil?.usdaTextureClass,
+        topsoilSandPct: evidenceReport.soil?.topsoilSandPct,
+        topsoilSiltPct: evidenceReport.soil?.topsoilSiltPct,
+        topsoilClayPct: evidenceReport.soil?.topsoilClayPct
+      };
+      const soilVariability = await sampleSoilGridsVariability(groundSamplingLayout, existingSiteSoil);
+      evidenceReport.soil_variability = soilVariability;
+      if (soilVariability.validSampleCount > 0) {
+        evidenceReport.evidenceRegistry.push({
+          id: 'soilgrids-spatial-variability',
+          category: 'Pedological spatial context',
+          claim: `SoilGrids returned ${soilVariability.validSampleCount} usable model samples across the selected geometry and vicinity.`,
+          status: 'MODELLED',
+          sourceName: soilVariability.sourceName,
+          sourceUrl: evidenceReport.soil?.sourceUrl || 'https://soilgrids.org/',
+          datasetDate: new Date().toISOString().slice(0, 10),
+          spatialRelationship: `${soilVariability.validSampleCount} valid samples from a maximum of ${soilVariability.sampleCount} deterministic site/parcel/vicinity positions`,
+          calculationMethod: 'Deterministic multi-point SoilGrids sampling; descriptive texture and sand/silt/clay ranges only',
+          confidence: 'Medium',
+          limitation: soilVariability.limitation,
+          value: soilVariability
+        });
+      }
+    } catch (e) { console.warn(`[${diagnosticId}] SoilGrids spatial variability notice:`, e); }
+
     let pgiSiteEvidence: any[] = [];
     let ukSiteEvidence: any[] = [];
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
-      stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
+      stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
       if (support.capabilities.nationalHydrogeology) {
         stage = 'pgi-hydro-hazards'; try { pgiSiteEvidence.push(...await queryPolandHydroAndHazards(lat, lng, 5)); } catch (e) { console.warn(`[${diagnosticId}] PIG hydro/hazard evidence notice:`, e); }
       }
@@ -131,6 +167,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       confidence_level: presentation.confidenceLabel,
       evidence_score: canonicalReport.evidenceScore,
       country_support: presentation.countrySupport,
+      ground_context: presentation.groundContext,
       canonical_evidence: canonicalReport,
       evidence_registry: presentation.evidenceRegistry,
       verification_checklist: presentation.verificationChecklist,
@@ -138,7 +175,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       titles: presentation.titles,
       unavailable_reasons: presentation.unavailableReasons,
       geosurvey_context: { survey_authority: canonicalReport.geology.sourceName, geological_unit_name: canonicalReport.geology.unitName, lithology_type: canonicalReport.geology.lithology, geological_period_era: canonicalReport.geology.geologicalAge, groundwater_regime: canonicalReport.geology.groundwaterRegime, seismic_hazard_zone: canonicalReport.hazards.seismic.classification, radon_class: canonicalReport.hazards.radon.classification, official_portal_url: canonicalReport.geology.sourceUrl, evidence_level: canonicalReport.geology.status },
-      technical_parameters: { cadastral_id_format: support.capabilities.nationalCadastre ? evidenceReport.parcel?.cadastralSource : null, cadastral_parcel_id: support.capabilities.nationalCadastre ? evidenceReport.parcel?.parcelId || null : null, cadastral_teryt: support.capabilities.nationalCadastre ? evidenceReport.parcel?.teryt : null, cadastral_commune: support.capabilities.nationalCadastre ? evidenceReport.parcel?.commune : null, cadastral_county: support.capabilities.nationalCadastre ? evidenceReport.parcel?.county : null, cadastral_voivodeship: support.capabilities.nationalCadastre ? evidenceReport.parcel?.voivodeship : null, cadastre_evidence_level: support.capabilities.nationalCadastre ? evidenceReport.parcel?.status : 'REQUIRES_VERIFICATION', is_official_parcel: hasOfficialParcel, official_area_m2: hasOfficialParcel ? evidenceReport.parcel?.officialAreaM2 ?? null : null, elevation_amsl: canonicalReport.terrain.elevationM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: null },
+      technical_parameters: { cadastral_id_format: support.capabilities.nationalCadastre ? evidenceReport.parcel?.cadastralSource : null, cadastral_parcel_id: support.capabilities.nationalCadastre ? evidenceReport.parcel?.parcelId || null : null, cadastral_teryt: support.capabilities.nationalCadastre ? evidenceReport.parcel?.teryt : null, cadastral_commune: support.capabilities.nationalCadastre ? evidenceReport.parcel?.commune : null, cadastral_county: support.capabilities.nationalCadastre ? evidenceReport.parcel?.county : null, cadastral_voivodeship: support.capabilities.nationalCadastre ? evidenceReport.parcel?.voivodeship : null, cadastre_evidence_level: support.capabilities.nationalCadastre ? evidenceReport.parcel?.status : 'REQUIRES_VERIFICATION', is_official_parcel: hasOfficialParcel, official_area_m2: hasOfficialParcel ? evidenceReport.parcel?.officialAreaM2 ?? null : null, elevation_amsl: canonicalReport.terrain.elevationM, min_elevation_amsl: canonicalReport.terrain.minElevationM, max_elevation_amsl: canonicalReport.terrain.maxElevationM, local_relief_m: canonicalReport.terrain.localReliefM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: null },
       valuation_metrics: { price_per_sqm_min: safePerSqm(canonicalReport.valuation.min), price_per_sqm_max: safePerSqm(canonicalReport.valuation.max), price_per_sqm_median: safePerSqm(canonicalReport.valuation.median), comparable_evidence_count: canonicalReport.valuation.comparableCount, feasibility_rating: canonicalReport.valuation.min === null ? undefined : evidenceReport.valuation?.uncertaintyRating, soil_bearing_capacity_kpa: null },
       soil_metrics: { usda_texture: evidenceReport.soil?.usdaTextureClass, topsoil_sand_pct: evidenceReport.soil?.topsoilSandPct, topsoil_silt_pct: evidenceReport.soil?.topsoilSiltPct, topsoil_clay_pct: evidenceReport.soil?.topsoilClayPct, subsoil_sand_pct: evidenceReport.soil?.subsoilSandPct, subsoil_silt_pct: evidenceReport.soil?.subsoilSiltPct, subsoil_clay_pct: evidenceReport.soil?.subsoilClayPct, mean_bulk_density: evidenceReport.soil?.meanBulkDensityGcm3, mean_ph: evidenceReport.soil?.meanPhH2O, mean_soc: evidenceReport.soil?.meanOrganicCarbonPct, bearing_capacity_kpa: null, friction_angle_deg: null, cohesion_kpa: null, hydraulic_conductivity: null, drainage_class: null, frost_class: evidenceReport.soil?.frostSusceptibilityClass, topsoil_stripping_cm: null, source_name: evidenceReport.soil?.sourceName },
       stratigraphy: (evidenceReport.soil?.stratigraphyLayers || []).map((l: any) => ({ depth_range: l.depthRange, soil_type: l.soilType, bearing_capacity: presentation.unavailableReasons.engineeringParameter, description: presentation.unavailableReasons.engineeringParameter, sand_pct: l.sandPct, silt_pct: l.siltPct, clay_pct: l.clayPct, bulk_density: l.bulkDensity, ph: l.ph, soc: l.soc })),
