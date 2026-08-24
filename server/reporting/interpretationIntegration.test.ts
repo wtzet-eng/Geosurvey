@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderLocalizedReport } from './localizedReport';
+import { getCountrySupport } from '../../src/data/countrySupport';
 
 const canonical = {
-  countryCode: 'GB', countryName: 'United Kingdom',
+  countryCode: 'GB', countryName: 'United Kingdom', support: getCountrySupport('GB'),
   authorities: { cadastre: 'HM Land Registry', geology: 'British Geological Survey', flood: 'Environment Agency', planning: 'Local Planning Authority', valuation: 'HM Land Registry' },
   geology: { unitName: 'Mercia Mudstone Group', lithology: 'Mudstone', geologicalAge: 'Triassic', groundwaterRegime: null, status: 'VERIFIED', sourceName: 'British Geological Survey', sourceUrl: 'https://map.bgs.ac.uk/' },
   terrain: { elevationM: 100, slopeDegrees: 2, slopePercent: 3.5, aspectCode: 'N', status: 'MODELLED' },
