@@ -79,9 +79,9 @@ export interface DataSource {
 }
 
 export interface SiteValueEstimate {
-  min: number;
-  max: number;
-  median?: number;
+  min: number | null;
+  max: number | null;
+  median?: number | null;
   currency: string;
   basis: string;
   evidence_level?: EvidenceLevel;
@@ -148,15 +148,15 @@ export interface RiskEvaluationItem {
 }
 
 export interface TechnicalParameters {
-  cadastral_id_format?: string;
-  cadastral_parcel_id?: string;
-  cadastral_teryt?: string;
-  cadastral_commune?: string;
-  cadastral_county?: string;
-  cadastral_voivodeship?: string;
+  cadastral_id_format?: string | null;
+  cadastral_parcel_id?: string | null;
+  cadastral_teryt?: string | null;
+  cadastral_commune?: string | null;
+  cadastral_county?: string | null;
+  cadastral_voivodeship?: string | null;
   cadastre_evidence_level?: EvidenceLevel;
   is_official_parcel?: boolean;
-  official_area_m2?: number;
+  official_area_m2?: number | null;
   
   elevation_amsl?: number;
   slope_degrees?: number;
@@ -172,19 +172,19 @@ export interface TechnicalParameters {
   max_height_m?: string;
   max_storeys?: string;
   roof_pitch_requirements?: string;
-  setback_m?: string;
+  setback_m?: string | null;
   utility_status?: string;
   groundwater_depth_m?: string;
   groundwater_notice?: string;
   frost_depth_m?: string;
-  radon_index?: string;
+  radon_index?: string | null;
   soil_bearing_capacity_kpa?: string | null;
 }
 
 export interface ValuationMetrics {
-  price_per_sqm_min?: number;
-  price_per_sqm_max?: number;
-  price_per_sqm_median?: number;
+  price_per_sqm_min?: number | null;
+  price_per_sqm_max?: number | null;
+  price_per_sqm_median?: number | null;
   annual_growth_pct?: string;
   feasibility_rating?: string;
   geohazard_risk_score?: string;
@@ -201,23 +201,31 @@ export interface EuropeanSurveyContext {
   geological_period_era?: string | null;
   stratigraphic_scale?: string;
   borehole_density_class?: string;
-  seismic_hazard_zone?: string;
-  radon_class?: string;
+  seismic_hazard_zone?: string | null;
+  radon_class?: string | null;
   groundwater_regime?: string | null;
   official_portal_url?: string;
   evidence_level?: EvidenceLevel;
+}
+
+export interface CountrySupportPresentation {
+  maturity: 'SUPPORTED' | 'LIMITED';
+  label: string;
+  notice: string;
+  capabilities: Record<string, boolean>;
 }
 
 export interface ReportData {
   site_value_estimate: SiteValueEstimate;
   confidence_level: 'High' | 'Medium' | 'Low' | string;
   evidence_score?: EvidenceQualityScore;
+  country_support?: CountrySupportPresentation;
   canonical_evidence?: unknown;
   evidence_registry?: EvidenceItem[];
   verification_checklist?: VerificationRequirement[];
   summary: string;
   titles: Record<string, string>;
-  unavailable_reasons?: Partial<Record<'geology' | 'soilTexture' | 'engineeringParameter' | 'groundwater' | 'planning' | 'sourceUnavailable' | 'noFeature', string>>;
+  unavailable_reasons?: Partial<Record<'geology' | 'soilTexture' | 'engineeringParameter' | 'groundwater' | 'planning' | 'valuation' | 'sourceUnavailable' | 'noFeature', string>>;
   geosurvey_context?: EuropeanSurveyContext;
   valuation_metrics?: ValuationMetrics;
   technical_parameters?: TechnicalParameters;
@@ -259,8 +267,8 @@ export interface SiteReport {
   longitude: number;
   area_size: number; // m²
   boundary: BoundaryShape;
-  official_geometry?: [number, number][];
+  official_geometry?: [number, number][] | null;
   is_official_parcel?: boolean;
-  official_area_m2?: number;
+  official_area_m2?: number | null;
   report_data: ReportData;
 }
