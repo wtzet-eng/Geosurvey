@@ -83,5 +83,10 @@ test('SoilGrids multi-point summary remains pedological model evidence only', as
   assert.equal(summary.validSampleCount, 5);
   assert.equal(summary.variationObserved, true);
   assert.equal(summary.textureClasses.length, 2);
-  assert.doesNotMatch(JSON.stringify(summary), /bearingCapacity|frictionAngle|cohesion|settlement|foundationRecommendation|designGroundwater|hydraulicConductivity/i);
+  const unsafe = summary as unknown as Record<string, unknown>;
+  for (const field of ['bearingCapacity', 'frictionAngle', 'cohesion', 'settlement', 'foundationRecommendation', 'designGroundwater', 'hydraulicConductivity']) {
+    assert.equal(field in unsafe, false, `${field} must not be emitted as a structured SoilGrids variability field`);
+  }
+  assert.match(summary.limitation, /does not provide bearing capacity/i);
+  assert.match(summary.limitation, /pedological context only/i);
 });
