@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderLocalizedReport } from './localizedReport';
 import { CanonicalReport } from './canonicalReport';
+import { getCountrySupport } from '../../src/data/countrySupport';
 
 const base = (countryCode: 'PL' | 'GB'): CanonicalReport => ({
   countryCode,
   countryName: countryCode === 'PL' ? 'Poland' : 'United Kingdom',
+  support: getCountrySupport(countryCode),
   authorities: { cadastre: 'Cadastre', geology: 'Geology authority', flood: 'Flood authority', planning: 'Planning', valuation: 'Valuation' },
   geology: {
     unitName: countryCode === 'PL' ? 'Piaski wodnolodowcowe' : 'Unknown Formation',
