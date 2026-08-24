@@ -122,7 +122,7 @@ export function buildSoilSamplingLayout(layout: SpatialSamplePoint[]): SpatialSa
 
 function materialIndicators(text: string): MappedMaterialIndicator[] {
   const indicators: MappedMaterialIndicator[] = [];
-  if (/alluv|aluw|fluvial|rzeczn|\bmady?\b|namu[łl]/i.test(text)) indicators.push('ALLUVIAL');
+  if (/alluv|aluw|rzeczn|\bmady?\b|namu[łl]/i.test(text)) indicators.push('ALLUVIAL');
   if (/peat|torf|organic|organicz/i.test(text)) indicators.push('ORGANIC_OR_PEAT');
   if (/made ground|nasyp|anthrop|antrop/i.test(text)) indicators.push('MADE_GROUND');
   if (/glaciofluvial|fluvioglacial|wodnolodowc/i.test(text)) indicators.push('GLACIOFLUVIAL');
