@@ -33,6 +33,17 @@ test('homogeneous mapped evidence is low variability when supported by multiple 
   assert.ok(summary.materialIndicators.includes('GRANULAR'));
 });
 
+test('glaciofluvial descriptors are not misclassified as alluvial merely because they contain fluvial', () => {
+  const summary = summarizeGroundContext([
+    { pointId: 'site-centroid', scope: 'SITE', unit: 'Glaciofluvial sands and gravels', lithology: 'sand and gravel', sourceName: 'PGI' },
+    { pointId: 'parcel-1', scope: 'PARCEL', unit: 'Glaciofluvial sands and gravels', lithology: 'sand and gravel', sourceName: 'PGI' }
+  ]);
+  assert.ok(summary.materialIndicators.includes('GLACIOFLUVIAL'));
+  assert.ok(summary.materialIndicators.includes('GRANULAR'));
+  assert.equal(summary.materialIndicators.includes('ALLUVIAL'), false);
+  assert.equal(summary.variabilityClass, 'LOW');
+});
+
 test('contrasting mapped units increase variability without inventing a boundary distance', () => {
   const summary = summarizeGroundContext([
     { pointId: 'site-centroid', scope: 'SITE', unit: 'Glaciofluvial sand', lithology: 'sand', sourceName: 'PGI' },
