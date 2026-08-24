@@ -98,3 +98,38 @@ test('landslide presentation never contains flood narrative', () => {
     assert.match(landslide.detail, /landslide|Hangrutsch|osuwisk/i);
   }
 });
+
+test('Polish presentation differentiates unavailable reasons and localizes composite risk text', () => {
+  const canonical = createCanonicalReport(fixture('PL', 'Niecka Mazowiecka'), getCountryProfile('PL'));
+  canonical.geology.unitName = null;
+  canonical.geology.reasonCode = 'NO_DATA';
+  canonical.soil.texture = null;
+  canonical.soil.reasonCode = 'SOURCE_UNAVAILABLE';
+  canonical.hazards.seismic.classification = 'Eurocode 8 Zone 0–1 (Low to Very Low)';
+  const rendered = renderLocalizedReport(canonical, 'pl');
+  assert.match(rendered.unavailableReasons.geology, /nie zwróciło obiektu/i);
+  assert.match(rendered.unavailableReasons.soilTexture, /czasowo niedostępne/i);
+  assert.notEqual(rendered.unavailableReasons.geology, rendered.unavailableReasons.soilTexture);
+  assert.match(rendered.riskMatrix[1].level, /Niskie do bardzo niskiego/);
+  assert.doesNotMatch(rendered.riskMatrix[1].level, /Low|Very Low/);
+});
+
+test('canonical report never promotes SoilGrids values to engineering design parameters', () => {
+  const canonical = createCanonicalReport(fixture('PL'), getCountryProfile('PL'));
+  assert.equal(canonical.soil.bearingCapacity, null);
+  const rendered = renderLocalizedReport(canonical, 'pl');
+  assert.match(rendered.unavailableReasons.engineeringParameter, /niewystarczające/i);
+  assert.doesNotMatch(JSON.stringify(rendered.technicalNarrative), /180.?220\s*kPa|friction|cohesion/i);
+});
+
+test('utility presentation is localized from structured canonical facts', () => {
+  const canonical = createCanonicalReport(fixture('PL'), getCountryProfile('PL'));
+  canonical.utilities = [{ utilityCode: 'ELECTRICITY', mapped: false, distanceM: null, status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap', reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' }];
+  const pl = renderLocalizedReport(canonical, 'pl').utilitiesChecklist[0];
+  const de = renderLocalizedReport(canonical, 'de').utilitiesChecklist[0];
+  const en = renderLocalizedReport(canonical, 'en').utilitiesChecklist[0];
+  assert.equal(pl.utility, 'Energia elektryczna');
+  assert.equal(de.utility, 'Strom');
+  assert.equal(en.utility, 'Electricity');
+  assert.match(pl.status, /właściwy organ/i);
+});

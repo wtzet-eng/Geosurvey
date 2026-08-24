@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getLocalizedSourceTitle, getReportPresentation, localizePresentationValue, presentationTextValues } from './reportPresentation';
+import { getLocalizedSourceTitle, getReportPresentation, localizeAvailabilityReason, localizePresentationValue, presentationTextValues } from './reportPresentation';
 import { getEvidenceSources } from '../data/evidenceSources';
 
 const polishLeakage = [
@@ -62,4 +62,14 @@ test('source display titles are localized without changing canonical source iden
 test('literal svg artifacts are removed only from displayed text', () => {
   assert.equal(localizePresentationValue('<svg class="icon"></svg> CBDG svg', 'pl'), 'CBDG');
   assert.equal(localizePresentationValue('German Basin', 'pl'), 'German Basin');
+});
+
+test('production Polish leakage targets and unavailable reasons are localized explicitly', () => {
+  assert.equal(localizePresentationValue('Low to Very Low', 'pl'), 'Niskie do bardzo niskiego');
+  assert.equal(localizePresentationValue('Eurocode 8 Zone 0–1 (Low to Very Low)', 'pl'), 'Eurocode 8 Zone 0–1 (Niskie do bardzo niskiego)');
+  assert.equal(localizePresentationValue('ISRIC soil texture not available', 'pl'), 'Tekstura SoilGrids jest niedostępna');
+  assert.equal(localizePresentationValue('MODELLED', 'pl'), 'Modelowane');
+  assert.equal(localizePresentationValue('REQUIRES_VERIFICATION', 'pl'), 'Wymaga weryfikacji');
+  assert.notEqual(localizeAvailabilityReason('NO_DATA', 'pl'), localizeAvailabilityReason('SOURCE_UNAVAILABLE', 'pl'));
+  assert.notEqual(localizeAvailabilityReason('PARAMETER_NOT_PROVIDED', 'pl'), localizeAvailabilityReason('AUTHORITATIVE_DATA_REQUIRED', 'pl'));
 });

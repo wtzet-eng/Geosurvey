@@ -32,3 +32,23 @@ test('SoilGrids REST and WMS unavailability remains explicit', async () => {
   try { const result = await fetchGenuineSoilGridsData(52, -1); assert.equal(result.success, false); assert.equal(result.usdaTextureClass, 'Not available'); assert.ok(Number.isNaN(result.meanPhH2O)); }
   finally { globalThis.fetch = originalFetch; }
 });
+
+test('successful SoilGrids REST remains pedological and never creates engineering design values', async () => {
+  const depths = ['0-5cm', '5-15cm', '15-30cm', '30-60cm', '60-100cm', '100-200cm'];
+  const values: Record<string, number> = { sand: 400, silt: 350, clay: 250, soc: 180, bdod: 135, phh2o: 65, cec: 14 };
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    if (!String(input).includes('rest.isric.org')) return new Response('{}', { status: 503 });
+    const layers = Object.entries(values).map(([name, mean]) => ({ name, depths: depths.map(label => ({ label, values: { mean } })) }));
+    return new Response(JSON.stringify({ properties: { layers } }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  try {
+    const result = await fetchGenuineSoilGridsData(52, 21);
+    assert.equal(result.success, true);
+    assert.equal(result.estimatedBearingCapacityKpa, 'Not available');
+    assert.ok(Number.isNaN(result.effectiveFrictionAngleDeg));
+    assert.ok(Number.isNaN(result.cohesionKpa));
+    assert.ok(Number.isNaN(result.topsoilStrippingDepthCm));
+    assert.ok(result.stratigraphyProfile.every(layer => Number.isNaN(layer.estimatedBearingCapacityKpa)));
+    assert.match(result.limitation, /No bearing capacity, friction angle, cohesion, settlement/i);
+  } finally { globalThis.fetch = originalFetch; }
+});
