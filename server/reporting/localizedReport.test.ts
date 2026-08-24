@@ -133,3 +133,44 @@ test('utility presentation is localized from structured canonical facts', () => 
   assert.equal(en.utility, 'Electricity');
   assert.match(pl.status, /właściwy organ/i);
 });
+
+test('ground context localizes variability and preserves scientific mapped-unit names', () => {
+  const report = fixture('PL', 'Niecka Mazowiecka') as VerifiedSiteReport & { ground_context: any; soil_variability: any };
+  report.ground_context = {
+    variabilityClass: 'HIGH', dominantMappedUnit: 'Piaski wodnolodowcowe', secondaryMappedUnits: ['Osady aluwialne', 'Torfy'], distinctMappedUnits: ['Piaski wodnolodowcowe', 'Osady aluwialne', 'Torfy'], transitionIndicated: true,
+    materialIndicators: ['GLACIOFLUVIAL', 'ALLUVIAL', 'ORGANIC_OR_PEAT'], sampleCount: 5, siteSampleCount: 1, parcelSampleCount: 2, vicinitySampleCount: 2,
+    sourceName: 'Państwowy Instytut Geologiczny – PIB', sourceScale: '1:50,000', evidenceType: 'MAPPED_SPATIAL_CONTEXT', limitation: 'canonical limitation'
+  };
+  report.soil_variability = {
+    evidenceType: 'PEDOLOGICAL_MODEL', sampleCount: 5, validSampleCount: 5, textureClasses: ['Loam', 'Sandy Loam'], topsoilSandPctRange: [35, 62], topsoilSiltPctRange: [22, 44], topsoilClayPctRange: [14, 27], variationObserved: true,
+    sourceName: 'SoilGrids', sourceResolution: '250 m', limitation: 'canonical soil limitation'
+  };
+  const canonical = createCanonicalReport(report, getCountryProfile('PL'));
+  assert.equal(canonical.terrain.minElevationM, 120);
+  assert.equal(canonical.terrain.maxElevationM, 130);
+  assert.equal(canonical.terrain.localReliefM, 10);
+  const pl = renderLocalizedReport(canonical, 'pl').groundContext;
+  const de = renderLocalizedReport(canonical, 'de').groundContext;
+  const en = renderLocalizedReport(canonical, 'en').groundContext;
+  assert.equal(pl.variability_label, 'Wysoka zmienność kartowana');
+  assert.equal(de.variability_label, 'Hohe kartierte Variabilität');
+  assert.equal(en.variability_label, 'High mapped variability');
+  assert.deepEqual(pl.mapped_units, ['Piaski wodnolodowcowe', 'Osady aluwialne', 'Torfy']);
+  assert.ok(pl.material_indicators.includes('osady aluwialne'));
+  assert.ok(pl.material_indicators.includes('osady organiczne / torfy'));
+  assert.match(pl.summary, /strefę przejściową/i);
+  assert.match(pl.investigation_focus, /grunty słabe\/organiczne lub aluwialne/i);
+  assert.doesNotMatch(JSON.stringify(pl), /High mapped variability|alluvial deposits|organic \/ peat deposits|Investigation focus/i);
+});
+
+test('ground context never turns mapped variability into design parameters', () => {
+  const report = fixture('PL') as VerifiedSiteReport & { ground_context: any };
+  report.ground_context = {
+    variabilityClass: 'MODERATE', dominantMappedUnit: 'Sand', secondaryMappedUnits: ['Alluvium'], distinctMappedUnits: ['Sand', 'Alluvium'], transitionIndicated: true,
+    materialIndicators: ['GRANULAR', 'ALLUVIAL'], sampleCount: 2, siteSampleCount: 1, parcelSampleCount: 0, vicinitySampleCount: 1,
+    sourceName: 'PGI', sourceScale: '1:50,000', evidenceType: 'MAPPED_SPATIAL_CONTEXT', limitation: 'canonical limitation'
+  };
+  const rendered = renderLocalizedReport(createCanonicalReport(report, getCountryProfile('PL')), 'en').groundContext as unknown as Record<string, unknown>;
+  for (const field of ['bearingCapacity', 'frictionAngle', 'cohesion', 'settlement', 'foundationRecommendation', 'designGroundwater', 'hydraulicConductivity', 'boundaryDistance']) assert.equal(field in rendered, false);
+  assert.match(String(rendered.limitation), /screening evidence only/i);
+});

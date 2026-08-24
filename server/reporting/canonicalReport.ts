@@ -1,6 +1,7 @@
 import { CountryAdapterProfile } from '../adapters/countries';
 import { EvidenceItem, EvidenceLevel, VerifiedSiteReport } from '../types';
 import { CountrySupportProfile, getCountrySupport } from '../../src/data/countrySupport';
+import { GroundContextSummary, PedologicalVariabilitySummary } from '../services/groundContextService';
 
 export type ReportLanguage = 'en' | 'de' | 'pl';
 export type AvailabilityReason = 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA' | 'PARAMETER_NOT_PROVIDED' | 'INSUFFICIENT_EVIDENCE' | 'NOT_SUPPORTED_FOR_COUNTRY' | 'AUTHORITATIVE_DATA_REQUIRED';
@@ -22,6 +23,13 @@ export interface CanonicalGeologyEvidence {
   reasonCode?: AvailabilityReason;
 }
 
+export interface CanonicalGroundContext {
+  mapped: GroundContextSummary | null;
+  soilVariability: PedologicalVariabilitySummary | null;
+  status: EvidenceLevel;
+  reasonCode?: AvailabilityReason;
+}
+
 export interface CanonicalReport {
   countryCode: string;
   countryName: string;
@@ -34,8 +42,12 @@ export interface CanonicalReport {
     valuation: string;
   };
   geology: CanonicalGeologyEvidence;
+  groundContext?: CanonicalGroundContext;
   terrain: {
     elevationM: number | null;
+    minElevationM?: number | null;
+    maxElevationM?: number | null;
+    localReliefM?: number | null;
     slopeDegrees: number | null;
     slopePercent: number | null;
     aspectCode: string | null;
@@ -197,7 +209,15 @@ function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountryS
 export function createCanonicalReport(report: VerifiedSiteReport, profile: CountryAdapterProfile): CanonicalReport {
   const support = getCountrySupport(report.countryCode);
   const c = support.capabilities;
-  const context = (report as VerifiedSiteReport & { geosurvey_context?: Record<string, unknown> }).geosurvey_context || {};
+  const extended = report as VerifiedSiteReport & {
+    geosurvey_context?: Record<string, unknown>;
+    ground_context?: GroundContextSummary;
+    soil_variability?: PedologicalVariabilitySummary;
+  };
+  const context = extended.geosurvey_context || {};
+  const mappedContext = extended.ground_context?.sampleCount ? extended.ground_context : null;
+  const soilVariability = extended.soil_variability?.validSampleCount ? extended.soil_variability : null;
+  const hasSpatialContext = Boolean((mappedContext && mappedContext.sampleCount >= 2) || (soilVariability && soilVariability.validSampleCount >= 2));
   const terrainAvailable = finite(report.terrain.elevationAmsl) !== null && finite(report.terrain.averageSlopeDegrees) !== null;
   const soilAvailable = report.soil.status !== 'REQUIRES_VERIFICATION' && scientific(report.soil.usdaTextureClass) !== null;
   const rawGeologyUnit = scientific(context.geological_unit_name) || scientific(report.soil.geologicalUnit);
@@ -222,7 +242,23 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
       sourceUrl: profile.geologyPortalUrl,
       reasonCode: geologyReason
     },
-    terrain: { elevationM: finite(report.terrain.elevationAmsl), slopeDegrees: finite(report.terrain.averageSlopeDegrees), slopePercent: finite(report.terrain.averageSlopePercent), aspectCode: scientific(report.terrain.aspectDirection), status: terrainAvailable ? 'MODELLED' : 'REQUIRES_VERIFICATION', reasonCode: terrainAvailable ? undefined : 'SOURCE_UNAVAILABLE' },
+    groundContext: mappedContext || soilVariability ? {
+      mapped: mappedContext,
+      soilVariability,
+      status: hasSpatialContext ? 'MODELLED' : 'REQUIRES_VERIFICATION',
+      reasonCode: hasSpatialContext ? undefined : 'INSUFFICIENT_EVIDENCE'
+    } : undefined,
+    terrain: {
+      elevationM: finite(report.terrain.elevationAmsl),
+      minElevationM: finite(report.terrain.minElevationAmsl),
+      maxElevationM: finite(report.terrain.maxElevationAmsl),
+      localReliefM: finite(report.terrain.elevationDifferenceM),
+      slopeDegrees: finite(report.terrain.averageSlopeDegrees),
+      slopePercent: finite(report.terrain.averageSlopePercent),
+      aspectCode: scientific(report.terrain.aspectDirection),
+      status: terrainAvailable ? 'MODELLED' : 'REQUIRES_VERIFICATION',
+      reasonCode: terrainAvailable ? undefined : 'SOURCE_UNAVAILABLE'
+    },
     hazards: {
       landslide: { classification: riskCode(report.terrain.geohazards.landslideSusceptibility.level), status: report.terrain.geohazards.landslideSusceptibility.status, sourceName: report.terrain.geohazards.landslideSusceptibility.sourceName },
       seismic: { classification: scientific(report.terrain.geohazards.seismicRisk.zone), pga: scientific(report.terrain.geohazards.seismicRisk.pgaG), status: report.terrain.geohazards.seismicRisk.status, sourceName: report.terrain.geohazards.seismicRisk.sourceName },

@@ -2,6 +2,7 @@ import { AvailabilityReason, CanonicalReport, ReportLanguage, RiskClassification
 import { renderGeologicalInterpretation, resolveGeologicalInterpretation } from '../interpretation/resolver';
 import { renderIndicativeGroundOrientation, resolveIndicativeGroundOrientation } from '../interpretation/orientation';
 import { getCountrySupportLabel, getCountrySupportNotice } from '../../src/data/countrySupport';
+import { GroundVariabilityClass, MappedMaterialIndicator } from '../services/groundContextService';
 
 type Section = { summary: string; detail: string; evidence_level: string; source_cited?: string; limitation_notice?: string };
 
@@ -68,6 +69,66 @@ const hazardCopy = {
   pl: { landslide: 'Klasyfikacja podatności na osuwiska: {risk}.', seismic: 'Wartość wstępnej oceny sejsmicznej: {value}.', radon: 'Klasyfikacja wstępnej oceny radonowej: {value}.', mining: 'Klasyfikacja wstępnej oceny szkód górniczych: {value}.' }
 } satisfies Record<ReportLanguage, Record<string, string>>;
 
+const groundContextCopy = {
+  en: {
+    title: 'Ground variability / Geological context',
+    labels: { LOW: 'Low mapped variability', MODERATE: 'Moderate mapped variability', HIGH: 'High mapped variability', INSUFFICIENT_EVIDENCE: 'Insufficient evidence' },
+    mappedUniform: 'The reviewed mapped samples are consistent with one dominant ground unit in the sampled area.',
+    transition: 'Different mapped ground units were returned across the site/parcel/vicinity samples, indicating a possible transition zone.',
+    insufficient: 'The available mapped samples are not sufficient to characterize spatial ground variability.',
+    materials: 'Mapped context indicators',
+    mappedUnits: 'Mapped units observed',
+    samples: 'usable mapped samples',
+    soilStable: 'Multi-point SoilGrids sampling did not show a change in the reviewed topsoil model values.',
+    soilVariable: 'Multi-point SoilGrids sampling shows variation in the reviewed topsoil model values.',
+    soilUnavailable: 'Multi-point SoilGrids context is not available.',
+    investigateTransition: 'Investigation focus: test the mapped transition and confirm which materials occur beneath the site, including changes in thickness and condition.',
+    investigateOrganic: 'Investigation focus: specifically test for soft/organic or alluvial deposits and their lateral variability; do not assume nearby mapped deposits occur beneath the site.',
+    investigateGeneral: 'Investigation focus: confirm material, origin, condition and groundwater with site-specific investigation before engineering decisions.',
+    limitation: 'Mapped and modelled context is screening evidence only. Nearby responses do not establish site strata, deposit thickness, groundwater conditions, density/state or engineering properties, and sparse samples do not define an exact geological boundary.'
+  },
+  de: {
+    title: 'Variabilität der Baugrundverhältnisse / Geologischer Kontext',
+    labels: { LOW: 'Geringe kartierte Variabilität', MODERATE: 'Mittlere kartierte Variabilität', HIGH: 'Hohe kartierte Variabilität', INSUFFICIENT_EVIDENCE: 'Unzureichende Evidenz' },
+    mappedUniform: 'Die geprüften Kartenstichproben stimmen mit einer dominierenden Baugrundeinheit im beprobten Umfeld überein.',
+    transition: 'In Standort-, Flurstücks- oder Umgebungsstichproben wurden unterschiedliche kartierte Einheiten erfasst; dies weist auf einen möglichen Übergangsbereich hin.',
+    insufficient: 'Die verfügbaren Kartenstichproben reichen nicht aus, um die räumliche Baugrundvariabilität zu charakterisieren.',
+    materials: 'Hinweise aus dem kartierten Kontext',
+    mappedUnits: 'Beobachtete kartierte Einheiten',
+    samples: 'verwertbare Kartenstichproben',
+    soilStable: 'Die Mehrpunktabfrage von SoilGrids zeigte keine Änderung der geprüften Oberboden-Modellwerte.',
+    soilVariable: 'Die Mehrpunktabfrage von SoilGrids zeigt Unterschiede in den geprüften Oberboden-Modellwerten.',
+    soilUnavailable: 'Ein Mehrpunkt-Kontext aus SoilGrids ist nicht verfügbar.',
+    investigateTransition: 'Untersuchungsschwerpunkt: den kartierten Übergang prüfen und feststellen, welche Materialien tatsächlich unter dem Standort vorkommen, einschließlich Mächtigkeits- und Zustandsänderungen.',
+    investigateOrganic: 'Untersuchungsschwerpunkt: gezielt auf weiche/organische oder alluviale Ablagerungen und deren seitliche Veränderlichkeit prüfen; benachbarte Kartierungen dürfen nicht auf den Standort übertragen werden.',
+    investigateGeneral: 'Untersuchungsschwerpunkt: Material, Entstehung, Zustand und Grundwasser durch standortbezogene Untersuchungen bestätigen, bevor ingenieurtechnische Entscheidungen getroffen werden.',
+    limitation: 'Kartierter und modellierter Kontext dient nur der Vorprüfung. Nahegelegene Nachweise belegen keine Schichten, Mächtigkeiten, Grundwasserverhältnisse, Lagerungszustände oder technischen Kennwerte am Standort; Stichproben definieren keine exakte geologische Grenze.'
+  },
+  pl: {
+    title: 'Zmienność warunków gruntowych / Kontekst geologiczny',
+    labels: { LOW: 'Niska zmienność kartowana', MODERATE: 'Umiarkowana zmienność kartowana', HIGH: 'Wysoka zmienność kartowana', INSUFFICIENT_EVIDENCE: 'Niewystarczające dane' },
+    mappedUniform: 'Przeanalizowane próbki mapowe są zgodne z jedną dominującą jednostką gruntową w badanym otoczeniu.',
+    transition: 'W próbkach dla lokalizacji, działki lub otoczenia uzyskano różne kartowane jednostki, co wskazuje na możliwą strefę przejściową.',
+    insufficient: 'Dostępne próbki mapowe są niewystarczające do scharakteryzowania przestrzennej zmienności warunków gruntowych.',
+    materials: 'Wskaźniki z kontekstu kartowanego',
+    mappedUnits: 'Zaobserwowane jednostki kartowane',
+    samples: 'użyteczne próbki mapowe',
+    soilStable: 'Wielopunktowe próbkowanie SoilGrids nie wykazało zmiany w analizowanych modelowanych wartościach warstwy powierzchniowej.',
+    soilVariable: 'Wielopunktowe próbkowanie SoilGrids wskazuje zmienność analizowanych modelowanych wartości warstwy powierzchniowej.',
+    soilUnavailable: 'Wielopunktowy kontekst SoilGrids jest niedostępny.',
+    investigateTransition: 'Co sprawdzić: zbadać kartowaną strefę przejściową i potwierdzić, jakie grunty rzeczywiście występują pod lokalizacją, w tym zmiany miąższości i stanu.',
+    investigateOrganic: 'Co sprawdzić: ukierunkować badania na grunty słabe/organiczne lub aluwialne i ich zmienność boczną; nie zakładać, że osady zmapowane w sąsiedztwie występują pod działką.',
+    investigateGeneral: 'Co sprawdzić: potwierdzić materiał, genezę, stan i warunki wodne badaniami dla konkretnej lokalizacji przed decyzjami inżynierskimi.',
+    limitation: 'Kontekst kartowany i modelowany służy wyłącznie analizie wstępnej. Dane z sąsiedztwa nie potwierdzają profilu, miąższości, warunków wodnych, stanu ani parametrów inżynierskich pod lokalizacją, a rzadkie próbki nie wyznaczają dokładnego przebiegu granicy geologicznej.'
+  }
+} satisfies Record<ReportLanguage, { title: string; labels: Record<GroundVariabilityClass, string>; mappedUniform: string; transition: string; insufficient: string; materials: string; mappedUnits: string; samples: string; soilStable: string; soilVariable: string; soilUnavailable: string; investigateTransition: string; investigateOrganic: string; investigateGeneral: string; limitation: string }>;
+
+const materialLabels: Record<ReportLanguage, Record<MappedMaterialIndicator, string>> = {
+  en: { ALLUVIAL: 'alluvial deposits', ORGANIC_OR_PEAT: 'organic / peat deposits', MADE_GROUND: 'made ground', GLACIOFLUVIAL: 'glaciofluvial deposits', TILL: 'till', COHESIVE: 'cohesive material', GRANULAR: 'granular material', OTHER: 'other mapped material' },
+  de: { ALLUVIAL: 'alluviale Ablagerungen', ORGANIC_OR_PEAT: 'organische / Torfablagerungen', MADE_GROUND: 'Auffüllungen', GLACIOFLUVIAL: 'glazifluviale Ablagerungen', TILL: 'Geschiebemergel / Till', COHESIVE: 'bindiges Material', GRANULAR: 'körniges Material', OTHER: 'sonstiges kartiertes Material' },
+  pl: { ALLUVIAL: 'osady aluwialne', ORGANIC_OR_PEAT: 'osady organiczne / torfy', MADE_GROUND: 'nasypy', GLACIOFLUVIAL: 'osady wodnolodowcowe', TILL: 'gliny zwałowe / till', COHESIVE: 'grunty spoiste', GRANULAR: 'grunty niespoiste', OTHER: 'inne kartowane utwory' }
+};
+
 /** Renders reader-facing prose from canonical evidence without mutating scientific facts. */
 export function renderLocalizedReport(canonical: CanonicalReport, requestedLanguage: string) {
   const language = normalizeReportLanguage(requestedLanguage);
@@ -90,9 +151,53 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     : null;
   const orientationHeading = language === 'pl' ? 'Orientacyjna ocena geotechniczna' : language === 'de' ? 'Orientierende geotechnische Einschätzung' : 'Indicative geotechnical orientation';
   const orientationFocus = language === 'pl' ? 'Co sprawdzić' : language === 'de' ? 'Zu prüfen' : 'What to investigate';
-  const groundDetail = polishOrientation
+  const groundDetailBase = polishOrientation
     ? `${canonical.soil.reasonCode ? t.sourceUnavailable as string : t.authoritative as string} ${orientationHeading}: ${polishOrientation.label}. ${polishOrientation.summary} ${orientationFocus}: ${polishOrientation.investigationFocus} ${polishOrientation.disclaimer}`
     : canonical.soil.reasonCode ? t.sourceUnavailable as string : t.authoritative as string;
+
+  const gc = canonical.groundContext;
+  const gcText = groundContextCopy[language];
+  const mapped = gc?.mapped || null;
+  const soilVariability = gc?.soilVariability || null;
+  const variabilityCode: GroundVariabilityClass = mapped?.variabilityClass || (soilVariability && soilVariability.validSampleCount >= 2 ? (soilVariability.variationObserved ? 'MODERATE' : 'LOW') : 'INSUFFICIENT_EVIDENCE');
+  const importantOrganic = Boolean(mapped?.materialIndicators.some(indicator => indicator === 'ORGANIC_OR_PEAT' || indicator === 'ALLUVIAL' || indicator === 'MADE_GROUND'));
+  const contextSummary = mapped?.sampleCount
+    ? mapped.transitionIndicated ? gcText.transition : gcText.mappedUniform
+    : gcText.insufficient;
+  const investigationFocus = importantOrganic ? gcText.investigateOrganic : mapped?.transitionIndicated ? gcText.investigateTransition : gcText.investigateGeneral;
+  const soilVariabilityText = soilVariability?.validSampleCount
+    ? soilVariability.variationObserved ? gcText.soilVariable : gcText.soilStable
+    : gcText.soilUnavailable;
+  const groundContext = {
+    title: gcText.title,
+    evidence_level: gc?.status || 'REQUIRES_VERIFICATION',
+    variability_code: variabilityCode,
+    variability_label: gcText.labels[variabilityCode],
+    summary: contextSummary,
+    mapped_units_label: gcText.mappedUnits,
+    mapped_units: mapped?.distinctMappedUnits || [],
+    material_indicators_label: gcText.materials,
+    material_indicators: (mapped?.materialIndicators || []).map(indicator => materialLabels[language][indicator]),
+    transition_indicated: mapped?.transitionIndicated || false,
+    sample_label: gcText.samples,
+    sample_count: mapped?.sampleCount || 0,
+    site_sample_count: mapped?.siteSampleCount || 0,
+    parcel_sample_count: mapped?.parcelSampleCount || 0,
+    vicinity_sample_count: mapped?.vicinitySampleCount || 0,
+    soil_model_summary: soilVariabilityText,
+    soil_model_sample_count: soilVariability?.validSampleCount || 0,
+    soil_sand_range: soilVariability?.topsoilSandPctRange || null,
+    soil_silt_range: soilVariability?.topsoilSiltPctRange || null,
+    soil_clay_range: soilVariability?.topsoilClayPctRange || null,
+    investigation_focus: investigationFocus,
+    limitation: gcText.limitation,
+    source_name: mapped?.sourceName || soilVariability?.sourceName || null,
+    source_scale: mapped?.sourceScale || soilVariability?.sourceResolution || null,
+    terrain_min_elevation_m: canonical.terrain.minElevationM ?? null,
+    terrain_max_elevation_m: canonical.terrain.maxElevationM ?? null,
+    terrain_local_relief_m: canonical.terrain.localReliefM ?? null
+  };
+  const groundDetail = gc ? `${groundDetailBase} ${contextSummary} ${investigationFocus}` : groundDetailBase;
   const floodText = canonical.flood.classification ? interpolate(t.flood as string, { risk: risk(canonical.flood.classification, language) }) : localizeAvailabilityReason(canonical.flood.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language);
   const hazardText = hazardCopy[language];
   const roadText = interpolate(t.road as string, { road: value(canonical.infrastructure.roadName || canonical.infrastructure.roadType, unavailable), distance: value(canonical.infrastructure.distanceM, unavailable) });
@@ -139,6 +244,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   return {
     language,
     countrySupport: { maturity: canonical.support.maturity, label: supportLabel, notice: supportNotice, capabilities: canonical.support.capabilities },
+    groundContext,
     summary,
     titles: language === 'pl' ? { estimated_value: 'Orientacyjna wartość statystyczna', confidence: 'Jakość dowodów', executive_summary: 'Podsumowanie wykonawcze' } : language === 'de' ? { estimated_value: 'Indikativer statistischer Wert', confidence: 'Evidenzqualität', executive_summary: 'Zusammenfassung' } : { estimated_value: 'Indicative statistical value', confidence: 'Evidence quality', executive_summary: 'Executive summary' },
     confidenceLabel: canonical.evidenceScore.totalScore >= 75 ? (language === 'pl' ? 'Wysoka jakość dowodów' : language === 'de' ? 'Hohe Evidenzqualität' : 'High evidence quality') : canonical.evidenceScore.totalScore >= 50 ? (language === 'pl' ? 'Umiarkowana jakość dowodów' : language === 'de' ? 'Mittlere Evidenzqualität' : 'Moderate evidence quality') : (language === 'pl' ? 'Wstępna jakość dowodów' : language === 'de' ? 'Vorläufige Evidenzqualität' : 'Preliminary evidence quality'),

@@ -89,9 +89,9 @@ export interface SiteValueEstimate {
 }
 
 export interface SoilStratigraphyLayer {
-  depth_range: string; // e.g. "0.0 - 0.4 m"
-  soil_type: string;   // e.g. "Humus & Organic Topsoil"
-  bearing_capacity: string; // e.g. "N/A (Non-bearing)"
+  depth_range: string;
+  soil_type: string;
+  bearing_capacity: string;
   description: string;
   color_hex?: string;
   sand_pct?: number;
@@ -157,13 +157,14 @@ export interface TechnicalParameters {
   cadastre_evidence_level?: EvidenceLevel;
   is_official_parcel?: boolean;
   official_area_m2?: number | null;
-  
-  elevation_amsl?: number;
-  slope_degrees?: number;
-  slope_percent?: number;
+  elevation_amsl?: number | null;
+  min_elevation_amsl?: number | null;
+  max_elevation_amsl?: number | null;
+  local_relief_m?: number | null;
+  slope_degrees?: number | null;
+  slope_percent?: number | null;
   slope_category?: string;
-  aspect_direction?: string;
-  
+  aspect_direction?: string | null;
   zoning_code?: string;
   zoning_name?: string;
   max_far?: string;
@@ -215,11 +216,42 @@ export interface CountrySupportPresentation {
   capabilities: Record<string, boolean>;
 }
 
+export interface GroundContextPresentation {
+  title: string;
+  evidence_level: EvidenceLevel;
+  variability_code: 'LOW' | 'MODERATE' | 'HIGH' | 'INSUFFICIENT_EVIDENCE';
+  variability_label: string;
+  summary: string;
+  mapped_units_label: string;
+  mapped_units: string[];
+  material_indicators_label: string;
+  material_indicators: string[];
+  transition_indicated: boolean;
+  sample_label: string;
+  sample_count: number;
+  site_sample_count: number;
+  parcel_sample_count: number;
+  vicinity_sample_count: number;
+  soil_model_summary: string;
+  soil_model_sample_count: number;
+  soil_sand_range: [number, number] | null;
+  soil_silt_range: [number, number] | null;
+  soil_clay_range: [number, number] | null;
+  investigation_focus: string;
+  limitation: string;
+  source_name: string | null;
+  source_scale: string | null;
+  terrain_min_elevation_m: number | null;
+  terrain_max_elevation_m: number | null;
+  terrain_local_relief_m: number | null;
+}
+
 export interface ReportData {
   site_value_estimate: SiteValueEstimate;
   confidence_level: 'High' | 'Medium' | 'Low' | string;
   evidence_score?: EvidenceQualityScore;
   country_support?: CountrySupportPresentation;
+  ground_context?: GroundContextPresentation;
   canonical_evidence?: unknown;
   evidence_registry?: EvidenceItem[];
   verification_checklist?: VerificationRequirement[];
@@ -265,7 +297,7 @@ export interface SiteReport {
   language: string;
   latitude: number;
   longitude: number;
-  area_size: number; // m²
+  area_size: number;
   boundary: BoundaryShape;
   official_geometry?: [number, number][] | null;
   is_official_parcel?: boolean;

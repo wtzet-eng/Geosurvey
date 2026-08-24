@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { clearOperationalMetadata } from '../sources/resolver';
 import { enrichGeologyFromPgi, queryPolandGeologicalMaps, queryPolandSiteEvidence } from './pgiSiteEvidenceService';
+import { SpatialSamplePoint } from './groundContextService';
 
 const capabilities = (layer: string) => `<?xml version="1.0"?><WMS_Capabilities><Capability><Request><GetCapabilities/><GetMap/><GetFeatureInfo/></Request><Layer><Layer><Name>${layer}</Name></Layer></Layer></Capability></WMS_Capabilities>`;
 
@@ -56,6 +57,7 @@ test('PGI enrichment never promotes placeholder geology to VERIFIED', () => {
     spatialRelationship: 'Exact site centre queried',
     calculationMethod: 'Test fixture',
     confidence: 'Medium',
+    spatialScope: 'SITE',
     value: { featureInfo: { features: [{ properties: { unrelated: 'context only' } }] } },
     limitation: 'Test fixture'
   }];
@@ -65,6 +67,38 @@ test('PGI enrichment never promotes placeholder geology to VERIFIED', () => {
   assert.equal(report.geosurvey_context.geological_period_era, null);
   assert.equal(report.geosurvey_context.evidence_level, 'REQUIRES_VERIFICATION');
   assert.equal(report.geosurvey_context.pgi_evidence_status, 'REQUIRES_VERIFICATION');
+});
+
+test('nearby PGI feature remains contextual when the site-centre query has no feature', async () => {
+  clearOperationalMetadata();
+  const samples: SpatialSamplePoint[] = [
+    { id: 'site-centroid', lat: 52, lng: 21, scope: 'SITE', label: 'Site centroid' },
+    { id: 'vicinity-east', lat: 52, lng: 21.01, scope: 'VICINITY', label: 'east vicinity sample' }
+  ];
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('GetCapabilities')) return new Response(capabilities('GEOLOGY'), { status: 200, headers: { 'content-type': 'application/xml' } });
+    if (url.includes('GetFeatureInfo')) {
+      const bbox = new URL(url).searchParams.get('BBOX')?.split(',').map(Number) || [];
+      const queryLng = bbox.length === 4 ? (bbox[0] + bbox[2]) / 2 : 21;
+      const feature = Math.abs(queryLng - 21.01) < 0.002 ? [{ properties: { unit: 'Alluvial deposits', lithology: 'peat and silt' } }] : [];
+      return new Response(JSON.stringify({ features: feature }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response('', { status: 404 });
+  }) as typeof fetch;
+  const evidence = await queryPolandGeologicalMaps(52, 21, fetcher, samples);
+  const site = evidence.find(item => item.id === 'pgi-smgp-50k-site');
+  const nearby = evidence.find(item => item.id === 'pgi-smgp-50k-vicinity-east');
+  assert.equal(site?.status, 'REQUIRES_VERIFICATION');
+  assert.equal(site?.reasonCode, 'NO_DATA');
+  assert.equal(nearby?.status, 'VERIFIED');
+  assert.equal(nearby?.spatialScope, 'VICINITY');
+  const report: any = {};
+  enrichGeologyFromPgi(report, evidence);
+  assert.equal(report.geosurvey_context, undefined);
+  assert.equal(report.ground_context.sampleCount, 1);
+  assert.equal(report.ground_context.vicinitySampleCount, 1);
+  assert.equal(report.ground_context.variabilityClass, 'INSUFFICIENT_EVIDENCE');
 });
 
 test('malformed HTTP 200 WMS capabilities fail closed as MALFORMED_DATA', async () => {
