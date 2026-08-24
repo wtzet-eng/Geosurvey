@@ -27,6 +27,52 @@ const today = () => new Date().toISOString().slice(0, 10);
 const reasonForResolution = (resolution: ResolutionResult): AvailabilityReason =>
   resolution.status === 'SCHEMA_CHANGED' ? 'MALFORMED_DATA' : 'SOURCE_UNAVAILABLE';
 
+function pgiFeatureProperties(evidence: PgiSiteEvidence | undefined): Record<string, unknown> {
+  const info = (evidence?.value as { featureInfo?: any } | null)?.featureInfo;
+  const features = info?.features || info?.FeatureInfo || [];
+  const props = features?.[0]?.properties;
+  return props && typeof props === 'object' ? props : {};
+}
+
+function usableMappedText(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  if (!text || /^(not available|no data|unknown|unavailable|requires verification|brak danych|niedostępne)/i.test(text)) return null;
+  return text;
+}
+
+function pgiProperty(props: Record<string, unknown>, patterns: RegExp[]): string | null {
+  const key = Object.keys(props).find(candidate => patterns.some(pattern => pattern.test(candidate)));
+  return key ? usableMappedText(props[key]) : null;
+}
+
+export function enrichGeologyFromPgi(report: any, pgiEvidence: PgiSiteEvidence[]): void {
+  const maps = pgiEvidence.filter(item => /Geological Map|Lithogenetic Map|Engineering-Geological Map/i.test(item.category || '') && item.status === 'VERIFIED');
+  const boreholes = pgiEvidence.filter(item => item.category === 'Boreholes' && item.status === 'VERIFIED');
+  if (!maps.length && !boreholes.length) return;
+
+  const props = pgiFeatureProperties(maps[0]);
+  const geologicalUnit = pgiProperty(props, [/geolog/i, /jednost/i, /unit/i, /utwor/i, /symbol/i]);
+  const lithology = pgiProperty(props, [/litolog/i, /lithology/i, /rock/i, /osad/i, /material/i]);
+  const period = pgiProperty(props, [/strat/i, /wiek/i, /age/i, /okres/i, /period/i]);
+  const hasMappedGeology = Boolean(geologicalUnit || lithology || period);
+  const geoContext = report.geosurvey_context || {};
+
+  report.geosurvey_context = {
+    ...geoContext,
+    geological_unit_name: geologicalUnit,
+    lithology_type: lithology,
+    geological_period_era: period,
+    pgi_evidence_status: hasMappedGeology ? 'VERIFIED' : 'REQUIRES_VERIFICATION',
+    pgi_map_evidence_count: maps.length,
+    pgi_borehole_count: boreholes.length,
+    pgi_boreholes: boreholes.map((item: any) => ({ distance_km: item.value?.distanceKm, feature_id: item.value?.featureId, properties: item.value?.properties, geological_profile: item.value?.geologicalProfileProperties })),
+    pgi_sources: maps.map(item => ({ category: item.category, source: item.sourceName, url: item.sourceUrl, status: item.status, limitation: item.limitation }))
+  };
+  report.geosurvey_context.evidence_level = hasMappedGeology ? 'VERIFIED' : 'REQUIRES_VERIFICATION';
+}
+
 async function fetchResponse(fetcher: FetchLike, url: string, accept: string, timeoutMs = 7000): Promise<Response | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

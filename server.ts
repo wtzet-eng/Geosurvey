@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { runGeospatialAnalysisPipeline } from './server/engine/evidenceEngine';
 import { fetchPolandCadastralParcel } from './server/adapters/poland';
 import { getCountryProfile } from './server/adapters/countries';
-import { queryPolandSiteEvidence } from './server/services/pgiSiteEvidenceService';
+import { enrichGeologyFromPgi, queryPolandSiteEvidence } from './server/services/pgiSiteEvidenceService';
 import { queryPolandHydroAndHazards } from './server/services/pgiSupplementEvidenceService';
 import { queryUKSiteEvidence, enrichGeologyFromBgs } from './server/services/ukSiteEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
@@ -44,31 +44,6 @@ function getCenterFromShape(shape: any, reqBody?: any): [number, number] {
   }
   if (shape.center && Array.isArray(shape.center)) return [shape.center[0], shape.center[1]];
   return [52.2297, 21.0122];
-}
-
-function pgiFeatureProperties(evidence: any): Record<string, any> {
-  const info = evidence?.value?.featureInfo;
-  const features = info?.features || info?.FeatureInfo || [];
-  const props = features?.[0]?.properties;
-  return props && typeof props === 'object' ? props : {};
-}
-function pgiProperty(props: Record<string, any>, patterns: RegExp[]): any {
-  const key = Object.keys(props).find(k => patterns.some(p => p.test(k)));
-  return key ? props[key] : undefined;
-}
-function enrichGeologyFromPgi(report: any, pgiEvidence: any[]) {
-  const maps = pgiEvidence.filter((x: any) => /Geological Map|Lithogenetic Map|Engineering-Geological Map/i.test(x.category || '') && x.status === 'VERIFIED');
-  const boreholes = pgiEvidence.filter((x: any) => x.category === 'Boreholes' && x.status === 'VERIFIED');
-  if (!maps.length && !boreholes.length) return;
-  const primary = maps[0];
-  const props = pgiFeatureProperties(primary);
-  const geoContext = report.geosurvey_context || {};
-  const geologicalUnit = pgiProperty(props, [/geolog/i, /jednost/i, /unit/i, /utwor/i, /symbol/i]) || geoContext.geological_unit_name;
-  const lithology = pgiProperty(props, [/litolog/i, /lithology/i, /rock/i, /osad/i, /material/i]) || geoContext.lithology_type;
-  const period = pgiProperty(props, [/strat/i, /wiek/i, /age/i, /okres/i, /period/i]) || geoContext.geological_period_era;
-  const hasMappedGeology = Boolean(geologicalUnit || lithology || period);
-  report.geosurvey_context = { ...geoContext, geological_unit_name: geologicalUnit, lithology_type: lithology, geological_period_era: period, pgi_evidence_status: hasMappedGeology ? 'VERIFIED' : 'REQUIRES_VERIFICATION', pgi_map_evidence_count: maps.length, pgi_borehole_count: boreholes.length, pgi_boreholes: boreholes.map((x: any) => ({ distance_km: x.value?.distanceKm, feature_id: x.value?.featureId, properties: x.value?.properties, geological_profile: x.value?.geologicalProfileProperties })), pgi_sources: maps.map((x: any) => ({ category: x.category, source: x.sourceName, url: x.sourceUrl, status: x.status, limitation: x.limitation })) };
-  report.geosurvey_context.evidence_level = hasMappedGeology ? 'VERIFIED' : 'REQUIRES_VERIFICATION';
 }
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
