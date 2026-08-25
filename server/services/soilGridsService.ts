@@ -54,6 +54,22 @@ const WMS_PROPERTIES = ['sand', 'silt', 'clay', 'soc', 'bdod', 'phh2o'] as const
 const WMS_DEPTHS = ['0-5cm', '30-60cm'] as const;
 const REST_DEPTHS = ['0-5cm', '5-15cm', '15-30cm', '30-60cm', '60-100cm', '100-200cm'] as const;
 const REST_PROPERTIES = ['clay', 'sand', 'silt', 'soc', 'bdod', 'phh2o', 'cec'] as const;
+const WMS_MAX_CONCURRENT_REQUESTS = 6;
+let activeWmsRequests = 0;
+const wmsWaiters: Array<() => void> = [];
+
+async function withWmsRequestPermit<T>(work: () => Promise<T>): Promise<T> {
+  if (activeWmsRequests >= WMS_MAX_CONCURRENT_REQUESTS) {
+    await new Promise<void>(resolve => wmsWaiters.push(resolve));
+  }
+  activeWmsRequests += 1;
+  try {
+    return await work();
+  } finally {
+    activeWmsRequests -= 1;
+    wmsWaiters.shift()?.();
+  }
+}
 
 function fallbackResult(): SoilGridsResult {
   return {
@@ -203,10 +219,12 @@ async function fetchSoilGridsWmsData(lat: number, lng: number): Promise<SoilGrid
     const delta = 0.001;
     const layer = `${property}_${depth}_mean`;
     const params = new URLSearchParams({ map: `/map/${property}.map`, SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetFeatureInfo', SRS: 'EPSG:4326', BBOX: `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`, WIDTH: '3', HEIGHT: '3', X: '1', Y: '1', LAYERS: layer, QUERY_LAYERS: layer, INFO_FORMAT: 'text/plain', FEATURE_COUNT: '1' });
-    const response = await fetchWithTimeout(`${SOILGRIDS_WMS}?${params}`, 'text/plain, application/json, application/xml, text/xml', 4500);
-    if (!response?.ok) return null;
-    const body = await response.text();
-    return responseValue(body, response.headers.get('content-type') || '');
+    return withWmsRequestPermit(async () => {
+      const response = await fetchWithTimeout(`${SOILGRIDS_WMS}?${params}`, 'text/plain, application/json, application/xml, text/xml', 4500);
+      if (!response?.ok) return null;
+      const body = await response.text();
+      return responseValue(body, response.headers.get('content-type') || '');
+    });
   };
 
   const entries = await Promise.all(WMS_DEPTHS.flatMap(depth => WMS_PROPERTIES.map(async property => [`${property}:${depth}`, await point(property, depth)] as const)));
