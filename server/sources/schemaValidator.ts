@@ -20,7 +20,17 @@ export function schemaFingerprint(endpoint: SourceEndpoint, probe: EndpointProbe
       return required.has(field.name);
     })
   })).sort((a, b) => a.layer.localeCompare(b.layer));
-  const meaningful = { layers: [...probe.observedLayers].map(String).sort(), fields: relevantFields, layerSchemas, capabilities: normalizeCapabilities(probe.capabilities), endpointType: endpoint.type };
+
+  // Fingerprint only layer identities that the integration explicitly depends on.
+  // Several public WMS catalogues (including PGI-PIB) can add/reorder unrelated
+  // published layers without changing the schema required by GeoSurvey. Treating
+  // that catalogue churn as SCHEMA_CHANGED caused false source outages.
+  const expectedLayers = new Set(endpoint.expectedLayers.map(String));
+  const relevantLayers = endpoint.expectedLayers.length
+    ? probe.observedLayers.map(String).filter(layer => expectedLayers.has(layer)).sort()
+    : [];
+
+  const meaningful = { layers: relevantLayers, fields: relevantFields, layerSchemas, capabilities: normalizeCapabilities(probe.capabilities), endpointType: endpoint.type };
   return createHash('sha256').update(JSON.stringify(meaningful)).digest('hex');
 }
 
