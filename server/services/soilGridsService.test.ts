@@ -105,6 +105,34 @@ test('REST partial response can provide texture without CEC or ancillary fields'
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('SoilGrids WMS requests are globally bounded during multi-point sampling', async () => {
+  let active = 0;
+  let peak = 0;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('rest.isric.org')) return new Response('{}', { status: 503 });
+    active += 1;
+    peak = Math.max(peak, active);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2));
+      const layer = new URL(url).searchParams.get('QUERY_LAYERS') || '';
+      return wmsText(layer);
+    } finally {
+      active -= 1;
+    }
+  }) as typeof fetch;
+  try {
+    const results = await Promise.all([
+      fetchGenuineSoilGridsData(52, 21),
+      fetchGenuineSoilGridsData(52.001, 21.001),
+      fetchGenuineSoilGridsData(51.999, 20.999)
+    ]);
+    assert.ok(results.every(result => result.success));
+    assert.ok(peak <= 6, `expected at most 6 concurrent WMS requests, observed ${peak}`);
+    assert.ok(peak > 1);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('SoilGrids WMS and REST unavailability remains explicit', async () => {
   globalThis.fetch = (async () => new Response('{}', { status: 503 })) as typeof fetch;
   try {
