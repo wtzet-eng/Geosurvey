@@ -70,7 +70,7 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
     ...common,
     id: 'pl-engineering-geology-50k-wms',
     logicalSourceId: 'PL_ENGINEERING_GEOLOGY',
-    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/MgiP50k/MapServer/WMSServer',
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/smgip50k/MapServer/WMSServer',
     priority: 1,
     evidenceTier: 1,
     compatibilityGroup: 'pl-engineering-geology',
@@ -88,6 +88,16 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
   },
   {
     ...common,
+    id: 'pl-engineering-geology-500k-wms',
+    logicalSourceId: 'PL_ENGINEERING_GEOLOGY',
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/mgip500k/MapServer/WMSServer',
+    priority: 3,
+    evidenceTier: 3,
+    compatibilityGroup: 'pl-engineering-geology',
+    provenance: 'PGI-PIB Engineering Geology Map of Poland, 1:500,000'
+  },
+  {
+    ...common,
     id: 'pl-engineering-boreholes-wms',
     logicalSourceId: 'PL_ENGINEERING_BOREHOLES',
     url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/atlas_gi_otwory/MapServer/WMSServer',
@@ -95,6 +105,16 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
     evidenceTier: 2,
     compatibilityGroup: 'pl-engineering-boreholes',
     provenance: 'PGI-PIB engineering-geological borehole context'
+  },
+  {
+    ...common,
+    id: 'pl-cbdg-boreholes-wms',
+    logicalSourceId: 'PL_ENGINEERING_BOREHOLES',
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/cbdg_otwory/MapServer/WMSServer',
+    priority: 3,
+    evidenceTier: 2,
+    compatibilityGroup: 'pl-engineering-boreholes',
+    provenance: 'PGI-PIB Central Geological Database (CBDG) borehole context'
   },
   {
     ...common,
