@@ -38,6 +38,16 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
   },
   {
     ...common,
+    id: 'pl-smgp-documentation-points-wms',
+    logicalSourceId: 'PL_SMGP_DOCUMENTATION_POINTS',
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/kartografia/smgp_pktdok/MapServer/WMSServer',
+    priority: 1,
+    evidenceTier: 1,
+    compatibilityGroup: 'pl-smgp-documentation-points',
+    provenance: 'PGI-PIB SMGP documentation points, including mapped near-surface geological observations and profiles'
+  },
+  {
+    ...common,
     id: 'pl-mlp-50k-wms',
     logicalSourceId: 'PL_MLP_LITHOGENETIC',
     url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/kartografia/mlp50k/MapServer/WMSServer',
@@ -98,6 +108,26 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
   },
   {
     ...common,
+    id: 'pl-mgspii-building-ground-wms',
+    logicalSourceId: 'PL_MGSP_BUILDING_GROUND',
+    url: 'https://emgsp.pgi.gov.pl/mgspIIWarPodlBud/service.svc/get',
+    priority: 1,
+    evidenceTier: 1,
+    compatibilityGroup: 'pl-mgsp-building-ground',
+    provenance: 'PGI-PIB Geoenvironmental Map of Poland (MGśP II), building-ground conditions, 1:50,000'
+  },
+  {
+    ...common,
+    id: 'pl-mgsp-building-ground-wms',
+    logicalSourceId: 'PL_MGSP_BUILDING_GROUND',
+    url: 'https://emgsp.pgi.gov.pl/mgspWarPodlBud/service.svc/get',
+    priority: 2,
+    evidenceTier: 2,
+    compatibilityGroup: 'pl-mgsp-building-ground',
+    provenance: 'PGI-PIB Geoenvironmental Map of Poland (MGśP), building-ground conditions, 1:50,000 legacy fallback'
+  },
+  {
+    ...common,
     id: 'pl-engineering-boreholes-wms',
     logicalSourceId: 'PL_ENGINEERING_BOREHOLES',
     url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/atlas_gi_otwory/MapServer/WMSServer',
@@ -115,6 +145,16 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
     evidenceTier: 2,
     compatibilityGroup: 'pl-engineering-boreholes',
     provenance: 'PGI-PIB Central Geological Database (CBDG) borehole context'
+  },
+  {
+    ...common,
+    id: 'pl-cbdg-research-points-wms',
+    logicalSourceId: 'PL_CBDG_RESEARCH_POINTS',
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/analizy_pkt_bad/MapServer/WMSServer',
+    priority: 1,
+    evidenceTier: 2,
+    compatibilityGroup: 'pl-cbdg-research-points',
+    provenance: 'PGI-PIB Central Geological Database research-point context'
   },
   {
     ...common,
