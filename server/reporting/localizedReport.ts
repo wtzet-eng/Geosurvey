@@ -129,6 +129,55 @@ const materialLabels: Record<ReportLanguage, Record<MappedMaterialIndicator, str
   pl: { ALLUVIAL: 'osady aluwialne', ORGANIC_OR_PEAT: 'osady organiczne / torfy', MADE_GROUND: 'nasypy', GLACIOFLUVIAL: 'osady wodnolodowcowe', TILL: 'gliny zwałowe / till', COHESIVE: 'grunty spoiste', GRANULAR: 'grunty niespoiste', OTHER: 'inne kartowane utwory' }
 };
 
+const contextRecordIds = new Set(['pgi-mgsp-building-ground-site', 'pgi-smgp-documentation-points-context', 'pgi-cbdg-research-points-context']);
+const siteContextCopy = {
+  en: {
+    buildingCategory: 'MGśP building-ground conditions', documentationCategory: 'SMGP documentation points', researchCategory: 'CBDG research points',
+    building: (descriptor: string | null) => descriptor ? `MGśP mapped building-ground context: ${descriptor}.` : 'MGśP returned mapped building-ground context at the site coordinate.',
+    documentation: (count: number, descriptors: string[]) => `SMGP documentation points: ${count} contextual observation${count === 1 ? '' : 's'} returned${descriptors.length ? ` (${descriptors.join('; ')})` : ''}.`,
+    research: (count: number, descriptors: string[]) => `CBDG research points: ${count} contextual observation${count === 1 ? '' : 's'} returned${descriptors.length ? ` (${descriptors.join('; ')})` : ''}.`,
+    boundary: 'Mapped building-ground information and documentation/research points are preliminary context only; conditions beneath the parcel require site investigation and review of the original source records.',
+    spatial: 'Mapped site or deterministic site/parcel/vicinity context; no unsampled feature distance is inferred.',
+    method: 'Official PGI-PIB WMS evidence successfully returned and retained with source scope.'
+  },
+  de: {
+    buildingCategory: 'MGśP-Baugrundbedingungen', documentationCategory: 'SMGP-Dokumentationspunkte', researchCategory: 'CBDG-Untersuchungspunkte',
+    building: (descriptor: string | null) => descriptor ? `Kartierter MGśP-Baugrundkontext: ${descriptor}.` : 'MGśP lieferte kartierten Baugrundkontext am Standortkoordinatenpunkt.',
+    documentation: (count: number, descriptors: string[]) => `SMGP-Dokumentationspunkte: ${count} kontextuelle Beobachtung${count === 1 ? '' : 'en'} zurückgegeben${descriptors.length ? ` (${descriptors.join('; ')})` : ''}.`,
+    research: (count: number, descriptors: string[]) => `CBDG-Untersuchungspunkte: ${count} kontextuelle Beobachtung${count === 1 ? '' : 'en'} zurückgegeben${descriptors.length ? ` (${descriptors.join('; ')})` : ''}.`,
+    boundary: 'Kartierte Baugrundangaben sowie Dokumentations- und Untersuchungspunkte sind nur Vorprüfungskontext; die Verhältnisse unter dem Flurstück müssen durch Standortuntersuchungen und Prüfung der Originalunterlagen bestätigt werden.',
+    spatial: 'Kartierter Standort- oder deterministischer Standort-/Flurstücks-/Umgebungskontext; keine nicht gemessene Objektdistanz wird abgeleitet.',
+    method: 'Amtliche PGI-PIB-WMS-Evidenz wurde erfolgreich zurückgegeben und mit ihrem räumlichen Bezug beibehalten.'
+  },
+  pl: {
+    buildingCategory: 'Warunki podłoża budowlanego (MGśP)', documentationCategory: 'Punkty dokumentacyjne SMGP', researchCategory: 'Punkty badawcze CBDG',
+    building: (descriptor: string | null) => descriptor ? `Kartowany kontekst warunków podłoża MGśP: ${descriptor}.` : 'MGśP zwróciła kartowany kontekst warunków podłoża dla współrzędnych lokalizacji.',
+    documentation: (count: number, descriptors: string[]) => `Punkty dokumentacyjne SMGP: zwrócono ${count} kontekstowe obserwacje${descriptors.length ? ` (${descriptors.join('; ')})` : ''}.`,
+    research: (count: number, descriptors: string[]) => `Punkty badawcze CBDG: zwrócono ${count} kontekstowe obserwacje${descriptors.length ? ` (${descriptors.join('; ')})` : ''}.`,
+    boundary: 'Dane kartowane oraz punkty dokumentacyjne i badawcze są kontekstem analizy wstępnej; warunki pod działką potwierdzają dopiero badania terenowe i dokumentacja źródłowa.',
+    spatial: 'Kartowany kontekst lokalizacji lub deterministyczne próbki lokalizacji/działki/otoczenia; nie wyznacza się niezmierzonej odległości do obiektu.',
+    method: 'Urzędowe dane WMS PIG-PIB zostały zwrócone prawidłowo i zachowano ich zakres przestrzenny.'
+  }
+} satisfies Record<ReportLanguage, {
+  buildingCategory: string; documentationCategory: string; researchCategory: string;
+  building: (descriptor: string | null) => string; documentation: (count: number, descriptors: string[]) => string; research: (count: number, descriptors: string[]) => string;
+  boundary: string; spatial: string; method: string;
+}>;
+
+function siteContextRecordPresentation(record: CanonicalReport['evidenceRecords'][number], language: ReportLanguage) {
+  if (!contextRecordIds.has(record.id) || record.status !== 'VERIFIED') return null;
+  const c = siteContextCopy[language];
+  const raw = (record.value || {}) as { descriptor?: unknown; observationCount?: unknown; observations?: Array<{ descriptor?: unknown }> };
+  const descriptor = typeof raw.descriptor === 'string' && raw.descriptor.trim() ? raw.descriptor.trim() : null;
+  const count = Number.isFinite(Number(raw.observationCount)) ? Number(raw.observationCount) : 0;
+  const descriptors = Array.isArray(raw.observations)
+    ? [...new Set(raw.observations.map(item => typeof item?.descriptor === 'string' ? item.descriptor.trim() : '').filter(Boolean))].slice(0, 3)
+    : [];
+  if (record.id === 'pgi-mgsp-building-ground-site') return { category: c.buildingCategory, claim: c.building(descriptor) };
+  if (record.id === 'pgi-smgp-documentation-points-context') return { category: c.documentationCategory, claim: c.documentation(count, descriptors) };
+  return { category: c.researchCategory, claim: c.research(count, descriptors) };
+}
+
 /** Renders reader-facing prose from canonical evidence without mutating scientific facts. */
 export function renderLocalizedReport(canonical: CanonicalReport, requestedLanguage: string) {
   const language = normalizeReportLanguage(requestedLanguage);
@@ -146,14 +195,16 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const interpretation = resolvedInterpretation ? renderGeologicalInterpretation(resolvedInterpretation, language) : null;
   const geologyDetail = interpretation ? `${geologyText} ${interpretation.summary} ${interpretation.disclaimer}` : geologyText;
   const geologySource = interpretation ? `${canonical.geology.sourceName}; ${interpretation.source.title} (${interpretation.source.publicationId}) — ${interpretation.source.url}` : canonical.geology.sourceName;
+  const successfulSiteContext = canonical.evidenceRecords.map(record => ({ record, presentation: siteContextRecordPresentation(record, language) })).filter(item => item.presentation !== null);
+  const hasSuccessfulSiteContext = successfulSiteContext.length > 0;
   const polishOrientation = canonical.countryCode === 'PL'
     ? renderIndicativeGroundOrientation(resolveIndicativeGroundOrientation({ geology: canonical.geology, texture: canonical.soil.texture }), language)
     : null;
   const orientationHeading = language === 'pl' ? 'Orientacyjna ocena geotechniczna' : language === 'de' ? 'Orientierende geotechnische Einschätzung' : 'Indicative geotechnical orientation';
   const orientationFocus = language === 'pl' ? 'Co sprawdzić' : language === 'de' ? 'Zu prüfen' : 'What to investigate';
   const groundDetailBase = polishOrientation
-    ? `${canonical.soil.reasonCode ? t.sourceUnavailable as string : t.authoritative as string} ${orientationHeading}: ${polishOrientation.label}. ${polishOrientation.summary} ${orientationFocus}: ${polishOrientation.investigationFocus} ${polishOrientation.disclaimer}`
-    : canonical.soil.reasonCode ? t.sourceUnavailable as string : t.authoritative as string;
+    ? `${canonical.soil.reasonCode && !hasSuccessfulSiteContext ? t.sourceUnavailable as string : t.authoritative as string} ${orientationHeading}: ${polishOrientation.label}. ${polishOrientation.summary} ${orientationFocus}: ${polishOrientation.investigationFocus} ${polishOrientation.disclaimer}`
+    : canonical.soil.reasonCode && !hasSuccessfulSiteContext ? t.sourceUnavailable as string : t.authoritative as string;
 
   const gc = canonical.groundContext;
   const gcText = groundContextCopy[language];
@@ -197,7 +248,9 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     terrain_max_elevation_m: canonical.terrain.maxElevationM ?? null,
     terrain_local_relief_m: canonical.terrain.localReliefM ?? null
   };
-  const groundDetail = gc ? `${groundDetailBase} ${contextSummary} ${investigationFocus}` : groundDetailBase;
+  const siteContextNarrative = successfulSiteContext.map(item => item.presentation!.claim);
+  const groundDetailCore = gc ? `${groundDetailBase} ${contextSummary} ${investigationFocus}` : groundDetailBase;
+  const groundDetail = `${groundDetailCore}${siteContextNarrative.length ? ` ${siteContextNarrative.join(' ')} ${siteContextCopy[language].boundary}` : ''}`.trim();
   const floodText = canonical.flood.classification ? interpolate(t.flood as string, { risk: risk(canonical.flood.classification, language) }) : localizeAvailabilityReason(canonical.flood.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language);
   const hazardText = hazardCopy[language];
   const roadText = interpolate(t.road as string, { road: value(canonical.infrastructure.roadName || canonical.infrastructure.roadType, unavailable), distance: value(canonical.infrastructure.distanceM, unavailable) });
@@ -210,10 +263,21 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const unavailableNotice = (reason?: AvailabilityReason) => reason ? localizeAvailabilityReason(reason, language) : undefined;
   const localizedCategory = language === 'pl' ? 'Dowody naukowe' : language === 'de' ? 'Wissenschaftliche Evidenz' : 'Scientific evidence';
   const supportCategory = language === 'pl' ? 'Zakres obsługi kraju' : language === 'de' ? 'Länderabdeckung' : 'Country coverage';
-  const evidenceRegistry = canonical.evidenceRecords.map(record => {
+  const evidenceRegistry = canonical.evidenceRecords.flatMap(record => {
     const reason = (record.value as { reasonCode?: AvailabilityReason } | null)?.reasonCode;
     const isSupportRecord = record.id.startsWith('country-support-');
-    return ({
+    const contextPresentation = siteContextRecordPresentation(record, language);
+    if (contextRecordIds.has(record.id) && !contextPresentation) return [];
+    if (contextPresentation) return [{
+      ...record,
+      category: contextPresentation.category,
+      claim: contextPresentation.claim,
+      spatialRelationship: siteContextCopy[language].spatial,
+      calculationMethod: siteContextCopy[language].method,
+      confidence: language === 'pl' ? ({ High: 'Wysoka', Medium: 'Średnia', Low: 'Niska' }[record.confidence] || record.confidence) : language === 'de' ? ({ High: 'Hoch', Medium: 'Mittel', Low: 'Niedrig' }[record.confidence] || record.confidence) : record.confidence,
+      limitation: siteContextCopy[language].boundary
+    }];
+    return [{
       ...record,
       category: isSupportRecord ? supportCategory : localizedCategory,
       claim: isSupportRecord ? localizeAvailabilityReason('NOT_SUPPORTED_FOR_COUNTRY', language) : interpolate(t.claim as string, { category: localizedCategory }),
@@ -221,7 +285,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
       calculationMethod: isSupportRecord ? supportLabel : t.method as string,
       confidence: language === 'pl' ? ({ High: 'Wysoka', Medium: 'Średnia', Low: 'Niska' }[record.confidence] || record.confidence) : language === 'de' ? ({ High: 'Hoch', Medium: 'Mittel', Low: 'Niedrig' }[record.confidence] || record.confidence) : record.confidence,
       limitation: record.status === 'REQUIRES_VERIFICATION' ? localizeAvailabilityReason(reason || 'AUTHORITATIVE_DATA_REQUIRED', language) : t.authoritative as string
-    });
+    }];
   });
   const checklist = (t.checklist as string[]).map((reason, index) => ({ topic: (t.topics as string[])[index], reason, recommendedAuthorityOrExpert: index === 0 ? canonical.planning.authorityName : canonical.authorities.cadastre, priority: index === 3 ? 'Medium' : 'High' }));
   const utilityNames = {
