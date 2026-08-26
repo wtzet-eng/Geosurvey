@@ -5,6 +5,7 @@ import { enrichGeologyFromPgi, queryPolandGeologicalMaps, queryPolandSiteEvidenc
 import { SpatialSamplePoint } from './groundContextService';
 
 const capabilities = (layer: string) => `<?xml version="1.0"?><WMS_Capabilities><Capability><Request><GetCapabilities/><GetMap/><GetFeatureInfo/></Request><Layer><Layer><Name>${layer}</Name></Layer></Layer></Capability></WMS_Capabilities>`;
+const multiCapabilities = (layers: string[]) => `<?xml version="1.0"?><WMS_Capabilities><Capability><Request><GetCapabilities/><GetMap/><GetFeatureInfo/></Request><Layer>${layers.map(layer => `<Layer><Name>${layer}</Name></Layer>`).join('')}</Layer></Capability></WMS_Capabilities>`;
 
 test('live Polish geological maps use resolver metadata and approved regional fallback', async () => {
   clearOperationalMetadata();
@@ -35,6 +36,98 @@ test('successful PGI query with no feature is NO_DATA rather than geological abs
   assert.ok(evidence.every(item => item.status === 'REQUIRES_VERIFICATION'));
   assert.ok(evidence.every(item => item.reasonCode === 'NO_DATA'));
   assert.ok(evidence.every(item => /does not establish geological absence|does not establish geological/i.test(item.limitation)));
+});
+
+test('PGI FeatureInfo falls back from JSON to GML and preserves geological properties', async () => {
+  clearOperationalMetadata();
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('GetCapabilities')) return new Response(capabilities('GEOLOGY'), { status: 200, headers: { 'content-type': 'application/xml' } });
+    if (url.includes('GetFeatureInfo')) {
+      const format = new URL(url).searchParams.get('INFO_FORMAT');
+      if (format === 'application/json') return new Response('unsupported format', { status: 400 });
+      if (format === 'application/vnd.ogc.gml') {
+        return new Response('<msGMLOutput><GEOLOGY_layer><GEOLOGY_feature><FIELDS jednostka="Osady czwartorzędowe" litologia="Piaski i żwiry" wiek="Plejstocen" /></GEOLOGY_feature></GEOLOGY_layer></msGMLOutput>', { status: 200, headers: { 'content-type': 'application/vnd.ogc.gml' } });
+      }
+      return new Response('', { status: 406 });
+    }
+    return new Response('', { status: 404 });
+  }) as typeof fetch;
+  const evidence = await queryPolandGeologicalMaps(52, 21, fetcher);
+  const report: any = {};
+  enrichGeologyFromPgi(report, evidence);
+  assert.equal(report.geosurvey_context.geological_unit_name, 'Osady czwartorzędowe');
+  assert.equal(report.geosurvey_context.lithology_type, 'Piaski i żwiry');
+  assert.equal(report.geosurvey_context.geological_period_era, 'Plejstocen');
+  assert.equal(report.geosurvey_context.evidence_level, 'VERIFIED');
+});
+
+test('PGI site query mines multiple relevant WMS layers instead of trusting one arbitrary layer', async () => {
+  clearOperationalMetadata();
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('GetCapabilities')) return new Response(multiCapabilities(['GEOLOGY_UNIT', 'LITOLOGIA', 'LEGEND']), { status: 200, headers: { 'content-type': 'application/xml' } });
+    if (url.includes('GetFeatureInfo')) {
+      const layer = new URL(url).searchParams.get('QUERY_LAYERS');
+      const properties = layer === 'GEOLOGY_UNIT' ? { jednostka: 'Q1' } : layer === 'LITOLOGIA' ? { litologia: 'piasek drobny' } : {};
+      return new Response(JSON.stringify({ features: Object.keys(properties).length ? [{ properties }] : [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response('', { status: 404 });
+  }) as typeof fetch;
+  const evidence = await queryPolandGeologicalMaps(52, 21, fetcher);
+  const detailed = evidence.find(item => item.id === 'pgi-smgp-50k-site');
+  const queriedLayers = (detailed?.value as any)?.queriedLayers || [];
+  const properties = (detailed?.value as any)?.featureInfo?.features?.map((feature: any) => feature.properties) || [];
+  assert.ok(queriedLayers.includes('GEOLOGY_UNIT'));
+  assert.ok(queriedLayers.includes('LITOLOGIA'));
+  assert.ok(properties.some((props: any) => props.jednostka === 'Q1'));
+  assert.ok(properties.some((props: any) => props.litologia === 'piasek drobny'));
+});
+
+test('PGI enrichment fuses complementary fields according to field-specific source hierarchy', () => {
+  const base = {
+    status: 'VERIFIED' as const,
+    sourceName: 'Państwowy Instytut Geologiczny – PIB',
+    sourceUrl: 'https://example.test/wms',
+    datasetDate: '2026-08-26',
+    spatialRelationship: 'Exact site centre queried',
+    calculationMethod: 'Test fixture',
+    confidence: 'Medium' as const,
+    spatialScope: 'SITE' as const,
+    limitation: 'Mapped evidence only.'
+  };
+  const evidence: any[] = [
+    { ...base, id: 'pgi-smgp-50k-site', category: 'Detailed Geological Map of Poland (SMGP)', value: { scale: '1:50,000', featureInfo: { features: [{ properties: { jednostka: 'Osady wodnolodowcowe' } }] } } },
+    { ...base, id: 'pgi-mlp-50k-site', category: 'Lithogenetic Map of Poland (MLP)', value: { scale: '1:50,000', featureInfo: { features: [{ properties: { litologia: 'piaski i żwiry', geneza: 'wodnolodowcowa' } }] } } },
+    { ...base, id: 'pgi-mgp-regional-site', category: 'Geological Map of Poland (MGP)', value: { scale: '1:200,000', featureInfo: { features: [{ properties: { jednostka: 'Regionalna jednostka', wiek: 'Plejstocen' } }] } } }
+  ];
+  const report: any = {};
+  enrichGeologyFromPgi(report, evidence);
+  assert.equal(report.geosurvey_context.geological_unit_name, 'Osady wodnolodowcowe');
+  assert.equal(report.geosurvey_context.lithology_type, 'piaski i żwiry');
+  assert.equal(report.geosurvey_context.geological_period_era, 'Plejstocen');
+  assert.equal(report.geosurvey_context.genetic_origin, 'wodnolodowcowa');
+  assert.equal(report.geosurvey_context.pgi_field_sources.unit.category, 'Detailed Geological Map of Poland (SMGP)');
+  assert.equal(report.geosurvey_context.pgi_field_sources.lithology.category, 'Lithogenetic Map of Poland (MLP)');
+  assert.equal(report.geosurvey_context.pgi_field_sources.period.category, 'Geological Map of Poland (MGP)');
+  assert.equal(report.geosurvey_context.pgi_sources.length, 3);
+});
+
+test('ground variability uses one primary map family rather than treating map-product disagreement as spatial variability', () => {
+  const base = {
+    status: 'VERIFIED' as const,
+    sourceName: 'Państwowy Instytut Geologiczny – PIB', sourceUrl: 'x', datasetDate: '2026-08-26', calculationMethod: 'fixture', confidence: 'Medium' as const, limitation: 'fixture'
+  };
+  const evidence: any[] = [
+    { ...base, id: 'pgi-smgp-50k-site', category: 'Detailed Geological Map of Poland (SMGP)', spatialScope: 'SITE', spatialRelationship: 'site', value: { scale: '1:50,000', samplePoint: { id: 'site-centroid' }, featureInfo: { features: [{ properties: { jednostka: 'Piaski' } }] } } },
+    { ...base, id: 'pgi-smgp-50k-vicinity-east', category: 'Detailed Geological Map of Poland (SMGP)', spatialScope: 'VICINITY', spatialRelationship: 'vicinity', value: { scale: '1:50,000', samplePoint: { id: 'vicinity-east' }, featureInfo: { features: [{ properties: { jednostka: 'Piaski' } }] } } },
+    { ...base, id: 'pgi-mlp-50k-site', category: 'Lithogenetic Map of Poland (MLP)', spatialScope: 'SITE', spatialRelationship: 'site', value: { scale: '1:50,000', samplePoint: { id: 'site-centroid' }, featureInfo: { features: [{ properties: { jednostka: 'Osady rzeczne' } }] } } }
+  ];
+  const report: any = {};
+  enrichGeologyFromPgi(report, evidence);
+  assert.equal(report.ground_context.sampleCount, 2);
+  assert.equal(report.ground_context.distinctMappedUnits.length, 1);
+  assert.equal(report.ground_context.variabilityClass, 'LOW');
 });
 
 test('PGI enrichment never promotes placeholder geology to VERIFIED', () => {
