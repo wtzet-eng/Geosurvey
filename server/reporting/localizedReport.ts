@@ -129,7 +129,11 @@ const materialLabels: Record<ReportLanguage, Record<MappedMaterialIndicator, str
   pl: { ALLUVIAL: 'osady aluwialne', ORGANIC_OR_PEAT: 'osady organiczne / torfy', MADE_GROUND: 'nasypy', GLACIOFLUVIAL: 'osady wodnolodowcowe', TILL: 'gliny zwałowe / till', COHESIVE: 'grunty spoiste', GRANULAR: 'grunty niespoiste', OTHER: 'inne kartowane utwory' }
 };
 
-const contextRecordIds = new Set(['pgi-mgsp-building-ground-site', 'pgi-smgp-documentation-points-context', 'pgi-cbdg-research-points-context']);
+const contextRecordIds = new Set([
+  'pgi-mgsp-building-ground-site', 'pgi-mgsp-building-ground-unavailable',
+  'pgi-smgp-documentation-points-context', 'pgi-smgp-documentation-points-unavailable',
+  'pgi-cbdg-research-points-context', 'pgi-cbdg-research-points-unavailable'
+]);
 const siteContextCopy = {
   en: {
     buildingCategory: 'MGśP building-ground conditions', documentationCategory: 'SMGP documentation points', researchCategory: 'CBDG research points',
@@ -175,7 +179,7 @@ function siteContextRecordPresentation(record: CanonicalReport['evidenceRecords'
     : [];
   if (record.id === 'pgi-mgsp-building-ground-site') return { category: c.buildingCategory, claim: c.building(descriptor) };
   if (record.id === 'pgi-smgp-documentation-points-context') return { category: c.documentationCategory, claim: c.documentation(count, descriptors) };
-  return { category: c.researchCategory, claim: c.research(count, descriptors) };
+  return record.id === 'pgi-cbdg-research-points-context' ? { category: c.researchCategory, claim: c.research(count, descriptors) } : null;
 }
 
 /** Renders reader-facing prose from canonical evidence without mutating scientific facts. */
