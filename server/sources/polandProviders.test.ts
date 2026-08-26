@@ -37,13 +37,33 @@ test('MLP is a separate lithogenetic source and cannot masquerade as SMGP geolog
   assert.match(mlp.provenance, /Lithogenetic Map/i);
 });
 
+test('engineering geology uses current PGI 50k endpoint and has 300k and 500k fallbacks', () => {
+  const maps = sourceEndpoints('PL_ENGINEERING_GEOLOGY');
+  assert.equal(maps.length, 3);
+  assert.match(maps[0].url, /geoinz\/smgip50k\/MapServer\/WMSServer$/i);
+  assert.equal(maps[0].evidenceTier, 1);
+  assert.match(maps[1].url, /geoinz\/pmgip300k\/MapServer\/WMSServer$/i);
+  assert.equal(maps[1].evidenceTier, 2);
+  assert.match(maps[2].url, /geoinz\/mgip500k\/MapServer\/WMSServer$/i);
+  assert.equal(maps[2].evidenceTier, 3);
+});
+
 test('engineering geology and engineering properties remain separate evidence families', () => {
   const maps = sourceEndpoints('PL_ENGINEERING_GEOLOGY');
   const properties = sourceEndpoints('PL_ENGINEERING_PROPERTIES');
-  assert.equal(maps.length, 2);
+  assert.equal(maps.length, 3);
   assert.equal(properties.length, 1);
   assert.doesNotMatch(properties[0].provenance, /bearing capacity|foundation recommendation/i);
   assert.match(properties[0].provenance, /contextual evidence only/i);
+});
+
+test('borehole hierarchy includes OGC, engineering WMS and general CBDG WMS fallbacks', () => {
+  const boreholes = sourceEndpoints('PL_ENGINEERING_BOREHOLES');
+  assert.equal(boreholes.length, 3);
+  assert.equal(boreholes[0].type, 'OGC_API');
+  assert.match(boreholes[1].url, /atlas_gi_otwory\/MapServer\/WMSServer$/i);
+  assert.match(boreholes[2].url, /cbdg_otwory\/MapServer\/WMSServer$/i);
+  assert.ok(boreholes.every(endpoint => endpoint.approval === 'APPROVED'));
 });
 
 test('hydrogeology context is separate from groundwater monitoring observations', () => {
