@@ -17,6 +17,7 @@ export interface GroundOrientationResult {
   designUse: false;
   basis: OrientationBasis[];
   matchedSignals: string[];
+  geneticOrigin: string | null;
   summary: Record<ReportLanguage, string>;
   investigationFocus: Record<ReportLanguage, string>;
   disclaimer: Record<ReportLanguage, string>;
@@ -95,7 +96,8 @@ const copy = {
 
 /** Conservative qualitative screening only; never creates design parameters. */
 export function resolveIndicativeGroundOrientation(input: GroundOrientationInput): GroundOrientationResult {
-  const joined = [input.geology.unitName, input.geology.lithology, input.geology.geologicalAge, input.texture, input.stateDescriptor, input.additionalContext]
+  const geneticOrigin = input.geology.geneticOrigin || null;
+  const joined = [input.geology.unitName, input.geology.lithology, input.geology.geologicalAge, geneticOrigin, input.texture, input.stateDescriptor, input.additionalContext]
     .map(norm)
     .filter(Boolean)
     .join(' | ');
@@ -103,14 +105,15 @@ export function resolveIndicativeGroundOrientation(input: GroundOrientationInput
   const basis = new Set<OrientationBasis>();
   const signals: string[] = [];
   const mark = (basisType: OrientationBasis, signal: string) => { basis.add(basisType); signals.push(signal); };
+  const result = (classification: OrientationClass) => makeResult(classification, basis, signals, geneticOrigin);
 
   if (containsAny(joined, ['torf', 'peat', 'gyttja', 'organic soil', 'organic deposit', 'namuł organiczny'])) {
     mark('MATERIAL', 'organic deposit');
-    return makeResult('SPECIAL_CONCERN', basis, signals);
+    return result('SPECIAL_CONCERN');
   }
   if (containsAny(joined, ['nasyp', 'made ground', 'fill', 'anthropogenic', 'antropogenic'])) {
     mark('GENETIC_ORIGIN', 'made/anthropogenic ground');
-    return makeResult('SPECIAL_CONCERN', basis, signals);
+    return result('SPECIAL_CONCERN');
   }
 
   // Resolve specific genetic origins before broader lexical roots.
@@ -134,19 +137,19 @@ export function resolveIndicativeGroundOrientation(input: GroundOrientationInput
   if (loose) mark('OBSERVED_STATE', 'loose state');
   if (soft) mark('OBSERVED_STATE', 'soft/plastic state');
 
-  if (loose || soft) return makeResult('POTENTIALLY_CHALLENGING', basis, signals);
-  if (alluvial && recent) return makeResult('VARIABLE', basis, signals);
-  if (alluvial) return makeResult('VARIABLE', basis, signals);
-  if (till) return makeResult('VARIABLE', basis, signals);
-  if (glaciofluvial && sand && dense) return makeResult('GENERALLY_FAVOURABLE', basis, signals);
-  if (sand && dense) return makeResult('GENERALLY_FAVOURABLE', basis, signals);
-  if (glaciofluvial && sand) return makeResult('VARIABLE', basis, signals);
-  if (clayey) return makeResult('VARIABLE', basis, signals);
-  return makeResult('INSUFFICIENT_EVIDENCE', basis, signals);
+  if (loose || soft) return result('POTENTIALLY_CHALLENGING');
+  if (alluvial && recent) return result('VARIABLE');
+  if (alluvial) return result('VARIABLE');
+  if (till) return result('VARIABLE');
+  if (glaciofluvial && sand && dense) return result('GENERALLY_FAVOURABLE');
+  if (sand && dense) return result('GENERALLY_FAVOURABLE');
+  if (glaciofluvial && sand) return result('VARIABLE');
+  if (clayey) return result('VARIABLE');
+  return result('INSUFFICIENT_EVIDENCE');
 }
 
-function makeResult(classification: OrientationClass, basis: Set<OrientationBasis>, matchedSignals: string[]): GroundOrientationResult {
-  return { classification, evidenceType: 'INDICATIVE_GEOTECHNICAL_ORIENTATION', siteSpecific: false, designUse: false, basis: [...basis], matchedSignals, summary: copy[classification].summary, investigationFocus: copy[classification].focus, disclaimer: copy.disclaimer };
+function makeResult(classification: OrientationClass, basis: Set<OrientationBasis>, matchedSignals: string[], geneticOrigin: string | null): GroundOrientationResult {
+  return { classification, evidenceType: 'INDICATIVE_GEOTECHNICAL_ORIENTATION', siteSpecific: false, designUse: false, basis: [...basis], matchedSignals, geneticOrigin, summary: copy[classification].summary, investigationFocus: copy[classification].focus, disclaimer: copy.disclaimer };
 }
 
 export function renderIndicativeGroundOrientation(result: GroundOrientationResult, language: ReportLanguage) {
@@ -155,5 +158,12 @@ export function renderIndicativeGroundOrientation(result: GroundOrientationResul
     de: { GENERALLY_FAVOURABLE: 'Grundsätzlich günstig', VARIABLE: 'Variabel / zustandsabhängig', POTENTIALLY_CHALLENGING: 'Potenziell anspruchsvoll', SPECIAL_CONCERN: 'Besondere Aufmerksamkeit', INSUFFICIENT_EVIDENCE: 'Unzureichende Datengrundlage' },
     pl: { GENERALLY_FAVOURABLE: 'Ogólnie korzystne', VARIABLE: 'Zmienne / zależne od warunków', POTENTIALLY_CHALLENGING: 'Potencjalnie trudne', SPECIAL_CONCERN: 'Wymaga szczególnej uwagi', INSUFFICIENT_EVIDENCE: 'Niewystarczające dane' }
   };
-  return { label: labels[language][result.classification], summary: result.summary[language], investigationFocus: result.investigationFocus[language], disclaimer: result.disclaimer[language], evidenceType: result.evidenceType, siteSpecific: result.siteSpecific, designUse: result.designUse, basis: result.basis, matchedSignals: result.matchedSignals };
+  const originPrefix = result.geneticOrigin
+    ? language === 'pl'
+      ? `Kartowana geneza geologiczna materiału: ${result.geneticOrigin}. `
+      : language === 'de'
+      ? `Kartierte geologische Genese des Materials: ${result.geneticOrigin}. `
+      : `Mapped geological origin of the material: ${result.geneticOrigin}. `
+    : '';
+  return { label: labels[language][result.classification], summary: `${originPrefix}${result.summary[language]}`, investigationFocus: result.investigationFocus[language], disclaimer: result.disclaimer[language], evidenceType: result.evidenceType, siteSpecific: result.siteSpecific, designUse: result.designUse, basis: result.basis, matchedSignals: result.matchedSignals, geneticOrigin: result.geneticOrigin };
 }
