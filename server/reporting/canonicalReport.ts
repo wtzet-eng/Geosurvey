@@ -16,6 +16,7 @@ export interface CanonicalGeologyEvidence {
   unitName: string | null;
   lithology: string | null;
   geologicalAge: string | null;
+  geneticOrigin?: string | null;
   groundwaterRegime: string | null;
   status: EvidenceLevel;
   sourceName: string;
@@ -254,6 +255,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
       unitName: geologyUnit,
       lithology: c.nationalGeology ? scientific(context.lithology_type) || scientific(report.soil.lithologyType) : null,
       geologicalAge: c.nationalGeology ? scientific(context.geological_period_era) || scientific(report.soil.stratigraphicPeriod) : null,
+      geneticOrigin: c.nationalGeology ? scientific(context.genetic_origin) : null,
       groundwaterRegime: c.nationalHydrogeology ? scientific(report.soil.groundwaterRegime) : null,
       status: geologyStatus,
       sourceName: profile.geologyAuthority,
