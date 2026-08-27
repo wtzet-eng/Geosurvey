@@ -135,3 +135,27 @@ test('limited coverage and withheld valuation are localized without zero or unde
     assert.doesNotMatch(text, /3\.0\s*m/);
   }
 });
+
+test('supported Poland keeps the modelled valuation benchmark without claiming a national valuation feed', () => {
+  const report = rawReport('PL');
+  report.valuation.currency = 'PLN';
+  const canonical = createCanonicalReport(report, getCountryProfile('PL'));
+  assert.equal(canonical.support.capabilities.nationalValuation, false);
+  assert.equal(canonical.valuation.status, 'MODELLED');
+  assert.equal(canonical.valuation.min, 123000);
+  assert.equal(canonical.valuation.max, 456000);
+  assert.equal(canonical.valuation.median, 250000);
+  assert.equal(canonical.valuation.sourceName, 'GeoSurvey indicative valuation model');
+  assert.equal(canonical.valuation.reasonCode, undefined);
+  const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
+  assert.ok(valuationEvidence);
+  assert.equal(valuationEvidence?.sourceName, 'GeoSurvey indicative valuation model');
+  assert.match(valuationEvidence?.limitation || '', /No direct comparable deeds or live national valuation records were queried/i);
+  assert.ok(!canonical.evidenceRecords.some(record => record.id === 'country-support-valuation'));
+
+  const rendered = renderLocalizedReport(canonical, 'pl');
+  const market = rendered.sections.market_and_comparables;
+  assert.equal(market.evidence_level, 'MODELLED');
+  assert.match(market.summary, /123.?000.*456.?000.*PLN/i);
+  assert.doesNotMatch(`${market.summary} ${market.detail} ${market.limitation_notice || ''}`, /nie jest obsługiwane dla wybranego kraju/i);
+});
