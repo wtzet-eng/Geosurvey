@@ -10,9 +10,10 @@ const base = (countryCode: 'PL' | 'GB'): CanonicalReport => ({
   support: getCountrySupport(countryCode),
   authorities: { cadastre: 'Cadastre', geology: 'Geology authority', flood: 'Flood authority', planning: 'Planning', valuation: 'Valuation' },
   geology: {
-    unitName: countryCode === 'PL' ? 'Piaski wodnolodowcowe' : 'Unknown Formation',
+    unitName: countryCode === 'PL' ? 'Osady czwartorzędowe' : 'Unknown Formation',
     lithology: countryCode === 'PL' ? 'piaski' : 'sandstone',
     geologicalAge: countryCode === 'PL' ? 'Pleistocene' : 'Jurassic',
+    geneticOrigin: countryCode === 'PL' ? 'wodnolodowcowa' : null,
     groundwaterRegime: null,
     status: 'MODELLED',
     sourceName: countryCode === 'PL' ? 'PGI-PIB' : 'BGS',
@@ -36,10 +37,11 @@ const base = (countryCode: 'PL' | 'GB'): CanonicalReport => ({
   evidenceRecords: []
 });
 
-test('Polish live report exposes genesis-aware indicative orientation and not-for-design disclaimer', () => {
+test('Polish live report exposes mapped genesis in indicative orientation and keeps the not-for-design disclaimer', () => {
   const rendered = renderLocalizedReport(base('PL'), 'pl');
-  assert.match(rendered.sections.geohazard_risk.detail, /Piaski wodnolodowcowe/i);
+  assert.match(rendered.sections.geohazard_risk.detail, /Osady czwartorzędowe/i);
   assert.match(rendered.sections.soil_and_ground.detail, /Orientacyjna ocena geotechniczna: Zmienne \/ zależne od warunków/i);
+  assert.match(rendered.sections.soil_and_ground.detail, /Kartowana geneza geologiczna materiału: wodnolodowcowa/i);
   assert.match(rendered.sections.soil_and_ground.detail, /nie może być używana do projektowania/i);
 });
 
