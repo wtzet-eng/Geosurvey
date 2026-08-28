@@ -7,11 +7,14 @@ test('Polish provider registry uses stable logical identities rather than URLs a
   const ids = new Set(POLAND_SOURCE_ENDPOINTS.map(endpoint => endpoint.logicalSourceId));
   for (const expected of [
     'PL_SMGP_DETAILED_GEOLOGY',
+    'PL_SMGP_DOCUMENTATION_POINTS',
     'PL_MLP_LITHOGENETIC',
     'PL_MGP_REGIONAL_GEOLOGY',
     'PL_ENGINEERING_GEOLOGY',
     'PL_ENGINEERING_BOREHOLES',
     'PL_ENGINEERING_PROPERTIES',
+    'PL_MGSP_BUILDING_GROUND',
+    'PL_CBDG_RESEARCH_POINTS',
     'PL_HYDROGEOLOGY',
     'PL_GROUNDWATER_MONITORING',
     'PL_SOPO_LANDSLIDES'
@@ -64,6 +67,29 @@ test('borehole hierarchy includes OGC, engineering WMS and general CBDG WMS fall
   assert.match(boreholes[1].url, /atlas_gi_otwory\/MapServer\/WMSServer$/i);
   assert.match(boreholes[2].url, /cbdg_otwory\/MapServer\/WMSServer$/i);
   assert.ok(boreholes.every(endpoint => endpoint.approval === 'APPROVED'));
+});
+
+test('MGśP building-ground context has a current primary and legacy fallback without becoming design evidence', () => {
+  const sources = sourceEndpoints('PL_MGSP_BUILDING_GROUND');
+  assert.equal(sources.length, 2);
+  assert.match(sources[0].url, /mgspIIWarPodlBud\/service\.svc\/get$/i);
+  assert.match(sources[0].provenance, /building-ground conditions.*1:50,000/i);
+  assert.equal(sources[0].evidenceTier, 1);
+  assert.match(sources[1].url, /mgspWarPodlBud\/service\.svc\/get$/i);
+  assert.equal(sources[1].evidenceTier, 2);
+  assert.ok(sources.every(endpoint => endpoint.approval === 'APPROVED'));
+});
+
+test('SMGP documentation points and CBDG research points remain separate contextual evidence families', () => {
+  const documentation = sourceEndpoints('PL_SMGP_DOCUMENTATION_POINTS');
+  const research = sourceEndpoints('PL_CBDG_RESEARCH_POINTS');
+  assert.equal(documentation.length, 1);
+  assert.equal(research.length, 1);
+  assert.match(documentation[0].url, /smgp_pktdok\/MapServer\/WMSServer$/i);
+  assert.match(documentation[0].provenance, /documentation points/i);
+  assert.match(research[0].url, /analizy_pkt_bad\/MapServer\/WMSServer$/i);
+  assert.match(research[0].provenance, /research-point context/i);
+  assert.notEqual(documentation[0].compatibilityGroup, research[0].compatibilityGroup);
 });
 
 test('hydrogeology context is separate from groundwater monitoring observations', () => {

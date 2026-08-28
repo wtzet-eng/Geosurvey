@@ -46,7 +46,7 @@ export function isUnavailablePresentationValue(value: unknown): boolean {
   return value === undefined || value === null || value === '' || (typeof value === 'number' && !Number.isFinite(value)) || fallbackValues.has(String(value).trim().toLowerCase());
 }
 
-/** Maps only presentation enums and missing-value sentinels; scientific values pass through unchanged. */
+/** Maps only presentation enums, known land-use classes and missing-value sentinels; scientific values pass through unchanged. */
 export function localizePresentationValue(value: unknown, language: string): string {
   const locale: PresentationLanguage = language === 'pl' ? 'pl' : language === 'de' ? 'de' : 'en';
   if (isUnavailablePresentationValue(value)) return locale === 'pl' ? 'Brak danych' : locale === 'de' ? 'Keine Daten' : 'No data';
@@ -54,9 +54,18 @@ export function localizePresentationValue(value: unknown, language: string): str
   const enumLabel = enumLabels[locale][text.toUpperCase() as keyof typeof enumLabels.en];
   if (enumLabel) return enumLabel;
   const knownPhrases: Record<PresentationLanguage, Record<string, string>> = {
-    en: { 'LOW TO VERY LOW': 'Low to very low', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'SoilGrids texture unavailable' },
-    de: { 'LOW TO VERY LOW': 'Gering bis sehr gering', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'SoilGrids-Textur nicht verfügbar' },
-    pl: { 'LOW TO VERY LOW': 'Niskie do bardzo niskiego', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'Tekstura SoilGrids jest niedostępna' }
+    en: {
+      'LOW TO VERY LOW': 'Low to very low', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'SoilGrids texture unavailable',
+      FARMLAND: 'Farmland', RESIDENTIAL: 'Residential', FOREST: 'Forest', MEADOW: 'Meadow', ORCHARD: 'Orchard', INDUSTRIAL: 'Industrial', COMMERCIAL: 'Commercial', CONSTRUCTION: 'Construction site', BROWNFIELD: 'Brownfield', QUARRY: 'Quarry / extraction area', GRASS: 'Grassland', RETAIL: 'Retail', ALLOTMENTS: 'Allotments', VINEYARD: 'Vineyard', FARMYARD: 'Farmyard', 'RECREATION_GROUND': 'Recreation ground', MILITARY: 'Military area', CEMETERY: 'Cemetery', LANDFILL: 'Landfill', GREENFIELD: 'Greenfield', RAILWAY: 'Railway land'
+    },
+    de: {
+      'LOW TO VERY LOW': 'Gering bis sehr gering', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'SoilGrids-Textur nicht verfügbar',
+      FARMLAND: 'Acker- und Landwirtschaftsfläche', RESIDENTIAL: 'Wohngebiet', FOREST: 'Wald', MEADOW: 'Wiese', ORCHARD: 'Obstanlage', INDUSTRIAL: 'Industriegebiet', COMMERCIAL: 'Gewerbegebiet', CONSTRUCTION: 'Baustelle', BROWNFIELD: 'Brach-/Konversionsfläche', QUARRY: 'Steinbruch / Abbaufläche', GRASS: 'Grünland', RETAIL: 'Einzelhandelsgebiet', ALLOTMENTS: 'Kleingärten', VINEYARD: 'Weinberg', FARMYARD: 'Hof-/Betriebsfläche', 'RECREATION_GROUND': 'Freizeitfläche', MILITARY: 'Militärgelände', CEMETERY: 'Friedhof', LANDFILL: 'Deponie', GREENFIELD: 'Unbebaute Entwicklungsfläche', RAILWAY: 'Bahnfläche'
+    },
+    pl: {
+      'LOW TO VERY LOW': 'Niskie do bardzo niskiego', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'Tekstura SoilGrids jest niedostępna',
+      FARMLAND: 'grunty rolne', RESIDENTIAL: 'zabudowa mieszkaniowa', FOREST: 'las', MEADOW: 'łąka', ORCHARD: 'sad', INDUSTRIAL: 'teren przemysłowy', COMMERCIAL: 'teren usługowo-handlowy', CONSTRUCTION: 'teren budowy', BROWNFIELD: 'teren poprzemysłowy / zdegradowany', QUARRY: 'kamieniołom / obszar wydobywczy', GRASS: 'teren trawiasty', RETAIL: 'teren handlowy', ALLOTMENTS: 'ogródki działkowe', VINEYARD: 'winnica', FARMYARD: 'teren gospodarstwa', 'RECREATION_GROUND': 'teren rekreacyjny', MILITARY: 'teren wojskowy', CEMETERY: 'cmentarz', LANDFILL: 'składowisko odpadów', GREENFIELD: 'niezabudowany teren rozwojowy', RAILWAY: 'teren kolejowy'
+    }
   };
   const known = knownPhrases[locale][text.toUpperCase()];
   if (known) return known;

@@ -37,8 +37,15 @@ function featureList(info: any): any[] {
   return [];
 }
 
-function pgiFeatureProperties(evidence: PgiSiteEvidence | undefined): Record<string, unknown> {
-  const info = (evidence?.value as { featureInfo?: any } | null)?.featureInfo;
+function usableMappedText(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value !== 'string') return null;
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (!text || /^(not available|no data|unknown|unavailable|requires verification|brak danych|niedostępne|null|none)$/i.test(text)) return null;
+  return text;
+}
+
+function mergedFeatureProperties(info: any): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
   for (const feature of featureList(info)) {
     const props = feature?.properties;
@@ -50,17 +57,23 @@ function pgiFeatureProperties(evidence: PgiSiteEvidence | undefined): Record<str
   return merged;
 }
 
-function usableMappedText(value: unknown): string | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  if (typeof value !== 'string') return null;
-  const text = value.trim().replace(/\s+/g, ' ');
-  if (!text || /^(not available|no data|unknown|unavailable|requires verification|brak danych|niedostępne|null|none)$/i.test(text)) return null;
-  return text;
+function pgiFeatureProperties(evidence: PgiSiteEvidence | undefined): Record<string, unknown> {
+  const info = (evidence?.value as { featureInfo?: any } | null)?.featureInfo;
+  return mergedFeatureProperties(info);
 }
 
 function pgiProperty(props: Record<string, unknown>, patterns: RegExp[]): string | null {
   const key = Object.keys(props).find(candidate => patterns.some(pattern => pattern.test(candidate)));
   return key ? usableMappedText(props[key]) : null;
+}
+
+function contextDescriptor(info: any, patterns: RegExp[], maxValues = 4): string | null {
+  const props = mergedFeatureProperties(info);
+  const values = Object.entries(props)
+    .filter(([key]) => !/^__/.test(key) && patterns.some(pattern => pattern.test(key)))
+    .map(([, raw]) => usableMappedText(raw))
+    .filter((value): value is string => Boolean(value));
+  return [...new Set(values)].slice(0, maxValues).join(' · ') || null;
 }
 
 const FIELD_PATTERNS: Record<GeologicalField, RegExp[]> = {
@@ -69,6 +82,9 @@ const FIELD_PATTERNS: Record<GeologicalField, RegExp[]> = {
   period: [/strat/i, /wiek/i, /age/i, /okres/i, /period/i, /era/i],
   genesis: [/litogen/i, /gene[sz]/i, /pochodzen/i, /origin/i]
 };
+
+const BUILDING_GROUND_PATTERNS = [/warunk/i, /podloz/i, /podłoż/i, /budow/i, /grunt/i, /klas/i, /opis/i, /wydziel/i, /symbol/i];
+const DOCUMENT_POINT_PATTERNS = [/litolog/i, /strat/i, /profil/i, /sond/i, /wkop/i, /szurf/i, /odsłon/i, /odslon/i, /głęb/i, /gleb/i, /utwor/i, /osad/i, /wiek/i, /opis/i];
 
 function mapFamily(evidence: PgiSiteEvidence): string {
   if (/pgi-smgp-50k/i.test(evidence.id)) return 'SMGP';
@@ -130,9 +146,11 @@ export function enrichGeologyFromPgi(report: any, pgiEvidence: PgiSiteEvidence[]
   const allVerifiedMaps = pgiEvidence.filter(item => /Geological Map|Lithogenetic Map|Engineering-Geological Map/i.test(item.category || '') && item.status === 'VERIFIED');
   const maps = allVerifiedMaps.filter(item => item.spatialScope === 'SITE' || (!item.spatialScope && /-site$/.test(item.id)));
   const boreholes = pgiEvidence.filter(item => item.category === 'Boreholes' && item.status === 'VERIFIED');
+  const buildingGround = pgiEvidence.find(item => item.id === 'pgi-mgsp-building-ground-site' && item.status === 'VERIFIED');
+  const documentationPoints = pgiEvidence.filter(item => /pgi-(?:smgp-documentation|cbdg-research)-points-context/.test(item.id) && item.status === 'VERIFIED');
   const contextSamples = primarySpatialContextSamples(allVerifiedMaps);
   report.ground_context = summarizeGroundContext(contextSamples);
-  if (!maps.length && !boreholes.length) return;
+  if (!maps.length && !boreholes.length && !buildingGround && !documentationPoints.length) return;
 
   const unit = selectFieldEvidence(maps, 'unit');
   const lithology = selectFieldEvidence(maps, 'lithology');
@@ -154,6 +172,15 @@ export function enrichGeologyFromPgi(report: any, pgiEvidence: PgiSiteEvidence[]
     pgi_context_evidence_count: contextSamples.filter(sample => sample.scope !== 'SITE').length,
     pgi_borehole_count: boreholes.length,
     pgi_boreholes: boreholes.map((item: any) => ({ distance_km: item.value?.distanceKm, feature_id: item.value?.featureId, properties: item.value?.properties, geological_profile: item.value?.geologicalProfileProperties, spatial_scope: item.spatialScope || 'VICINITY' })),
+    pgi_building_ground_context: buildingGround ? {
+      descriptor: (buildingGround.value as any)?.descriptor || null,
+      properties: mergedFeatureProperties((buildingGround.value as any)?.featureInfo),
+      source: buildingGround.sourceName,
+      url: buildingGround.sourceUrl,
+      scale: (buildingGround.value as any)?.scale || '1:50,000'
+    } : null,
+    pgi_documentation_points: documentationPoints.flatMap(item => (item.value as any)?.observations || []).slice(0, 20),
+    pgi_documentation_point_count: documentationPoints.reduce((sum, item) => sum + Number((item.value as any)?.observationCount || 0), 0),
     pgi_field_sources: Object.fromEntries(Object.entries(selectedFields).filter(([, item]) => Boolean(item)).map(([field, item]) => {
       const selected = item as { value: string; evidence: PgiSiteEvidence };
       return [field, { value: selected.value, category: selected.evidence.category, source: selected.evidence.sourceName, url: selected.evidence.sourceUrl, scale: (selected.evidence.value as any)?.scale || null }];
@@ -201,8 +228,13 @@ function wmsCapabilities(xml: string): string[] {
 }
 
 async function probeWms(fetcher: FetchLike, endpoint: SourceEndpoint) {
-  const response = await fetchResponse(fetcher, `${endpoint.url}?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0`, 'application/xml,text/xml');
-  const xml = response?.ok ? await response.text() : '';
+  let response: Response | null = null;
+  let xml = '';
+  for (const version of ['1.3.0', '1.1.1']) {
+    response = await fetchResponse(fetcher, `${endpoint.url}?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=${version}`, 'application/xml,text/xml');
+    xml = response?.ok ? await response.text() : '';
+    if (parseWmsLayers(xml).length) break;
+  }
   const layers = parseWmsLayers(xml);
   return {
     connectivity: Boolean(response),
@@ -225,6 +257,9 @@ function selectMapLayers(layers: string[], mapId: string, limit = 4): string[] {
     'mlp-50k': /mlp|litogen|gene[sz]|utw|osad/i,
     'mgp-regional': /mgp|geolog|litolog|utw/i,
     'engineering-geology': /inz|inż|engineering|grunt|podloz|podłoż|warunk|geolog/i,
+    'mgsp-building-ground': /warunk|podloz|podłoż|budow|grunt|building|ground/i,
+    'documentation-points': /punkt|pkt|dokument|sond|wkop|szurf|odslon|odsłon|profil/i,
+    'research-points': /punkt|pkt|badaw|research|analiz/i,
     boreholes: /otwor|odwiert|borehole/i
   };
   const usable = layers.filter(layer => !/legend|index|overview|ramka|arkusz|sheet|siatka/i.test(layer));
@@ -306,14 +341,21 @@ async function wmsGetInfo(fetcher: FetchLike, serviceUrl: string, layer: string,
   const delta = 0.0008;
   const formats = ['application/json', 'application/vnd.ogc.gml', 'text/xml', 'text/plain', 'text/html'];
   let emptyResponse: any | null = null;
-  for (const infoFormat of formats) {
-    const params = new URLSearchParams({ SERVICE: 'WMS', VERSION: '1.3.0', REQUEST: 'GetFeatureInfo', LAYERS: layer, QUERY_LAYERS: layer, CRS: 'CRS:84', BBOX: `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`, WIDTH: '101', HEIGHT: '101', I: '50', J: '50', INFO_FORMAT: infoFormat, FEATURE_COUNT: '5' });
-    const response = await fetchResponse(fetcher, `${serviceUrl}?${params.toString()}`, infoFormat, 6000);
-    if (!response?.ok) continue;
-    const body = await response.text();
-    const parsed = parseFeatureInfoBody(body, response.headers.get('content-type') || infoFormat);
-    if (parsed && featureList(parsed).length) return { ...parsed, infoFormat, queriedLayer: layer };
-    if (parsed && !emptyResponse) emptyResponse = { ...parsed, infoFormat, queriedLayer: layer };
+  for (const version of ['1.3.0', '1.1.1']) {
+    for (const infoFormat of formats) {
+      const params = new URLSearchParams({ SERVICE: 'WMS', VERSION: version, REQUEST: 'GetFeatureInfo', LAYERS: layer, QUERY_LAYERS: layer, BBOX: `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`, WIDTH: '101', HEIGHT: '101', INFO_FORMAT: infoFormat, FEATURE_COUNT: '5' });
+      if (version === '1.3.0') {
+        params.set('CRS', 'CRS:84'); params.set('I', '50'); params.set('J', '50');
+      } else {
+        params.set('SRS', 'EPSG:4326'); params.set('X', '50'); params.set('Y', '50');
+      }
+      const response = await fetchResponse(fetcher, `${serviceUrl}?${params.toString()}`, infoFormat, 6000);
+      if (!response?.ok) continue;
+      const body = await response.text();
+      const parsed = parseFeatureInfoBody(body, response.headers.get('content-type') || infoFormat);
+      if (parsed && featureList(parsed).length) return { ...parsed, infoFormat, queriedLayer: layer, wmsVersion: version };
+      if (parsed && !emptyResponse) emptyResponse = { ...parsed, infoFormat, queriedLayer: layer, wmsVersion: version };
+    }
   }
   return emptyResponse;
 }
@@ -374,7 +416,7 @@ export async function queryPolandGeologicalMaps(lat: number, lng: number, fetche
         status: hasFeature ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: resolution.endpoint.url,
         datasetDate: today(),
         spatialRelationship: isSite ? 'Exact site centre queried' : point.scope === 'PARCEL' ? 'Representative parcel-geometry sample' : `Vicinity sample (${point.label})`,
-        calculationMethod: isSite ? 'Resolved OGC WMS GetFeatureInfo across selected relevant geological layers with multi-format parsing' : `Resolved OGC WMS GetFeatureInfo at deterministic ${point.scope} sample point`,
+        calculationMethod: isSite ? 'Resolved OGC WMS GetFeatureInfo across selected relevant geological layers with multi-format and WMS-version fallback parsing' : `Resolved OGC WMS GetFeatureInfo at deterministic ${point.scope} sample point`,
         confidence: hasFeature ? 'Medium' : 'Low', reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: point.scope,
         value: { scale: map.scale, availableLayers: layers.slice(0, 100), queriedLayers: pointLayers, featureInfo: info, samplePoint: point, reasonCode, resolverProvenance: resolution.provenance },
         limitation: isSite
@@ -384,6 +426,85 @@ export async function queryPolandGeologicalMaps(lat: number, lng: number, fetche
     }
   }
   return evidence;
+}
+
+export async function queryPolandBuildingGroundContext(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<PgiSiteEvidence[]> {
+  const resolution = await resolveWms(fetcher, 'PL_MGSP_BUILDING_GROUND');
+  if (!resolution.endpoint) {
+    const reasonCode = reasonForResolution(resolution);
+    return [{ id: 'pgi-mgsp-building-ground-unavailable', category: 'MGśP building-ground conditions', claim: 'The approved MGśP building-ground route could not be validated.', status: 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: 'https://baza.pgi.gov.pl/cbdg/geoportal/uslugi/gis', datasetDate: today(), spatialRelationship: 'Site coordinate', calculationMethod: 'Source resolver with WMS capability validation', confidence: 'Low', value: { reasonCode, attempts: resolution.attempts }, reasonCode, limitation: 'Source failure is not evidence of favourable or unfavourable building-ground conditions.' }];
+  }
+  const layers = (resolution.probe?.payload as { layers?: string[] } | undefined)?.layers || [];
+  const selectedLayers = selectMapLayers(layers, 'mgsp-building-ground', 4);
+  const layerResults: Array<{ layer: string; info: any | null }> = [];
+  for (const layer of selectedLayers) layerResults.push({ layer, info: await wmsGetInfo(fetcher, resolution.endpoint.url, layer, lat, lng) });
+  const info = combinedFeatureInfo(layerResults);
+  const hasFeature = featureList(info).length > 0;
+  const reasonCode: AvailabilityReason | undefined = hasFeature ? undefined : 'NO_DATA';
+  return [{
+    id: 'pgi-mgsp-building-ground-site', category: 'MGśP building-ground conditions',
+    claim: hasFeature ? 'MGśP returned mapped building-ground context at the site coordinate.' : 'MGśP was queried successfully but returned no building-ground feature information at the tested coordinate.',
+    status: hasFeature ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: resolution.endpoint.url, datasetDate: today(),
+    spatialRelationship: 'Exact site centre queried on the 1:50,000 geoenvironmental building-ground map',
+    calculationMethod: 'Resolved MGśP WMS GetFeatureInfo across relevant layers with multi-format and WMS-version fallback parsing', confidence: hasFeature ? 'Medium' : 'Low',
+    value: { scale: '1:50,000', availableLayers: layers.slice(0, 100), queriedLayers: selectedLayers, featureInfo: info, descriptor: contextDescriptor(info, BUILDING_GROUND_PATTERNS), reasonCode, resolverProvenance: resolution.provenance },
+    reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE',
+    limitation: hasFeature ? 'MGśP building-ground conditions are mapped screening context at 1:50,000 scale. They are not a parcel-specific geotechnical classification and do not supply design bearing capacity, settlement, groundwater or foundation recommendations.' : 'No returned MGśP feature is not evidence that the site has no relevant building-ground condition. Original map coverage should be checked.'
+  }];
+}
+
+async function queryPolandPointContextSource(
+  lat: number,
+  lng: number,
+  logicalSourceId: 'PL_SMGP_DOCUMENTATION_POINTS' | 'PL_CBDG_RESEARCH_POINTS',
+  id: 'smgp-documentation' | 'cbdg-research',
+  title: string,
+  fetcher: FetchLike,
+  samplingPoints?: SpatialSamplePoint[]
+): Promise<PgiSiteEvidence[]> {
+  const resolution = await resolveWms(fetcher, logicalSourceId);
+  if (!resolution.endpoint) {
+    const reasonCode = reasonForResolution(resolution);
+    return [{ id: `pgi-${id}-points-unavailable`, category: title, claim: `${title}: approved route could not be validated.`, status: 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: 'https://baza.pgi.gov.pl/cbdg/geoportal/uslugi/gis', datasetDate: today(), spatialRelationship: 'Site and vicinity context', calculationMethod: 'Source resolver with WMS capability validation', confidence: 'Low', value: { reasonCode, attempts: resolution.attempts }, reasonCode, limitation: 'Source failure is not evidence that documentation or research points are absent.' }];
+  }
+  const layers = (resolution.probe?.payload as { layers?: string[] } | undefined)?.layers || [];
+  const selector = id === 'smgp-documentation' ? 'documentation-points' : 'research-points';
+  const selectedLayers = selectMapLayers(layers, selector, 2);
+  const points = samplingPoints?.length ? samplingPoints : [centreSample(lat, lng)];
+  const observations: Array<{ samplePoint: SpatialSamplePoint; properties: Record<string, unknown>; descriptor: string | null }> = [];
+  const seen = new Set<string>();
+  for (const point of points) {
+    for (const layer of selectedLayers.slice(0, point.scope === 'SITE' ? 2 : 1)) {
+      const info = await wmsGetInfo(fetcher, resolution.endpoint.url, layer, point.lat, point.lng);
+      for (const feature of featureList(info)) {
+        const properties = feature?.properties && typeof feature.properties === 'object' ? feature.properties as Record<string, unknown> : {};
+        const signature = JSON.stringify(properties);
+        if (!Object.keys(properties).length || seen.has(signature)) continue;
+        seen.add(signature);
+        observations.push({ samplePoint: point, properties, descriptor: contextDescriptor({ features: [{ properties }] }, DOCUMENT_POINT_PATTERNS) });
+      }
+    }
+  }
+  const hasFeature = observations.length > 0;
+  const reasonCode: AvailabilityReason | undefined = hasFeature ? undefined : 'NO_DATA';
+  return [{
+    id: `pgi-${id}-points-context`, category: title,
+    claim: hasFeature ? `${title}: ${observations.length} contextual feature response(s) were returned across deterministic site/parcel/vicinity samples.` : `${title}: the service was queried successfully but returned no feature at the tested sample coordinates.`,
+    status: hasFeature ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: resolution.endpoint.url, datasetDate: today(),
+    spatialRelationship: `${points.length} deterministic site/parcel/vicinity sample positions; no exact feature distance inferred from WMS`,
+    calculationMethod: 'Resolved WMS GetFeatureInfo sampling with multi-format and WMS-version fallback parsing and duplicate suppression', confidence: hasFeature ? 'Medium' : 'Low',
+    value: { observationCount: observations.length, observations: observations.slice(0, 20), availableLayers: layers.slice(0, 100), queriedLayers: selectedLayers, reasonCode, resolverProvenance: resolution.provenance },
+    reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'VICINITY',
+    limitation: hasFeature ? 'Documentation/research points are nearby contextual observations. They do not establish a continuous geological profile beneath the parcel; original point records and site investigation are required for site-specific use.' : 'No returned point at the sampled coordinates is not proof that no documentation or research point exists nearby.'
+  }];
+}
+
+export async function queryPolandDocumentationPoints(lat: number, lng: number, fetcher: FetchLike = fetch, samplingPoints?: SpatialSamplePoint[]): Promise<PgiSiteEvidence[]> {
+  const [smgp, research] = await Promise.all([
+    queryPolandPointContextSource(lat, lng, 'PL_SMGP_DOCUMENTATION_POINTS', 'smgp-documentation', 'SMGP documentation points', fetcher, samplingPoints),
+    queryPolandPointContextSource(lat, lng, 'PL_CBDG_RESEARCH_POINTS', 'cbdg-research', 'CBDG research points', fetcher, samplingPoints)
+  ]);
+  return [...smgp, ...research];
 }
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -423,7 +544,7 @@ export async function queryPolandBoreholes(lat: number, lng: number, radiusKm = 
     const info = layer ? await wmsGetInfo(fetcher, resolution.endpoint.url, layer, lat, lng) : null;
     const hasFeature = featureList(info).length > 0;
     const reasonCode: AvailabilityReason | undefined = hasFeature ? undefined : 'NO_DATA';
-    return [{ id: 'pgi-boreholes-wms-context', category: 'Boreholes', claim: hasFeature ? 'PGI-PIB borehole WMS returned contextual feature information.' : 'PGI-PIB borehole WMS was queried successfully but returned no feature at the site coordinate.', status: hasFeature ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Site-centre contextual query', calculationMethod: 'Resolved WMS GetFeatureInfo with multi-format parsing', confidence: hasFeature ? 'Medium' : 'Low', value: { featureInfo: info, reasonCode, resolverProvenance: resolution.provenance }, reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'VICINITY', limitation: 'WMS borehole context does not establish conditions beneath the parcel. Original borehole records must be reviewed.' }];
+    return [{ id: 'pgi-boreholes-wms-context', category: 'Boreholes', claim: hasFeature ? 'PGI-PIB borehole WMS returned contextual feature information.' : 'PGI-PIB borehole WMS was queried successfully but returned no feature at the site coordinate.', status: hasFeature ? 'VERIFIED' : 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Site-centre contextual query', calculationMethod: 'Resolved WMS GetFeatureInfo with multi-format and WMS-version fallback parsing', confidence: hasFeature ? 'Medium' : 'Low', value: { featureInfo: info, reasonCode, resolverProvenance: resolution.provenance }, reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'VICINITY', limitation: 'WMS borehole context does not establish conditions beneath the parcel. Original borehole records must be reviewed.' }];
   }
 
   const collection = (resolution.probe?.payload as { collection?: any } | undefined)?.collection;
@@ -448,6 +569,11 @@ export async function queryPolandBoreholes(lat: number, lng: number, radiusKm = 
 }
 
 export async function queryPolandSiteEvidence(lat: number, lng: number, fetcher: FetchLike = fetch, samplingPoints?: SpatialSamplePoint[]): Promise<PgiSiteEvidence[]> {
-  const [maps, boreholes] = await Promise.all([queryPolandGeologicalMaps(lat, lng, fetcher, samplingPoints), queryPolandBoreholes(lat, lng, 2, fetcher)]);
-  return [...maps, ...boreholes];
+  const [maps, boreholes, buildingGround, documentationPoints] = await Promise.all([
+    queryPolandGeologicalMaps(lat, lng, fetcher, samplingPoints),
+    queryPolandBoreholes(lat, lng, 2, fetcher),
+    queryPolandBuildingGroundContext(lat, lng, fetcher),
+    queryPolandDocumentationPoints(lat, lng, fetcher, samplingPoints)
+  ]);
+  return [...maps, ...boreholes, ...buildingGround, ...documentationPoints];
 }

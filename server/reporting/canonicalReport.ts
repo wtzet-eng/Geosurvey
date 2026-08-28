@@ -16,6 +16,7 @@ export interface CanonicalGeologyEvidence {
   unitName: string | null;
   lithology: string | null;
   geologicalAge: string | null;
+  geneticOrigin?: string | null;
   groundwaterRegime: string | null;
   status: EvidenceLevel;
   sourceName: string;
@@ -106,6 +107,12 @@ const evidenceReason = (report: VerifiedSiteReport, matcher: RegExp): Availabili
   return undefined;
 };
 
+const hasModelledValuation = (report: VerifiedSiteReport, support: CountrySupportProfile): boolean =>
+  support.maturity === 'SUPPORTED'
+  && report.valuation?.status === 'MODELLED'
+  && finite(report.valuation.indicativeMinPrice) !== null
+  && finite(report.valuation.indicativeMaxPrice) !== null;
+
 function supportRecord(id: string, claim: string, sourceName: string, sourceUrl?: string): EvidenceItem {
   return {
     id,
@@ -125,14 +132,23 @@ function supportRecord(id: string, claim: string, sourceName: string, sourceUrl?
 
 function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdapterProfile, support: CountrySupportProfile): EvidenceItem[] {
   const c = support.capabilities;
+  const modelledValuationAvailable = hasModelledValuation(report, support);
   const filtered = report.evidenceRegistry.flatMap(record => {
     const text = `${record.id} ${record.category}`.toLowerCase();
     if (!c.nationalCadastre && /cadastre|cadastr|parcel/.test(text)) return [];
     if (!c.nationalPlanning && /planning|zoning|mpzp|bebau/.test(text)) return [];
-    if (!c.nationalValuation && /valuation|market valuation|econom/.test(text)) return [];
+    if (!c.nationalValuation && /valuation|market valuation|econom/.test(text) && !(modelledValuationAvailable && record.id === 'valuation-indicative-model')) return [];
     if (!c.nationalRadon && /radon/.test(text)) return [];
     if (!c.nationalMining && /mining|mine|górnic|gornic/.test(text)) return [];
     if (!c.nationalGeology && !/soilgrids|soil/.test(text) && /geolog|lithogen|borehole|hydrogeolog/.test(text)) return [];
+    if (modelledValuationAvailable && record.id === 'valuation-indicative-model') {
+      return [{
+        ...record,
+        sourceName: 'GeoSurvey indicative valuation model',
+        sourceUrl: undefined,
+        limitation: 'Indicative model only. No direct comparable deeds or live national valuation records were queried; an authoritative valuation requires appropriate market evidence and a qualified valuer.'
+      }];
+    }
     if (record.id === 'flood-proximity-check' && !c.nationalFlood) {
       return [{
         ...record,
@@ -150,7 +166,7 @@ function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdap
   if (!c.nationalGeology || !c.nationalBoreholes || !c.nationalHydrogeology) notices.push(supportRecord('country-support-geoscience', 'One or more national geology, borehole or hydrogeology integrations are not implemented for this country.', profile.geologyAuthority, profile.geologyPortalUrl));
   if (!c.nationalFlood || !c.nationalRadon || !c.nationalMining) notices.push(supportRecord('country-support-hazards', 'One or more national flood, radon or mining-hazard integrations are not implemented for this country.', profile.floodAuthority, profile.floodPortalUrl));
   if (!c.nationalPlanning) notices.push(supportRecord('country-support-planning', 'Automated binding planning acquisition is not implemented; the named planning instrument is verification guidance only.', profile.planningInstrumentName));
-  if (!c.nationalValuation) notices.push(supportRecord('country-support-valuation', 'No implemented national transaction or valuation acquisition supports an automated site value conclusion.', profile.valuationDataSource));
+  if (!c.nationalValuation && !modelledValuationAvailable) notices.push(supportRecord('country-support-valuation', 'No implemented national transaction or valuation acquisition supports an automated site value conclusion.', profile.valuationDataSource));
   return [...filtered, ...notices];
 }
 
@@ -178,7 +194,9 @@ function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountryS
     environmentalAndFlood: { ...raw.environmentalAndFlood, max: 15, rationale: c.nationalFlood ? raw.environmentalAndFlood.rationale : 'Cross-border environmental and hydrology context only; unsupported national flood mapping is excluded from the evidence claim.' },
     planningAndMarket: c.nationalPlanning || c.nationalValuation
       ? { ...raw.planningAndMarket, max: 10 }
-      : { score: 0, max: 0, rationale: 'Planning and valuation are outside current automated national coverage and are excluded from the score denominator.' }
+      : { score: 0, max: 0, rationale: hasModelledValuation(report, support)
+        ? 'National planning and valuation acquisition are outside current automated coverage. The indicative valuation model may be shown separately but is not scored as national evidence.'
+        : 'Planning and valuation are outside current automated national coverage and are excluded from the score denominator.' }
   };
   const entries = Object.values(breakdown);
   const earned = entries.reduce((sum, item) => sum + item.score, 0);
@@ -209,6 +227,7 @@ function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountryS
 export function createCanonicalReport(report: VerifiedSiteReport, profile: CountryAdapterProfile): CanonicalReport {
   const support = getCountrySupport(report.countryCode);
   const c = support.capabilities;
+  const modelledValuationAvailable = hasModelledValuation(report, support);
   const extended = report as VerifiedSiteReport & {
     geosurvey_context?: Record<string, unknown>;
     ground_context?: GroundContextSummary;
@@ -236,6 +255,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
       unitName: geologyUnit,
       lithology: c.nationalGeology ? scientific(context.lithology_type) || scientific(report.soil.lithologyType) : null,
       geologicalAge: c.nationalGeology ? scientific(context.geological_period_era) || scientific(report.soil.stratigraphicPeriod) : null,
+      geneticOrigin: c.nationalGeology ? scientific(context.genetic_origin) : null,
       groundwaterRegime: c.nationalHydrogeology ? scientific(report.soil.groundwaterRegime) : null,
       status: geologyStatus,
       sourceName: profile.geologyAuthority,
@@ -282,6 +302,8 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     environment: { protectedAreaName: scientific(report.environment.nearestProtectedAreaName), distanceM: finite(report.environment.distanceToNatura2000M), status: report.environment.status, sourceName: report.environment.sourceName, reasonCode: report.environment.status === 'REQUIRES_VERIFICATION' ? 'SOURCE_UNAVAILABLE' : undefined },
     valuation: c.nationalValuation
       ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency, status: report.valuation.status, comparableCount: report.valuation.comparableEvidenceCount, sourceName: profile.valuationDataSource }
+      : modelledValuationAvailable
+      ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency || profile.currency, status: 'MODELLED', comparableCount: report.valuation.comparableEvidenceCount, sourceName: 'GeoSurvey indicative valuation model' }
       : { min: null, max: null, median: null, currency: report.valuation.currency || profile.currency, status: 'REQUIRES_VERIFICATION', comparableCount: 0, sourceName: profile.valuationDataSource, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     evidenceScore: score,
     sourceRecords: visibleSourceRecords(report, support),
