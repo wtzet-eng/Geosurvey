@@ -83,16 +83,23 @@ function rawReport(countryCode: string): any {
   };
 }
 
-test('country support maturity is explicit and unknown countries fail closed', () => {
+test('country support maturity is explicit, France can be partially integrated, and unknown countries fail closed', () => {
   const pl = getCountrySupport('PL');
   const gb = getCountrySupport('GB');
+  const fr = getCountrySupport('FR');
   assert.equal(pl.maturity, 'SUPPORTED');
   assert.equal(pl.capabilities.nationalCadastre, true);
   assert.equal(pl.capabilities.nationalGeology, true);
   assert.equal(gb.maturity, 'SUPPORTED');
   assert.equal(gb.capabilities.nationalGeology, true);
   assert.equal(gb.capabilities.nationalCadastre, false);
-  for (const code of ['DE', 'FR', 'ES', 'IT', 'NL', 'CH', 'AT', 'EU', 'XX']) {
+  assert.equal(fr.maturity, 'LIMITED');
+  assert.equal(fr.capabilities.nationalGeology, true);
+  assert.equal(fr.capabilities.nationalBoreholes, true);
+  assert.equal(fr.capabilities.nationalCadastre, false);
+  assert.equal(fr.capabilities.nationalPlanning, false);
+  assert.equal(fr.capabilities.nationalValuation, false);
+  for (const code of ['DE', 'ES', 'IT', 'NL', 'CH', 'AT', 'EU', 'XX']) {
     const support = getCountrySupport(code);
     assert.equal(support.maturity, 'LIMITED');
     assert.ok(Object.values(support.capabilities).every(value => value === false));
@@ -134,6 +141,32 @@ test('limited coverage and withheld valuation are localized without zero or unde
     assert.doesNotMatch(text, /123000|456000|250\s*EUR|0\s*[–-]\s*0|undefined/);
     assert.doesNotMatch(text, /3\.0\s*m/);
   }
+});
+
+test('partially integrated France still withholds unsupported planning, cadastre and valuation conclusions', () => {
+  const report = rawReport('FR');
+  report.geosurvey_context = {
+    geological_unit_name: 'Alluvions récentes',
+    lithology_type: 'sables et graviers',
+    geological_period_era: 'Holocène',
+    evidence_level: 'VERIFIED',
+    source_name: 'Bureau de Recherches Géologiques et Minières (BRGM)',
+    source_url: 'https://infoterre.brgm.fr/'
+  };
+  const canonical = createCanonicalReport(report, getCountryProfile('FR'));
+  assert.equal(canonical.support.maturity, 'LIMITED');
+  assert.equal(canonical.support.capabilities.nationalGeology, true);
+  assert.equal(canonical.geology.unitName, 'Alluvions récentes');
+  assert.equal(canonical.geology.lithology, 'sables et graviers');
+  assert.equal(canonical.geology.geologicalAge, 'Holocène');
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.valuation.min, null);
+  assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.support.capabilities.nationalCadastre, false);
+  const rendered = renderLocalizedReport(canonical, 'en');
+  assert.match(rendered.countrySupport.notice, /selected national source integrations are available/i);
+  assert.match(rendered.sections.geohazard_risk.summary, /Alluvions récentes/i);
+  assert.doesNotMatch(JSON.stringify(rendered), /123000|456000/);
 });
 
 test('supported Poland keeps the modelled valuation benchmark without claiming a national valuation feed', () => {
