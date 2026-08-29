@@ -48,6 +48,7 @@ const textureLabels: Record<ReportLanguage, Record<string, string>> = {
 const copy = {
   en: {
     heading: 'Near-surface material — soil model',
+    source: 'Source',
     sandy: 'The model indicates a predominance of the sand fraction in the near-surface soil.',
     silty: 'The model indicates a predominance of the silt fraction in the near-surface soil.',
     clayey: 'The model indicates a predominance of the clay fraction in the near-surface soil.',
@@ -56,6 +57,7 @@ const copy = {
   },
   de: {
     heading: 'Oberflächennahes Material — Bodenmodell',
+    source: 'Quelle',
     sandy: 'Das Modell weist auf einen überwiegenden Sandanteil im oberflächennahen Boden hin.',
     silty: 'Das Modell weist auf einen überwiegenden Schluffanteil im oberflächennahen Boden hin.',
     clayey: 'Das Modell weist auf einen überwiegenden Tonanteil im oberflächennahen Boden hin.',
@@ -64,6 +66,7 @@ const copy = {
   },
   pl: {
     heading: 'Materiał przypowierzchniowy — model glebowy',
+    source: 'Źródło',
     sandy: 'Model wskazuje przewagę frakcji piaszczystej w warstwie przypowierzchniowej.',
     silty: 'Model wskazuje przewagę frakcji pyłowej w warstwie przypowierzchniowej.',
     clayey: 'Model wskazuje przewagę frakcji ilastej w warstwie przypowierzchniowej.',
@@ -95,5 +98,5 @@ export function renderNearSurfaceMaterialFallback(canonical: CanonicalReport, la
   const dominance = dominant?.key === 'sand' ? c.sandy : dominant?.key === 'silt' ? c.silty : dominant?.key === 'clay' ? c.clayey : '';
   const texturePart = localizedTexture ? `${localizedTexture}.` : '';
   const fractionPart = measured.length ? c.fractions(sand, silt, clay) : '';
-  return `${c.heading}: ${texturePart} ${dominance} ${fractionPart} Źródło / source: ${canonical.soil.sourceName}. ${c.limitation}`.replace(/\s+/g, ' ').trim();
+  return `${c.heading}: ${texturePart} ${dominance} ${fractionPart} ${c.source}: ${canonical.soil.sourceName}. ${c.limitation}`.replace(/\s+/g, ' ').trim();
 }
