@@ -81,9 +81,9 @@ export function localizeSoilTexture(texture: string | null, language: ReportLang
 }
 
 export function renderNearSurfaceMaterialFallback(canonical: CanonicalReport, language: ReportLanguage): string | null {
-  // Validated for country packs that explicitly separate national mapped geology
-  // from SoilGrids pedological/near-surface evidence.
-  if (!['PL', 'FR'].includes(canonical.countryCode) || canonical.geology.unitName) return null;
+  // Validated only for country packs that actively query national mapped geology
+  // and explicitly keep SoilGrids as separate pedological/near-surface evidence.
+  if (!['PL', 'FR'].includes(canonical.countryCode) || !canonical.support.capabilities.nationalGeology || canonical.geology.unitName) return null;
   const localizedTexture = localizeSoilTexture(canonical.soil.texture, language);
   const sand = canonical.soil.sandPct;
   const silt = canonical.soil.siltPct;
