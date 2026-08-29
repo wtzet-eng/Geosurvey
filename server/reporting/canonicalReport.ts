@@ -113,6 +113,9 @@ const hasModelledValuation = (report: VerifiedSiteReport, support: CountrySuppor
   && finite(report.valuation.indicativeMinPrice) !== null
   && finite(report.valuation.indicativeMaxPrice) !== null;
 
+const modelledValuationSource = (profile: CountryAdapterProfile): string =>
+  `GeoSurvey · ${profile.valuationDataSource} · ${profile.baseValuationPerSqm} ${profile.currency}/m²`;
+
 function supportRecord(id: string, claim: string, sourceName: string, sourceUrl?: string): EvidenceItem {
   return {
     id,
@@ -144,9 +147,9 @@ function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdap
     if (modelledValuationAvailable && record.id === 'valuation-indicative-model') {
       return [{
         ...record,
-        sourceName: 'GeoSurvey indicative valuation model',
+        sourceName: modelledValuationSource(profile),
         sourceUrl: undefined,
-        limitation: 'Indicative model only. No direct comparable deeds or live national valuation records were queried; an authoritative valuation requires appropriate market evidence and a qualified valuer.'
+        limitation: 'Indicative model only. The named market sources are benchmark references for the configured regional baseline; no direct comparable deeds or live national valuation records were queried. An authoritative valuation requires current market evidence and a qualified valuer.'
       }];
     }
     if (record.id === 'flood-proximity-check' && !c.nationalFlood) {
@@ -303,7 +306,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     valuation: c.nationalValuation
       ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency, status: report.valuation.status, comparableCount: report.valuation.comparableEvidenceCount, sourceName: profile.valuationDataSource }
       : modelledValuationAvailable
-      ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency || profile.currency, status: 'MODELLED', comparableCount: report.valuation.comparableEvidenceCount, sourceName: 'GeoSurvey indicative valuation model' }
+      ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency || profile.currency, status: 'MODELLED', comparableCount: report.valuation.comparableEvidenceCount, sourceName: modelledValuationSource(profile) }
       : { min: null, max: null, median: null, currency: report.valuation.currency || profile.currency, status: 'REQUIRES_VERIFICATION', comparableCount: 0, sourceName: profile.valuationDataSource, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     evidenceScore: score,
     sourceRecords: visibleSourceRecords(report, support),
