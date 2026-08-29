@@ -13,6 +13,7 @@ import { getUKVerificationChecklist } from './server/services/ukRecommendationsS
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
+import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
 import { getCountrySupport } from './src/data/countrySupport';
 
 const app = express();
@@ -165,6 +166,12 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     stage = 'report-assembly';
     const canonicalReport = createCanonicalReport(evidenceReport, cProfile);
     const presentation = renderLocalizedReport(canonicalReport, language);
+    const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
+    if (franceGroundPresentation) {
+      presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${franceGroundPresentation.narrative}`.trim();
+      const existingSource = presentation.sections.soil_and_ground.source_cited;
+      presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...franceGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
+    }
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && areaSize > 0 ? value / areaSize : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
 
@@ -173,7 +180,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       confidence_level: presentation.confidenceLabel,
       evidence_score: canonicalReport.evidenceScore,
       country_support: presentation.countrySupport,
-      ground_context: presentation.groundContext,
+      ground_context: franceGroundPresentation ? { ...presentation.groundContext, france_context: franceGroundPresentation } : presentation.groundContext,
       canonical_evidence: canonicalReport,
       evidence_registry: presentation.evidenceRegistry,
       verification_checklist: presentation.verificationChecklist,
