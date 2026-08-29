@@ -62,6 +62,15 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
       nationalBoreholes: true,
       nationalHydrogeology: true
     }
+  },
+  FR: {
+    countryCode: 'FR',
+    maturity: 'LIMITED',
+    capabilities: {
+      ...NONE,
+      nationalGeology: true,
+      nationalBoreholes: true
+    }
   }
 };
 
@@ -83,15 +92,18 @@ const labels = {
 const notices = {
   en: {
     SUPPORTED: 'National source integrations are available for selected capabilities. Unsupported categories still require official verification.',
-    LIMITED: 'Limited coverage: national cadastre, geology, planning, flood and valuation integrations are not yet automated for this country. The report still uses validated cross-border terrain, OpenStreetMap and SoilGrids evidence when available, and points to official authorities for manual verification.'
+    LIMITED: 'Limited coverage: national cadastre, geology, planning, flood and valuation integrations are not yet automated for this country. The report still uses validated cross-border terrain, OpenStreetMap and SoilGrids evidence when available, and points to official authorities for manual verification.',
+    PARTIAL: 'Limited coverage: selected national source integrations are available, while other national categories still require official verification. The report also retains validated cross-border terrain, OpenStreetMap and SoilGrids evidence when available.'
   },
   de: {
     SUPPORTED: 'Für ausgewählte Bereiche stehen nationale Quellenintegrationen zur Verfügung. Nicht unterstützte Kategorien erfordern weiterhin eine amtliche Prüfung.',
-    LIMITED: 'Begrenzte Abdeckung: Nationale Kataster-, Geologie-, Planungs-, Hochwasser- und Bewertungsquellen sind für dieses Land noch nicht automatisiert. Der Bericht nutzt weiterhin validierte länderübergreifende Gelände-, OpenStreetMap- und SoilGrids-Daten, sofern verfügbar, und verweist zur manuellen Prüfung auf die zuständigen Behörden.'
+    LIMITED: 'Begrenzte Abdeckung: Nationale Kataster-, Geologie-, Planungs-, Hochwasser- und Bewertungsquellen sind für dieses Land noch nicht automatisiert. Der Bericht nutzt weiterhin validierte länderübergreifende Gelände-, OpenStreetMap- und SoilGrids-Daten, sofern verfügbar, und verweist zur manuellen Prüfung auf die zuständigen Behörden.',
+    PARTIAL: 'Begrenzte Abdeckung: Für ausgewählte Bereiche stehen nationale Quellenintegrationen zur Verfügung; andere nationale Kategorien erfordern weiterhin eine amtliche Prüfung. Zusätzlich werden validierte länderübergreifende Gelände-, OpenStreetMap- und SoilGrids-Daten genutzt, sofern verfügbar.'
   },
   pl: {
     SUPPORTED: 'Dla wybranych zakresów dostępne są integracje ze źródłami krajowymi. Nieobsługiwane kategorie nadal wymagają urzędowej weryfikacji.',
-    LIMITED: 'Ograniczony zakres: krajowe integracje katastralne, geologiczne, planistyczne, powodziowe i wycenowe nie są jeszcze zautomatyzowane dla tego kraju. Raport nadal wykorzystuje zweryfikowane dane transgraniczne o terenie, OpenStreetMap i SoilGrids, jeśli są dostępne, oraz wskazuje właściwe organy do ręcznej weryfikacji.'
+    LIMITED: 'Ograniczony zakres: krajowe integracje katastralne, geologiczne, planistyczne, powodziowe i wycenowe nie są jeszcze zautomatyzowane dla tego kraju. Raport nadal wykorzystuje zweryfikowane dane transgraniczne o terenie, OpenStreetMap i SoilGrids, jeśli są dostępne, oraz wskazuje właściwe organy do ręcznej weryfikacji.',
+    PARTIAL: 'Ograniczony zakres: dla wybranych kategorii dostępne są integracje ze źródłami krajowymi, a pozostałe zakresy nadal wymagają urzędowej weryfikacji. Raport zachowuje również zweryfikowane dane transgraniczne o terenie, OpenStreetMap i SoilGrids, jeśli są dostępne.'
   }
 } as const;
 
@@ -104,5 +116,7 @@ export function getCountrySupportLabel(countryCode: string, language = 'en'): st
 
 export function getCountrySupportNotice(countryCode: string, language = 'en'): string {
   const lang = normalizeLanguage(language);
-  return notices[lang][getCountrySupport(countryCode).maturity];
+  const support = getCountrySupport(countryCode);
+  if (support.maturity === 'LIMITED' && Object.values(support.capabilities).some(Boolean)) return notices[lang].PARTIAL;
+  return notices[lang][support.maturity];
 }
