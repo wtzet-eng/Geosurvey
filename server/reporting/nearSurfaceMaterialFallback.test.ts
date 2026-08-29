@@ -91,7 +91,8 @@ test('Polish report retains sandy near-surface evidence when mapped geology is u
   assert.match(geology.detail, /piasek 72%/i);
   assert.match(geology.detail, /ISRIC SoilGrids/i);
   assert.match(geology.detail, /Nie potwierdza litologii geologicznej/i);
-  assert.equal(geology.source_cited, 'PIG-PIB');
+  assert.match(geology.source_cited || '', /PIG-PIB/);
+  assert.match(geology.source_cited || '', /ISRIC SoilGrids/);
   assert.doesNotMatch(geology.summary, /piaski|piasek/i);
   assert.match(rendered.sections.soil_and_ground.summary, /glina piaszczysta/i);
 });
