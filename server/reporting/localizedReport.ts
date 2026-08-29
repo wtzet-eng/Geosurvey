@@ -3,6 +3,7 @@ import { renderGeologicalInterpretation, resolveGeologicalInterpretation } from 
 import { renderIndicativeGroundOrientation, resolveIndicativeGroundOrientation } from '../interpretation/orientation';
 import { getCountrySupportLabel, getCountrySupportNotice } from '../../src/data/countrySupport';
 import { GroundVariabilityClass, MappedMaterialIndicator } from '../services/groundContextService';
+import { localizeSoilTexture, renderNearSurfaceMaterialFallback } from './nearSurfaceMaterial';
 
 type Section = { summary: string; detail: string; evidence_level: string; source_cited?: string; limitation_notice?: string };
 
@@ -193,12 +194,16 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const supportNotice = getCountrySupportNotice(canonical.countryCode, language);
   const geologyUnit = value(canonical.geology.unitName, unavailable);
   const terrainText = canonical.terrain.elevationM === null ? t.terrainMissing as string : interpolate(t.terrain as string, { elevation: canonical.terrain.elevationM, slope: value(canonical.terrain.slopeDegrees, unavailable) });
-  const soilText = interpolate(t.soil as string, { texture: canonical.soil.texture || localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language), bearing: canonical.soil.bearingCapacity || localizeAvailabilityReason('INSUFFICIENT_EVIDENCE', language) });
+  const localizedSoilTexture = localizeSoilTexture(canonical.soil.texture, language);
+  const soilText = interpolate(t.soil as string, { texture: localizedSoilTexture || localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language), bearing: canonical.soil.bearingCapacity || localizeAvailabilityReason('INSUFFICIENT_EVIDENCE', language) });
   const geologyText = canonical.geology.unitName ? interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: canonical.geology.unitName }) : t.geologyMissing as string;
+  const nearSurfaceFallback = renderNearSurfaceMaterialFallback(canonical, language);
   const resolvedInterpretation = canonical.countryCode === 'GB' ? resolveGeologicalInterpretation(canonical.geology) : null;
   const interpretation = resolvedInterpretation ? renderGeologicalInterpretation(resolvedInterpretation, language) : null;
-  const geologyDetail = interpretation ? `${geologyText} ${interpretation.summary} ${interpretation.disclaimer}` : geologyText;
-  const geologySource = interpretation ? `${canonical.geology.sourceName}; ${interpretation.source.title} (${interpretation.source.publicationId}) — ${interpretation.source.url}` : canonical.geology.sourceName;
+  const geologyDetailBase = interpretation ? `${geologyText} ${interpretation.summary} ${interpretation.disclaimer}` : geologyText;
+  const geologyDetail = nearSurfaceFallback ? `${geologyDetailBase} ${nearSurfaceFallback}` : geologyDetailBase;
+  const geologySourceBase = interpretation ? `${canonical.geology.sourceName}; ${interpretation.source.title} (${interpretation.source.publicationId}) — ${interpretation.source.url}` : canonical.geology.sourceName;
+  const geologySource = nearSurfaceFallback ? `${geologySourceBase}; ${canonical.soil.sourceName}` : geologySourceBase;
   const successfulSiteContext = canonical.evidenceRecords.map(record => ({ record, presentation: siteContextRecordPresentation(record, language) })).filter(item => item.presentation !== null);
   const hasSuccessfulSiteContext = successfulSiteContext.length > 0;
   const polishOrientation = canonical.countryCode === 'PL'
@@ -306,8 +311,8 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const statusLabels = { en: { VERIFIED: 'Verified', MODELLED: 'Modelled', REQUIRES_VERIFICATION: 'Requires verification' }, de: { VERIFIED: 'Verifiziert', MODELLED: 'Modelliert', REQUIRES_VERIFICATION: 'Prüfung erforderlich' }, pl: { VERIFIED: 'Zweryfikowane', MODELLED: 'Modelowane', REQUIRES_VERIFICATION: 'Wymaga weryfikacji' } } as const;
   const dataSources = canonical.sourceRecords.map(source => ({ name: source.name, url: source.url, authority: source.name, verification_status: statusLabels[language][source.status] }));
   const summaryCore = valuationAvailable
-    ? interpolate(t.summary as string, { country: countryName, unit: geologyUnit, terrain: terrainText, soil: canonical.soil.texture || localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language), score: canonical.evidenceScore.totalScore, min: canonical.valuation.min!.toLocaleString(language), max: canonical.valuation.max!.toLocaleString(language), currency: canonical.valuation.currency })
-    : interpolate(t.summaryNoValuation as string, { country: countryName, unit: geologyUnit, terrain: terrainText, soil: canonical.soil.texture || localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language), score: canonical.evidenceScore.totalScore });
+    ? interpolate(t.summary as string, { country: countryName, unit: geologyUnit, terrain: terrainText, soil: localizedSoilTexture || localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language), score: canonical.evidenceScore.totalScore, min: canonical.valuation.min!.toLocaleString(language), max: canonical.valuation.max!.toLocaleString(language), currency: canonical.valuation.currency })
+    : interpolate(t.summaryNoValuation as string, { country: countryName, unit: geologyUnit, terrain: terrainText, soil: localizedSoilTexture || localizeAvailabilityReason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED', language), score: canonical.evidenceScore.totalScore });
   const summary = canonical.support.maturity === 'LIMITED' ? `${summaryCore} ${supportNotice}` : summaryCore;
   return {
     language,
@@ -328,7 +333,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     },
     sections: {
       soil_and_ground: section(soilText, groundDetail, canonical.soil.status, canonical.soil.sourceName, unavailableNotice(canonical.soil.reasonCode)),
-      geohazard_risk: section(interpolate(t.geology as string, { source: canonical.geology.sourceName, unit: geologyUnit }), geologyDetail, canonical.geology.status, geologySource, unavailableNotice(canonical.geology.reasonCode)),
+      geohazard_risk: section(geologyText, geologyDetail, canonical.geology.status, geologySource, unavailableNotice(canonical.geology.reasonCode)),
       flooding_risk: section(floodText, unavailableNotice(canonical.flood.reasonCode) || t.authoritative as string, canonical.flood.status, canonical.flood.sourceName, unavailableNotice(canonical.flood.reasonCode)),
       zoning_and_land_use: section(interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), unavailableNotice(canonical.planning.reasonCode) || t.authoritative as string, canonical.planning.status, canonical.planning.sourceName, unavailableNotice(canonical.planning.reasonCode)),
       building_regulations: section(t.authoritative as string, interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), canonical.planning.status, canonical.planning.authorityName, unavailableNotice(canonical.planning.reasonCode)),
