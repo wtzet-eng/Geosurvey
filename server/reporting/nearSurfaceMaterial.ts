@@ -81,9 +81,9 @@ export function localizeSoilTexture(texture: string | null, language: ReportLang
 }
 
 export function renderNearSurfaceMaterialFallback(canonical: CanonicalReport, language: ReportLanguage): string | null {
-  // This fallback is currently validated for the Polish reporting profile only.
-  // Other countries retain their existing geology/source presentation until an equivalent contract is tested there.
-  if (canonical.countryCode !== 'PL' || canonical.geology.unitName) return null;
+  // Validated for country packs that explicitly separate national mapped geology
+  // from SoilGrids pedological/near-surface evidence.
+  if (!['PL', 'FR'].includes(canonical.countryCode) || canonical.geology.unitName) return null;
   const localizedTexture = localizeSoilTexture(canonical.soil.texture, language);
   const sand = canonical.soil.sandPct;
   const silt = canonical.soil.siltPct;
