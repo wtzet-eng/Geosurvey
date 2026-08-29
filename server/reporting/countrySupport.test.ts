@@ -145,11 +145,13 @@ test('supported Poland keeps the modelled valuation benchmark without claiming a
   assert.equal(canonical.valuation.min, 123000);
   assert.equal(canonical.valuation.max, 456000);
   assert.equal(canonical.valuation.median, 250000);
-  assert.equal(canonical.valuation.sourceName, 'GeoSurvey indicative valuation model');
+  assert.match(canonical.valuation.sourceName, /GeoSurvey/);
+  assert.match(canonical.valuation.sourceName, /RCiWN/);
+  assert.match(canonical.valuation.sourceName, /420 PLN\/m²/);
   assert.equal(canonical.valuation.reasonCode, undefined);
   const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
   assert.ok(valuationEvidence);
-  assert.equal(valuationEvidence?.sourceName, 'GeoSurvey indicative valuation model');
+  assert.equal(valuationEvidence?.sourceName, canonical.valuation.sourceName);
   assert.match(valuationEvidence?.limitation || '', /No direct comparable deeds or live national valuation records were queried/i);
   assert.ok(!canonical.evidenceRecords.some(record => record.id === 'country-support-valuation'));
 
@@ -157,5 +159,7 @@ test('supported Poland keeps the modelled valuation benchmark without claiming a
   const market = rendered.sections.market_and_comparables;
   assert.equal(market.evidence_level, 'MODELLED');
   assert.match(market.summary, /123.?000.*456.?000.*PLN/i);
+  assert.match(market.source_cited || '', /RCiWN/);
+  assert.match(market.source_cited || '', /420 PLN\/m²/);
   assert.doesNotMatch(`${market.summary} ${market.detail} ${market.limitation_notice || ''}`, /nie jest obsługiwane dla wybranego kraju/i);
 });
