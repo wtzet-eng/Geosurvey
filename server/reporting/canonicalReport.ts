@@ -243,12 +243,19 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
   const terrainAvailable = finite(report.terrain.elevationAmsl) !== null && finite(report.terrain.averageSlopeDegrees) !== null;
   const soilAvailable = report.soil.status !== 'REQUIRES_VERIFICATION' && scientific(report.soil.usdaTextureClass) !== null;
   const rawGeologyUnit = scientific(context.geological_unit_name) || scientific(report.soil.geologicalUnit);
+  const rawLithology = scientific(context.lithology_type) || scientific(report.soil.lithologyType);
+  const rawGeologicalAge = scientific(context.geological_period_era) || scientific(report.soil.stratigraphicPeriod);
+  const rawGeneticOrigin = scientific(context.genetic_origin);
   const geologyUnit = c.nationalGeology ? rawGeologyUnit : null;
+  const geologyLithology = c.nationalGeology ? rawLithology : null;
+  const geologyAge = c.nationalGeology ? rawGeologicalAge : null;
+  const geologyGenesis = c.nationalGeology ? rawGeneticOrigin : null;
+  const hasMappedGeology = Boolean(geologyUnit || geologyLithology || geologyAge || geologyGenesis);
   const geologyStatus: EvidenceLevel = c.nationalGeology ? ((context.evidence_level as EvidenceLevel) || report.soil.status) : 'REQUIRES_VERIFICATION';
-  const geologyReason: AvailabilityReason | undefined = c.nationalGeology ? (geologyUnit ? undefined : evidenceReason(report, /pgi-(?:smgp|mgp|mlp|engineering)|bgs|geolog/i) || 'SOURCE_UNAVAILABLE') : 'NOT_SUPPORTED_FOR_COUNTRY';
+  const geologyReason: AvailabilityReason | undefined = c.nationalGeology ? (hasMappedGeology ? undefined : evidenceReason(report, /pgi-(?:smgp|mgp|mlp|engineering)|bgs|brgm|geolog/i) || 'SOURCE_UNAVAILABLE') : 'NOT_SUPPORTED_FOR_COUNTRY';
   const soilTexture = scientific(report.soil.usdaTextureClass);
   const records = visibleEvidenceRecords(report, profile, support);
-  const score = supportAwareEvidenceScore(report, support, records, Boolean(geologyUnit && geologyStatus === 'VERIFIED'));
+  const score = supportAwareEvidenceScore(report, support, records, Boolean(hasMappedGeology && geologyStatus === 'VERIFIED'));
   return {
     countryCode: report.countryCode,
     countryName: profile.countryName,
@@ -256,9 +263,9 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     authorities: { cadastre: profile.cadastreAuthority, geology: profile.geologyAuthority, flood: profile.floodAuthority, planning: profile.planningInstrumentName, valuation: profile.valuationDataSource },
     geology: {
       unitName: geologyUnit,
-      lithology: c.nationalGeology ? scientific(context.lithology_type) || scientific(report.soil.lithologyType) : null,
-      geologicalAge: c.nationalGeology ? scientific(context.geological_period_era) || scientific(report.soil.stratigraphicPeriod) : null,
-      geneticOrigin: c.nationalGeology ? scientific(context.genetic_origin) : null,
+      lithology: geologyLithology,
+      geologicalAge: geologyAge,
+      geneticOrigin: geologyGenesis,
       groundwaterRegime: c.nationalHydrogeology ? scientific(report.soil.groundwaterRegime) : null,
       status: geologyStatus,
       sourceName: profile.geologyAuthority,
