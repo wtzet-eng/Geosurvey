@@ -34,29 +34,13 @@ export const EUROPEAN_COUNTRIES: Country[] = [
   { code: 'IS', name: 'Iceland', language: 'is', currency: 'ISK', defaultCenter: [64.9631, -19.0208], defaultZoom: 6 }
 ];
 
+// Keep the selector aligned with the languages the report renderer can actually
+// localize end-to-end. Additional UI translations remain available elsewhere,
+// but should not be advertised as report languages until their reader pack is complete.
 export const REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'pl', label: 'Polski (Polish)' },
   { code: 'en', label: 'English' },
-  { code: 'de', label: 'Deutsch (German)' },
-  { code: 'fr', label: 'Français (French)' },
-  { code: 'es', label: 'Español (Spanish)' },
-  { code: 'it', label: 'Italiano (Italian)' },
-  { code: 'nl', label: 'Nederlands (Dutch)' },
-  { code: 'sv', label: 'Svenska (Swedish)' },
-  { code: 'da', label: 'Dansk (Danish)' },
-  { code: 'fi', label: 'Suomi (Finnish)' },
-  { code: 'hu', label: 'Magyar (Hungarian)' },
-  { code: 'cs', label: 'Čeština (Czech)' },
-  { code: 'ro', label: 'Română (Romanian)' },
-  { code: 'el', label: 'Ελληνικά (Greek)' },
-  { code: 'pt', label: 'Português (Portuguese)' },
-  { code: 'hr', label: 'Hrvatski (Croatian)' },
-  { code: 'sk', label: 'Slovenčina (Slovak)' },
-  { code: 'sl', label: 'Slovenščina (Slovenian)' },
-  { code: 'et', label: 'Eesti (Estonian)' },
-  { code: 'lv', label: 'Latviešu (Latvian)' },
-  { code: 'lt', label: 'Lietuvių (Lithuanian)' },
-  { code: 'no', label: 'Norsk (Norwegian)' }
+  { code: 'de', label: 'Deutsch (German)' }
 ];
 
 export interface GeoSurveyProfile {
