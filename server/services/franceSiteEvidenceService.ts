@@ -257,7 +257,11 @@ async function wfsCapabilities(fetcher: FetchLike, url: string): Promise<{ respo
   return { response: null, types: [] };
 }
 
-function parsePointFromBlock(block: string, siteLat: number, siteLng: number): { lat: number; lng: number } | null {
+type Coordinate = { lng: number; lat: number };
+type PolygonGeometry = { outer: Coordinate[]; holes: Coordinate[][] };
+type WfsFeature = { properties: Record<string, string>; point: Coordinate | null; polygons: PolygonGeometry[] };
+
+function parsePointFromBlock(block: string, siteLat: number, siteLng: number): Coordinate | null {
   const coordinateText = block.match(/<(?:gml:)?coordinates[^>]*>\s*([^<]+)\s*<\/(?:gml:)?coordinates>/i)?.[1]
     || block.match(/<(?:gml:)?pos[^>]*>\s*([^<]+)\s*<\/(?:gml:)?pos>/i)?.[1];
   if (!coordinateText) return null;
@@ -269,8 +273,71 @@ function parsePointFromBlock(block: string, siteLat: number, siteLng: number): {
   return candidates.sort((a, b) => (a.lat - siteLat) ** 2 + (a.lng - siteLng) ** 2 - ((b.lat - siteLat) ** 2 + (b.lng - siteLng) ** 2))[0];
 }
 
-function parseWfsFeatures(xml: string, siteLat: number, siteLng: number): Array<{ properties: Record<string, string>; point: { lat: number; lng: number } | null }> {
-  const records: Array<{ properties: Record<string, string>; point: { lat: number; lng: number } | null }> = [];
+function parseCoordinateSequence(text: string): Coordinate[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  if (trimmed.includes(',')) {
+    return trimmed.split(/\s+/).map(pair => pair.split(',').map(Number)).filter(pair => pair.length >= 2 && pair.every(Number.isFinite)).map(pair => ({ lng: pair[0], lat: pair[1] }));
+  }
+  const numbers = trimmed.split(/\s+/).map(Number).filter(Number.isFinite);
+  const coordinates: Coordinate[] = [];
+  for (let i = 0; i + 1 < numbers.length; i += 2) coordinates.push({ lng: numbers[i], lat: numbers[i + 1] });
+  return coordinates;
+}
+
+function ringFromBlock(block: string): Coordinate[] {
+  const coordinateText = block.match(/<(?:gml:)?coordinates[^>]*>\s*([^<]+)\s*<\/(?:gml:)?coordinates>/i)?.[1]
+    || block.match(/<(?:gml:)?posList[^>]*>\s*([^<]+)\s*<\/(?:gml:)?posList>/i)?.[1];
+  return coordinateText ? parseCoordinateSequence(coordinateText) : [];
+}
+
+function parsePolygonsFromBlock(block: string): PolygonGeometry[] {
+  const polygons: PolygonGeometry[] = [];
+  const polygonRe = /<(?:gml:)?Polygon\b[^>]*>([\s\S]*?)<\/(?:gml:)?Polygon>/gi;
+  let polygonMatch: RegExpExecArray | null;
+  while ((polygonMatch = polygonRe.exec(block))) {
+    const polygonBlock = polygonMatch[1];
+    const exterior = polygonBlock.match(/<(?:gml:)?(?:outerBoundaryIs|exterior)\b[^>]*>([\s\S]*?)<\/(?:gml:)?(?:outerBoundaryIs|exterior)>/i)?.[1] || polygonBlock;
+    const outer = ringFromBlock(exterior);
+    if (outer.length < 3) continue;
+    const holes: Coordinate[][] = [];
+    const innerRe = /<(?:gml:)?(?:innerBoundaryIs|interior)\b[^>]*>([\s\S]*?)<\/(?:gml:)?(?:innerBoundaryIs|interior)>/gi;
+    let innerMatch: RegExpExecArray | null;
+    while ((innerMatch = innerRe.exec(polygonBlock))) {
+      const ring = ringFromBlock(innerMatch[1]);
+      if (ring.length >= 3) holes.push(ring);
+    }
+    polygons.push({ outer, holes });
+  }
+  return polygons;
+}
+
+function pointOnSegment(point: Coordinate, a: Coordinate, b: Coordinate): boolean {
+  const cross = (point.lat - a.lat) * (b.lng - a.lng) - (point.lng - a.lng) * (b.lat - a.lat);
+  if (Math.abs(cross) > 1e-10) return false;
+  return point.lng >= Math.min(a.lng, b.lng) - 1e-10 && point.lng <= Math.max(a.lng, b.lng) + 1e-10
+    && point.lat >= Math.min(a.lat, b.lat) - 1e-10 && point.lat <= Math.max(a.lat, b.lat) + 1e-10;
+}
+
+function pointInRing(point: Coordinate, ring: Coordinate[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[j];
+    const b = ring[i];
+    if (pointOnSegment(point, a, b)) return true;
+    const intersects = ((b.lat > point.lat) !== (a.lat > point.lat))
+      && point.lng < ((a.lng - b.lng) * (point.lat - b.lat)) / (a.lat - b.lat) + b.lng;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function polygonContainsPoint(polygon: PolygonGeometry, point: Coordinate): boolean {
+  return pointInRing(point, polygon.outer) && !polygon.holes.some(hole => pointInRing(point, hole));
+}
+
+function parseWfsFeatures(xml: string, siteLat: number, siteLng: number): WfsFeature[] {
+  const records: WfsFeature[] = [];
   const memberRe = /<(?:gml:)?featureMember\b[^>]*>([\s\S]*?)<\/(?:gml:)?featureMember>/gi;
   let member: RegExpExecArray | null;
   while ((member = memberRe.exec(xml))) {
@@ -281,9 +348,9 @@ function parseWfsFeatures(xml: string, siteLat: number, siteLng: number): Array<
     while ((element = elementRe.exec(block))) {
       const key = element[1].replace(/^.*:/, '');
       const value = decodeXml(element[2]);
-      if (!/^(boundedBy|coordinates|pos|point|geometry|geom|shape)$/i.test(key) && value) props[key] = value;
+      if (!/^(boundedBy|coordinates|pos|posList|point|polygon|geometry|geom|shape)$/i.test(key) && value) props[key] = value;
     }
-    if (Object.keys(props).length) records.push({ properties: props, point: parsePointFromBlock(block, siteLat, siteLng) });
+    if (Object.keys(props).length) records.push({ properties: props, point: parsePointFromBlock(block, siteLat, siteLng), polygons: parsePolygonsFromBlock(block) });
   }
   return records;
 }
@@ -305,20 +372,22 @@ async function queryWfsLithologyFallback(lat: number, lng: number, fetcher: Fetc
   const { types } = await wfsCapabilities(fetcher, endpointUrl);
   const typeName = types.find(name => /(?:^|:)LITHO_1M_SIMPLIFIEE$/i.test(name)) || null;
   if (!typeName) return null;
-  const records = await wfsBbox(fetcher, endpointUrl, typeName, lat, lng, 0.0005, 5);
-  const mapped = geologyFrom('LITHO_1M_SIMPLIFIEE', { properties: records.map(record => record.properties) });
+  const records = await wfsBbox(fetcher, endpointUrl, typeName, lat, lng, 0.0005, 10);
+  const sitePoint = { lng, lat };
+  const containing = records.filter(record => record.polygons.some(polygon => polygonContainsPoint(polygon, sitePoint)));
+  const mapped = geologyFrom('LITHO_1M_SIMPLIFIEE', { properties: containing.map(record => record.properties) });
   if (!mapped) return null;
   const scale = '1:1,000,000';
   return {
     id: 'fr-brgm-geology-site',
     category: 'BRGM Geological Map',
-    claim: `BRGM WFS returned national-scale mapped lithological information intersecting the site from ${typeName} (${scale}).`,
+    claim: `BRGM WFS returned national-scale mapped lithological information from a polygon containing the site coordinate in ${typeName} (${scale}).`,
     status: 'VERIFIED',
     sourceName: BRGM,
     sourceUrl: endpointUrl,
     datasetDate: today(),
-    spatialRelationship: 'Official BRGM lithological polygon intersecting a tightly bounded site-centre query',
-    calculationMethod: 'BRGM InfoTerre WFS 1.0 feature-type discovery and bounded GetFeature query after detailed WMS products returned no usable attributes',
+    spatialRelationship: 'Exact site coordinate contained by the returned official BRGM lithological polygon',
+    calculationMethod: 'BRGM InfoTerre WFS 1.0 feature-type discovery, tightly bounded GetFeature query, and explicit point-in-polygon filtering after detailed WMS products returned no usable attributes',
     confidence: 'Medium',
     value: { ...mapped, queriedLayer: baseLayerName(typeName), queriedFeatureType: typeName, scale, evidenceTier: 3, acquisitionMode: 'WFS', resolverProvenance: resolution.provenance },
     limitation: 'This is official national-scale lithological mapping at 1:1,000,000. It is a regional screening fallback, not a 1:50,000 geological formation map, and it does not establish layer thickness, density/state, groundwater level or engineering design parameters beneath the parcel.',
