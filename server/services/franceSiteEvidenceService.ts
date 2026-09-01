@@ -191,12 +191,12 @@ function pick(props: Record<string, unknown>, patterns: RegExp[]): string | null
 }
 
 const UNIT_PATTERNS = [/^formation$/i, /^unite/i, /^unité/i, /nom.*formation/i, /libell.*(?:unit|geol)/i, /geologic.*unit/i, /geol.*unit/i, /^code.*geol/i];
-const LITHOLOGY_PATTERNS = [/litho/i, /nature.*(?:roche|terrain)/i, /facies/i, /faciès/i, /rock.*type/i, /materiau/i, /matériau/i];
+const LITHOLOGY_PATTERNS = [/^litho/i, /litholog/i, /nature.*(?:roche|terrain)/i, /facies/i, /faciès/i, /rock.*type/i, /materiau/i, /matériau/i, /libell.*litho/i];
 const AGE_PATTERNS = [/^age/i, /strat/i, /periode/i, /période/i, /epoch/i, /époque/i, /\bere\b/i, /\bère\b/i];
 const GENESIS_PATTERNS = [/origine/i, /genese/i, /genèse/i, /mode.*depot/i, /mode.*dépôt/i];
 
 function firstDescriptiveValue(props: Record<string, unknown>): string | null {
-  const excluded = /^(id|fid|gid|objectid|shape|geom|x|y|bbox|layer|scale|echelle|échelle|url|code|symbol|symbole|sheet|feuille|numero|numéro)$/i;
+  const excluded = /^(id|fid|gid|objectid|shape|geom|geometry|x|y|bbox|layer|scale|echelle|échelle|url|code|symbol|symbole|sheet|feuille|numero|numéro)$/i;
   for (const [key, raw] of Object.entries(props)) {
     if (excluded.test(key)) continue;
     const value = clean(raw);
@@ -216,53 +216,35 @@ function geologyFrom(layer: string, info: { properties: Array<Record<string, unk
   return unit || lithology || age || genesis ? { unit, lithology, age, genesis, properties: props } : null;
 }
 
+const baseLayerName = (layer: string): string => layer.replace(/^.*:/, '').trim();
+
+/**
+ * Only rank actual BRGM geology products that may describe the selected point.
+ * Catalogue, perimeter, scan-index and overseas layers are intentionally excluded:
+ * their presence in a live GetCapabilities document must not crowd out national
+ * lithological fallback evidence.
+ */
 function geologyLayerRank(layer: string): number {
-  if (/SCAN_H_(?:RELIEF_)?GEOL50|GEO.*50.*HARM|HARM.*50/i.test(layer)) return 1;
-  if (/SCAN_D_GEOL50|GEOL50/i.test(layer)) return 2;
-  if (/SCAN_F_GEOL250|GEOL250/i.test(layer)) return 3;
-  if (/LITHO_?1M_SIMPLIFIEE/i.test(layer)) return 4;
-  if (/SCAN_F_GEOL1M|GEOL1M/i.test(layer)) return 5;
+  const name = baseLayerName(layer);
+  if (/^SCAN_H_RELIEF_GEOL50$/i.test(name)) return 1;
+  if (/^SCAN_H_GEOL50$/i.test(name)) return 2;
+  if (/^SCAN_D_GEOL50$/i.test(name)) return 3;
+  if (/^SCAN_F_GEOL250$/i.test(name)) return 4;
+  if (/^LITHO_1M_SIMPLIFIEE$/i.test(name)) return 5;
   return 99;
 }
 
 function scaleForLayer(layer: string): string | null {
-  if (/GEOL50|50K|050K/i.test(layer)) return '1:50,000';
-  if (/GEOL250|250K/i.test(layer)) return '1:250,000';
-  if (/1M|1000/i.test(layer)) return '1:1,000,000';
+  const name = baseLayerName(layer);
+  if (/GEOL50|50K|050K/i.test(name)) return '1:50,000';
+  if (/GEOL250|250K/i.test(name)) return '1:250,000';
+  if (/LITHO_?1M|GEOL1M|1000/i.test(name)) return '1:1,000,000';
   return null;
 }
 
 function tierForLayer(layer: string): 1 | 2 | 3 {
   const scale = scaleForLayer(layer);
   return scale === '1:50,000' ? 1 : scale === '1:250,000' ? 2 : 3;
-}
-
-async function queryGeology(lat: number, lng: number, fetcher: FetchLike): Promise<FranceSiteEvidence> {
-  const resolution = await resolveWms(fetcher, 'FR_BRGM_GEOLOGY');
-  if (!resolution.endpoint) {
-    const reasonCode = reasonForResolution(resolution);
-    return { id: 'fr-brgm-geology-unavailable', category: 'BRGM Geological Map', claim: 'BRGM geological-map service could not be validated at analysis time.', status: 'REQUIRES_VERIFICATION', sourceName: BRGM, sourceUrl: 'https://infoterre.brgm.fr/', datasetDate: today(), spatialRelationship: 'Site coordinate', calculationMethod: 'Approved-source resolver with OGC WMS capability validation', confidence: 'Low', value: { reasonCode, attempts: resolution.attempts }, limitation: 'Source failure is not evidence that geological information is absent.', reasonCode };
-  }
-  const layers = ((resolution.probe?.payload as { layers?: string[] } | undefined)?.layers || []).filter(layer => geologyLayerRank(layer) < 99).sort((a, b) => geologyLayerRank(a) - geologyLayerRank(b));
-  for (const layer of layers.slice(0, 8)) {
-    const info = await wmsInfo(fetcher, resolution.endpoint.url, layer, lat, lng);
-    const mapped = geologyFrom(layer, info);
-    if (!mapped) continue;
-    const scale = scaleForLayer(layer);
-    const tier = tierForLayer(layer);
-    return {
-      id: 'fr-brgm-geology-site', category: 'BRGM Geological Map',
-      claim: `BRGM returned mapped geological information at the site coordinate from layer ${layer}${scale ? ` (${scale})` : ''}.`,
-      status: 'VERIFIED', sourceName: BRGM, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre map intersection',
-      calculationMethod: 'BRGM InfoTerre OGC WMS layer discovery and multi-format GetFeatureInfo; detailed/harmonised mapping is attempted before regional lithological fallback',
-      confidence: tier === 1 ? 'High' : 'Medium',
-      value: { ...mapped, queriedLayer: layer, scale, evidenceTier: tier, availableLayers: layers.slice(0, 50), resolverProvenance: resolution.provenance },
-      limitation: `${scale || 'Published-scale'} mapped geological evidence is screening context. It does not establish layer thickness, density/state, groundwater level or engineering design parameters beneath the parcel.`,
-      resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE'
-    };
-  }
-  const reasonCode: AvailabilityReason = 'NO_DATA';
-  return { id: 'fr-brgm-geology-no-data', category: 'BRGM Geological Map', claim: 'BRGM geology service was reachable, but no usable geological attributes were returned at the tested coordinate.', status: 'REQUIRES_VERIFICATION', sourceName: BRGM, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre map query', calculationMethod: 'BRGM OGC WMS layer discovery and GetFeatureInfo', confidence: 'Low', value: { reasonCode, availableLayers: layers.slice(0, 50), resolverProvenance: resolution.provenance }, limitation: 'No returned geological attributes are not evidence of geological absence. SoilGrids may still provide separately labelled near-surface soil context.', reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE' };
 }
 
 async function wfsCapabilities(fetcher: FetchLike, url: string): Promise<{ response: Response | null; types: string[] }> {
@@ -275,7 +257,11 @@ async function wfsCapabilities(fetcher: FetchLike, url: string): Promise<{ respo
   return { response: null, types: [] };
 }
 
-function parsePointFromBlock(block: string, siteLat: number, siteLng: number): { lat: number; lng: number } | null {
+type Coordinate = { lng: number; lat: number };
+type PolygonGeometry = { outer: Coordinate[]; holes: Coordinate[][] };
+type WfsFeature = { properties: Record<string, string>; point: Coordinate | null; polygons: PolygonGeometry[] };
+
+function parsePointFromBlock(block: string, siteLat: number, siteLng: number): Coordinate | null {
   const coordinateText = block.match(/<(?:gml:)?coordinates[^>]*>\s*([^<]+)\s*<\/(?:gml:)?coordinates>/i)?.[1]
     || block.match(/<(?:gml:)?pos[^>]*>\s*([^<]+)\s*<\/(?:gml:)?pos>/i)?.[1];
   if (!coordinateText) return null;
@@ -287,8 +273,71 @@ function parsePointFromBlock(block: string, siteLat: number, siteLng: number): {
   return candidates.sort((a, b) => (a.lat - siteLat) ** 2 + (a.lng - siteLng) ** 2 - ((b.lat - siteLat) ** 2 + (b.lng - siteLng) ** 2))[0];
 }
 
-function parseWfsFeatures(xml: string, siteLat: number, siteLng: number): Array<{ properties: Record<string, string>; point: { lat: number; lng: number } | null }> {
-  const records: Array<{ properties: Record<string, string>; point: { lat: number; lng: number } | null }> = [];
+function parseCoordinateSequence(text: string): Coordinate[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  if (trimmed.includes(',')) {
+    return trimmed.split(/\s+/).map(pair => pair.split(',').map(Number)).filter(pair => pair.length >= 2 && pair.every(Number.isFinite)).map(pair => ({ lng: pair[0], lat: pair[1] }));
+  }
+  const numbers = trimmed.split(/\s+/).map(Number).filter(Number.isFinite);
+  const coordinates: Coordinate[] = [];
+  for (let i = 0; i + 1 < numbers.length; i += 2) coordinates.push({ lng: numbers[i], lat: numbers[i + 1] });
+  return coordinates;
+}
+
+function ringFromBlock(block: string): Coordinate[] {
+  const coordinateText = block.match(/<(?:gml:)?coordinates[^>]*>\s*([^<]+)\s*<\/(?:gml:)?coordinates>/i)?.[1]
+    || block.match(/<(?:gml:)?posList[^>]*>\s*([^<]+)\s*<\/(?:gml:)?posList>/i)?.[1];
+  return coordinateText ? parseCoordinateSequence(coordinateText) : [];
+}
+
+function parsePolygonsFromBlock(block: string): PolygonGeometry[] {
+  const polygons: PolygonGeometry[] = [];
+  const polygonRe = /<(?:gml:)?Polygon\b[^>]*>([\s\S]*?)<\/(?:gml:)?Polygon>/gi;
+  let polygonMatch: RegExpExecArray | null;
+  while ((polygonMatch = polygonRe.exec(block))) {
+    const polygonBlock = polygonMatch[1];
+    const exterior = polygonBlock.match(/<(?:gml:)?(?:outerBoundaryIs|exterior)\b[^>]*>([\s\S]*?)<\/(?:gml:)?(?:outerBoundaryIs|exterior)>/i)?.[1] || polygonBlock;
+    const outer = ringFromBlock(exterior);
+    if (outer.length < 3) continue;
+    const holes: Coordinate[][] = [];
+    const innerRe = /<(?:gml:)?(?:innerBoundaryIs|interior)\b[^>]*>([\s\S]*?)<\/(?:gml:)?(?:innerBoundaryIs|interior)>/gi;
+    let innerMatch: RegExpExecArray | null;
+    while ((innerMatch = innerRe.exec(polygonBlock))) {
+      const ring = ringFromBlock(innerMatch[1]);
+      if (ring.length >= 3) holes.push(ring);
+    }
+    polygons.push({ outer, holes });
+  }
+  return polygons;
+}
+
+function pointOnSegment(point: Coordinate, a: Coordinate, b: Coordinate): boolean {
+  const cross = (point.lat - a.lat) * (b.lng - a.lng) - (point.lng - a.lng) * (b.lat - a.lat);
+  if (Math.abs(cross) > 1e-10) return false;
+  return point.lng >= Math.min(a.lng, b.lng) - 1e-10 && point.lng <= Math.max(a.lng, b.lng) + 1e-10
+    && point.lat >= Math.min(a.lat, b.lat) - 1e-10 && point.lat <= Math.max(a.lat, b.lat) + 1e-10;
+}
+
+function pointInRing(point: Coordinate, ring: Coordinate[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[j];
+    const b = ring[i];
+    if (pointOnSegment(point, a, b)) return true;
+    const intersects = ((b.lat > point.lat) !== (a.lat > point.lat))
+      && point.lng < ((a.lng - b.lng) * (point.lat - b.lat)) / (a.lat - b.lat) + b.lng;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function polygonContainsPoint(polygon: PolygonGeometry, point: Coordinate): boolean {
+  return pointInRing(point, polygon.outer) && !polygon.holes.some(hole => pointInRing(point, hole));
+}
+
+function parseWfsFeatures(xml: string, siteLat: number, siteLng: number): WfsFeature[] {
+  const records: WfsFeature[] = [];
   const memberRe = /<(?:gml:)?featureMember\b[^>]*>([\s\S]*?)<\/(?:gml:)?featureMember>/gi;
   let member: RegExpExecArray | null;
   while ((member = memberRe.exec(xml))) {
@@ -299,9 +348,9 @@ function parseWfsFeatures(xml: string, siteLat: number, siteLng: number): Array<
     while ((element = elementRe.exec(block))) {
       const key = element[1].replace(/^.*:/, '');
       const value = decodeXml(element[2]);
-      if (!/^(boundedBy|coordinates|pos|point|geometry|geom|shape)$/i.test(key) && value) props[key] = value;
+      if (!/^(boundedBy|coordinates|pos|posList|point|polygon|geometry|geom|shape)$/i.test(key) && value) props[key] = value;
     }
-    if (Object.keys(props).length) records.push({ properties: props, point: parsePointFromBlock(block, siteLat, siteLng) });
+    if (Object.keys(props).length) records.push({ properties: props, point: parsePointFromBlock(block, siteLat, siteLng), polygons: parsePolygonsFromBlock(block) });
   }
   return records;
 }
@@ -317,6 +366,93 @@ async function wfsBbox(fetcher: FetchLike, url: string, typeName: string, lat: n
   const response = await fetchResponse(fetcher, `${url}?${params}`, 'application/gml+xml,text/xml,application/xml', 8500);
   if (!response?.ok) return [];
   return parseWfsFeatures(await response.text(), lat, lng);
+}
+
+async function queryWfsLithologyFallback(lat: number, lng: number, fetcher: FetchLike, endpointUrl: string, resolution: ResolutionResult): Promise<FranceSiteEvidence | null> {
+  const { types } = await wfsCapabilities(fetcher, endpointUrl);
+  const typeName = types.find(name => /(?:^|:)LITHO_1M_SIMPLIFIEE$/i.test(name)) || null;
+  if (!typeName) return null;
+  const records = await wfsBbox(fetcher, endpointUrl, typeName, lat, lng, 0.0005, 10);
+  const sitePoint = { lng, lat };
+  const containing = records.filter(record => record.polygons.some(polygon => polygonContainsPoint(polygon, sitePoint)));
+  const mapped = geologyFrom('LITHO_1M_SIMPLIFIEE', { properties: containing.map(record => record.properties) });
+  if (!mapped) return null;
+  const scale = '1:1,000,000';
+  return {
+    id: 'fr-brgm-geology-site',
+    category: 'BRGM Geological Map',
+    claim: `BRGM WFS returned national-scale mapped lithological information from a polygon containing the site coordinate in ${typeName} (${scale}).`,
+    status: 'VERIFIED',
+    sourceName: BRGM,
+    sourceUrl: endpointUrl,
+    datasetDate: today(),
+    spatialRelationship: 'Exact site coordinate contained by the returned official BRGM lithological polygon',
+    calculationMethod: 'BRGM InfoTerre WFS 1.0 feature-type discovery, tightly bounded GetFeature query, and explicit point-in-polygon filtering after detailed WMS products returned no usable attributes',
+    confidence: 'Medium',
+    value: { ...mapped, queriedLayer: baseLayerName(typeName), queriedFeatureType: typeName, scale, evidenceTier: 3, acquisitionMode: 'WFS', resolverProvenance: resolution.provenance },
+    limitation: 'This is official national-scale lithological mapping at 1:1,000,000. It is a regional screening fallback, not a 1:50,000 geological formation map, and it does not establish layer thickness, density/state, groundwater level or engineering design parameters beneath the parcel.',
+    resolverProvenance: resolution.provenance || undefined,
+    spatialScope: 'SITE'
+  };
+}
+
+async function queryGeology(lat: number, lng: number, fetcher: FetchLike): Promise<FranceSiteEvidence> {
+  const resolution = await resolveWms(fetcher, 'FR_BRGM_GEOLOGY');
+  if (!resolution.endpoint) {
+    const reasonCode = reasonForResolution(resolution);
+    return { id: 'fr-brgm-geology-unavailable', category: 'BRGM Geological Map', claim: 'BRGM geological-map service could not be validated at analysis time.', status: 'REQUIRES_VERIFICATION', sourceName: BRGM, sourceUrl: 'https://infoterre.brgm.fr/', datasetDate: today(), spatialRelationship: 'Site coordinate', calculationMethod: 'Approved-source resolver with OGC WMS capability validation', confidence: 'Low', value: { reasonCode, attempts: resolution.attempts }, limitation: 'Source failure is not evidence that geological information is absent.', reasonCode };
+  }
+
+  const advertisedLayers = (resolution.probe?.payload as { layers?: string[] } | undefined)?.layers || [];
+  const layers = advertisedLayers.filter(layer => geologyLayerRank(layer) < 99).sort((a, b) => geologyLayerRank(a) - geologyLayerRank(b));
+  const detailedAndRegional = layers.filter(layer => geologyLayerRank(layer) <= 4);
+
+  for (const layer of detailedAndRegional) {
+    const info = await wmsInfo(fetcher, resolution.endpoint.url, layer, lat, lng);
+    const mapped = geologyFrom(layer, info);
+    if (!mapped) continue;
+    const scale = scaleForLayer(layer);
+    const tier = tierForLayer(layer);
+    return {
+      id: 'fr-brgm-geology-site', category: 'BRGM Geological Map',
+      claim: `BRGM returned mapped geological information at the site coordinate from layer ${baseLayerName(layer)}${scale ? ` (${scale})` : ''}.`,
+      status: 'VERIFIED', sourceName: BRGM, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre map intersection',
+      calculationMethod: 'BRGM InfoTerre OGC WMS layer discovery and multi-format GetFeatureInfo; exact detailed/harmonised products are attempted before regional and vector lithological fallback',
+      confidence: tier === 1 ? 'High' : 'Medium',
+      value: { ...mapped, queriedLayer: baseLayerName(layer), scale, evidenceTier: tier, acquisitionMode: 'WMS', availableLayers: advertisedLayers.slice(0, 100), resolverProvenance: resolution.provenance },
+      limitation: `${scale || 'Published-scale'} mapped geological evidence is screening context. It does not establish layer thickness, density/state, groundwater level or engineering design parameters beneath the parcel.`,
+      resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE'
+    };
+  }
+
+  // BRGM documents WFS as the download/feature route. The simplified 1:1M
+  // lithology layer returns attributed vector features and is a more reliable
+  // fallback than repeatedly interrogating raster/catalogue WMS layers.
+  const wfsFallback = await queryWfsLithologyFallback(lat, lng, fetcher, resolution.endpoint.url, resolution);
+  if (wfsFallback) return wfsFallback;
+
+  // Keep WMS LITHO_1M_SIMPLIFIEE as a final official route in case the WFS is
+  // temporarily unavailable but GetFeatureInfo is functioning.
+  const lithologyWms = layers.find(layer => geologyLayerRank(layer) === 5);
+  if (lithologyWms) {
+    const info = await wmsInfo(fetcher, resolution.endpoint.url, lithologyWms, lat, lng);
+    const mapped = geologyFrom(lithologyWms, info);
+    if (mapped) {
+      return {
+        id: 'fr-brgm-geology-site', category: 'BRGM Geological Map',
+        claim: 'BRGM returned national-scale mapped lithological information from LITHO_1M_SIMPLIFIEE (1:1,000,000).',
+        status: 'VERIFIED', sourceName: BRGM, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre map intersection',
+        calculationMethod: 'BRGM InfoTerre WMS GetFeatureInfo used as final fallback after detailed/regional WMS and WFS lithology routes',
+        confidence: 'Medium',
+        value: { ...mapped, queriedLayer: baseLayerName(lithologyWms), scale: '1:1,000,000', evidenceTier: 3, acquisitionMode: 'WMS', availableLayers: advertisedLayers.slice(0, 100), resolverProvenance: resolution.provenance },
+        limitation: 'This is official national-scale lithological mapping at 1:1,000,000. It is regional screening context and does not establish a detailed geological formation, layer thickness, density/state, groundwater level or engineering design parameters beneath the parcel.',
+        resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE'
+      };
+    }
+  }
+
+  const reasonCode: AvailabilityReason = 'NO_DATA';
+  return { id: 'fr-brgm-geology-no-data', category: 'BRGM Geological Map', claim: 'BRGM geology services were reachable, but no usable geological attributes were returned from the detailed/regional WMS routes or the official 1:1,000,000 lithology fallback.', status: 'REQUIRES_VERIFICATION', sourceName: BRGM, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre map and tightly bounded vector queries', calculationMethod: 'BRGM OGC WMS layer discovery/GetFeatureInfo plus WFS LITHO_1M_SIMPLIFIEE fallback', confidence: 'Low', value: { reasonCode, availableLayers: advertisedLayers.slice(0, 100), resolverProvenance: resolution.provenance }, limitation: 'No returned geological attributes are not evidence of geological absence. SoilGrids may still provide separately labelled near-surface soil context.', reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE' };
 }
 
 function bssIdentifier(props: Record<string, string>): string | null {
@@ -364,7 +500,7 @@ async function queryShrinkSwell(lat: number, lng: number, fetcher: FetchLike): P
     return { id: 'fr-brgm-shrink-swell-unavailable', category: 'Shrink-swell clay screening', claim: 'BRGM natural-risk source route could not be validated.', status: 'REQUIRES_VERIFICATION', sourceName: `${BRGM} / Géorisques`, sourceUrl: 'https://www.georisques.gouv.fr/', datasetDate: today(), spatialRelationship: 'Site coordinate', calculationMethod: 'Approved-source resolver with OGC service validation', confidence: 'Low', value: { reasonCode, attempts: resolution.attempts }, limitation: 'Source failure is not evidence of low clay shrink-swell exposure.', reasonCode, spatialScope: 'SITE' };
   }
   const layers = (resolution.probe?.payload as { layers?: string[] } | undefined)?.layers || [];
-  const layer = layers.find(name => /^ALEARG$/i.test(name)) || layers.find(name => /RGA|RETRAIT.*GONFL|ARGIL/i.test(name));
+  const layer = layers.find(name => /^ALEARG$/i.test(baseLayerName(name))) || layers.find(name => /RGA|RETRAIT.*GONFL|ARGIL/i.test(name));
   if (!layer) {
     const reasonCode: AvailabilityReason = 'SOURCE_UNAVAILABLE';
     return { id: 'fr-brgm-shrink-swell-unavailable', category: 'Shrink-swell clay screening', claim: 'BRGM risk service was reachable, but a shrink-swell clay layer was not validated.', status: 'REQUIRES_VERIFICATION', sourceName: `${BRGM} / Géorisques`, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Site coordinate', calculationMethod: 'OGC WMS capability discovery', confidence: 'Low', value: { reasonCode, availableLayers: layers.slice(0, 100) }, limitation: 'The absence of a validated automated layer is not a low-risk classification. Check the current Géorisques RGA map.', reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE' };
@@ -374,9 +510,9 @@ async function queryShrinkSwell(lat: number, lng: number, fetcher: FetchLike): P
   const descriptor = riskDescriptor(props);
   if (!descriptor) {
     const reasonCode: AvailabilityReason = 'NO_DATA';
-    return { id: 'fr-brgm-shrink-swell-no-data', category: 'Shrink-swell clay screening', claim: 'BRGM shrink-swell layer was queried but returned no usable exposure classification at the tested coordinate.', status: 'REQUIRES_VERIFICATION', sourceName: `${BRGM} / Géorisques`, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre map query', calculationMethod: 'OGC WMS GetFeatureInfo', confidence: 'Low', value: { reasonCode, queriedLayer: layer }, limitation: 'No returned classification is not evidence of no clay shrink-swell hazard. Check the current statutory/current Géorisques mapping.', reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE' };
+    return { id: 'fr-brgm-shrink-swell-no-data', category: 'Shrink-swell clay screening', claim: 'BRGM shrink-swell layer was queried but returned no usable exposure classification at the tested coordinate.', status: 'REQUIRES_VERIFICATION', sourceName: `${BRGM} / Géorisques`, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre map query', calculationMethod: 'OGC WMS GetFeatureInfo', confidence: 'Low', value: { reasonCode, queriedLayer: baseLayerName(layer) }, limitation: 'No returned classification is not evidence of no clay shrink-swell hazard. Check the current statutory/current Géorisques mapping.', reasonCode, resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE' };
   }
-  return { id: 'fr-brgm-shrink-swell-site', category: 'Shrink-swell clay screening', claim: `BRGM/Géorisques shrink-swell clay screening returned: ${descriptor}.`, status: 'VERIFIED', sourceName: `${BRGM} / Géorisques`, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre mapped exposure class', calculationMethod: 'BRGM risk OGC WMS GetFeatureInfo', confidence: 'High', value: { descriptor, queriedLayer: layer, properties: props }, limitation: 'Mapped shrink-swell exposure is development-screening evidence, not proof of the parcel soil profile or a substitute for the geotechnical study required where applicable.', resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE' };
+  return { id: 'fr-brgm-shrink-swell-site', category: 'Shrink-swell clay screening', claim: `BRGM/Géorisques shrink-swell clay screening returned: ${descriptor}.`, status: 'VERIFIED', sourceName: `${BRGM} / Géorisques`, sourceUrl: resolution.endpoint.url, datasetDate: today(), spatialRelationship: 'Exact site-centre mapped exposure class', calculationMethod: 'BRGM risk OGC WMS GetFeatureInfo', confidence: 'High', value: { descriptor, queriedLayer: baseLayerName(layer), properties: props }, limitation: 'Mapped shrink-swell exposure is development-screening evidence, not proof of the parcel soil profile or a substitute for the geotechnical study required where applicable.', resolverProvenance: resolution.provenance || undefined, spatialScope: 'SITE' };
 }
 
 export async function queryFranceSiteEvidence(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<FranceSiteEvidence[]> {
