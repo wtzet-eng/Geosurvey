@@ -27,6 +27,11 @@ const wfsCapabilities = `<?xml version="1.0"?>
 const lithologyFeature = `<?xml version="1.0"?>
 <wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs" xmlns:gml="http://www.opengis.net/gml" xmlns:brgm="urn:brgm">
   <gml:featureMember><brgm:LITHO_1M_SIMPLIFIEE>
+    <brgm:LITHOLOGIE>Calcaires voisins</brgm:LITHOLOGIE>
+    <brgm:DESCRIPTION>Polygone voisin dans l'enveloppe de recherche</brgm:DESCRIPTION>
+    <gml:Polygon><gml:outerBoundaryIs><gml:LinearRing><gml:coordinates>2.3524,48.8562 2.3527,48.8562 2.3527,48.8565 2.3524,48.8565 2.3524,48.8562</gml:coordinates></gml:LinearRing></gml:outerBoundaryIs></gml:Polygon>
+  </brgm:LITHO_1M_SIMPLIFIEE></gml:featureMember>
+  <gml:featureMember><brgm:LITHO_1M_SIMPLIFIEE>
     <brgm:LITHOLOGIE>Sables, graviers et alluvions</brgm:LITHOLOGIE>
     <brgm:DESCRIPTION>Dépôts détritiques meubles</brgm:DESCRIPTION>
     <gml:Polygon><gml:outerBoundaryIs><gml:LinearRing><gml:coordinates>2.35,48.85 2.36,48.85 2.36,48.86 2.35,48.86 2.35,48.85</gml:coordinates></gml:LinearRing></gml:outerBoundaryIs></gml:Polygon>
@@ -40,7 +45,7 @@ function response(body: string, type = 'application/xml', status = 200) {
   return new Response(body, { status, headers: { 'content-type': type } });
 }
 
-test('France live-like BRGM inventory reaches WFS lithology fallback instead of being crowded out by catalogue layers', async () => {
+test('France live-like BRGM inventory reaches WFS lithology fallback and keeps only the polygon containing the site point', async () => {
   clearOperationalMetadata();
   const requested: string[] = [];
   const fetcher = (async (input: RequestInfo | URL) => {
@@ -66,6 +71,8 @@ test('France live-like BRGM inventory reaches WFS lithology fallback instead of 
   assert.equal((geology?.value as any).evidenceTier, 3);
   assert.equal((geology?.value as any).unit, null);
   assert.equal((geology?.value as any).lithology, 'Sables, graviers et alluvions');
+  assert.notEqual((geology?.value as any).lithology, 'Calcaires voisins');
+  assert.match(geology?.calculationMethod || '', /point-in-polygon/i);
   assert.match(geology?.limitation || '', /not a 1:50,000 geological formation map/i);
 
   const report: any = {};
