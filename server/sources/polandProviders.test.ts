@@ -21,15 +21,18 @@ test('Polish provider registry uses stable logical identities rather than URLs a
   ]) assert.ok(ids.has(expected as any), `missing ${expected}`);
 });
 
-test('detailed Polish geology is preferred to regional fallback', () => {
+test('detailed Polish geology is preferred to regional fallbacks', () => {
   const detailed = sourceEndpoints('PL_SMGP_DETAILED_GEOLOGY');
   const regional = sourceEndpoints('PL_MGP_REGIONAL_GEOLOGY');
   assert.equal(detailed[0].evidenceTier, 1);
   assert.match(detailed[0].provenance, /SMGP.*1:50,000/i);
+  assert.equal(regional.length, 3);
   assert.equal(regional[0].evidenceTier, 2);
   assert.match(regional[0].provenance, /1:200,000/i);
   assert.equal(regional[1].evidenceTier, 3);
-  assert.match(regional[1].provenance, /1:500,000/i);
+  assert.match(regional[1].url, /mgp500k_2022\/MapServer\/WMSServer$/i);
+  assert.equal(regional[2].evidenceTier, 3);
+  assert.match(regional[2].url, /mgp500k\/MapServer\/WMSServer$/i);
 });
 
 test('MLP is a separate lithogenetic source and cannot masquerade as SMGP geology', () => {
@@ -40,21 +43,25 @@ test('MLP is a separate lithogenetic source and cannot masquerade as SMGP geolog
   assert.match(mlp.provenance, /Lithogenetic Map/i);
 });
 
-test('engineering geology uses current PGI 50k endpoint and has 300k and 500k fallbacks', () => {
+test('engineering geology keeps both published 50k services plus 300k and corrected 500k fallbacks', () => {
   const maps = sourceEndpoints('PL_ENGINEERING_GEOLOGY');
-  assert.equal(maps.length, 3);
-  assert.match(maps[0].url, /geoinz\/smgip50k\/MapServer\/WMSServer$/i);
+  assert.equal(maps.length, 4);
+  assert.match(maps[0].url, /geoinz\/MgiP50k\/MapServer\/WMSServer$/i);
   assert.equal(maps[0].evidenceTier, 1);
-  assert.match(maps[1].url, /geoinz\/pmgip300k\/MapServer\/WMSServer$/i);
-  assert.equal(maps[1].evidenceTier, 2);
-  assert.match(maps[2].url, /geoinz\/mgip500k\/MapServer\/WMSServer$/i);
-  assert.equal(maps[2].evidenceTier, 3);
+  assert.match(maps[1].url, /geoinz\/smgip50k\/MapServer\/WMSServer$/i);
+  assert.equal(maps[1].evidenceTier, 1);
+  assert.match(maps[2].url, /geoinz\/pmgip300k\/MapServer\/WMSServer$/i);
+  assert.equal(maps[2].evidenceTier, 2);
+  assert.match(maps[3].url, /geoinz\/mgip500k\/WMSServer$/i);
+  assert.doesNotMatch(maps[3].url, /mgip500k\/MapServer\/WMSServer$/i);
+  assert.equal(maps[3].evidenceTier, 3);
+  assert.ok(maps.every(endpoint => endpoint.approval === 'APPROVED'));
 });
 
 test('engineering geology and engineering properties remain separate evidence families', () => {
   const maps = sourceEndpoints('PL_ENGINEERING_GEOLOGY');
   const properties = sourceEndpoints('PL_ENGINEERING_PROPERTIES');
-  assert.equal(maps.length, 3);
+  assert.equal(maps.length, 4);
   assert.equal(properties.length, 1);
   assert.doesNotMatch(properties[0].provenance, /bearing capacity|foundation recommendation/i);
   assert.match(properties[0].provenance, /contextual evidence only/i);
