@@ -8,7 +8,7 @@ function slovakFixtureFetch(): typeof fetch {
   return (async (input: string | URL | Request) => {
     const url = String(input);
     if (url.includes('/WebServices/IGR50/MapServer?f=json')) return jsonResponse({ layers: [{ id: 7, name: 'Inžinierskogeologické rajóny', subLayerIds: null }] });
-    if (url.includes('/GeologickeMapy/GM50/MapServer/49/query')) return jsonResponse({ features: [{ attributes: { idt: 'Qh_f' } }] });
+    if (url.includes('/WebServices/GM50/MapServer/2/query')) return jsonResponse({ features: [{ attributes: { it: 'Qh_f', it1: 'Qh', utv: 'Kvartér', skupina: 'fluviálne sedimenty', ksuvrstvie: 'nivné sedimenty', popis: 'hliny, piesky a štrky', vek1: 'holocén', vek2: '', vek3: '' } }] });
     if (url.includes('/wgs_geologickeMapy/geologickaMapaSR_200_wgs/MapServer/1/query')) return jsonResponse({ features: [{ attributes: { idvmp: 12, jednotky_s: 'Kvartér', skupiny_sk: 'fluviálne sedimenty', utvar_sk: 'holocén', odd_sk: '', nazov_sk: 'nivné hliny, piesky a štrky' } }] });
     if (url.includes('/WebServices/IGR50/MapServer/7/query')) return jsonResponse({ features: [{ attributes: { rajon: 'F', nazov: 'rajón fluviálnych sedimentov' } }] });
     if (url.includes('/WebServices/HG50/MapServer/3/query')) return jsonResponse({ features: [{ attributes: { nazov: 'štrky a piesky', vek: 'kvartér', typ_priepustnosti: 'medzizrnová', hg_funkcia: 'kolektor', t_kat: 'T3', t_var_id: 'stredná' } }] });
@@ -39,9 +39,11 @@ test('Slovakia ground acquisition keeps mapped geology, engineering zoning, hydr
 
   assert.equal(geology50?.status, 'VERIFIED');
   assert.equal((geology50?.value as any).unitCode, 'Qh_f');
+  assert.equal((geology50?.value as any).unit, 'nivné sedimenty');
+  assert.match((geology50?.value as any).description, /piesky a štrky/i);
+  assert.equal((geology50?.value as any).age, 'holocén');
   assert.equal(geology?.status, 'VERIFIED');
   assert.equal((geology?.value as any).unit, 'Kvartér');
-  assert.match((geology?.value as any).description, /piesky a štrky/i);
   assert.equal(engineering?.status, 'VERIFIED');
   assert.equal((engineering?.value as any).zone, 'F');
   assert.equal(hydro?.status, 'VERIFIED');
@@ -54,18 +56,20 @@ test('Slovakia ground acquisition keeps mapped geology, engineering zoning, hydr
   assert.match(boreholes?.limitation || '', /not parcel stratigraphy/i);
 });
 
-test('Slovak enrichment promotes official mapped facts but never creates design geotechnical parameters', async () => {
+test('Slovak enrichment promotes 1:50k facts and hydro context but never creates design geotechnical parameters', async () => {
   const items = await querySlovakiaGroundEvidence(48.3076, 18.0845, slovakFixtureFetch());
   const report: any = {
     geosurvey_context: { geological_unit_name: null, lithology_type: null, geological_period_era: null, groundwater_regime: null },
     terrain: { geohazards: { landslideSusceptibility: { status: 'MODELLED', level: 'Low', sourceName: 'Terrain model' } } },
-    soil: { estimatedBearingCapacityKpa: undefined, effectiveFrictionAngleDeg: undefined, cohesionKpa: undefined }
+    soil: { groundwaterRegime: 'Not available', estimatedBearingCapacityKpa: undefined, effectiveFrictionAngleDeg: undefined, cohesionKpa: undefined }
   };
   enrichSlovakiaGroundEvidence(report, items);
 
-  assert.equal(report.geosurvey_context.geological_unit_name, 'Kvartér');
+  assert.equal(report.geosurvey_context.geological_unit_name, 'nivné sedimenty');
   assert.match(report.geosurvey_context.lithology_type, /piesky a štrky/i);
+  assert.equal(report.geosurvey_context.geological_period_era, 'holocén');
   assert.match(report.geosurvey_context.groundwater_regime, /medzizrnová/i);
+  assert.match(report.soil.groundwaterRegime, /medzizrnová/i);
   assert.equal(report.terrain.geohazards.landslideSusceptibility.status, 'VERIFIED');
   assert.equal(report.terrain.geohazards.landslideSusceptibility.level, 'Moderate');
   assert.match(report.terrain.geohazards.landslideSusceptibility.sourceName, /ŠGÚDŠ/);

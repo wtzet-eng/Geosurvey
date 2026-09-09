@@ -16,6 +16,7 @@ import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from 
 import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
+import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
 import { getCountrySupport } from './src/data/countrySupport';
 
 const app = express();
@@ -195,6 +196,12 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const existingSource = presentation.sections.soil_and_ground.source_cited;
       presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...franceGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
+    const slovakiaGroundPresentation = renderSlovakiaGroundPresentation(canonicalReport, presentation.language);
+    if (slovakiaGroundPresentation) {
+      presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${slovakiaGroundPresentation.narrative}`.trim();
+      const existingSource = presentation.sections.soil_and_ground.source_cited;
+      presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...slovakiaGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
+    }
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && areaSize > 0 ? value / areaSize : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
 
@@ -203,7 +210,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       confidence_level: presentation.confidenceLabel,
       evidence_score: canonicalReport.evidenceScore,
       country_support: presentation.countrySupport,
-      ground_context: franceGroundPresentation ? { ...presentation.groundContext, france_context: franceGroundPresentation } : presentation.groundContext,
+      ground_context: { ...presentation.groundContext, ...(franceGroundPresentation ? { france_context: franceGroundPresentation } : {}), ...(slovakiaGroundPresentation ? { slovakia_context: slovakiaGroundPresentation } : {}) },
       canonical_evidence: canonicalReport,
       evidence_registry: presentation.evidenceRegistry,
       verification_checklist: presentation.verificationChecklist,

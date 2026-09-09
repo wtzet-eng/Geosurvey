@@ -20,7 +20,7 @@ type FetchLike = typeof fetch;
 type Attributes = Record<string, unknown>;
 
 const SGUDS = 'Štátny geologický ústav Dionýza Štúra (ŠGÚDŠ)';
-const GM50 = 'https://ags.geology.sk/arcgis/rest/services/GeologickeMapy/GM50/MapServer';
+const GM50 = 'https://ags.geology.sk/arcgis/rest/services/WebServices/GM50/MapServer';
 const GM200 = 'https://ags.geology.sk/arcgis/rest/services/wgs_geologickeMapy/geologickaMapaSR_200_wgs/MapServer';
 const IGR50 = 'https://ags.geology.sk/arcgis/rest/services/WebServices/IGR50/MapServer';
 const HG50 = 'https://ags.geology.sk/arcgis/rest/services/WebServices/HG50/MapServer';
@@ -164,7 +164,7 @@ async function queryEngineeringZone(lat: number, lng: number, fetcher: FetchLike
 
 export async function querySlovakiaGroundEvidence(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<SlovakiaGroundEvidence[]> {
   const [gm50, gm200, engineering, hydroUpper, hydroLower, landslide, otherBoreholes, hydroBoreholes] = await Promise.all([
-    queryFeatures(fetcher, GM50, 49, lat, lng, { resultRecordCount: 2 }),
+    queryFeatures(fetcher, GM50, 2, lat, lng, { resultRecordCount: 2 }),
     queryFeatures(fetcher, GM200, 1, lat, lng, { resultRecordCount: 2 }),
     queryEngineeringZone(lat, lng, fetcher),
     queryFeatures(fetcher, HG50, 3, lat, lng, { resultRecordCount: 2 }),
@@ -178,13 +178,19 @@ export async function querySlovakiaGroundEvidence(lat: number, lng: number, fetc
 
   if (gm50?.length) {
     const attrs = cleanAttributes(gm50[0]);
-    const unitCode = first(attrs, ['idt', 'it', 'it1']) || 'mapped unit';
+    const unitCode = first(attrs, ['it', 'it1']) || 'mapped unit';
+    const unit = first(attrs, ['ksuvrstvie', 'skupina', 'utv']);
+    const description = first(attrs, ['popis']);
+    const age = [first(attrs, ['vek1']), first(attrs, ['vek2']), first(attrs, ['vek3'])].filter(Boolean).join(' / ') || null;
     items.push({
-      id: 'sk-sguds-geology-50k', category: 'Mapped geology', claim: `ŠGÚDŠ 1:50,000 geology maps the selected coordinate within unit code ${unitCode}.`, status: 'VERIFIED', sourceName: SGUDS, sourceUrl: GM50,
-      datasetDate: today(), spatialRelationship: '1:50,000 geological polygon containing the selected site coordinate', calculationMethod: 'ArcGIS point-in-polygon query of GM50 layer 49', confidence: 'High',
-      value: { unitCode, attributes: attrs, scale: '1:50,000' }, limitation: 'The GM50 polygon service exposes the mapped unit code directly; descriptive lithology/age is reported separately from the official 1:200,000 descriptive geological layer rather than inferred from the code.'
+      id: 'sk-sguds-geology-50k', category: 'Mapped geology',
+      claim: `ŠGÚDŠ 1:50,000 geology maps the selected coordinate as ${unit || description || unitCode}${description && description !== unit ? ` — ${description}` : ''}.`,
+      status: 'VERIFIED', sourceName: SGUDS, sourceUrl: GM50, datasetDate: today(), spatialRelationship: '1:50,000 geological polygon containing the selected site coordinate',
+      calculationMethod: 'ArcGIS point-in-polygon query of the public ŠGÚDŠ WebServices/GM50 polygon layer 2', confidence: 'High',
+      value: { unitCode, unit, description, age, attributes: attrs, scale: '1:50,000' },
+      limitation: 'Mapped 1:50,000 geology is regional geological evidence, not a borehole log or parcel-specific subsurface profile. Descriptive attributes are reported directly from the official feature layer rather than inferred from the map code.'
     });
-  } else items.push(unavailable('sk-sguds-geology-50k-unavailable', 'Mapped geology', GM50, 'The national 1:50,000 geological polygon service did not return a usable site feature.'));
+  } else items.push(unavailable('sk-sguds-geology-50k-unavailable', 'Mapped geology', GM50, 'The public national 1:50,000 geological polygon service did not return a usable site feature.'));
 
   if (gm200?.length) {
     const attrs = cleanAttributes(gm200[0]);
@@ -192,9 +198,9 @@ export async function querySlovakiaGroundEvidence(lat: number, lng: number, fetc
     const description = first(attrs, ['nazov_sk']);
     const age = [first(attrs, ['utvar_sk']), first(attrs, ['odd_sk'])].filter(Boolean).join(' / ') || null;
     items.push({
-      id: 'sk-sguds-geology-descriptive-200k', category: 'Mapped geology', claim: `ŠGÚDŠ descriptive geology maps the site as ${unit}${description && description !== unit ? ` — ${description}` : ''}.`, status: 'VERIFIED', sourceName: SGUDS, sourceUrl: GM200,
-      datasetDate: today(), spatialRelationship: '1:200,000 geological polygon containing the selected site coordinate', calculationMethod: 'ArcGIS point-in-polygon query of the official GM200 descriptive polygon layer', confidence: 'High',
-      value: { unit, description, age, unitCode: first(attrs, ['idvmp']), attributes: attrs, scale: '1:200,000' }, limitation: 'This is mapped regional geology, not a borehole log or parcel-specific subsurface profile. The finer 1:50,000 mapped code is retained as separate evidence.'
+      id: 'sk-sguds-geology-descriptive-200k', category: 'Mapped geology', claim: `ŠGÚDŠ 1:200,000 descriptive geology maps the site as ${unit}${description && description !== unit ? ` — ${description}` : ''}.`, status: 'VERIFIED', sourceName: SGUDS, sourceUrl: GM200,
+      datasetDate: today(), spatialRelationship: '1:200,000 geological polygon containing the selected site coordinate', calculationMethod: 'ArcGIS point-in-polygon query of the official GM200 descriptive polygon layer', confidence: 'Medium',
+      value: { unit, description, age, unitCode: first(attrs, ['idvmp']), attributes: attrs, scale: '1:200,000' }, limitation: 'This broader-scale map is retained as descriptive context and fallback. The 1:50,000 mapped feature takes precedence when its descriptive fields are available.'
     });
   } else items.push(unavailable('sk-sguds-geology-descriptive-unavailable', 'Mapped geology', GM200, 'The official descriptive geological layer did not return a usable site feature.'));
 
@@ -245,33 +251,33 @@ export async function querySlovakiaGroundEvidence(lat: number, lng: number, fetc
 }
 
 export function enrichSlovakiaGroundEvidence(report: any, items: SlovakiaGroundEvidence[]): void {
-  const geology = items.find(item => item.id === 'sk-sguds-geology-descriptive-200k' && item.status === 'VERIFIED');
   const geology50 = items.find(item => item.id === 'sk-sguds-geology-50k' && item.status === 'VERIFIED');
+  const geology200 = items.find(item => item.id === 'sk-sguds-geology-descriptive-200k' && item.status === 'VERIFIED');
   const hydro = items.find(item => item.id === 'sk-sguds-hydrogeology' && item.status === 'VERIFIED');
   const landslide = items.find(item => item.id === 'sk-sguds-landslide-susceptibility' && item.status === 'VERIFIED');
 
-  if (geology) {
-    const value = geology.value as any;
+  if (geology50 || geology200) {
+    const detailed = (geology50?.value || {}) as any;
+    const regional = (geology200?.value || {}) as any;
     const existing = report.geosurvey_context || {};
     report.geosurvey_context = {
       ...existing,
-      geological_unit_name: value.unit || existing.geological_unit_name || null,
-      lithology_type: value.description || existing.lithology_type || null,
-      geological_period_era: value.age || existing.geological_period_era || null,
+      geological_unit_name: detailed.unit || regional.unit || detailed.unitCode || existing.geological_unit_name || null,
+      lithology_type: detailed.description || regional.description || existing.lithology_type || null,
+      geological_period_era: detailed.age || regional.age || existing.geological_period_era || null,
       survey_authority: SGUDS,
       official_portal_url: PORTAL,
       evidence_level: 'VERIFIED',
-      mapped_scale: geology50 ? '1:50,000 code + 1:200,000 descriptive context' : '1:200,000 descriptive context'
+      mapped_scale: geology50 ? '1:50,000' : '1:200,000'
     };
   }
 
   if (hydro) {
     const value = hydro.value as any;
+    const groundwaterRegime = [value.lithology, value.permeability, value.hydrogeologicalFunction].filter(Boolean).join('; ') || null;
     const context = report.geosurvey_context || {};
-    report.geosurvey_context = {
-      ...context,
-      groundwater_regime: [value.lithology, value.permeability, value.hydrogeologicalFunction].filter(Boolean).join('; ') || context.groundwater_regime || null
-    };
+    report.geosurvey_context = { ...context, groundwater_regime: groundwaterRegime || context.groundwater_regime || null };
+    if (report.soil && groundwaterRegime) report.soil.groundwaterRegime = groundwaterRegime;
   }
 
   if (landslide && report.terrain?.geohazards?.landslideSusceptibility) {
