@@ -49,8 +49,8 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     floodPortalUrl: 'https://hochwasserzentralen.de',
     planningInstrumentName: 'Bebauungsplan (B-Plan) / Zulässigkeit nach § 34 BauGB',
     standardSetbackRule: 'Mindestens 3.00 m Abstandsfläche (§ 6 Musterbauordnung)',
-    baseValuationPerSqm: 175,
-    valuationDataSource: 'Bodenrichtwertinformationssystem Deutschland (BORIS-D)'
+    baseValuationPerSqm: 272,
+    valuationDataSource: 'Destatis / Regionaldatenbank Kaufwerte für baureifes Land 2025 — city → Bundesland → national fallback'
   },
   FR: {
     countryCode: 'FR',
@@ -66,7 +66,7 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     planningInstrumentName: 'Plan Local d\'Urbanisme (PLU/PLUi) / Règlement National (RNU)',
     standardSetbackRule: 'Minimum 3.0 m des limites séparatives (ou 4.0 m selon PLU)',
     baseValuationPerSqm: 0,
-    valuationDataSource: 'Cerema DVF+ open-data (DGFiP bare-land transactions; no generic national fallback)'
+    valuationDataSource: 'Cerema DVF+ open-data (DGFiP terrain-à-bâtir / bare-land signals; no generic national fallback)'
   },
   GB: {
     countryCode: 'GB',
