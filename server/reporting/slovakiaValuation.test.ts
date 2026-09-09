@@ -104,7 +104,7 @@ function rawSlovakiaReport(): any {
   };
 }
 
-test('Slovakia is a limited country pack with valuation integration only', () => {
+test('Slovakia is a limited country pack with national ground evidence and valuation', () => {
   const profile = getCountryProfile('SK');
   const support = getCountrySupport('SK');
   assert.equal(profile.countryName, 'Slovakia');
@@ -113,8 +113,11 @@ test('Slovakia is a limited country pack with valuation integration only', () =>
   assert.match(profile.geologyAuthority, /Štátny geologický ústav/i);
   assert.equal(support.maturity, 'LIMITED');
   assert.equal(support.capabilities.nationalValuation, true);
+  assert.equal(support.capabilities.nationalGeology, true);
+  assert.equal(support.capabilities.nationalBoreholes, true);
+  assert.equal(support.capabilities.nationalHydrogeology, true);
   assert.equal(support.capabilities.nationalCadastre, false);
-  assert.equal(support.capabilities.nationalGeology, false);
+  assert.equal(support.capabilities.nationalFlood, false);
   assert.equal(support.capabilities.nationalPlanning, false);
 });
 
