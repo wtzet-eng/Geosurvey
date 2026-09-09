@@ -45,12 +45,18 @@ function normalize(value?: string): string {
     .replace(/[ł]/g, 'l')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/^wojewodztwo\s+/, '')
     .replace(/[–—-]/g, '_')
     .replace(/\s+/g, '_')
     .replace(/[^a-z0-9_]/g, '')
     .replace(/_+/g, '_')
+    .replace(/^wojewodztwo_?/, '')
+    .replace(/^woj_?/, '')
     .replace(/^_|_$/g, '');
+}
+
+function resolveCityKey(value?: string): string | undefined {
+  const normalized = normalize(value);
+  return Object.keys(CITY_BENCHMARKS).find(key => normalized === key || normalized.endsWith(`_${key}`));
 }
 
 /**
@@ -64,8 +70,8 @@ export function resolvePolandValuationBenchmark(
   municipality?: string,
   voivodeship?: string
 ): PolandValuationBenchmark {
-  const cityKey = normalize(municipality);
-  const cityPrice = CITY_BENCHMARKS[cityKey];
+  const cityKey = resolveCityKey(municipality);
+  const cityPrice = cityKey ? CITY_BENCHMARKS[cityKey] : undefined;
   if (cityPrice) {
     return {
       tier: 'city',
