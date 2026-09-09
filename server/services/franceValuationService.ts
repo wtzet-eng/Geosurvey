@@ -69,7 +69,7 @@ const quantile = (sorted: number[], p: number): number => {
 };
 
 function mutationToLandTransaction(row: DvfMutation): LandTransaction | null {
-  if (String(row.codtypbien ?? '') !== '2') return null;
+  if (!String(row.codtypbien ?? '').startsWith('2')) return null;
   const nature = text(row.libnatmut);
   if (nature && !/^vente\b/i.test(nature)) return null;
   if (row.vefa === true || String(row.vefa).toLowerCase() === 'true') return null;
@@ -165,16 +165,13 @@ async function queryDvfRows(fetcher: FetchLike, params: URLSearchParams): Promis
   return { ok: result.ok && Array.isArray(result.data?.results), rows, count, status: result.status };
 }
 
-const baseDvfParams = () => {
-  const params = new URLSearchParams({
-    codtypbien: '2',
-    anneemut_min: String(new Date().getUTCFullYear() - 3),
-    fields: 'all',
-    page_size: '500',
-    ordering: '-datemut'
-  });
-  return params;
-};
+const baseDvfParams = () => new URLSearchParams({
+  codtypbien: '2',
+  anneemut_min: String(new Date().getUTCFullYear() - 3),
+  fields: 'all',
+  page_size: '500',
+  ordering: '-datemut'
+});
 
 export async function queryFranceLandValuationEvidence(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<FranceSiteEvidence> {
   const commune = await resolveCommune(lat, lng, fetcher);
@@ -220,7 +217,7 @@ export async function queryFranceLandValuationEvidence(lat: number, lng: number,
         ? `DVF+ was queried for bare-land sales near and across ${commune.name}, but fewer than ${MIN_SAMPLE} usable land-only transactions remained after validation.`
         : 'Cerema DVF+ bare-land transaction service could not be reached or validated at analysis time.',
       status: 'REQUIRES_VERIFICATION', sourceName: DVF_SOURCE, sourceUrl: DVF_SOURCE_URL, datasetDate: today(), spatialRelationship: `${commune.name} (${commune.code}) and an approximately 1 km local search box`,
-      calculationMethod: 'Cerema DVF+ codtypbien=2 acquisition; excludes built-area/VEFA/non-sale records and requires a minimum usable sample', confidence: 'Low',
+      calculationMethod: 'Cerema DVF+ codtypbien=2 acquisition; accepts detailed bare-land codes beginning with 2, excludes built-area/VEFA/non-sale records, and requires a minimum usable sample', confidence: 'Low',
       value: { reasonCode, commune, localReturned: localResult.count, communeReturned: communeResult.count },
       limitation: sourceReachable
         ? 'Sparse bare-land transactions can make a defensible automated land benchmark impossible. No generic French fallback is substituted.'
@@ -234,7 +231,7 @@ export async function queryFranceLandValuationEvidence(lat: number, lng: number,
     claim: `${benchmark.sampleCount} usable DVF+ bare-land transaction(s) support a ${benchmark.scope === 'LOCAL' ? 'nearby' : 'commune-wide'} median benchmark of approximately ${benchmark.benchmarkPricePerSqm.toLocaleString('fr-FR')} €/m² for ${commune.name}.`,
     status: 'MODELLED', sourceName: DVF_SOURCE, sourceUrl: DVF_SOURCE_URL, datasetDate: today(),
     spatialRelationship: benchmark.scope === 'LOCAL' ? `Approximately 1 km search box around the selected site in ${commune.name}` : `Commune ${commune.name} (${commune.code})`,
-    calculationMethod: 'Cerema DVF+ open-data, codtypbien=2 (foncier nu); filters non-sales, VEFA, built area and invalid price/area records; IQR outlier control when sample size permits; median €/m² benchmark',
+    calculationMethod: 'Cerema DVF+ open-data, codtypbien=2 bare-land hierarchy (returned detailed codes beginning with 2); filters non-sales, VEFA, built area and invalid price/area records; IQR outlier control when sample size permits; median €/m² benchmark',
     confidence: benchmark.scope === 'LOCAL' && benchmark.sampleCount >= 8 ? 'Medium' : 'Low',
     value: benchmark,
     limitation: 'Land-only screening benchmark from completed bare-land transactions. It excludes buildings and improvements and does not prove comparable planning rights, servicing, access, contamination, subdivision potential or other legal/economic attributes of the selected parcel.'
