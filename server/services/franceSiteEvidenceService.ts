@@ -3,6 +3,7 @@ import { resolveSource } from '../sources/resolver';
 import { LogicalSourceId, ResolutionResult, SourceEndpoint, SourceProvenance } from '../sources/sourceTypes';
 import { EvidenceLevel } from '../types';
 import { SpatialEvidenceScope } from './groundContextService';
+import { enrichFranceValuationFromEvidence, queryFranceLandValuationEvidence } from './franceValuationService';
 
 export interface FranceSiteEvidence {
   id: string;
@@ -425,14 +426,9 @@ async function queryGeology(lat: number, lng: number, fetcher: FetchLike): Promi
     };
   }
 
-  // BRGM documents WFS as the download/feature route. The simplified 1:1M
-  // lithology layer returns attributed vector features and is a more reliable
-  // fallback than repeatedly interrogating raster/catalogue WMS layers.
   const wfsFallback = await queryWfsLithologyFallback(lat, lng, fetcher, resolution.endpoint.url, resolution);
   if (wfsFallback) return wfsFallback;
 
-  // Keep WMS LITHO_1M_SIMPLIFIEE as a final official route in case the WFS is
-  // temporarily unavailable but GetFeatureInfo is functioning.
   const lithologyWms = layers.find(layer => geologyLayerRank(layer) === 5);
   if (lithologyWms) {
     const info = await wmsInfo(fetcher, resolution.endpoint.url, lithologyWms, lat, lng);
@@ -516,11 +512,17 @@ async function queryShrinkSwell(lat: number, lng: number, fetcher: FetchLike): P
 }
 
 export async function queryFranceSiteEvidence(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<FranceSiteEvidence[]> {
-  const [geology, bss, shrinkSwell] = await Promise.all([queryGeology(lat, lng, fetcher), queryBss(lat, lng, fetcher), queryShrinkSwell(lat, lng, fetcher)]);
-  return [geology, bss, shrinkSwell];
+  const [geology, bss, shrinkSwell, valuation] = await Promise.all([
+    queryGeology(lat, lng, fetcher),
+    queryBss(lat, lng, fetcher),
+    queryShrinkSwell(lat, lng, fetcher),
+    queryFranceLandValuationEvidence(lat, lng, fetcher)
+  ]);
+  return [geology, bss, shrinkSwell, valuation];
 }
 
 export function enrichGeologyFromBrgm(report: any, evidenceItems: FranceSiteEvidence[]): void {
+  enrichFranceValuationFromEvidence(report, evidenceItems);
   const geology = evidenceItems.find(item => item.id === 'fr-brgm-geology-site' && item.status === 'VERIFIED');
   const bss = evidenceItems.find(item => item.id === 'fr-brgm-bss-context' && item.status === 'VERIFIED');
   const shrinkSwell = evidenceItems.find(item => item.id === 'fr-brgm-shrink-swell-site' && item.status === 'VERIFIED');
