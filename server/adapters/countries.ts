@@ -33,8 +33,8 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     floodPortalUrl: 'https://wody.isok.gov.pl',
     planningInstrumentName: 'Miejscowy Plan Zagospodarowania Przestrzennego (MPZP) / Decyzja WZ',
     standardSetbackRule: '4.0 m (ściany z oknami/drzwiami) / 3.0 m (ściany ślepe) od granicy działki',
-    baseValuationPerSqm: 420,
-    valuationDataSource: 'Rejestr Cen Nieruchomości (RCiWN) / Modele Statystyczne PKO/NBP'
+    baseValuationPerSqm: 188,
+    valuationDataSource: 'RCN (GUGiK-derived) / Cenatorium transaction benchmarks — city → voivodeship → national fallback'
   },
   DE: {
     countryCode: 'DE',
@@ -140,7 +140,7 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     cadastreAuthority: 'Kadaster Nederland (Basisregistratie Kadaster BRK / PDOK)',
     cadastrePortalUrl: 'https://pdok.nl',
     geologyAuthority: 'TNO Geologische Dienst Nederland (DINOloket / GeoTOP 3D)',
-    geologyPortalUrl: 'https://dinoloket.nl',
+    geologyPortalUrl: 'https://swisstopo.admin.ch',
     floodAuthority: 'Rijkswaterstaat (Watermanagement Centrum Nederland)',
     floodPortalUrl: 'https://rijkswaterstaat.nl',
     planningInstrumentName: 'Omgevingsplan (Omgevingswet) / Bestemmingsplan (Ruimtelijkeplannen)',
