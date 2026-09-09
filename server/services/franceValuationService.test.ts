@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { enrichFranceValuationFromEvidence, queryFranceLandValuationEvidence, summarizeFranceLandTransactions } from './franceValuationService';
 
 const commune = { code: '33063', name: 'Bordeaux', departmentCode: '33' };
-const land = (unitPrice: number, area = 1000, date = '2025-06-01', code = '21', segment: string | undefined = '4') => ({
+const land = (unitPrice: number, area = 1000, date = '2025-06-01', code = '21', segment = '4') => ({
   codtypbien: code, segmtab: segment, idnatmut: '1', libtypbien: 'TERRAIN DE TYPE TAB', libnatmut: 'Vente', vefa: false,
   valeurfonc: String(unitPrice * area), sterr: String(area), sbati: '0', datemut: date
 });
@@ -24,12 +24,12 @@ function fetcher(localRows: unknown[], communeRows: unknown[], departmentCode = 
 test('DVF summary keeps buildable-land signals and rejects generic natural/built/VEFA/non-land records', () => {
   const rows: any[] = [
     land(80, 1000, '2025-01-01', '20', '3'),
-    land(90, 1000, '2025-02-01', '21', undefined),
+    land(90, 1000, '2025-02-01', '21', ''),
     land(100, 1000, '2025-03-01', '2311', '4'),
     land(110, 1000, '2025-04-01', '232', '3'),
     land(120, 1000, '2025-05-01', '239', '4'),
-    land(5, 1000, '2025-01-15', '20', undefined),
-    land(8, 1000, '2025-01-20', '2311', undefined),
+    land(5, 1000, '2025-01-15', '20', ''),
+    land(8, 1000, '2025-01-20', '2311', ''),
     { ...land(900), codtypbien: '1113' },
     { ...land(700), sbati: '120' },
     { ...land(600), vefa: true },
@@ -46,7 +46,7 @@ test('DVF summary keeps buildable-land signals and rejects generic natural/built
 
 test('generic agricultural/natural bare-land prices do not pull down a buildable-land benchmark', () => {
   const buildable = [90, 100, 110, 120, 130, 140].map(value => land(value));
-  const genericNatural = [2, 3, 4, 5, 6, 7].map(value => land(value, 5000, '2025-02-01', '20', undefined));
+  const genericNatural = [2, 3, 4, 5, 6, 7].map(value => land(value, 5000, '2025-02-01', '20', ''));
   const summary = summarizeFranceLandTransactions([...genericNatural, ...buildable], 'COMMUNE', commune);
   assert.ok(summary);
   assert.equal(summary?.sampleCount, 6);
