@@ -7,6 +7,19 @@ const LOCALISED_CONTEXT_IDS = new Set([
   'pgi-cbdg-research-points-context', 'pgi-cbdg-research-points-unavailable'
 ]);
 
+type DisplayRecordBase = {
+  id: string;
+  category: string;
+  claim: string;
+  sourceName: string;
+  sourceUrl?: string;
+  datasetDate: string;
+  spatialRelationship: string;
+  calculationMethod: string;
+  limitation: string;
+  value?: unknown;
+};
+
 function risk(value: unknown): RiskClassification {
   const normalized = String(value || '').toUpperCase();
   if (normalized.includes('NEGLIGIBLE')) return 'NEGLIGIBLE';
@@ -20,15 +33,16 @@ function risk(value: unknown): RiskClassification {
  * Country support notices and the three Polish site-context records have deliberate
  * localized prose. All other evidence keeps its source-specific scientific claim,
  * spatial relationship, ingestion method and limitation instead of being replaced
- * by generic presentation boilerplate.
+ * by generic presentation boilerplate. The generic keeps localized confidence/status
+ * presentation types intact rather than forcing them back to raw EvidenceItem enums.
  */
-export function buildEvidenceDisplayRecords(canonicalRecords: EvidenceItem[], localizedRecords: EvidenceItem[]): EvidenceItem[] {
+export function buildEvidenceDisplayRecords<T extends DisplayRecordBase>(canonicalRecords: EvidenceItem[], localizedRecords: T[]): T[] {
   const localizedById = new Map(localizedRecords.map(record => [record.id, record]));
-  return canonicalRecords.map(record => {
+  return canonicalRecords.flatMap(record => {
     const localized = localizedById.get(record.id);
-    if (!localized) return record;
-    if (record.id.startsWith('country-support-') || LOCALISED_CONTEXT_IDS.has(record.id)) return localized;
-    return {
+    if (!localized) return [];
+    if (record.id.startsWith('country-support-') || LOCALISED_CONTEXT_IDS.has(record.id)) return [localized];
+    return [{
       ...localized,
       category: record.category,
       claim: record.claim,
@@ -39,7 +53,7 @@ export function buildEvidenceDisplayRecords(canonicalRecords: EvidenceItem[], lo
       calculationMethod: record.calculationMethod,
       limitation: record.limitation,
       value: record.value
-    };
+    }];
   });
 }
 
