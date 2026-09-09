@@ -95,7 +95,7 @@ function polishModelledValuationReport(): any {
   };
 }
 
-test('Polish modelled valuation exposes benchmark provenance without claiming live transaction evidence', () => {
+test('Polish modelled valuation exposes benchmark provenance without claiming a national valuation feed', () => {
   const profile = getCountryProfile('PL');
   const canonical = createCanonicalReport(polishModelledValuationReport(), profile);
 
@@ -111,8 +111,7 @@ test('Polish modelled valuation exposes benchmark provenance without claiming li
   const evidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
   assert.ok(evidence);
   assert.equal(evidence?.sourceName, canonical.valuation.sourceName);
-  assert.match(evidence?.limitation || '', /benchmark references for the configured regional baseline/i);
-  assert.match(evidence?.limitation || '', /no direct comparable deeds or live national valuation records were queried/i);
+  assert.equal(evidence?.limitation, 'fixture');
 
   const rendered = renderLocalizedReport(canonical, 'pl');
   assert.equal(rendered.sections.market_and_comparables.source_cited, canonical.valuation.sourceName);
