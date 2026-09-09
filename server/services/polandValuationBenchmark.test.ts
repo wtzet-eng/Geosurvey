@@ -10,7 +10,7 @@ test('uses specific city transaction benchmarks before regional values', () => {
   assert.equal(warsaw.highFactor, 1.35);
 });
 
-test('normalizes Polish diacritics in city names', () => {
+test('normalizes Polish diacritics and cadastral city-name prefixes', () => {
   const lodz = resolvePolandValuationBenchmark('Łódź', 'łódzkie');
   assert.equal(lodz.tier, 'city');
   assert.equal(lodz.benchmarkPricePerSqm, 466);
@@ -18,6 +18,10 @@ test('normalizes Polish diacritics in city names', () => {
   const wroclaw = resolvePolandValuationBenchmark('Wrocław', 'dolnośląskie');
   assert.equal(wroclaw.tier, 'city');
   assert.equal(wroclaw.benchmarkPricePerSqm, 543);
+
+  const warsawCadastral = resolvePolandValuationBenchmark('m.st. Warszawa', 'woj. mazowieckie');
+  assert.equal(warsawCadastral.tier, 'city');
+  assert.equal(warsawCadastral.benchmarkPricePerSqm, 1009);
 });
 
 test('uses voivodeship transaction benchmark for ordinary municipalities and villages', () => {
@@ -26,6 +30,10 @@ test('uses voivodeship transaction benchmark for ordinary municipalities and vil
   assert.equal(regional.benchmarkPricePerSqm, 203);
   assert.equal(regional.lowFactor, 0.60);
   assert.equal(regional.highFactor, 1.50);
+
+  const abbreviated = resolvePolandValuationBenchmark('Zielonki', 'woj. małopolskie');
+  assert.equal(abbreviated.tier, 'voivodeship');
+  assert.equal(abbreviated.benchmarkPricePerSqm, 203);
 });
 
 test('uses a wider national transaction fallback where regional coverage is unavailable', () => {
