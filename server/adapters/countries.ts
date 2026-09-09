@@ -140,7 +140,7 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     cadastreAuthority: 'Kadaster Nederland (Basisregistratie Kadaster BRK / PDOK)',
     cadastrePortalUrl: 'https://pdok.nl',
     geologyAuthority: 'TNO Geologische Dienst Nederland (DINOloket / GeoTOP 3D)',
-    geologyPortalUrl: 'https://swisstopo.admin.ch',
+    geologyPortalUrl: 'https://dinoloket.nl',
     floodAuthority: 'Rijkswaterstaat (Watermanagement Centrum Nederland)',
     floodPortalUrl: 'https://rijkswaterstaat.nl',
     planningInstrumentName: 'Omgevingsplan (Omgevingswet) / Bestemmingsplan (Ruimtelijkeplannen)',
