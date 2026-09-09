@@ -74,7 +74,10 @@ export function parseDelimitedTable(text: string): Array<Record<string, string>>
   if (lines.length < 2) return [];
   const delimiter = (lines[0].match(/;/g)?.length || 0) > (lines[0].match(/,/g)?.length || 0) ? ';' : ',';
   const headers = splitCsvLine(lines[0], delimiter).map(header => header.replace(/^"|"$/g, '').trim());
-  return lines.slice(1).map(line => Object.fromEntries(headers.map((header, index) => [header, (splitCsvLine(line, delimiter)[index] || '').replace(/^"|"$/g, '').trim()])));
+  return lines.slice(1).map(line => {
+    const cells = splitCsvLine(line, delimiter);
+    return Object.fromEntries(headers.map((header, index) => [header, (cells[index] || '').replace(/^"|"$/g, '').trim()]));
+  });
 }
 
 function field(row: Record<string, string>, matcher: RegExp): string {
@@ -136,7 +139,7 @@ export function selectSpainBenchmark(rows: Array<Record<string, string>>, provin
   const parsed = rows.map(row => {
     const year = numeric(field(row, /^ano$|^year$/i));
     const quarter = numeric(field(row, /trimestre|quarter/i).replace(/[^0-9]/g, ''));
-    const price = numeric(field(row, /^valor$|valor.*m2|precio.*m2|eur.*m2/i));
+    const price = numeric(field(row, /^valor(?: m)?$|valor.*m2|precio.*m2|eur.*m2/i));
     return { year, quarter, price, province: field(row, /provincia|province/i), community: field(row, /comunidad.*autonoma|autonomous.*community/i), type: field(row, /^tipo$|type/i) };
   }).filter(item => item.year !== null && item.quarter !== null && item.price !== null && item.price! > 0);
   if (!parsed.length) return null;
