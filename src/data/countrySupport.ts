@@ -80,7 +80,17 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
       nationalValuation: true
     }
   },
-  SK: valuationOnly('SK'),
+  SK: {
+    countryCode: 'SK',
+    maturity: 'LIMITED',
+    capabilities: {
+      ...NONE,
+      nationalGeology: true,
+      nationalBoreholes: true,
+      nationalHydrogeology: true,
+      nationalValuation: true
+    }
+  },
   AT: valuationOnly('AT'),
   ES: valuationOnly('ES'),
   FI: valuationOnly('FI'),
