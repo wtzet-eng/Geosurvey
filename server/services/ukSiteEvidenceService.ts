@@ -1,8 +1,10 @@
+import { enrichUKValuationFromEvidence, queryUKLandValuationEvidence } from './ukValuationService';
+
 export interface UkSiteEvidence {
   id: string;
   category: string;
   claim: string;
-  status: 'VERIFIED' | 'REQUIRES_VERIFICATION' | 'UNAVAILABLE';
+  status: 'VERIFIED' | 'MODELLED' | 'REQUIRES_VERIFICATION' | 'UNAVAILABLE';
   sourceName: string;
   sourceUrl: string;
   datasetDate: string;
@@ -164,7 +166,7 @@ async function queryArchaeologyEngland(lat: number, lng: number): Promise<UkSite
 }
 
 export async function queryUKSiteEvidence(lat: number, lng: number): Promise<UkSiteEvidence[]> {
-  const [geology, boreholes, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology] = await Promise.all([
+  const [geology, boreholes, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology, valuation] = await Promise.all([
     queryBgsMap(lat, lng, 'BGS Geological Map (DiGMapGB)', BGS_WMS, [/digmap/i, /geolog/i, /bedrock/i, /superficial/i]),
     queryBgsBoreholes(lat, lng),
     queryEnvironmentAgencyFlood(lat, lng),
@@ -177,13 +179,17 @@ export async function queryUKSiteEvidence(lat: number, lng: number): Promise<UkS
     queryBgsMiningHazard(lat, lng),
     queryCoalMineEntries(lat, lng),
     queryHistoricLandfill(lat, lng),
-    queryArchaeologyEngland(lat, lng)
+    queryArchaeologyEngland(lat, lng),
+    queryUKLandValuationEvidence(lat, lng)
   ]);
 
-  return [geology, boreholes, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology];
+  return [geology, boreholes, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology, valuation as UkSiteEvidence];
 }
 
 export function enrichGeologyFromBgs(report: any, evidenceItems: UkSiteEvidence[]) {
+  const valuation = evidenceItems.find(item => item.id.startsWith('uk-mhclg-land-valuation'));
+  if (valuation) enrichUKValuationFromEvidence(report, valuation as any);
+
   const geological = evidenceItems.find(item => item.category === 'BGS Geological Map (DiGMapGB)' && item.status === 'VERIFIED');
   const boreholes = evidenceItems.filter(item => item.category === 'Boreholes' && item.status === 'VERIFIED');
   if (!geological && !boreholes.length) return;

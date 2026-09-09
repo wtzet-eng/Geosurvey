@@ -114,8 +114,12 @@ const hasModelledValuation = (report: VerifiedSiteReport, support: CountrySuppor
   && finite(report.valuation.indicativeMinPrice) !== null
   && finite(report.valuation.indicativeMaxPrice) !== null;
 
-const modelledValuationSource = (profile: CountryAdapterProfile): string =>
-  `GeoSurvey · ${profile.valuationDataSource} · ${profile.baseValuationPerSqm} ${profile.currency}/m²`;
+const modelledValuationSource = (profile: CountryAdapterProfile, report: VerifiedSiteReport): string => {
+  const dynamic = report.evidenceRegistry.find(record => record.id === 'valuation-indicative-model' && record.status === 'MODELLED');
+  if (dynamic?.sourceName && !/^(Configured valuation|GeoSurvey)$/i.test(dynamic.sourceName.trim())) return dynamic.sourceName;
+  const baseline = profile.baseValuationPerSqm > 0 ? ` · ${profile.baseValuationPerSqm} ${profile.currency}/m²` : '';
+  return `GeoSurvey · ${profile.valuationDataSource}${baseline}`;
+};
 
 function supportRecord(id: string, claim: string, sourceName: string, sourceUrl?: string): EvidenceItem {
   return {
@@ -148,9 +152,9 @@ function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdap
     if (modelledValuationAvailable && record.id === 'valuation-indicative-model') {
       return [{
         ...record,
-        sourceName: modelledValuationSource(profile),
-        sourceUrl: undefined,
-        limitation: 'Indicative model only. The named market sources are benchmark references for the configured regional baseline; no direct comparable deeds or live national valuation records were queried. An authoritative valuation requires current market evidence and a qualified valuer.'
+        sourceName: modelledValuationSource(profile, report),
+        sourceUrl: record.sourceUrl,
+        limitation: record.limitation || 'Indicative land-value model only. Review source-specific limitations; this is not a certified appraisal and does not establish binding planning or buildability rights.'
       }];
     }
     if (record.id === 'flood-proximity-check' && !c.nationalFlood) {
@@ -348,7 +352,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
       : c.nationalValuation
       ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency, status: report.valuation.status, comparableCount: report.valuation.comparableEvidenceCount, sourceName: profile.valuationDataSource }
       : modelledValuationAvailable
-      ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency || profile.currency, status: 'MODELLED', comparableCount: report.valuation.comparableEvidenceCount, sourceName: modelledValuationSource(profile) }
+      ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency || profile.currency, status: 'MODELLED', comparableCount: report.valuation.comparableEvidenceCount, sourceName: modelledValuationSource(profile, report) }
       : { min: null, max: null, median: null, currency: report.valuation.currency || profile.currency, status: 'REQUIRES_VERIFICATION', comparableCount: 0, sourceName: profile.valuationDataSource, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     evidenceScore: score,
     sourceRecords,
