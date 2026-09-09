@@ -39,6 +39,32 @@ test('English, German and Polish dictionaries expose the same presentation contr
   assert.deepEqual(Object.keys(getReportPresentation('pl')).sort(), keys);
 });
 
+test('valuation presentation is explicitly land-only in every supported report language', () => {
+  const english = getReportPresentation('en');
+  assert.match(english.market, /Land/);
+  assert.match(english.indicativeRange, /land-value/i);
+  assert.match(english.valuationNote, /Land value only/i);
+  assert.match(english.valuationNote, /buildings.*structures.*improvements/i);
+
+  const german = getReportPresentation('de');
+  assert.match(german.market, /Boden/);
+  assert.match(german.indicativeRange, /Bodenwert/i);
+  assert.match(german.valuationNote, /Nur Bodenwert/i);
+  assert.match(german.valuationNote, /Gebäude.*bauliche Anlagen.*Aufbauten/i);
+
+  const polish = getReportPresentation('pl');
+  assert.match(polish.market, /wartość gruntu/i);
+  assert.match(polish.indicativeRange, /wartości gruntu/i);
+  assert.match(polish.valuationNote, /Wyłącznie wartość gruntu/i);
+  assert.match(polish.valuationNote, /budynków.*budowli.*naniesień/i);
+});
+
+test('land-value scope is repeated in the professional disclaimer', () => {
+  assert.match(getReportPresentation('en').disclaimerOne, /land-only.*buildings.*structures.*improvements/i);
+  assert.match(getReportPresentation('de').disclaimerOne, /Bodenwert.*Gebäude.*bauliche Anlagen.*Aufbauten/i);
+  assert.match(getReportPresentation('pl').disclaimerOne, /wartością gruntu.*budynków.*budowli.*naniesień/i);
+});
+
 test('canonical enums and unavailable sentinels never leak into localized presentation values', () => {
   assert.deepEqual(['NEGLIGIBLE', 'LOW', 'MODERATE', 'HIGH'].map(value => localizePresentationValue(value, 'pl')), ['Znikome', 'Niskie', 'Umiarkowane', 'Wysokie']);
   assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'de')), ['Modelliert', 'Verifiziert', 'Prüfung erforderlich']);
