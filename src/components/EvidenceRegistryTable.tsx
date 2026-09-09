@@ -8,6 +8,27 @@ interface EvidenceRegistryTableProps {
   language?: string;
 }
 
+const OMITTED_VALUE_KEYS = new Set(['attributes', 'features', 'geometry', 'records', 'observations', 'bgs_sources', 'featureInfo']);
+
+function compactEvidenceValue(input: unknown, depth = 0): unknown {
+  if (input === null || input === undefined) return null;
+  if (typeof input === 'string' || typeof input === 'boolean') return input;
+  if (typeof input === 'number') return Number.isFinite(input) ? input : null;
+  if (depth >= 3) return undefined;
+  if (Array.isArray(input)) {
+    const values = input.slice(0, 8).map(value => compactEvidenceValue(value, depth + 1)).filter(value => value !== undefined);
+    return values.length ? values : undefined;
+  }
+  if (typeof input === 'object') {
+    const entries = Object.entries(input as Record<string, unknown>)
+      .filter(([key]) => !OMITTED_VALUE_KEYS.has(key))
+      .map(([key, value]) => [key, compactEvidenceValue(value, depth + 1)] as const)
+      .filter(([, value]) => value !== undefined && value !== null && !(Array.isArray(value) && value.length === 0));
+    return entries.length ? Object.fromEntries(entries) : undefined;
+  }
+  return undefined;
+}
+
 export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ items = [], language = 'en' }) => {
   const [filter, setFilter] = useState<'ALL' | 'VERIFIED' | 'MODELLED' | 'REQUIRES_VERIFICATION'>('ALL');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -15,7 +36,7 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
   if (!items || items.length === 0) return null;
 
   const filteredItems = filter === 'ALL' ? items : items.filter(i => i.status === filter);
-  const text = language === 'pl' ? { title: 'Rejestr audytu dowodów', subtitle: 'Każdy parametr techniczny jest powiązany z pochodzeniem i ograniczeniem', all: 'Wszystkie', verified: 'Zweryfikowane', modelled: 'Modelowane', unverified: 'Niezweryfikowane', source: 'Źródło', authoritative: 'Źródło i data', portal: 'Otwórz portal', spatial: 'Relacja przestrzenna', method: 'Metoda pozyskania', confidence: 'Poziom pewności', limitation: 'Znane ograniczenie' } : language === 'de' ? { title: 'Evidenz-Auditregister', subtitle: 'Jeder technische Parameter ist mit Herkunft und Einschränkung verknüpft', all: 'Alle', verified: 'Verifiziert', modelled: 'Modelliert', unverified: 'Unverifiziert', source: 'Quelle', authoritative: 'Quelle und Datum', portal: 'Portal öffnen', spatial: 'Räumlicher Bezug', method: 'Erfassungsmethode', confidence: 'Konfidenzniveau', limitation: 'Bekannte Einschränkung' } : { title: 'Evidence Audit Registry', subtitle: 'Every technical parameter is mapped to its provenance and limitation', all: 'All', verified: 'Verified', modelled: 'Modelled', unverified: 'Unverified', source: 'Source', authoritative: 'Authoritative Source & Date', portal: 'Access Portal / Viewer', spatial: 'Spatial Relationship', method: 'Calculation / Ingestion Method', confidence: 'Confidence Level', limitation: 'Known Limitation & Caveat' };
+  const text = language === 'pl' ? { title: 'Rejestr audytu dowodów', subtitle: 'Każdy parametr techniczny jest powiązany z pochodzeniem i ograniczeniem', all: 'Wszystkie', verified: 'Zweryfikowane', modelled: 'Modelowane', unverified: 'Niezweryfikowane', source: 'Źródło', authoritative: 'Źródło i data', portal: 'Otwórz portal', spatial: 'Relacja przestrzenna', method: 'Metoda pozyskania', confidence: 'Poziom pewności', limitation: 'Znane ograniczenie', returned: 'Zwrócone dane źródłowe' } : language === 'de' ? { title: 'Evidenz-Auditregister', subtitle: 'Jeder technische Parameter ist mit Herkunft und Einschränkung verknüpft', all: 'Alle', verified: 'Verifiziert', modelled: 'Modelliert', unverified: 'Unverifiziert', source: 'Quelle', authoritative: 'Quelle und Datum', portal: 'Portal öffnen', spatial: 'Räumlicher Bezug', method: 'Erfassungsmethode', confidence: 'Konfidenzniveau', limitation: 'Bekannte Einschränkung', returned: 'Zurückgegebene Quelldaten' } : { title: 'Evidence Audit Registry', subtitle: 'Every technical parameter is mapped to its provenance and limitation', all: 'All', verified: 'Verified', modelled: 'Modelled', unverified: 'Unverified', source: 'Source', authoritative: 'Authoritative Source & Date', portal: 'Access Portal / Viewer', spatial: 'Spatial Relationship', method: 'Calculation / Ingestion Method', confidence: 'Confidence Level', limitation: 'Known Limitation & Caveat', returned: 'Returned source data' };
 
   return (
     <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-5">
@@ -30,42 +51,17 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
           </div>
         </div>
 
-        {/* Filter buttons */}
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setFilter('ALL')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-              filter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
+          <button type="button" onClick={() => setFilter('ALL')} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${filter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
             {text.all} ({items.length})
           </button>
-          <button
-            type="button"
-            onClick={() => setFilter('VERIFIED')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-              filter === 'VERIFIED' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-emerald-50'
-            }`}
-          >
+          <button type="button" onClick={() => setFilter('VERIFIED')} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${filter === 'VERIFIED' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-emerald-50'}`}>
             {text.verified} ({items.filter(i => i.status === 'VERIFIED').length})
           </button>
-          <button
-            type="button"
-            onClick={() => setFilter('MODELLED')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-              filter === 'MODELLED' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-800 hover:bg-amber-50'
-            }`}
-          >
+          <button type="button" onClick={() => setFilter('MODELLED')} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${filter === 'MODELLED' ? 'bg-amber-600 text-white shadow-xs' : 'text-amber-800 hover:bg-amber-50'}`}>
             {text.modelled} ({items.filter(i => i.status === 'MODELLED').length})
           </button>
-          <button
-            type="button"
-            onClick={() => setFilter('REQUIRES_VERIFICATION')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-              filter === 'REQUIRES_VERIFICATION' ? 'bg-rose-600 text-white shadow-xs' : 'text-rose-800 hover:bg-rose-50'
-            }`}
-          >
+          <button type="button" onClick={() => setFilter('REQUIRES_VERIFICATION')} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${filter === 'REQUIRES_VERIFICATION' ? 'bg-rose-600 text-white shadow-xs' : 'text-rose-800 hover:bg-rose-50'}`}>
             {text.unverified} ({items.filter(i => i.status === 'REQUIRES_VERIFICATION').length})
           </button>
         </div>
@@ -74,15 +70,10 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
       <div className="space-y-3">
         {filteredItems.map(item => {
           const isExpanded = expandedId === item.id;
+          const returnedData = compactEvidenceValue(item.value);
           return (
-            <div
-              key={item.id}
-              className="bg-slate-50/80 rounded-2xl border border-slate-200/70 p-4 transition hover:border-indigo-300"
-            >
-              <div
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer"
-                onClick={() => setExpandedId(isExpanded ? null : item.id)}
-              >
+            <div key={item.id} className="bg-slate-50/80 rounded-2xl border border-slate-200/70 p-4 transition hover:border-indigo-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : item.id)}>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{item.category}</span>
@@ -96,11 +87,7 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">{text.source}</span>
                     <span className="font-semibold text-slate-700">{item.sourceName.slice(0, 32)}...</span>
                   </div>
-                  <button
-                    type="button"
-                    className="p-1 text-slate-400 hover:text-slate-700 transition"
-                    aria-label={language === 'pl' ? 'Pokaż lub ukryj szczegóły' : language === 'de' ? 'Details ein- oder ausblenden' : 'Toggle details'}
-                  >
+                  <button type="button" className="p-1 text-slate-400 hover:text-slate-700 transition" aria-label={language === 'pl' ? 'Pokaż lub ukryj szczegóły' : language === 'de' ? 'Details ein- oder ausblenden' : 'Toggle details'}>
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </button>
                 </div>
@@ -112,14 +99,8 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
                     <span className="font-bold text-slate-700 block">{text.authoritative}</span>
                     <p className="text-slate-600">{item.sourceName} ({item.datasetDate})</p>
                     {item.sourceUrl && (
-                      <a
-                        href={item.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold pt-1"
-                      >
-                        <span>{text.portal}</span>
-                        <ExternalLink className="h-3 w-3" />
+                      <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold pt-1">
+                        <span>{text.portal}</span><ExternalLink className="h-3 w-3" />
                       </a>
                     )}
                   </div>
@@ -139,6 +120,13 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
                     <span className="font-bold text-rose-900 block">{text.limitation}</span>
                     <p className="text-rose-800 font-medium">{item.limitation}</p>
                   </div>
+
+                  {returnedData !== undefined && returnedData !== null && (
+                    <div className="sm:col-span-2 space-y-2 bg-slate-950 p-3 rounded-xl border border-slate-800 overflow-hidden">
+                      <span className="font-bold text-slate-200 block">{text.returned}</span>
+                      <pre className="text-[11px] leading-relaxed text-slate-300 whitespace-pre-wrap break-words overflow-x-auto">{JSON.stringify(returnedData, null, 2)}</pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

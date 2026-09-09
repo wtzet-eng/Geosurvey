@@ -17,6 +17,7 @@ import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
 import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
+import { applySiteSpecificCountryEvidence, buildEvidenceDisplayRecords, enrichValuationPresentation } from './server/reporting/evidenceDisplay';
 import { getCountrySupport } from './src/data/countrySupport';
 
 const app = express();
@@ -188,8 +189,10 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     }
 
     stage = 'report-assembly';
-    const canonicalReport = createCanonicalReport(evidenceReport, cProfile);
+    const baseCanonicalReport = createCanonicalReport(evidenceReport, cProfile);
+    const canonicalReport = applySiteSpecificCountryEvidence(baseCanonicalReport, evidenceReport);
     const presentation = renderLocalizedReport(canonicalReport, language);
+    enrichValuationPresentation(canonicalReport, presentation);
     const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
     if (franceGroundPresentation) {
       presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${franceGroundPresentation.narrative}`.trim();
@@ -202,6 +205,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const existingSource = presentation.sections.soil_and_ground.source_cited;
       presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...slovakiaGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
+    const evidenceDisplayRecords = buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && areaSize > 0 ? value / areaSize : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
 
@@ -212,7 +216,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       country_support: presentation.countrySupport,
       ground_context: { ...presentation.groundContext, ...(franceGroundPresentation ? { france_context: franceGroundPresentation } : {}), ...(slovakiaGroundPresentation ? { slovakia_context: slovakiaGroundPresentation } : {}) },
       canonical_evidence: canonicalReport,
-      evidence_registry: presentation.evidenceRegistry,
+      evidence_registry: evidenceDisplayRecords,
       verification_checklist: presentation.verificationChecklist,
       summary: presentation.summary,
       titles: presentation.titles,
