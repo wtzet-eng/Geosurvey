@@ -15,204 +15,193 @@ export interface UkSiteEvidence {
   limitation: string;
 }
 
+type FetchLike = typeof fetch;
 const BGS = 'British Geological Survey (BGS)';
-const BGS_WMS = 'https://map.bgs.ac.uk/arcgis/services/GeoIndex/DiGMapGB/MapServer/WMSServer';
-const BGS_BOREHOLES_WMS = 'https://map.bgs.ac.uk/arcgis/services/GeoIndex/Boreholes/MapServer/WMSServer';
-const BGS_HEX_ARCGIS = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/hex_grids/MapServer';
-const BGS_HAZARDS_ARCGIS = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/hazards/MapServer';
+const BGS_DETAILED = 'https://map.bgs.ac.uk/arcgis/rest/services/BGS_Detailed_Geology/MapServer';
+const BGS_REGIONAL = 'https://map.bgs.ac.uk/arcgis/rest/services/SDDS/Geology_625k/MapServer';
+const BGS_BOREHOLES = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/boreholes/MapServer';
+const BGS_HYDRO = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/hydrogeology/MapServer';
+const BGS_HEX = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/hex_grids/MapServer';
 const COAL_MINE_ENTRIES_WMS = 'https://map.bgs.ac.uk/arcgis/services/CoalAuthority/coalauthority_mine_entries/MapServer/WMSServer';
 const EA = 'Environment Agency';
-const EA_FLOOD_WMS = 'https://environment.data.gov.uk/spatialdata/flood-map-for-planning-flood-zones-2-and-3/wms';
+const EA_FLOOD = 'https://environment.data.gov.uk/KB6uNVj5ZcJr7jUP/ArcGIS/rest/services/Flood_Map_for_Planning/FeatureServer';
 const EA_HISTORIC_LANDFILL_WMS = 'https://environment.data.gov.uk/spatialdata/historic-landfill/wms';
 const HISTORIC_ENGLAND_NHLE = 'https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/arcgis/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer';
 const HISTORIC_ENGLAND = 'Historic England';
-
 const today = () => new Date().toISOString().slice(0, 10);
 
-async function text(url: string, timeoutMs = 8000): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+function evidence(id: string, category: string, claim: string, status: UkSiteEvidence['status'], sourceName: string, sourceUrl: string, method: string, value: any, limitation: string, confidence: UkSiteEvidence['confidence'] = 'Medium'): UkSiteEvidence {
+  return { id, category, claim, status, sourceName, sourceUrl, datasetDate: today(), spatialRelationship: 'Selected site coordinate / stated search radius', calculationMethod: method, confidence, value, limitation };
+}
+
+async function fetchJson(url: string, timeoutMs = 8500, fetcher: FetchLike = fetch): Promise<any | null> {
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const r = await fetch(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 evidence extraction', Accept: 'application/xml,text/xml,text/plain' }, signal: controller.signal });
-    return r.ok ? await r.text() : null;
+    const response = await fetcher(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 UK evidence', Accept: 'application/json' }, signal: controller.signal });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return payload && !payload.error ? payload : null;
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
-async function json(url: string, timeoutMs = 8000): Promise<any | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+async function fetchText(url: string, timeoutMs = 8000): Promise<string | null> {
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const r = await fetch(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 evidence extraction', Accept: 'application/json' }, signal: controller.signal });
-    return r.ok ? await r.json() : null;
+    const response = await fetch(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 UK evidence', Accept: 'application/xml,text/xml,text/plain' }, signal: controller.signal });
+    return response.ok ? await response.text() : null;
   } catch { return null; } finally { clearTimeout(timer); }
+}
+
+function pointQueryUrl(service: string, layerId: number, lat: number, lng: number, returnGeometry = false): string {
+  const params = new URLSearchParams({ f: 'json', geometry: `${lng},${lat}`, geometryType: 'esriGeometryPoint', inSR: '4326', spatialRel: 'esriSpatialRelIntersects', outFields: '*', returnGeometry: returnGeometry ? 'true' : 'false' });
+  if (returnGeometry) params.set('outSR', '4326');
+  return `${service}/${layerId}/query?${params}`;
+}
+
+async function pointQuery(service: string, layerId: number, lat: number, lng: number, fetcher: FetchLike = fetch, returnGeometry = false): Promise<any | null> {
+  return fetchJson(pointQueryUrl(service, layerId, lat, lng, returnGeometry), 9000, fetcher);
+}
+
+async function radiusQuery(service: string, layerId: number, lat: number, lng: number, radiusM: number, fetcher: FetchLike = fetch): Promise<any | null> {
+  const params = new URLSearchParams({ f: 'json', geometry: `${lng},${lat}`, geometryType: 'esriGeometryPoint', inSR: '4326', spatialRel: 'esriSpatialRelIntersects', distance: String(radiusM), units: 'esriSRUnit_Meter', outFields: '*', returnGeometry: 'true', outSR: '4326', resultRecordCount: '100' });
+  return fetchJson(`${service}/${layerId}/query?${params}`, 10000, fetcher);
+}
+
+const clean = (value: unknown): string | null => typeof value === 'string' && value.trim() && !/^(null|unknown|not available|n\/a)$/i.test(value.trim()) ? value.trim() : typeof value === 'number' && Number.isFinite(value) ? String(value) : null;
+function exact(attrs: Record<string, unknown>, ...keys: string[]): string | null {
+  const index = new Map(Object.keys(attrs).map(key => [key.toUpperCase(), key]));
+  for (const requested of keys) { const actual = index.get(requested.toUpperCase()); const value = actual ? clean(attrs[actual]) : null; if (value) return value; }
+  return null;
+}
+function firstAttrs(payload: any): Record<string, unknown> | null { return payload?.features?.find((feature: any) => feature?.attributes && Object.keys(feature.attributes).length)?.attributes || null; }
+const combine = (...parts: Array<string | null>) => [...new Set(parts.filter((part): part is string => Boolean(part)))].join(' – ') || null;
+
+function geologyFields(attrs: Record<string, unknown>) {
+  const unit = exact(attrs, 'LEX_D', 'LEX_RCS_D', 'LEX');
+  let lithology = exact(attrs, 'RCS_D', 'RCS_X');
+  if (!lithology) {
+    const combined = exact(attrs, 'LEX_RCS_D');
+    const parts = combined?.split(/\s+(?:-|–|:)\s+/).filter(Boolean) || [];
+    lithology = parts.length > 1 ? parts.at(-1)! : combined;
+  }
+  const age = combine(combine(exact(attrs, 'MIN_TIME_D'), exact(attrs, 'MAX_TIME_D')) || combine(exact(attrs, 'MIN_PERIOD'), exact(attrs, 'MAX_PERIOD')), exact(attrs, 'MAX_EPOCH'), exact(attrs, 'MAX_ERA'));
+  return { unit, lithology, age, scale: exact(attrs, 'NOM_SCALE') };
+}
+
+async function queryBgsGeology(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<UkSiteEvidence> {
+  const [dBed, dSup] = await Promise.all([pointQuery(BGS_DETAILED, 4, lat, lng, fetcher), pointQuery(BGS_DETAILED, 3, lat, lng, fetcher)]);
+  let bed = firstAttrs(dBed); let superficial = firstAttrs(dSup); let source = BGS_DETAILED; let tier = 1; let nominalScale = '1:50,000';
+  if (!bed) {
+    const [rBed, rSup] = await Promise.all([pointQuery(BGS_REGIONAL, 3, lat, lng, fetcher), pointQuery(BGS_REGIONAL, 2, lat, lng, fetcher)]);
+    bed = firstAttrs(rBed); if (!superficial) superficial = firstAttrs(rSup); source = BGS_REGIONAL; tier = 2; nominalScale = '1:625,000';
+  }
+  if (!bed && !superficial) return evidence('uk-bgs-geology-unavailable', 'BGS Geological Map (DiGMapGB)', 'BGS detailed and regional REST geology services returned no usable mapped geology at the selected coordinate.', 'REQUIRES_VERIFICATION', BGS, BGS_DETAILED, 'ArcGIS REST point query: detailed geology followed by regional fallback', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'No geological unit is inferred when BGS services fail or return no mapped feature.', 'Low');
+  const b = geologyFields(bed || {}); const s = geologyFields(superficial || {});
+  const scale = b.scale || s.scale || nominalScale;
+  return evidence('uk-bgs-geology-site', 'BGS Geological Map (DiGMapGB)', `BGS ${tier === 1 ? 'detailed' : 'regional fallback'} geology maps the site as ${b.unit || b.lithology || s.unit || 'a mapped geological unit'}${b.lithology ? ` (${b.lithology})` : ''}.`, 'VERIFIED', BGS, source, 'ArcGIS REST point intersection: BGS 1:50,000 bedrock/superficial layers with 1:625,000 fallback', { tier, unitName: b.unit, lithology: b.lithology, geologicalAge: b.age, superficialDeposit: s.unit, superficialLithology: s.lithology, scale }, 'Mapped geology is cartographic evidence, not parcel stratigraphy or a site investigation. Regional fallback is broader screening evidence.', tier === 1 ? 'High' : 'Medium');
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number { const r = 6371; const p = Math.PI / 180; const a = Math.sin((lat2-lat1)*p/2)**2 + Math.cos(lat1*p)*Math.cos(lat2*p)*Math.sin((lon2-lon1)*p/2)**2; return 2*r*Math.asin(Math.sqrt(a)); }
+
+async function queryBgsBoreholes(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<UkSiteEvidence> {
+  const result = await radiusQuery(BGS_BOREHOLES, 0, lat, lng, 5000, fetcher);
+  if (!result) return evidence('uk-bgs-boreholes-unavailable', 'Boreholes', 'BGS GeoIndex borehole REST service could not be queried.', 'REQUIRES_VERIFICATION', BGS, `${BGS_BOREHOLES}/0`, 'ArcGIS REST 5 km radius query', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'Service failure is not evidence that boreholes are absent.', 'Low');
+  const rows = (result.features || []).map((feature: any) => {
+    const attrs = feature.attributes || {}; const x = Number(feature.geometry?.x); const y = Number(feature.geometry?.y);
+    return { id: exact(attrs, 'REFERENCE', 'NAME', 'BOREHOLE_ID', 'REGNO', 'ID'), depthM: Number.isFinite(Number(attrs.LENGTH)) ? Number(attrs.LENGTH) : null, distanceKm: Number.isFinite(x) && Number.isFinite(y) ? haversineKm(lat, lng, y, x) : null };
+  }).sort((a: any, b: any) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)).slice(0, 20);
+  if (!rows.length) return evidence('uk-bgs-boreholes-site', 'Boreholes', 'BGS GeoIndex returned no borehole record within the automated 5 km search radius.', 'REQUIRES_VERIFICATION', BGS, `${BGS_BOREHOLES}/0`, 'ArcGIS REST 5 km radius query', { searchRadiusKm: 5, count: 0 }, 'No returned record is not proof that no borehole or investigation exists; review GeoIndex and local investigation records.', 'Medium');
+  return evidence('uk-bgs-boreholes-site', 'Boreholes', `BGS GeoIndex returned ${rows.length} borehole record(s) within 5 km; nearest returned record is approximately ${rows[0].distanceKm?.toFixed(2) ?? 'unknown'} km away.`, 'VERIFIED', BGS, `${BGS_BOREHOLES}/0`, 'ArcGIS REST 5 km radius query with WGS84 distance calculation', { searchRadiusKm: 5, count: rows.length, nearestDistanceKm: rows[0].distanceKm, nearestRecordId: rows[0].id, records: rows }, 'Nearby boreholes are contextual observations only and do not establish conditions beneath the selected parcel. Original logs/reports must be reviewed.', 'Medium');
+}
+
+async function queryBgsHydrogeology(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<UkSiteEvidence> {
+  const result = await pointQuery(BGS_HYDRO, 0, lat, lng, fetcher);
+  if (!result) return evidence('uk-bgs-hydrogeology-unavailable', 'Hydrogeology', 'BGS regional hydrogeology REST service could not be queried.', 'REQUIRES_VERIFICATION', BGS, `${BGS_HYDRO}/0`, 'ArcGIS REST point query', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'Source failure is not evidence about groundwater conditions.', 'Low');
+  const attrs = firstAttrs(result);
+  if (!attrs) return evidence('uk-bgs-hydrogeology-site', 'Hydrogeology', 'BGS hydrogeology service returned no mapped aquifer feature at the selected coordinate.', 'REQUIRES_VERIFICATION', BGS, `${BGS_HYDRO}/0`, 'ArcGIS REST point query', { reasonCode: 'NO_DATA' }, 'No mapped feature does not establish absence of groundwater.', 'Low');
+  const rockUnit = exact(attrs, 'ROCK_UNIT'); const classCode = exact(attrs, 'CLASS'); const character = exact(attrs, 'CHARACTER'); const flow = exact(attrs, 'FLOW_MECHA'); const summary = exact(attrs, 'SUMMARY');
+  const descriptor = [rockUnit, character, flow, summary].filter(Boolean).join('; ');
+  return evidence('uk-bgs-hydrogeology-site', 'Hydrogeology', `BGS 1:625,000 hydrogeology maps the site${rockUnit ? ` in ${rockUnit}` : ''}${character ? `: ${character}` : ''}.`, 'VERIFIED', BGS, `${BGS_HYDRO}/0`, 'ArcGIS REST point query of BGS regional aquifer-potential mapping', { rockUnit, classCode, character, flowMechanism: flow, summary, descriptor, scale: '1:625,000' }, 'Regional aquifer-potential mapping does not establish parcel groundwater depth, seasonal water level, inflow rate or dewatering requirement.', 'Medium');
 }
 
 async function wmsCapabilities(url: string): Promise<string[]> {
-  const xml = await text(`${url}?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0`);
-  if (!xml) return [];
-  const names: string[] = [];
-  const seen = new Set<string>();
-  const re = /<(?:Layer|wms:Layer)[^>]*>[\s\S]*?<Name>([^<]+)<\/Name>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(xml))) {
-    const name = match[1].trim();
-    if (name && !seen.has(name)) { seen.add(name); names.push(name); }
-  }
-  return names;
+  const xml = await fetchText(`${url}?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0`); if (!xml) return [];
+  return [...new Set([...xml.matchAll(/<Name>([^<]+)<\/Name>/gi)].map(match => match[1].trim()).filter(Boolean))];
 }
-
 async function wmsInfo(url: string, layer: string, lat: number, lng: number): Promise<any | null> {
-  const delta = 0.001;
-  const params = new URLSearchParams({
-    SERVICE: 'WMS', VERSION: '1.3.0', REQUEST: 'GetFeatureInfo',
-    LAYERS: layer, QUERY_LAYERS: layer, CRS: 'CRS:84',
-    BBOX: `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`,
-    WIDTH: '101', HEIGHT: '101', I: '50', J: '50',
-    INFO_FORMAT: 'application/json', FEATURE_COUNT: '10'
-  });
-  return json(`${url}?${params.toString()}`, 8000);
+  const d = 0.001; const params = new URLSearchParams({ SERVICE: 'WMS', VERSION: '1.3.0', REQUEST: 'GetFeatureInfo', LAYERS: layer, QUERY_LAYERS: layer, CRS: 'CRS:84', BBOX: `${lng-d},${lat-d},${lng+d},${lat+d}`, WIDTH: '101', HEIGHT: '101', I: '50', J: '50', INFO_FORMAT: 'application/json', FEATURE_COUNT: '10' });
+  return fetchJson(`${url}?${params}`, 8000);
+}
+const chooseLayer = (layers: string[], patterns: RegExp[]) => layers.find(layer => patterns.some(pattern => pattern.test(layer))) || layers[0] || null;
+
+async function queryEnglandFlood(lat: number, lng: number, england: boolean): Promise<UkSiteEvidence> {
+  if (!england) return evidence('uk-ea-flood-coverage-excluded', 'Flood Risk', 'Environment Agency Flood Map for Planning is England-only; no English flood classification is substituted outside England.', 'REQUIRES_VERIFICATION', EA, EA_FLOOD, 'England coverage gate', { reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' }, 'Scotland, Wales and Northern Ireland require their own statutory flood datasets.', 'High');
+  const [zone3, zone2] = await Promise.all([pointQuery(EA_FLOOD, 1, lat, lng), pointQuery(EA_FLOOD, 2, lat, lng)]);
+  if (!zone3 || !zone2) return evidence('uk-ea-flood-unavailable', 'Flood Risk', 'Environment Agency Flood Map for Planning feature service could not be queried reliably.', 'REQUIRES_VERIFICATION', EA, EA_FLOOD, 'ArcGIS REST point queries to Flood Zones 3 and 2', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'Source failure is not evidence that flood risk is absent.', 'Low');
+  const in3 = Boolean(zone3.features?.length); const in2 = Boolean(zone2.features?.length); const level = in3 ? 'High' : in2 ? 'Moderate' : 'Low'; const zone = in3 ? 'Flood Zone 3' : in2 ? 'Flood Zone 2' : 'Flood Zone 1 screening';
+  return evidence('uk-ea-flood-site', 'Flood Risk', `Environment Agency Flood Map for Planning classifies the selected coordinate as ${zone}.`, 'VERIFIED', EA, EA_FLOOD, 'ArcGIS REST point intersection against current Flood Zone 3 and Flood Zone 2 layers', { level, zone, inFloodZone3: in3, inFloodZone2: in2 }, 'Flood Map for Planning covers rivers and sea and ignores the benefits of defences; it does not cover all flood sources or replace a site-specific flood risk assessment.', 'High');
 }
 
-async function arcgisPointQuery(serviceUrl: string, layerId: number, lat: number, lng: number): Promise<any | null> {
-  const geometry = JSON.stringify({ x: lng, y: lat, spatialReference: { wkid: 4326 } });
-  const params = new URLSearchParams({
-    f: 'json', geometry, geometryType: 'esriGeometryPoint', inSR: '4326',
-    spatialRel: 'esriSpatialRelIntersects', outFields: '*', returnGeometry: 'false'
-  });
-  return json(`${serviceUrl}/${layerId}/query?${params.toString()}`, 10000);
-}
-
-function chooseLayer(layers: string[], patterns: RegExp[]): string | null {
-  return layers.find(layer => patterns.some(pattern => pattern.test(layer))) || layers.find(layer => !/legend|index|overview|boundary|frame/i.test(layer)) || layers[0] || null;
-}
-
-function evidence(id: string, category: string, claim: string, status: UkSiteEvidence['status'], sourceName: string, sourceUrl: string, method: string, value: any, limitation: string, confidence: UkSiteEvidence['confidence'] = 'Medium'): UkSiteEvidence {
-  return { id, category, claim, status, sourceName, sourceUrl, datasetDate: today(), spatialRelationship: 'Exact site-centre desktop query', calculationMethod: method, confidence, value, limitation };
-}
-
-async function queryBgsMap(lat: number, lng: number, title: string, url: string, patterns: RegExp[]): Promise<UkSiteEvidence> {
-  const layers = await wmsCapabilities(url);
-  if (!layers.length) return evidence(`uk-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-unavailable`, title, `${title}: BGS WMS service could not be queried at analysis time.`, 'UNAVAILABLE', BGS, url, 'OGC WMS GetCapabilities', null, 'Service failure or endpoint change is not evidence that geological information is absent.', 'Low');
-  const layer = chooseLayer(layers, patterns);
-  const info = layer ? await wmsInfo(url, layer, lat, lng) : null;
-  const features = info?.features || info?.FeatureInfo || [];
-  const hasInfo = Boolean(info && (features.length || Object.keys(info).length));
-  return evidence(`uk-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-site`, title, hasInfo ? `${title}: the BGS map service returned information at the site coordinate.` : `${title}: the BGS map service is reachable, but no feature information was returned at the tested coordinate.`, hasInfo ? 'VERIFIED' : 'REQUIRES_VERIFICATION', BGS, url, 'OGC WMS GetFeatureInfo at the selected BGS layer', { queriedLayer: layer, availableLayers: layers.slice(0, 100), featureInfo: info }, 'Map-service evidence supports regional geological interpretation but does not replace site-specific investigation, borehole records or the original map sheet/explanatory notes.', hasInfo ? 'Medium' : 'Low');
-}
-
-async function queryBgsBoreholes(lat: number, lng: number): Promise<UkSiteEvidence> {
-  const layers = await wmsCapabilities(BGS_BOREHOLES_WMS);
-  if (!layers.length) return evidence('uk-bgs-boreholes-unavailable', 'Boreholes', 'BGS borehole WMS service could not be queried at analysis time.', 'UNAVAILABLE', BGS, BGS_BOREHOLES_WMS, 'OGC WMS GetCapabilities', null, 'A service failure is not evidence that boreholes are absent.', 'Low');
-  const layer = chooseLayer(layers, [/borehole/i, /bore/i, /site/i]);
-  const info = layer ? await wmsInfo(BGS_BOREHOLES_WMS, layer, lat, lng) : null;
-  const features = info?.features || info?.FeatureInfo || [];
-  const hasInfo = Boolean(info && (features.length || Object.keys(info).length));
-  return evidence('uk-bgs-boreholes-site', 'Boreholes', hasInfo ? `BGS borehole service returned feature information at the site coordinate.` : `BGS borehole service is reachable, but no borehole feature information was returned at the tested coordinate.`, hasInfo ? 'VERIFIED' : 'REQUIRES_VERIFICATION', BGS, BGS_BOREHOLES_WMS, 'OGC WMS GetFeatureInfo at the selected borehole layer', { queriedLayer: layer, featureInfo: info }, 'Absence of a returned feature is not proof that no borehole exists. Nearby borehole records should be reviewed in BGS GeoIndex and original records before treating geology or groundwater as site-specific.', hasInfo ? 'Medium' : 'Low');
-}
-
-async function queryEnvironmentAgencyFlood(lat: number, lng: number): Promise<UkSiteEvidence> {
-  const layers = await wmsCapabilities(EA_FLOOD_WMS);
-  if (!layers.length) return evidence('uk-ea-flood-unavailable', 'Flood Risk', 'Environment Agency Flood Map for Planning WMS could not be queried at analysis time.', 'UNAVAILABLE', EA, EA_FLOOD_WMS, 'OGC WMS GetCapabilities', null, 'Service failure or endpoint change is not evidence that flood risk is absent.', 'Low');
-  const layer = chooseLayer(layers, [/flood.*zone/i, /zone.*2/i, /zone.*3/i, /planning/i]);
-  const info = layer ? await wmsInfo(EA_FLOOD_WMS, layer, lat, lng) : null;
-  const features = info?.features || info?.FeatureInfo || [];
-  const hasInfo = Boolean(info && (features.length || Object.keys(info).length));
-  return evidence('uk-ea-flood-site', 'Flood Risk', hasInfo ? `Environment Agency Flood Map for Planning returned information at the site coordinate.` : `Environment Agency Flood Map for Planning is reachable, but no feature information was returned at the tested coordinate.`, hasInfo ? 'VERIFIED' : 'REQUIRES_VERIFICATION', EA, EA_FLOOD_WMS, 'OGC WMS GetFeatureInfo at the site coordinate', { queriedLayer: layer, featureInfo: info }, 'Planning flood-zone evidence is a desktop screening result. It does not replace site-specific flood risk assessment, drainage assessment or the applicable national planning guidance.', hasInfo ? 'High' : 'Low');
-}
-
-async function queryBgsGeoSureHex(lat: number, lng: number, layerId: number, hazardName: string): Promise<UkSiteEvidence> {
-  const result = await arcgisPointQuery(BGS_HEX_ARCGIS, layerId, lat, lng);
-  if (!result) return evidence(`uk-geosure-${hazardName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-unavailable`, 'Ground Stability & Geohazards', `BGS GeoSure ${hazardName} layer could not be queried.`, 'UNAVAILABLE', BGS, `${BGS_HEX_ARCGIS}/${layerId}`, 'ArcGIS REST point intersection query', null, 'Service failure is not evidence that the hazard is absent. The full GeoSure product provides more detailed hazard information than the 5 km generalised screening layer.', 'Low');
-  const feature = result.features?.[0];
-  if (!feature) return evidence(`uk-geosure-${hazardName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, 'Ground Stability & Geohazards', `BGS GeoSure ${hazardName}: no 5 km screening polygon was returned for the site coordinate.`, 'REQUIRES_VERIFICATION', BGS, `${BGS_HEX_ARCGIS}/${layerId}`, 'ArcGIS REST point intersection query against BGS GeoSure 5 km hexagonal screening layer', { count: result.count || 0 }, 'No returned feature is not proof of zero hazard. The 5 km hex layer is a generalised screening product and should be supplemented by the detailed GeoSure data or GeoReport for site-level decisions.', 'Medium');
-  const p = feature.attributes || {};
-  const rating = p.Legend || p.CLASS || p.Advisory || 'Unclassified';
-  return evidence(`uk-geosure-${hazardName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, 'Ground Stability & Geohazards', `BGS GeoSure ${hazardName} screening rating at the site: ${rating}.`, 'VERIFIED', BGS, `${BGS_HEX_ARCGIS}/${layerId}`, 'ArcGIS REST point intersection query against BGS GeoSure 5 km hexagonal screening layer', { rating, class: p.CLASS, legend: p.Legend, advisory: p.Advisory, notice: p.Notice, version: p.Version }, 'This is a 5 km generalised GeoSure screening layer. A significant or moderate result should trigger review of detailed BGS GeoSure data, boreholes and a site-specific geotechnical investigation; it is not a foundation design parameter.', 'High');
-}
-
-async function queryBgsMiningHazard(lat: number, lng: number): Promise<UkSiteEvidence> {
-  const result = await arcgisPointQuery(BGS_HEX_ARCGIS, 1, lat, lng);
-  if (!result) return evidence('uk-bgs-noncoal-mining-unavailable', 'Underground Voids & Mining', 'BGS mining-hazard screening service could not be queried.', 'UNAVAILABLE', BGS, `${BGS_HEX_ARCGIS}/1`, 'ArcGIS REST point intersection query', null, 'Service failure is not evidence that underground workings are absent.', 'Low');
-  const feature = result.features?.[0];
-  if (!feature) return evidence('uk-bgs-noncoal-mining', 'Underground Voids & Mining', 'No BGS non-coal mining hazard screening polygon was returned at the site coordinate.', 'REQUIRES_VERIFICATION', BGS, `${BGS_HEX_ARCGIS}/1`, 'ArcGIS REST point intersection query', { count: result.count || 0 }, 'This screening layer does not prove the absence of shafts, adits, quarries or other underground voids. Original records and specialist ground investigation may still be required.', 'Medium');
-  return evidence('uk-bgs-noncoal-mining', 'Underground Voids & Mining', `BGS non-coal mining hazard screening: ${(feature.attributes || {}).Legend || (feature.attributes || {}).CLASS || 'classified area'}.`, 'VERIFIED', BGS, `${BGS_HEX_ARCGIS}/1`, 'ArcGIS REST point intersection query', feature.attributes || {}, 'The screening layer identifies mining-related ground hazards but does not replace a site-specific mining or ground-stability report.', 'High');
+async function queryGeoSure(lat: number, lng: number, layerId: number, hazard: string): Promise<UkSiteEvidence> {
+  const result = await pointQuery(BGS_HEX, layerId, lat, lng);
+  if (!result) return evidence(`uk-geosure-${hazard.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-unavailable`, 'Ground Stability & Geohazards', `BGS GeoSure ${hazard} screening service could not be queried.`, 'REQUIRES_VERIFICATION', BGS, `${BGS_HEX}/${layerId}`, 'ArcGIS REST point query', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'Source failure is not evidence that the hazard is absent.', 'Low');
+  const attrs = result.features?.[0]?.attributes;
+  if (!attrs) return evidence(`uk-geosure-${hazard.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, 'Ground Stability & Geohazards', `No BGS GeoSure ${hazard} screening polygon was returned at the selected coordinate.`, 'REQUIRES_VERIFICATION', BGS, `${BGS_HEX}/${layerId}`, 'ArcGIS REST point query', { reasonCode: 'NO_DATA' }, 'No returned feature is not proof of zero hazard.', 'Medium');
+  const rating = attrs.Legend || attrs.CLASS || attrs.Advisory || 'Unclassified';
+  return evidence(`uk-geosure-${hazard.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, 'Ground Stability & Geohazards', `BGS GeoSure ${hazard} screening rating: ${rating}.`, 'VERIFIED', BGS, `${BGS_HEX}/${layerId}`, 'ArcGIS REST point query against BGS 5 km screening layer', { rating, ...attrs }, 'This is generalised ground-hazard screening, not a parcel geotechnical assessment or design parameter.', 'High');
 }
 
 async function queryCoalMineEntries(lat: number, lng: number): Promise<UkSiteEvidence> {
-  const layers = await wmsCapabilities(COAL_MINE_ENTRIES_WMS);
-  if (!layers.length) return evidence('uk-coal-mine-entries-unavailable', 'Underground Voids & Mining', 'Coal Authority Mine Entries WMS could not be queried.', 'UNAVAILABLE', 'Coal Authority', COAL_MINE_ENTRIES_WMS, 'OGC WMS GetCapabilities', null, 'Service failure is not evidence that mine entries are absent. A formal Coal Authority Mining Report may still be required.', 'Low');
-  const layer = chooseLayer(layers, [/mine[._ ]entry/i, /mine/i, /entry/i]);
-  const info = layer ? await wmsInfo(COAL_MINE_ENTRIES_WMS, layer, lat, lng) : null;
-  const features = info?.features || info?.FeatureInfo || [];
-  const hasInfo = Boolean(info && (features.length || Object.keys(info).length));
-  return evidence('uk-coal-mine-entries', 'Underground Voids & Mining', hasInfo ? 'Coal Authority Mine Entries service returned information at the site coordinate.' : 'Coal Authority Mine Entries service is reachable but returned no feature information at the tested coordinate.', hasInfo ? 'VERIFIED' : 'REQUIRES_VERIFICATION', 'Coal Authority', COAL_MINE_ENTRIES_WMS, 'OGC WMS GetFeatureInfo at the mine-entry layer', { queriedLayer: layer, featureInfo: info }, 'No returned feature is not proof of no mine workings. Where development is proposed in a coal mining reporting area, obtain the appropriate Coal Authority Mining Report and specialist advice.', hasInfo ? 'High' : 'Medium');
+  const layers = await wmsCapabilities(COAL_MINE_ENTRIES_WMS); if (!layers.length) return evidence('uk-coal-mine-entries-unavailable', 'Underground Voids & Mining', 'Coal Authority mine-entry WMS could not be queried.', 'REQUIRES_VERIFICATION', 'Coal Authority', COAL_MINE_ENTRIES_WMS, 'WMS GetCapabilities', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'Service failure is not evidence that mine entries are absent.', 'Low');
+  const layer = chooseLayer(layers, [/mine[._ ]entry/i, /mine/i]); const info = layer ? await wmsInfo(COAL_MINE_ENTRIES_WMS, layer, lat, lng) : null; const has = Boolean(info && ((info.features?.length || info.FeatureInfo?.length) || Object.keys(info).length));
+  return evidence('uk-coal-mine-entries', 'Underground Voids & Mining', has ? 'Coal Authority mine-entry service returned information at the selected coordinate.' : 'Coal Authority service returned no mine-entry feature information at the selected coordinate.', has ? 'VERIFIED' : 'REQUIRES_VERIFICATION', 'Coal Authority', COAL_MINE_ENTRIES_WMS, 'WMS GetFeatureInfo', { layer, featureInfo: info }, 'No returned feature is not proof of no coal workings; obtain an appropriate Coal Authority Mining Report where relevant.', has ? 'High' : 'Medium');
 }
 
-async function queryHistoricLandfill(lat: number, lng: number): Promise<UkSiteEvidence> {
-  const layers = await wmsCapabilities(EA_HISTORIC_LANDFILL_WMS);
-  if (!layers.length) return evidence('uk-historic-landfill-unavailable', 'Previous Land Use & Contamination', 'Environment Agency Historic Landfill WMS could not be queried.', 'UNAVAILABLE', EA, EA_HISTORIC_LANDFILL_WMS, 'OGC WMS GetCapabilities', null, 'Historic landfill data is incomplete and service failure is not evidence that no former landfill exists.', 'Low');
-  const layer = chooseLayer(layers, [/historic/i, /landfill/i]);
-  const info = layer ? await wmsInfo(EA_HISTORIC_LANDFILL_WMS, layer, lat, lng) : null;
-  const features = info?.features || info?.FeatureInfo || [];
-  const hasInfo = Boolean(info && (features.length || Object.keys(info).length));
-  return evidence('uk-historic-landfill', 'Previous Land Use & Contamination', hasInfo ? 'Environment Agency Historic Landfill service returned information at the site coordinate.' : 'Environment Agency Historic Landfill service is reachable but returned no feature information at the tested coordinate.', hasInfo ? 'VERIFIED' : 'REQUIRES_VERIFICATION', EA, EA_HISTORIC_LANDFILL_WMS, 'OGC WMS GetFeatureInfo at the historic-landfill layer', { queriedLayer: layer, featureInfo: info }, 'Historic landfill records are a screening indicator, not a contamination clearance. The dataset may be incomplete; where relevant, obtain a Phase 1/Phase 2 contaminated-land assessment.', hasInfo ? 'High' : 'Medium');
+async function queryHistoricLandfill(lat: number, lng: number, england: boolean): Promise<UkSiteEvidence> {
+  if (!england) return evidence('uk-historic-landfill-coverage-excluded', 'Previous Land Use & Contamination', 'Environment Agency historic-landfill data is England-specific and was not used outside England.', 'REQUIRES_VERIFICATION', EA, EA_HISTORIC_LANDFILL_WMS, 'England coverage gate', { reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' }, 'Use the competent national environmental authority outside England.', 'High');
+  const layers = await wmsCapabilities(EA_HISTORIC_LANDFILL_WMS); if (!layers.length) return evidence('uk-historic-landfill-unavailable', 'Previous Land Use & Contamination', 'Environment Agency Historic Landfill WMS could not be queried.', 'REQUIRES_VERIFICATION', EA, EA_HISTORIC_LANDFILL_WMS, 'WMS GetCapabilities', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'Source failure is not evidence that historic landfill is absent.', 'Low');
+  const layer = chooseLayer(layers, [/historic/i, /landfill/i]); const info = layer ? await wmsInfo(EA_HISTORIC_LANDFILL_WMS, layer, lat, lng) : null; const has = Boolean(info && ((info.features?.length || info.FeatureInfo?.length) || Object.keys(info).length));
+  return evidence('uk-historic-landfill', 'Previous Land Use & Contamination', has ? 'Environment Agency Historic Landfill returned information at the selected coordinate.' : 'No historic-landfill feature information was returned at the selected coordinate.', has ? 'VERIFIED' : 'REQUIRES_VERIFICATION', EA, EA_HISTORIC_LANDFILL_WMS, 'WMS GetFeatureInfo', { layer, featureInfo: info }, 'Historic landfill is a screening indicator and does not replace Phase 1/Phase 2 contaminated-land assessment.', has ? 'High' : 'Medium');
 }
 
-async function queryArchaeologyEngland(lat: number, lng: number): Promise<UkSiteEvidence> {
-  const result = await arcgisPointQuery(HISTORIC_ENGLAND_NHLE, 0, lat, lng);
-  if (!result) return evidence('uk-heritage-england-unavailable', 'Archaeology & Heritage', 'Historic England National Heritage List query could not be completed.', 'UNAVAILABLE', HISTORIC_ENGLAND, HISTORIC_ENGLAND_NHLE, 'ArcGIS REST point intersection query', null, 'The NHLE covers nationally protected heritage assets in England; service failure is not evidence that archaeological constraints are absent.', 'Low');
-  const count = result.features?.length || result.count || 0;
-  return evidence('uk-heritage-england', 'Archaeology & Heritage', count ? `Historic England NHLE returned ${count} protected heritage feature(s) intersecting the site coordinate.` : 'Historic England NHLE returned no nationally protected heritage feature at the site coordinate.', count ? 'VERIFIED' : 'REQUIRES_VERIFICATION', HISTORIC_ENGLAND, HISTORIC_ENGLAND_NHLE, 'ArcGIS REST point intersection query against the National Heritage List for England', { count, features: result.features?.slice(0, 10)?.map((f: any) => f.attributes) }, 'NHLE is not a complete archaeological record. Absence from NHLE does not rule out non-designated archaeology, local records or archaeological potential. Wales, Scotland and Northern Ireland use separate heritage datasets.', count ? 'High' : 'Medium');
+async function queryArchaeology(lat: number, lng: number, england: boolean): Promise<UkSiteEvidence> {
+  if (!england) return evidence('uk-heritage-england-coverage-excluded', 'Archaeology & Heritage', 'Historic England NHLE is England-only and was not used outside England.', 'REQUIRES_VERIFICATION', HISTORIC_ENGLAND, HISTORIC_ENGLAND_NHLE, 'England coverage gate', { reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' }, 'Use the competent national heritage dataset outside England.', 'High');
+  const result = await pointQuery(HISTORIC_ENGLAND_NHLE, 0, lat, lng); if (!result) return evidence('uk-heritage-england-unavailable', 'Archaeology & Heritage', 'Historic England NHLE service could not be queried.', 'REQUIRES_VERIFICATION', HISTORIC_ENGLAND, HISTORIC_ENGLAND_NHLE, 'ArcGIS REST point query', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'Service failure is not evidence that heritage constraints are absent.', 'Low');
+  const count = result.features?.length || 0;
+  return evidence('uk-heritage-england', 'Archaeology & Heritage', count ? `Historic England NHLE returned ${count} protected heritage feature(s) intersecting the selected coordinate.` : 'No nationally protected NHLE feature intersects the selected coordinate.', count ? 'VERIFIED' : 'REQUIRES_VERIFICATION', HISTORIC_ENGLAND, HISTORIC_ENGLAND_NHLE, 'ArcGIS REST point query', { count, features: result.features?.slice(0, 10)?.map((f: any) => f.attributes) }, 'NHLE is not a complete archaeological record; absence does not rule out non-designated archaeology or local HER constraints.', count ? 'High' : 'Medium');
 }
+
+function authorityCodeFromValuation(item: any): string | null { const value = item?.value || {}; return clean(value.localAuthorityCode) || clean(value.authority?.code); }
 
 export async function queryUKSiteEvidence(lat: number, lng: number): Promise<UkSiteEvidence[]> {
-  const [geology, boreholes, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology, valuation] = await Promise.all([
-    queryBgsMap(lat, lng, 'BGS Geological Map (DiGMapGB)', BGS_WMS, [/digmap/i, /geolog/i, /bedrock/i, /superficial/i]),
-    queryBgsBoreholes(lat, lng),
-    queryEnvironmentAgencyFlood(lat, lng),
-    queryBgsGeoSureHex(lat, lng, 6, 'Shrink–swell'),
-    queryBgsGeoSureHex(lat, lng, 3, 'Compressible ground'),
-    queryBgsGeoSureHex(lat, lng, 4, 'Landslides'),
-    queryBgsGeoSureHex(lat, lng, 5, 'Running sand'),
-    queryBgsGeoSureHex(lat, lng, 7, 'Soluble rocks'),
-    queryBgsGeoSureHex(lat, lng, 2, 'Collapsible deposits'),
-    queryBgsMiningHazard(lat, lng),
-    queryCoalMineEntries(lat, lng),
-    queryHistoricLandfill(lat, lng),
-    queryArchaeologyEngland(lat, lng),
-    queryUKLandValuationEvidence(lat, lng)
+  const valuation = await queryUKLandValuationEvidence(lat, lng) as UkSiteEvidence;
+  const authorityCode = authorityCodeFromValuation(valuation); const england = Boolean(authorityCode?.startsWith('E'));
+  const [geology, boreholes, hydro, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology] = await Promise.all([
+    queryBgsGeology(lat, lng), queryBgsBoreholes(lat, lng), queryBgsHydrogeology(lat, lng), queryEnglandFlood(lat, lng, england),
+    queryGeoSure(lat, lng, 6, 'Shrink–swell'), queryGeoSure(lat, lng, 3, 'Compressible ground'), queryGeoSure(lat, lng, 4, 'Landslides'), queryGeoSure(lat, lng, 5, 'Running sand'), queryGeoSure(lat, lng, 7, 'Soluble rocks'), queryGeoSure(lat, lng, 2, 'Collapsible deposits'), queryGeoSure(lat, lng, 1, 'Non-coal mining'), queryCoalMineEntries(lat, lng), queryHistoricLandfill(lat, lng, england), queryArchaeology(lat, lng, england)
   ]);
-
-  return [geology, boreholes, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology, valuation as UkSiteEvidence];
+  return [geology, boreholes, hydro, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology, valuation];
 }
 
-export function enrichGeologyFromBgs(report: any, evidenceItems: UkSiteEvidence[]) {
-  const valuation = evidenceItems.find(item => item.id.startsWith('uk-mhclg-land-valuation'));
-  if (valuation) enrichUKValuationFromEvidence(report, valuation as any);
+function riskLevel(value: unknown): 'Low' | 'Moderate' | 'High' | null {
+  const text = String(value || '').toLowerCase(); if (/very high|high|significant|severe/.test(text)) return 'High'; if (/moderate|medium/.test(text)) return 'Moderate'; if (/very low|low|negligible|minimal/.test(text)) return 'Low'; return null;
+}
 
-  const geological = evidenceItems.find(item => item.category === 'BGS Geological Map (DiGMapGB)' && item.status === 'VERIFIED');
-  const boreholes = evidenceItems.filter(item => item.category === 'Boreholes' && item.status === 'VERIFIED');
-  if (!geological && !boreholes.length) return;
-  const info = (geological?.value as any)?.featureInfo;
-  const feature = info?.features?.[0] || info?.FeatureInfo?.[0];
-  const props = feature?.properties || {};
-  const find = (patterns: RegExp[]) => {
-    const key = Object.keys(props).find(k => patterns.some(pattern => pattern.test(k)));
-    return key ? props[key] : undefined;
-  };
-  const unit = find([/unit/i, /formation/i, /geolog/i, /strat/i, /lith/i]) || report.geosurvey_context.geological_unit_name;
-  const lithology = find([/lith/i, /rock/i, /material/i, /deposit/i]) || report.geosurvey_context.lithology_type;
-  const period = find([/age/i, /period/i, /epoch/i, /strat/i]) || report.geosurvey_context.geological_period_era;
-  report.geosurvey_context = {
-    ...report.geosurvey_context,
-    geological_unit_name: unit,
-    lithology_type: lithology,
-    geological_period_era: period,
-    bgs_evidence_status: geological?.status || (boreholes.length ? 'VERIFIED' : 'REQUIRES_VERIFICATION'),
-    bgs_map_evidence_count: geological ? 1 : 0,
-    bgs_borehole_count: boreholes.length,
-    bgs_boreholes: boreholes.map(item => ({ properties: (item.value as any)?.featureInfo, source: item.sourceUrl })),
-    bgs_sources: evidenceItems.filter(item => item.sourceName === BGS).map(item => ({ category: item.category, source: item.sourceName, url: item.sourceUrl, status: item.status, limitation: item.limitation }))
-  };
-  report.geosurvey_context.evidence_level = 'VERIFIED';
+export function enrichGeologyFromBgs(report: any, items: UkSiteEvidence[]) {
+  const valuation = items.find(item => item.id.startsWith('uk-mhclg-land-valuation')); if (valuation) enrichUKValuationFromEvidence(report, valuation as any);
+  const geology = items.find(item => item.id === 'uk-bgs-geology-site' && item.status === 'VERIFIED');
+  const boreholes = items.find(item => item.id === 'uk-bgs-boreholes-site' && item.status === 'VERIFIED');
+  const hydro = items.find(item => item.id === 'uk-bgs-hydrogeology-site' && item.status === 'VERIFIED');
+  const g = (geology?.value || {}) as any; const h = (hydro?.value || {}) as any; const b = (boreholes?.value || {}) as any;
+  if (geology || boreholes || hydro) {
+    report.geosurvey_context = { ...(report.geosurvey_context || {}), geological_unit_name: g.unitName || report.geosurvey_context?.geological_unit_name || null, lithology_type: g.lithology || g.superficialLithology || report.geosurvey_context?.lithology_type || null, geological_period_era: g.geologicalAge || report.geosurvey_context?.geological_period_era || null, groundwater_regime: h.descriptor || report.geosurvey_context?.groundwater_regime || null, bgs_evidence_status: geology ? 'VERIFIED' : 'REQUIRES_VERIFICATION', bgs_map_evidence_count: geology ? 1 : 0, bgs_borehole_count: b.count || 0, bgs_nearest_borehole_distance_km: b.nearestDistanceKm ?? null, bgs_nearest_borehole_id: b.nearestRecordId ?? null, bgs_sources: items.filter(item => item.sourceName === BGS).map(item => ({ category: item.category, url: item.sourceUrl, status: item.status, limitation: item.limitation })) };
+    if (geology) report.geosurvey_context.evidence_level = 'VERIFIED';
+    if (hydro && report.soil) report.soil.groundwaterRegime = h.descriptor || null;
+  }
+  const flood = items.find(item => item.id === 'uk-ea-flood-site' && item.status === 'VERIFIED');
+  if (flood && report.terrain?.floodInundationRisk) { const f = flood.value as any; report.terrain.floodInundationRisk = { ...report.terrain.floodInundationRisk, status: 'VERIFIED', level: f.level, sourceName: EA, description: `Environment Agency Flood Map for Planning: ${f.zone}.`, limitation: flood.limitation }; }
+  const landslide = items.find(item => item.id.includes('landslides') && item.status === 'VERIFIED'); const landslideLevel = riskLevel((landslide?.value as any)?.rating);
+  if (landslide && landslideLevel && report.terrain?.geohazards?.landslideSusceptibility) report.terrain.geohazards.landslideSusceptibility = { ...report.terrain.geohazards.landslideSusceptibility, status: 'VERIFIED', level: landslideLevel, sourceName: BGS, description: landslide.claim, limitation: landslide.limitation };
+  const mining = items.find(item => item.id.includes('non-coal-mining') && item.status === 'VERIFIED');
+  if (mining && report.terrain?.geohazards?.miningSubsidence) { const rating = clean((mining.value as any)?.rating); report.terrain.geohazards.miningSubsidence = { ...report.terrain.geohazards.miningSubsidence, status: 'VERIFIED', classification: rating || 'Mapped BGS mining-hazard context', sourceName: BGS, limitation: mining.limitation }; }
 }
