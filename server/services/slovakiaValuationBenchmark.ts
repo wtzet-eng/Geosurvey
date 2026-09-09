@@ -12,6 +12,29 @@ export interface SlovakiaValuationBenchmark {
   evidenceKind: 'ASKING_PRICE';
 }
 
+export interface SlovakiaLandValueInput {
+  areaM2: number;
+  slopeDegrees?: number | null;
+  roadDistanceM?: number | null;
+  directRoadAccess?: boolean | null;
+  municipality?: string;
+  region?: string;
+}
+
+export interface SlovakiaLandValueResult {
+  benchmark: SlovakiaValuationBenchmark;
+  locationMultiplier: 1;
+  terrainMultiplier: number;
+  roadMultiplier: number;
+  sizeMultiplier: number;
+  unitMedianPrice: number;
+  unitMinPrice: number;
+  unitMaxPrice: number;
+  totalMedian: number;
+  totalMin: number;
+  totalMax: number;
+}
+
 interface CityBenchmarkDefinition {
   pricePerSqm: number;
   sourceUrl: string;
@@ -158,5 +181,35 @@ export function resolveSlovakiaValuationBenchmark(
     datasetDate: '2026-05-27 (May 2026 national asking-price level)',
     sourceUrl: REGIONAL_URL,
     evidenceKind: 'ASKING_PRICE'
+  };
+}
+
+/** Applies the existing GeoSurvey parcel-size, road and terrain screening adjustments. */
+export function calculateSlovakiaLandValue(input: SlovakiaLandValueInput): SlovakiaLandValueResult {
+  const benchmark = resolveSlovakiaValuationBenchmark(input.municipality, input.region);
+  const terrainMultiplier = typeof input.slopeDegrees === 'number' && Number.isFinite(input.slopeDegrees) && input.slopeDegrees > 10 ? 0.88 : 1;
+  const roadMultiplier = input.directRoadAccess === false
+    && typeof input.roadDistanceM === 'number'
+    && Number.isFinite(input.roadDistanceM)
+    && input.roadDistanceM > 50
+    ? 0.82
+    : 1;
+  const sizeMultiplier = input.areaM2 > 2500 ? 0.90 : input.areaM2 < 750 ? 1.10 : 1;
+  const unitMedianPrice = Math.round(benchmark.benchmarkPricePerSqm * terrainMultiplier * roadMultiplier * sizeMultiplier);
+  const unitMinPrice = Math.round(unitMedianPrice * benchmark.lowFactor);
+  const unitMaxPrice = Math.round(unitMedianPrice * benchmark.highFactor);
+
+  return {
+    benchmark,
+    locationMultiplier: 1,
+    terrainMultiplier,
+    roadMultiplier,
+    sizeMultiplier,
+    unitMedianPrice,
+    unitMinPrice,
+    unitMaxPrice,
+    totalMedian: Math.round(input.areaM2 * unitMedianPrice),
+    totalMin: Math.round(input.areaM2 * unitMinPrice),
+    totalMax: Math.round(input.areaM2 * unitMaxPrice)
   };
 }
