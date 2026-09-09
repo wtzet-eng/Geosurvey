@@ -10,25 +10,12 @@ function rawReport(countryCode: string): any {
     countryCode,
     language: 'en',
     parcel: {
-      status: 'REQUIRES_VERIFICATION',
-      parcelId: 'FAKE-PARCEL',
-      countryCode,
-      isOfficialGeometry: false,
-      areaCalculatedM2: 1000,
-      officialAreaM2: 999,
-      cadastralSource: 'Configured national cadastre',
-      datasetDate: '2026-08-24',
-      limitation: 'fixture'
+      status: 'REQUIRES_VERIFICATION', parcelId: 'FAKE-PARCEL', countryCode, isOfficialGeometry: false,
+      areaCalculatedM2: 1000, officialAreaM2: 999, cadastralSource: 'Configured national cadastre', datasetDate: '2026-08-24', limitation: 'fixture'
     },
     terrain: {
-      elevationAmsl: 120,
-      minElevationAmsl: 118,
-      maxElevationAmsl: 122,
-      elevationDifferenceM: 4,
-      averageSlopePercent: 2,
-      averageSlopeDegrees: 1.2,
-      slopeCategory: 'Flat (0-2°)',
-      aspectDirection: 'South',
+      elevationAmsl: 120, minElevationAmsl: 118, maxElevationAmsl: 122, elevationDifferenceM: 4,
+      averageSlopePercent: 2, averageSlopeDegrees: 1.2, slopeCategory: 'Flat (0-2°)', aspectDirection: 'South',
       floodInundationRisk: { status: 'MODELLED', level: 'Low', distanceToWaterwayM: 300, statutoryZoneStatus: 'configured', description: 'configured flood conclusion', sourceName: 'Configured national flood authority', limitation: 'fixture' },
       geohazards: {
         landslideSusceptibility: { status: 'MODELLED', level: 'Low', description: 'terrain context', sourceName: 'Terrain model' },
@@ -52,14 +39,10 @@ function rawReport(countryCode: string): any {
     evidenceScore: {
       totalScore: 61, ratingClass: 'Moderate Evidence (50-74)', verifiedCount: 0, modelledCount: 5, unverifiedCount: 1,
       breakdown: {
-        cadastreAndGeometry: { score: 6, max: 20, rationale: 'unverified cadastre' },
-        terrainAndElevation: { score: 14, max: 20, rationale: 'terrain' },
-        geologyAndGroundwater: { score: 14, max: 20, rationale: 'SoilGrids' },
-        infrastructureAndAccess: { score: 12, max: 15, rationale: 'OSM' },
-        environmentalAndFlood: { score: 11, max: 15, rationale: 'OSM context' },
-        planningAndMarket: { score: 4, max: 10, rationale: 'configured valuation' }
-      },
-      summaryExplanation: 'fixture'
+        cadastreAndGeometry: { score: 6, max: 20, rationale: 'unverified cadastre' }, terrainAndElevation: { score: 14, max: 20, rationale: 'terrain' },
+        geologyAndGroundwater: { score: 14, max: 20, rationale: 'SoilGrids' }, infrastructureAndAccess: { score: 12, max: 15, rationale: 'OSM' },
+        environmentalAndFlood: { score: 11, max: 15, rationale: 'OSM context' }, planningAndMarket: { score: 4, max: 10, rationale: 'configured valuation' }
+      }, summaryExplanation: 'fixture'
     },
     evidenceRegistry: [
       { id: 'cadastre-spatial-index', category: 'Cadastre & Identification', claim: 'Synthetic parcel conclusion', status: 'REQUIRES_VERIFICATION', sourceName: 'Configured cadastre', datasetDate: '2026-08-24', spatialRelationship: 'fixture', calculationMethod: 'fixture', confidence: 'Medium', limitation: 'fixture' },
@@ -68,8 +51,7 @@ function rawReport(countryCode: string): any {
       { id: 'valuation-indicative-model', category: 'Market Valuation & Economics', claim: 'Synthetic valuation 123000–456000', status: 'MODELLED', sourceName: 'Configured valuation', datasetDate: '2026-08-24', spatialRelationship: 'fixture', calculationMethod: 'fixture', confidence: 'Low', limitation: 'fixture' },
       { id: 'flood-proximity-check', category: 'Hydrology & Flooding', claim: 'Open water 300m away', status: 'MODELLED', sourceName: 'Configured national flood authority', sourceUrl: 'https://example.test/flood', datasetDate: '2026-08-24', spatialRelationship: 'fixture', calculationMethod: 'fixture', confidence: 'Medium', limitation: 'fixture' }
     ],
-    verificationChecklist: [],
-    executiveSummary: 'Synthetic valuation 123000–456000 EUR; setback 3.0 m',
+    verificationChecklist: [], executiveSummary: 'Synthetic valuation 123000–456000 EUR; setback 3.0 m',
     dataSourcesCited: [
       { name: 'Configured cadastre', organization: 'fixture', url: 'https://example.test/cadastre', type: 'Official National Cadastre', status: 'REQUIRES_VERIFICATION' },
       { name: 'Copernicus DEM', organization: 'fixture', url: 'https://example.test/dem', type: 'Elevation DEM', status: 'MODELLED' },
@@ -78,53 +60,38 @@ function rawReport(countryCode: string): any {
       { name: 'Configured national flood', organization: 'fixture', url: 'https://example.test/flood', type: 'Hydrological Registry', status: 'MODELLED' },
       { name: 'OpenStreetMap', organization: 'fixture', url: 'https://openstreetmap.org', type: 'Spatial Overpass', status: 'MODELLED' },
       { name: 'Configured valuation', organization: 'fixture', url: 'https://example.test/value', type: 'Statistical Market Benchmark', status: 'MODELLED' }
-    ],
-    statutoryDisclaimers: []
+    ], statutoryDisclaimers: []
   };
 }
 
+function clearFranceValuation(report: any): void {
+  report.valuation = { ...report.valuation, status: 'REQUIRES_VERIFICATION', indicativeMinPrice: NaN, indicativeMaxPrice: NaN, indicativeMedianPrice: NaN, indicativePricePerSqm: NaN, comparableEvidenceCount: 0, methodology: 'No sufficient live DVF+ bare-land evidence' };
+  report.evidenceRegistry = report.evidenceRegistry.filter((record: any) => record.id !== 'valuation-indicative-model');
+  report.evidenceRegistry.push({ id: 'fr-dvf-land-valuation-no-data', category: 'Land market valuation', claim: 'Insufficient DVF+ bare-land sample', status: 'REQUIRES_VERIFICATION', sourceName: 'Cerema DVF+', sourceUrl: 'https://www.data.gouv.fr/datasets/dvf-open-data', datasetDate: '2026-08-24', spatialRelationship: 'commune', calculationMethod: 'DVF+ bare-land query', confidence: 'Low', limitation: 'No generic fallback', value: { reasonCode: 'NO_DATA' } });
+  const marketSource = report.dataSourcesCited.find((source: any) => source.type === 'Statistical Market Benchmark');
+  marketSource.name = 'Cerema DVF+ open-data'; marketSource.status = 'REQUIRES_VERIFICATION';
+  report.evidenceScore.breakdown.planningAndMarket.score = 0;
+}
+
 test('country support maturity is explicit, France can be partially integrated, and unknown countries fail closed', () => {
-  const pl = getCountrySupport('PL');
-  const gb = getCountrySupport('GB');
-  const fr = getCountrySupport('FR');
-  assert.equal(pl.maturity, 'SUPPORTED');
-  assert.equal(pl.capabilities.nationalCadastre, true);
-  assert.equal(pl.capabilities.nationalGeology, true);
-  assert.equal(gb.maturity, 'SUPPORTED');
-  assert.equal(gb.capabilities.nationalGeology, true);
-  assert.equal(gb.capabilities.nationalCadastre, false);
-  assert.equal(fr.maturity, 'LIMITED');
-  assert.equal(fr.capabilities.nationalGeology, true);
-  assert.equal(fr.capabilities.nationalBoreholes, true);
-  assert.equal(fr.capabilities.nationalCadastre, false);
-  assert.equal(fr.capabilities.nationalPlanning, false);
-  assert.equal(fr.capabilities.nationalValuation, false);
+  const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const fr = getCountrySupport('FR');
+  assert.equal(pl.maturity, 'SUPPORTED'); assert.equal(pl.capabilities.nationalCadastre, true); assert.equal(pl.capabilities.nationalGeology, true);
+  assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, false);
+  assert.equal(fr.maturity, 'LIMITED'); assert.equal(fr.capabilities.nationalGeology, true); assert.equal(fr.capabilities.nationalBoreholes, true);
+  assert.equal(fr.capabilities.nationalCadastre, false); assert.equal(fr.capabilities.nationalPlanning, false); assert.equal(fr.capabilities.nationalValuation, true);
   for (const code of ['DE', 'ES', 'IT', 'NL', 'CH', 'AT', 'EU', 'XX']) {
-    const support = getCountrySupport(code);
-    assert.equal(support.maturity, 'LIMITED');
-    assert.ok(Object.values(support.capabilities).every(value => value === false));
+    const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false));
   }
 });
 
 test('limited country canonical report withholds national conclusions but retains cross-border evidence and adjusts denominator', () => {
   const canonical = createCanonicalReport(rawReport('DE'), getCountryProfile('DE'));
-  assert.equal(canonical.support.maturity, 'LIMITED');
-  assert.equal(canonical.geology.unitName, null);
-  assert.equal(canonical.geology.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
-  assert.equal(canonical.flood.classification, null);
-  assert.equal(canonical.flood.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
-  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
-  assert.equal(canonical.valuation.min, null);
-  assert.equal(canonical.valuation.max, null);
-  assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
-  assert.equal(canonical.soil.texture, 'Sandy loam');
-  assert.equal(canonical.terrain.elevationM, 120);
-  assert.equal(canonical.infrastructure.sourceName, 'OpenStreetMap');
-  assert.equal(canonical.evidenceScore.breakdown.cadastreAndGeometry.max, 0);
-  assert.equal(canonical.evidenceScore.breakdown.planningAndMarket.max, 0);
-  assert.ok(canonical.evidenceScore.totalScore > 0);
-  assert.ok(canonical.evidenceRecords.some(record => record.id === 'terrain-elevation-slope'));
-  assert.ok(canonical.evidenceRecords.some(record => record.id === 'soilgrids-profile'));
+  assert.equal(canonical.support.maturity, 'LIMITED'); assert.equal(canonical.geology.unitName, null); assert.equal(canonical.geology.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.flood.classification, null); assert.equal(canonical.flood.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY'); assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.valuation.min, null); assert.equal(canonical.valuation.max, null); assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.soil.texture, 'Sandy loam'); assert.equal(canonical.terrain.elevationM, 120); assert.equal(canonical.infrastructure.sourceName, 'OpenStreetMap');
+  assert.equal(canonical.evidenceScore.breakdown.cadastreAndGeometry.max, 0); assert.equal(canonical.evidenceScore.breakdown.planningAndMarket.max, 0); assert.ok(canonical.evidenceScore.totalScore > 0);
+  assert.ok(canonical.evidenceRecords.some(record => record.id === 'terrain-elevation-slope')); assert.ok(canonical.evidenceRecords.some(record => record.id === 'soilgrids-profile'));
   assert.ok(canonical.evidenceRecords.some(record => record.id === 'flood-proximity-check' && record.sourceName === 'OpenStreetMap hydrology'));
   assert.ok(!canonical.evidenceRecords.some(record => record.id === 'valuation-indicative-model'));
   assert.ok(!canonical.sourceRecords.some(source => source.type === 'Official National Cadastre' || source.type === 'Geological Survey' || source.type === 'Hydrological Registry' || source.type === 'Statistical Market Benchmark'));
@@ -133,70 +100,34 @@ test('limited country canonical report withholds national conclusions but retain
 test('limited coverage and withheld valuation are localized without zero or undefined ranges', () => {
   const canonical = createCanonicalReport(rawReport('DE'), getCountryProfile('DE'));
   for (const language of ['en', 'de', 'pl']) {
-    const rendered = renderLocalizedReport(canonical, language);
-    assert.equal(rendered.countrySupport.maturity, 'LIMITED');
-    assert.ok(rendered.countrySupport.notice.length > 30);
+    const rendered = renderLocalizedReport(canonical, language); assert.equal(rendered.countrySupport.maturity, 'LIMITED'); assert.ok(rendered.countrySupport.notice.length > 30);
     assert.match(rendered.sections.market_and_comparables.limitation_notice || '', /not supported|nicht unterstützt|nie jest obsługiwane/i);
-    const text = JSON.stringify(rendered);
-    assert.doesNotMatch(text, /123000|456000|250\s*EUR|0\s*[–-]\s*0|undefined/);
-    assert.doesNotMatch(text, /3\.0\s*m/);
+    const text = JSON.stringify(rendered); assert.doesNotMatch(text, /123000|456000|250\s*EUR|0\s*[–-]\s*0|undefined/); assert.doesNotMatch(text, /3\.0\s*m/);
   }
 });
 
-test('partially integrated France still withholds unsupported planning, cadastre and valuation conclusions', () => {
-  const report = rawReport('FR');
-  report.geosurvey_context = {
-    geological_unit_name: 'Alluvions récentes',
-    lithology_type: 'sables et graviers',
-    geological_period_era: 'Holocène',
-    evidence_level: 'VERIFIED',
-    source_name: 'Bureau de Recherches Géologiques et Minières (BRGM)',
-    source_url: 'https://infoterre.brgm.fr/'
-  };
+test('partially integrated France exposes live valuation capability but withholds value when DVF evidence is insufficient', () => {
+  const report = rawReport('FR'); clearFranceValuation(report);
+  report.geosurvey_context = { geological_unit_name: 'Alluvions récentes', lithology_type: 'sables et graviers', geological_period_era: 'Holocène', evidence_level: 'VERIFIED', source_name: 'Bureau de Recherches Géologiques et Minières (BRGM)', source_url: 'https://infoterre.brgm.fr/' };
   const canonical = createCanonicalReport(report, getCountryProfile('FR'));
-  assert.equal(canonical.support.maturity, 'LIMITED');
-  assert.equal(canonical.support.capabilities.nationalGeology, true);
-  assert.equal(canonical.geology.unitName, 'Alluvions récentes');
-  assert.equal(canonical.geology.lithology, 'sables et graviers');
-  assert.equal(canonical.geology.geologicalAge, 'Holocène');
-  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
-  assert.equal(canonical.valuation.min, null);
-  assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
-  assert.equal(canonical.support.capabilities.nationalCadastre, false);
-  const rendered = renderLocalizedReport(canonical, 'en');
-  assert.match(rendered.countrySupport.notice, /selected national source integrations are available/i);
-  assert.match(rendered.sections.geohazard_risk.summary, /Alluvions récentes/i);
-  assert.doesNotMatch(JSON.stringify(rendered), /123000|456000/);
+  assert.equal(canonical.support.maturity, 'LIMITED'); assert.equal(canonical.support.capabilities.nationalGeology, true); assert.equal(canonical.support.capabilities.nationalValuation, true);
+  assert.equal(canonical.geology.unitName, 'Alluvions récentes'); assert.equal(canonical.geology.lithology, 'sables et graviers'); assert.equal(canonical.geology.geologicalAge, 'Holocène');
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY'); assert.equal(canonical.valuation.min, null); assert.equal(canonical.valuation.max, null); assert.equal(canonical.valuation.status, 'REQUIRES_VERIFICATION');
+  assert.equal(canonical.support.capabilities.nationalCadastre, false); assert.match(canonical.valuation.sourceName, /DVF\+/i);
+  const rendered = renderLocalizedReport(canonical, 'en'); assert.match(rendered.countrySupport.notice, /selected national source integrations are available/i); assert.match(rendered.sections.geohazard_risk.summary, /Alluvions récentes/i);
+  assert.doesNotMatch(JSON.stringify(rendered), /123000|456000|205\s*EUR/);
 });
 
 test('supported Poland keeps the modelled valuation benchmark without claiming a national valuation feed', () => {
-  const report = rawReport('PL');
-  report.valuation.currency = 'PLN';
+  const report = rawReport('PL'); report.valuation.currency = 'PLN';
   const canonical = createCanonicalReport(report, getCountryProfile('PL'));
-  assert.equal(canonical.support.capabilities.nationalValuation, false);
-  assert.equal(canonical.valuation.status, 'MODELLED');
-  assert.equal(canonical.valuation.min, 123000);
-  assert.equal(canonical.valuation.max, 456000);
-  assert.equal(canonical.valuation.median, 250000);
-  assert.match(canonical.valuation.sourceName, /GeoSurvey/);
-  assert.match(canonical.valuation.sourceName, /RCN/);
-  assert.match(canonical.valuation.sourceName, /Cenatorium/);
-  assert.match(canonical.valuation.sourceName, /188 PLN\/m²/);
-  assert.doesNotMatch(canonical.valuation.sourceName, /420 PLN\/m²/);
+  assert.equal(canonical.support.capabilities.nationalValuation, false); assert.equal(canonical.valuation.status, 'MODELLED');
+  assert.equal(canonical.valuation.min, 123000); assert.equal(canonical.valuation.max, 456000); assert.equal(canonical.valuation.median, 250000);
+  assert.match(canonical.valuation.sourceName, /GeoSurvey/); assert.match(canonical.valuation.sourceName, /RCN/); assert.match(canonical.valuation.sourceName, /Cenatorium/); assert.match(canonical.valuation.sourceName, /188 PLN\/m²/); assert.doesNotMatch(canonical.valuation.sourceName, /420 PLN\/m²/);
   assert.equal(canonical.valuation.reasonCode, undefined);
-  const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
-  assert.ok(valuationEvidence);
-  assert.equal(valuationEvidence?.sourceName, canonical.valuation.sourceName);
-  assert.match(valuationEvidence?.limitation || '', /No direct comparable deeds or live national valuation records were queried/i);
-  assert.ok(!canonical.evidenceRecords.some(record => record.id === 'country-support-valuation'));
-
-  const rendered = renderLocalizedReport(canonical, 'pl');
-  const market = rendered.sections.market_and_comparables;
-  assert.equal(market.evidence_level, 'MODELLED');
-  assert.match(market.summary, /123.?000.*456.?000.*PLN/i);
-  assert.match(market.source_cited || '', /RCN/);
-  assert.match(market.source_cited || '', /Cenatorium/);
-  assert.match(market.source_cited || '', /188 PLN\/m²/);
-  assert.doesNotMatch(market.source_cited || '', /420 PLN\/m²/);
+  const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model'); assert.ok(valuationEvidence); assert.equal(valuationEvidence?.sourceName, canonical.valuation.sourceName);
+  assert.match(valuationEvidence?.limitation || '', /No direct comparable deeds or live national valuation records were queried/i); assert.ok(!canonical.evidenceRecords.some(record => record.id === 'country-support-valuation'));
+  const rendered = renderLocalizedReport(canonical, 'pl'); const market = rendered.sections.market_and_comparables;
+  assert.equal(market.evidence_level, 'MODELLED'); assert.match(market.summary, /123.?000.*456.?000.*PLN/i); assert.match(market.source_cited || '', /RCN/); assert.match(market.source_cited || '', /Cenatorium/); assert.match(market.source_cited || '', /188 PLN\/m²/); assert.doesNotMatch(market.source_cited || '', /420 PLN\/m²/);
   assert.doesNotMatch(`${market.summary} ${market.detail} ${market.limitation_notice || ''}`, /nie jest obsługiwane dla wybranego kraju/i);
 });

@@ -43,14 +43,14 @@ function successfulFetcher(): typeof fetch {
   }) as typeof fetch;
 }
 
-test('France country pack activates geology and borehole capability without pretending full national coverage', () => {
+test('France country pack activates geology, borehole and DVF valuation capability without pretending full national coverage', () => {
   const support = getCountrySupport('FR');
   assert.equal(support.maturity, 'LIMITED');
   assert.equal(support.capabilities.nationalGeology, true);
   assert.equal(support.capabilities.nationalBoreholes, true);
   assert.equal(support.capabilities.nationalCadastre, false);
   assert.equal(support.capabilities.nationalPlanning, false);
-  assert.equal(support.capabilities.nationalValuation, false);
+  assert.equal(support.capabilities.nationalValuation, true);
 });
 
 test('France evidence prefers BRGM detailed geology, keeps BSS as vicinity context, and retains shrink-swell screening', async () => {

@@ -69,7 +69,8 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
     capabilities: {
       ...NONE,
       nationalGeology: true,
-      nationalBoreholes: true
+      nationalBoreholes: true,
+      nationalValuation: true
     }
   }
 };
