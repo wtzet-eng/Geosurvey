@@ -49,7 +49,7 @@ function polishModelledValuationReport(): any {
       indicativeMinPrice: 533325,
       indicativeMaxPrice: 792603,
       indicativeMedianPrice: 649836,
-      indicativePricePerSqm: 420,
+      indicativePricePerSqm: 188,
       currency: 'PLN',
       comparableEvidenceCount: 0
     },
@@ -94,9 +94,10 @@ test('Polish modelled valuation exposes benchmark provenance without claiming li
   assert.equal(canonical.valuation.status, 'MODELLED');
   assert.equal(canonical.valuation.comparableCount, 0);
   assert.match(canonical.valuation.sourceName, /GeoSurvey/);
-  assert.match(canonical.valuation.sourceName, /RCiWN/);
-  assert.match(canonical.valuation.sourceName, /PKO\/NBP/);
-  assert.match(canonical.valuation.sourceName, /420 PLN\/m²/);
+  assert.match(canonical.valuation.sourceName, /RCN/);
+  assert.match(canonical.valuation.sourceName, /Cenatorium/);
+  assert.match(canonical.valuation.sourceName, /188 PLN\/m²/);
+  assert.doesNotMatch(canonical.valuation.sourceName, /PKO\/NBP|420 PLN\/m²/);
 
   const evidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
   assert.ok(evidence);
@@ -106,7 +107,9 @@ test('Polish modelled valuation exposes benchmark provenance without claiming li
 
   const rendered = renderLocalizedReport(canonical, 'pl');
   assert.equal(rendered.sections.market_and_comparables.source_cited, canonical.valuation.sourceName);
-  assert.match(rendered.sections.market_and_comparables.source_cited || '', /RCiWN/);
-  assert.match(rendered.sections.market_and_comparables.source_cited || '', /420 PLN\/m²/);
+  assert.match(rendered.sections.market_and_comparables.source_cited || '', /RCN/);
+  assert.match(rendered.sections.market_and_comparables.source_cited || '', /Cenatorium/);
+  assert.match(rendered.sections.market_and_comparables.source_cited || '', /188 PLN\/m²/);
+  assert.doesNotMatch(rendered.sections.market_and_comparables.source_cited || '', /420 PLN\/m²/);
   assert.equal(canonical.valuation.comparableCount, 0);
 });

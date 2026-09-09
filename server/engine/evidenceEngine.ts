@@ -16,6 +16,7 @@ import { calculateTerrainFromGrid } from '../services/elevationService';
 import { queryOverpassSurroundings } from '../services/osmOverpassService';
 import { fetchGenuineSoilGridsData } from '../services/soilGridsService';
 import { fetchBgsSiteEvidence, ukGeotechnicalDesignFallback } from '../services/bgsEvidenceService';
+import { resolvePolandValuationBenchmark } from '../services/polandValuationBenchmark';
 import { fetchPolandCadastralParcel } from '../adapters/poland';
 import { getCountryProfile } from '../adapters/countries';
 
@@ -492,23 +493,39 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // 7. Valuation Model (Priority 8)
   // Repositioned as "INDICATIVE AUTOMATED MODEL ESTIMATE (0 Direct Deeds Verified)"
   // =========================================================================
-  const isCapitalOrMajorCity = municipality
-    ? /warszaw|kraków|wrocław|poznań|gdańsk|berlin|münchen|hamburg|frankfurt|paris|lyon|marseille|london|madrid|barcelona|roma|milano|zürich|geneva|wien/i.test(municipality)
+  const isPoland = countryCode === 'PL';
+  const polishBenchmark = isPoland
+    ? resolvePolandValuationBenchmark(parcelInfo.commune || municipality, parcelInfo.voivodeship || state)
+    : undefined;
+  const isCapitalOrMajorCity = !isPoland && municipality
+    ? /berlin|münchen|hamburg|frankfurt|paris|lyon|marseille|london|madrid|barcelona|roma|milano|zürich|geneva|wien/i.test(municipality)
     : false;
 
-  let locationMultiplier = isCapitalOrMajorCity ? 1.85 : (municipality && municipality.length > 0) ? 1.15 : 0.85;
+  // Poland uses an explicit city -> voivodeship -> national benchmark hierarchy.
+  // Do not stack the old municipality uplift on top of a location-specific benchmark.
+  let locationMultiplier = isPoland ? 1.0 : isCapitalOrMajorCity ? 1.85 : (municipality && municipality.length > 0) ? 1.15 : 0.85;
   if (terrainGrid.slopeDegrees > 10) locationMultiplier *= 0.88;
   if (!roadDirect && roadDist > 50) locationMultiplier *= 0.82;
 
   const scaleModifier = areaSizeM2 > 2500 ? 0.90 : areaSizeM2 < 750 ? 1.10 : 1.0;
+  const benchmarkPricePerSqm = polishBenchmark?.benchmarkPricePerSqm ?? cProfile.baseValuationPerSqm;
+  const uncertaintyLowFactor = polishBenchmark?.lowFactor ?? 0.82;
+  const uncertaintyHighFactor = polishBenchmark?.highFactor ?? 1.22;
 
-  const unitMedianPrice = Math.round(cProfile.baseValuationPerSqm * locationMultiplier * scaleModifier);
-  const unitMinPrice = Math.round(unitMedianPrice * 0.82);
-  const unitMaxPrice = Math.round(unitMedianPrice * 1.22);
+  const unitMedianPrice = Math.round(benchmarkPricePerSqm * locationMultiplier * scaleModifier);
+  const unitMinPrice = Math.round(unitMedianPrice * uncertaintyLowFactor);
+  const unitMaxPrice = Math.round(unitMedianPrice * uncertaintyHighFactor);
 
   const totalMin = Math.round(areaSizeM2 * unitMinPrice);
   const totalMax = Math.round(areaSizeM2 * unitMaxPrice);
   const totalMedian = Math.round(areaSizeM2 * unitMedianPrice);
+
+  const polishMethodology = polishBenchmark
+    ? `Uses the ${polishBenchmark.label} (${polishBenchmark.benchmarkPricePerSqm} ${cProfile.symbol}/m²) from ${polishBenchmark.sourceName} as the location baseline. No additional municipality uplift is applied. The uncertainty interval widens from city to voivodeship to national fallback because no direct parcel comparables or binding planning rights were verified.`
+    : undefined;
+  const locationDriverImpact = polishBenchmark
+    ? `${polishBenchmark.benchmarkPricePerSqm} ${cProfile.symbol}/m² ${polishBenchmark.tier} transaction benchmark (no generic municipality uplift)`
+    : isCapitalOrMajorCity ? '+85% (Metropolitan Tier)' : '+15% (Regional Municipality)';
 
   const valuationAssessment: ValuationAssessment = {
     status: 'MODELLED',
@@ -517,11 +534,12 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     indicativeMedianPrice: totalMedian,
     indicativePricePerSqm: unitMedianPrice,
     currency: cProfile.currency,
-    methodology: `Indicative Automated Econometric Benchmark (0 Direct Comparable Deeds Verified). Model synthesizes regional cadastral price indexes (${cProfile.valuationDataSource}) adjusted for plot size (${areaSizeM2} m²). ${terrainAvailable ? `A terrain slope adjustment used the modelled slope of ${terrainGrid.slopeDegrees}°.` : 'No terrain adjustment was applied because elevation data was unavailable.'} ${Number.isFinite(roadDist) ? 'Mapped road proximity was considered.' : 'No road-proximity adjustment was applied because infrastructure data was unavailable.'}`,
+    methodology: `Indicative Automated Econometric Benchmark (0 Direct Comparable Deeds Verified). ${polishMethodology || `Model uses the configured market baseline (${cProfile.valuationDataSource}) adjusted for settlement tier.`} Plot-size adjustment uses ${areaSizeM2} m². ${terrainAvailable ? `A terrain slope adjustment used the modelled slope of ${terrainGrid.slopeDegrees}°.` : 'No terrain adjustment was applied because elevation data was unavailable.'} ${Number.isFinite(roadDist) ? 'Mapped road proximity was considered.' : 'No road-proximity adjustment was applied because infrastructure data was unavailable.'}`,
     comparableEvidenceCount: 0,
-    marketTrendDescription: `Indicative statistical benchmark: ${unitMinPrice.toLocaleString()} – ${unitMaxPrice.toLocaleString()} ${cProfile.symbol}/m². Note: High variance exists depending on binding MPZP planning rights and actual utility connection conditions.`,
+    marketTrendDescription: `Indicative statistical benchmark: ${unitMinPrice.toLocaleString()} – ${unitMaxPrice.toLocaleString()} ${cProfile.symbol}/m².${polishBenchmark ? ` Benchmark tier: ${polishBenchmark.tier}.` : ''} High variance remains possible because binding planning rights and actual utility connection conditions are not verified.`,
     priceDrivers: [
-      { factor: 'Location & Settlement Tier', impact: isCapitalOrMajorCity ? '+85% (Metropolitan Tier)' : '+15% (Regional Municipality)', weight: 'High' },
+      { factor: 'Location & Settlement Tier', impact: locationDriverImpact, weight: 'High' },
+      ...(isPoland ? [{ factor: 'Planning / Buildability Evidence', impact: 'Not verified — uncertainty range widened; a building-land benchmark does not prove parcel buildability', weight: 'High' as const }] : []),
       { factor: 'Road Proximity & Infrastructure', impact: roadDirect ? 'Neutral / Standard' : '-18% (Off-road / Access required)', weight: 'Medium' },
       { factor: 'Terrain Topography & Slope', impact: !terrainAvailable ? 'Not applied (terrain data unavailable)' : terrainGrid.slopeDegrees > 8 ? '-12% (Earthworks & Retaining Costs)' : 'Neutral (modelled gentle terrain)', weight: 'Medium' },
       { factor: 'Parcel Area Scale', impact: areaSizeM2 > 2000 ? '-10% (Economy of Scale)' : 'Standard', weight: 'Low' }
@@ -535,12 +553,17 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     category: 'Market Valuation & Economics',
     claim: `Indicative Valuation Benchmark: ${totalMin.toLocaleString()} – ${totalMax.toLocaleString()} ${cProfile.symbol} (~${unitMedianPrice} ${cProfile.symbol}/m²) [0 Direct Comparable Deeds Verified]`,
     status: 'MODELLED',
-    sourceName: cProfile.valuationDataSource,
-    datasetDate: '2025/2026 Regional Statistical Cadastral Benchmark',
-    spatialRelationship: `Regional administrative territory: ${municipality || state || cProfile.countryName}`,
-    calculationMethod: 'Multi-factor hedonic statistical adjustment model based on location tier, road proximity, slope, and size',
+    sourceName: polishBenchmark?.sourceName || cProfile.valuationDataSource,
+    sourceUrl: polishBenchmark?.sourceUrl,
+    datasetDate: polishBenchmark?.datasetDate || '2025/2026 Regional Statistical Cadastral Benchmark',
+    spatialRelationship: polishBenchmark
+      ? `${polishBenchmark.tier} benchmark for ${parcelInfo.commune || municipality || parcelInfo.voivodeship || state || cProfile.countryName}`
+      : `Regional administrative territory: ${municipality || state || cProfile.countryName}`,
+    calculationMethod: polishBenchmark
+      ? `${polishBenchmark.tier} transaction benchmark with parcel-size, road-access and terrain adjustments; no generic municipality uplift`
+      : 'Multi-factor hedonic statistical adjustment model based on location tier, road proximity, slope, and size',
     confidence: 'Low',
-    limitation: 'Automated statistical estimate without direct deed verification. A legally binding appraisal requires an on-site inspection by a Certified Property Valuer (Rzeczoznawca Majątkowy).'
+    limitation: 'Automated statistical estimate without direct deed verification. Polish building-land benchmarks do not confirm MPZP/WZ buildability for the parcel. A legally binding appraisal requires current local comparable evidence and a Certified Property Valuer (Rzeczoznawca Majątkowy).'
   });
 
   // =========================================================================
@@ -681,7 +704,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const executiveSummary = language === 'pl'
     ? `Niniejszy raport due diligence obejmuje ${siteLabel} o powierzchni ${areaSizeM2.toLocaleString()} m² w lokalizacji ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Wskaźnik jakości dowodów: ${totalScore}/100 (${ratingClass}). Teren: ${terrainSummary.replace('not available', 'brak danych')}. Gleba: ${soilSummary.replace('not available', 'brak danych')}. Dostęp drogowy: ${roadSummary.replace('not available', 'brak danych')}. Orientacyjna wycena statystyczna: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Wiążące parametry wymagają dokumentów planistycznych i badań terenowych.`
     : language === 'de'
-    ? `Dieser Due-Diligence-Bericht untersucht den Standort ${siteLabel} mit ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidenz-Qualitätsindex: ${totalScore}/100 (${ratingClass}). Gelände: ${terrainSummary.replace('not available', 'nicht verfügbar')}. Boden: ${soilSummary.replace('not available', 'nicht verfügbar')}. Straßenzugang: ${roadSummary.replace('not available', 'nicht verfügbar')}. Indikative statistische Bewertung: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Verbindliche Parameter erfordern amtliche Planungsunterlagen und Vor-Ort-Untersuchungen.`
+    ? `Dieser Due-Diligence-Bericht untersucht den Standort ${siteLabel} mit einer Fläche von ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidenz-Qualitätsindex: ${totalScore}/100 (${ratingClass}). Gelände: ${terrainSummary.replace('not available', 'nicht verfügbar')}. Boden: ${soilSummary.replace('not available', 'nicht verfügbar')}. Straßenzugang: ${roadSummary.replace('not available', 'nicht verfügbar')}. Indikative statistische Bewertung: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Verbindliche Parameter erfordern amtliche Planungsunterlagen und Vor-Ort-Untersuchungen.`
     : `This spatial due-diligence report assesses the ${siteLabel} with an area of ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidence Quality Score: ${totalScore}/100 (${ratingClass}). Terrain: ${terrainSummary}. Soil: ${soilSummary}. Road access: ${roadSummary}. Indicative statistical valuation: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Binding parameters require official planning documents and on-site investigations.`;
 
   const dataSourcesCited = [
@@ -728,9 +751,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       status: osmAvailable ? 'MODELLED' as const : 'REQUIRES_VERIFICATION' as const
     },
     {
-      name: cProfile.valuationDataSource,
-      organization: 'National Statistical and Real Estate Price Monitoring Registry (RCiWN Benchmark)',
-      url: cProfile.cadastrePortalUrl,
+      name: polishBenchmark?.sourceName || cProfile.valuationDataSource,
+      organization: countryCode === 'PL' ? 'RCN / GUGiK-derived transaction data and Cenatorium market reporting' : 'National Statistical and Real Estate Price Monitoring Registry (RCiWN Benchmark)',
+      url: polishBenchmark?.sourceUrl || cProfile.cadastrePortalUrl,
       type: 'Statistical Market Benchmark' as const,
       status: 'MODELLED' as const
     }
