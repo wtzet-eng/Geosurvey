@@ -81,8 +81,8 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     floodPortalUrl: 'https://environment.data.gov.uk/dataset/04532375-a198-476e-985e-0579a0a11b47',
     planningInstrumentName: 'Local Development Framework (LDF) / Planning Permission (NPPF)',
     standardSetbackRule: 'No fixed statutory setback; evaluated under Residential Design Guides',
-    baseValuationPerSqm: 195,
-    valuationDataSource: 'HM Land Registry Price Paid Data / ONS Housing Statistics'
+    baseValuationPerSqm: 0,
+    valuationDataSource: 'MHCLG Land value estimates for policy appraisal 2023 — England local-authority benchmark; no UK-wide fallback'
   },
   ES: {
     countryCode: 'ES',
