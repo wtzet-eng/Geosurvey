@@ -84,6 +84,22 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     baseValuationPerSqm: 0,
     valuationDataSource: 'MHCLG Land value estimates for policy appraisal 2023 — England local-authority benchmark; no UK-wide fallback'
   },
+  SK: {
+    countryCode: 'SK',
+    countryName: 'Slovakia',
+    currency: 'EUR',
+    symbol: '€',
+    cadastreAuthority: 'Úrad geodézie, kartografie a katastra Slovenskej republiky (ÚGKK SR / ESKN)',
+    cadastrePortalUrl: 'https://kataster.skgeodesy.sk/eskn-portal/',
+    geologyAuthority: 'Štátny geologický ústav Dionýza Štúra (ŠGÚDŠ / GeoIS)',
+    geologyPortalUrl: 'https://www.geology.sk/maps-and-data/geoportal-sguds/',
+    floodAuthority: 'Slovenský vodohospodársky podnik (SVP) / MŽP SR',
+    floodPortalUrl: 'https://mpompr.svp.sk/',
+    planningInstrumentName: 'Územný plán obce/mesta (ÚPN) / záväzné územnoplánovacie stanovisko',
+    standardSetbackRule: 'Determined by the applicable zoning plan and Slovak building rules; requires local authority confirmation',
+    baseValuationPerSqm: 69,
+    valuationDataSource: 'ZoznamRealit.SK / 2026 Slovak residential-building-plot asking benchmarks — city → kraj → national fallback'
+  },
   ES: {
     countryCode: 'ES',
     countryName: 'Spain',
