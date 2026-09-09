@@ -108,8 +108,8 @@ function unavailable(id: string, category: string, sourceUrl: string, claim: str
 export function mapSlovakLandslideClass(code: unknown): 'Low' | 'Moderate' | 'High' | 'Not available' {
   const value = String(code ?? '').trim().toUpperCase();
   if (value === 'I.' || value === 'I') return 'Low';
-  if (value.startsWith('II')) return 'Moderate';
   if (value.startsWith('III')) return 'High';
+  if (value.startsWith('II')) return 'Moderate';
   return 'Not available';
 }
 
