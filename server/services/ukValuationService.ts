@@ -32,9 +32,22 @@ const clean = (value: unknown): string => String(value ?? '').trim().replace(/\s
 const normalize = (value: unknown): string => clean(value)
   .toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  .replace(/\b(city|borough|district|council|metropolitan|london borough) of\b/g, ' ')
+  .replace(/&/g, ' and ')
+  .replace(/\b(?:city|royal borough|london borough|borough|district|metropolitan borough) of\b/g, ' ')
+  .replace(/\b(?:city council|borough council|district council|county council|metropolitan borough council|council|unitary authority|local authority)\b/g, ' ')
   .replace(/[^a-z0-9]+/g, ' ')
   .trim();
+
+function authorityRowMatch(row: Array<string | number | null>, localAuthorityName: string, localAuthorityCode?: string): boolean {
+  const target = normalize(localAuthorityName);
+  const code = clean(localAuthorityCode).toUpperCase();
+  return row.some(cell => {
+    const raw = clean(cell);
+    if (code && raw.toUpperCase() === code) return true;
+    const normalized = normalize(raw);
+    return Boolean(normalized && target && normalized === target);
+  });
+}
 
 function decodeXml(value: string): string {
   return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
@@ -126,19 +139,18 @@ export function parseMhclgWorkbook(buffer: Buffer): SheetRows {
 
 function headerText(rows: SheetRows, rowIndex: number, colIndex: number): string {
   const values: string[] = [];
-  for (let i = Math.max(0, rowIndex - 10); i < rowIndex; i++) {
+  for (let i = Math.max(0, rowIndex - 24); i < rowIndex; i++) {
     const value = clean(rows[i]?.[colIndex]);
     if (value) values.push(value);
   }
   return values.join(' | ');
 }
 
-export function selectEnglandResidentialLandValue(rows: SheetRows, localAuthorityName: string): number | null {
-  const target = normalize(localAuthorityName);
+export function selectEnglandResidentialLandValue(rows: SheetRows, localAuthorityName: string, localAuthorityCode?: string): number | null {
   let best: { value: number; score: number } | null = null;
   for (let r = 0; r < rows.length; r++) {
     const row = rows[r];
-    if (!row.some(cell => normalize(cell) === target)) continue;
+    if (!authorityRowMatch(row, localAuthorityName, localAuthorityCode)) continue;
     for (let c = 0; c < row.length; c++) {
       const raw = finite(row[c]);
       if (raw === null || raw <= 0) continue;
@@ -149,9 +161,10 @@ export function selectEnglandResidentialLandValue(rows: SheetRows, localAuthorit
       let score = 0;
       if (/residential|housing/.test(header)) score += 6;
       if (/land value|site value|value/.test(header)) score += 4;
-      if (/central|mid|typical|average/.test(header)) score += 3;
+      if (/central|median|mid|typical|average/.test(header)) score += 3;
       if (/hectare|£\/ha|per ha/.test(header)) score += 3;
-      if (/density|dwellings|units|floor|agric|industrial|office|retail/.test(header)) score -= 7;
+      if (/agric|industrial|office|retail|car park|distribution/.test(header)) score -= 8;
+      if (/dwellings per hectare|units per hectare|homes per hectare/.test(header) && !/land value|site value/.test(header)) score -= 8;
       if (!best || score > best.score) best = { value, score };
     }
   }
@@ -177,11 +190,12 @@ async function resolveLocalAuthority(lat: number, lng: number, fetcher: FetchLik
 
 async function loadWorkbookRows(fetcher: FetchLike): Promise<SheetRows | null> {
   if (workbookCache && workbookCache.expires > Date.now()) return workbookCache.rows;
-  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 9000);
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    const response = await fetcher(MHCLG_XLSX, { headers: { 'User-Agent': 'GeoSurvey/1.0 UK land valuation', Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }, signal: controller.signal });
+    const response = await fetcher(MHCLG_XLSX, { headers: { 'User-Agent': 'GeoSurvey/1.0 UK land valuation', Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*;q=0.8' }, signal: controller.signal });
     if (!response.ok) return null;
     const rows = parseMhclgWorkbook(Buffer.from(await response.arrayBuffer()));
+    if (!rows.length) return null;
     workbookCache = { expires: Date.now() + CACHE_MS, rows };
     return rows;
   } catch { return null; } finally { clearTimeout(timer); }
@@ -205,11 +219,11 @@ export async function queryUKLandValuationEvidence(lat: number, lng: number, fet
     status: 'REQUIRES_VERIFICATION', sourceName: MHCLG_SOURCE, sourceUrl: MHCLG_PAGE, datasetDate: today(), spatialRelationship: `${authority.name} (${authority.code})`,
     calculationMethod: 'Official MHCLG XLSX acquisition and local-authority benchmark extraction', confidence: 'Low', limitation: 'Source failure is not evidence that the land has no value. The old generic £195/m² fallback is not used.', value: { reasonCode: 'SOURCE_UNAVAILABLE', authority }
   };
-  const perHa = selectEnglandResidentialLandValue(rows, authority.name);
+  const perHa = selectEnglandResidentialLandValue(rows, authority.name, authority.code);
   if (!perHa) return {
     id: 'uk-mhclg-land-valuation-no-data', category: 'Land market valuation', claim: `The MHCLG workbook was read but a defensible central residential land benchmark could not be matched for ${authority.name}.`,
     status: 'REQUIRES_VERIFICATION', sourceName: MHCLG_SOURCE, sourceUrl: MHCLG_PAGE, datasetDate: today(), spatialRelationship: `${authority.name} (${authority.code})`,
-    calculationMethod: 'Local-authority name match plus central residential £/ha column detection', confidence: 'Low', limitation: 'No generic UK fallback is substituted when the local benchmark cannot be resolved.', value: { reasonCode: 'NO_DATA', authority }
+    calculationMethod: 'Local-authority code/name match plus central residential £/ha column detection', confidence: 'Low', limitation: 'No generic UK fallback is substituted when the local benchmark cannot be resolved.', value: { reasonCode: 'NO_DATA', authority }
   };
   const benchmark: EnglandLandBenchmark = {
     localAuthorityCode: authority.code, localAuthorityName: authority.name, landValuePerHa: perHa, benchmarkPricePerSqm: perHa / 10000,

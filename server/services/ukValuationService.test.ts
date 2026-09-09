@@ -12,6 +12,25 @@ test('England benchmark selector prefers residential land value over density and
   assert.equal(selectEnglandResidentialLandValue(rows, 'Manchester'), 5_000_000);
 });
 
+test('England benchmark selector accepts a central residential land-value column whose header also describes density', () => {
+  const rows: any[][] = [
+    ['Residential land values', 'Residential land values'],
+    ['Scenario', 'Central density / median house-price scenario'],
+    ['Measure', 'Land value (£/ha)'],
+    ['Local authority', 'Value'],
+    ['Manchester City Council', 5_200_000]
+  ];
+  assert.equal(selectEnglandResidentialLandValue(rows, 'Manchester'), 5_200_000);
+});
+
+test('England benchmark selector tolerates council naming differences and can match a LAD code', () => {
+  const rows: any[][] = [
+    ['Local authority code', 'Local authority', 'Central residential land value (£/ha)'],
+    ['E06000060', 'Buckinghamshire Council', 4_100_000]
+  ];
+  assert.equal(selectEnglandResidentialLandValue(rows, 'Buckinghamshire', 'E06000060'), 4_100_000);
+});
+
 test('England benchmark selector supports workbooks expressed in £ million per hectare', () => {
   const rows: any[][] = [
     ['Local authority', 'Central residential land value (£ million per hectare)'],
