@@ -179,8 +179,10 @@ test('supported Poland keeps the modelled valuation benchmark without claiming a
   assert.equal(canonical.valuation.max, 456000);
   assert.equal(canonical.valuation.median, 250000);
   assert.match(canonical.valuation.sourceName, /GeoSurvey/);
-  assert.match(canonical.valuation.sourceName, /RCiWN/);
-  assert.match(canonical.valuation.sourceName, /420 PLN\/m²/);
+  assert.match(canonical.valuation.sourceName, /RCN/);
+  assert.match(canonical.valuation.sourceName, /Cenatorium/);
+  assert.match(canonical.valuation.sourceName, /188 PLN\/m²/);
+  assert.doesNotMatch(canonical.valuation.sourceName, /420 PLN\/m²/);
   assert.equal(canonical.valuation.reasonCode, undefined);
   const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
   assert.ok(valuationEvidence);
@@ -192,7 +194,9 @@ test('supported Poland keeps the modelled valuation benchmark without claiming a
   const market = rendered.sections.market_and_comparables;
   assert.equal(market.evidence_level, 'MODELLED');
   assert.match(market.summary, /123.?000.*456.?000.*PLN/i);
-  assert.match(market.source_cited || '', /RCiWN/);
-  assert.match(market.source_cited || '', /420 PLN\/m²/);
+  assert.match(market.source_cited || '', /RCN/);
+  assert.match(market.source_cited || '', /Cenatorium/);
+  assert.match(market.source_cited || '', /188 PLN\/m²/);
+  assert.doesNotMatch(market.source_cited || '', /420 PLN\/m²/);
   assert.doesNotMatch(`${market.summary} ${market.detail} ${market.limitation_notice || ''}`, /nie jest obsługiwane dla wybranego kraju/i);
 });
