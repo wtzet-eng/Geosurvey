@@ -9,6 +9,8 @@ type DvfMutation = {
   codtypbien?: unknown;
   libtypbien?: unknown;
   libnatmut?: unknown;
+  idnatmut?: unknown;
+  segmtab?: unknown;
   vefa?: unknown;
   datemut?: unknown;
 };
@@ -68,10 +70,19 @@ const quantile = (sorted: number[], p: number): number => {
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 };
 
+const hasBuildableLandSignal = (row: DvfMutation): boolean => {
+  const code = String(row.codtypbien ?? '');
+  const segment = numeric(row.segmtab);
+  return code.startsWith('21') || (segment !== null && segment >= 3);
+};
+
 function mutationToLandTransaction(row: DvfMutation): LandTransaction | null {
   if (!String(row.codtypbien ?? '').startsWith('2')) return null;
+  if (!hasBuildableLandSignal(row)) return null;
   const nature = text(row.libnatmut);
   if (nature && !/^vente\b/i.test(nature)) return null;
+  const mutationType = numeric(row.idnatmut);
+  if (mutationType !== null && ![1, 2, 4].includes(mutationType)) return null;
   if (row.vefa === true || String(row.vefa).toLowerCase() === 'true') return null;
 
   const landAreaM2 = numeric(row.sterr);
@@ -117,7 +128,7 @@ export function summarizeFranceLandTransactions(rows: DvfMutation[], scope: 'LOC
 
   return {
     scope,
-    label: scope === 'LOCAL' ? `nearby bare-land DVF+ transactions around ${commune.name}` : `commune-wide bare-land DVF+ transactions for ${commune.name}`,
+    label: scope === 'LOCAL' ? `nearby buildable-land-signalled DVF+ transactions around ${commune.name}` : `commune-wide buildable-land-signalled DVF+ transactions for ${commune.name}`,
     communeCode: commune.code,
     communeName: commune.name,
     departmentCode: commune.departmentCode,
@@ -167,7 +178,7 @@ async function queryDvfRows(fetcher: FetchLike, params: URLSearchParams): Promis
 
 const baseDvfParams = () => new URLSearchParams({
   codtypbien: '2',
-  anneemut_min: String(new Date().getUTCFullYear() - 3),
+  anneemut_min: String(new Date().getUTCFullYear() - 5),
   fields: 'all',
   page_size: '500',
   ordering: '-datemut'
@@ -177,9 +188,9 @@ export async function queryFranceLandValuationEvidence(lat: number, lng: number,
   const commune = await resolveCommune(lat, lng, fetcher);
   if (!commune) {
     return {
-      id: 'fr-dvf-land-valuation-unavailable', category: 'Land market valuation', claim: 'French commune could not be resolved, so DVF+ bare-land transactions were not used.',
+      id: 'fr-dvf-land-valuation-unavailable', category: 'Land market valuation', claim: 'French commune could not be resolved, so DVF+ buildable-land-signalled transactions were not used.',
       status: 'REQUIRES_VERIFICATION', sourceName: DVF_SOURCE, sourceUrl: DVF_SOURCE_URL, datasetDate: today(), spatialRelationship: 'Selected site coordinate',
-      calculationMethod: 'Official French commune lookup followed by Cerema DVF+ bare-land transaction acquisition', confidence: 'Low', value: { reasonCode: 'SOURCE_UNAVAILABLE' },
+      calculationMethod: 'Official French commune lookup followed by Cerema DVF+ buildable-land transaction acquisition', confidence: 'Low', value: { reasonCode: 'SOURCE_UNAVAILABLE' },
       limitation: 'No automated land value is presented when the commune cannot be resolved. This is not evidence that market transactions are absent.', reasonCode: 'SOURCE_UNAVAILABLE'
     };
   }
@@ -214,13 +225,13 @@ export async function queryFranceLandValuationEvidence(lat: number, lng: number,
     return {
       id: sourceReachable ? 'fr-dvf-land-valuation-no-data' : 'fr-dvf-land-valuation-unavailable', category: 'Land market valuation',
       claim: sourceReachable
-        ? `DVF+ was queried for bare-land sales near and across ${commune.name}, but fewer than ${MIN_SAMPLE} usable land-only transactions remained after validation.`
-        : 'Cerema DVF+ bare-land transaction service could not be reached or validated at analysis time.',
+        ? `DVF+ was queried near and across ${commune.name}, but fewer than ${MIN_SAMPLE} usable buildable-land-signalled transactions remained after validation.`
+        : 'Cerema DVF+ land transaction service could not be reached or validated at analysis time.',
       status: 'REQUIRES_VERIFICATION', sourceName: DVF_SOURCE, sourceUrl: DVF_SOURCE_URL, datasetDate: today(), spatialRelationship: `${commune.name} (${commune.code}) and an approximately 1 km local search box`,
-      calculationMethod: 'Cerema DVF+ codtypbien=2 acquisition; accepts detailed bare-land codes beginning with 2, excludes built-area/VEFA/non-sale records, and requires a minimum usable sample', confidence: 'Low',
+      calculationMethod: 'Cerema DVF+ codtypbien=2 acquisition; requires a terrain-à-bâtir signal (21* code or segmtab>=3), excludes built-area/VEFA/non-sale records, and requires a minimum usable sample', confidence: 'Low',
       value: { reasonCode, commune, localReturned: localResult.count, communeReturned: communeResult.count },
       limitation: sourceReachable
-        ? 'Sparse bare-land transactions can make a defensible automated land benchmark impossible. No generic French fallback is substituted.'
+        ? 'Sparse buildable-land-signalled transactions can make a defensible automated land benchmark impossible. No generic French fallback is substituted.'
         : 'Source failure is not evidence that land transactions are absent. No generic French fallback is substituted.',
       reasonCode
     };
@@ -228,13 +239,13 @@ export async function queryFranceLandValuationEvidence(lat: number, lng: number,
 
   return {
     id: 'fr-dvf-land-valuation', category: 'Land market valuation',
-    claim: `${benchmark.sampleCount} usable DVF+ bare-land transaction(s) support a ${benchmark.scope === 'LOCAL' ? 'nearby' : 'commune-wide'} median benchmark of approximately ${benchmark.benchmarkPricePerSqm.toLocaleString('fr-FR')} €/m² for ${commune.name}.`,
+    claim: `${benchmark.sampleCount} usable DVF+ buildable-land-signalled transaction(s) support a ${benchmark.scope === 'LOCAL' ? 'nearby' : 'commune-wide'} median benchmark of approximately ${benchmark.benchmarkPricePerSqm.toLocaleString('fr-FR')} €/m² for ${commune.name}.`,
     status: 'MODELLED', sourceName: DVF_SOURCE, sourceUrl: DVF_SOURCE_URL, datasetDate: today(),
     spatialRelationship: benchmark.scope === 'LOCAL' ? `Approximately 1 km search box around the selected site in ${commune.name}` : `Commune ${commune.name} (${commune.code})`,
-    calculationMethod: 'Cerema DVF+ open-data, codtypbien=2 bare-land hierarchy (returned detailed codes beginning with 2); filters non-sales, VEFA, built area and invalid price/area records; IQR outlier control when sample size permits; median €/m² benchmark',
+    calculationMethod: 'Cerema DVF+ open-data: bare-land hierarchy codtypbien 2* plus terrain-à-bâtir signal (21* code or segmtab>=3); filters non-sales, VEFA, built area and invalid price/area records; IQR outlier control when sample size permits; median €/m² benchmark',
     confidence: benchmark.scope === 'LOCAL' && benchmark.sampleCount >= 8 ? 'Medium' : 'Low',
     value: benchmark,
-    limitation: 'Land-only screening benchmark from completed bare-land transactions. It excludes buildings and improvements and does not prove comparable planning rights, servicing, access, contamination, subdivision potential or other legal/economic attributes of the selected parcel.'
+    limitation: 'Land-only screening benchmark from transactions carrying a buildable-land signal. Buildings and improvements are excluded. The DVF+/Cerema signal does not itself prove current PLU/PLUi buildability, servicing, access, contamination, subdivision potential or equivalent legal/economic comparability for the selected parcel.'
   };
 }
 
@@ -250,7 +261,7 @@ function clearUnavailableValuation(report: any, reason: string): void {
     currency: 'EUR',
     comparableEvidenceCount: 0,
     methodology: `French land value withheld: ${reason}. No generic national €/m² fallback is used.`,
-    marketTrendDescription: 'No automated French land value is presented without a sufficient live DVF+ bare-land transaction sample.',
+    marketTrendDescription: 'No automated French land value is presented without a sufficient DVF+ buildable-land-signalled transaction sample.',
     uncertaintyRating: 'High',
     disclaimer: 'LAND VALUE ONLY. Buildings, structures and other improvements are excluded. This is not a certified property appraisal.'
   };
@@ -300,24 +311,24 @@ export function enrichFranceValuationFromEvidence(report: any, evidenceItems: Fr
     indicativeMedianPrice: totalMedian,
     indicativePricePerSqm: unitMedian,
     currency: 'EUR',
-    methodology: `Indicative land-only benchmark from ${benchmark.sampleCount} usable Cerema DVF+ bare-land transactions (${benchmark.scope === 'LOCAL' ? 'nearby search' : `commune ${benchmark.communeName}`}). Median source benchmark ${benchmark.benchmarkPricePerSqm} €/m²; observed central quartiles approximately ${benchmark.q25PricePerSqm}–${benchmark.q75PricePerSqm} €/m². Parcel-size${slopeDegrees !== null ? ', terrain' : ''}${roadDistanceM !== null ? ' and mapped road-access' : ''} screening adjustments were then applied. Buildings and other improvements are excluded.`,
+    methodology: `Indicative land-only benchmark from ${benchmark.sampleCount} usable Cerema DVF+ buildable-land-signalled transactions (${benchmark.scope === 'LOCAL' ? 'nearby search' : `commune ${benchmark.communeName}`}). Median source benchmark ${benchmark.benchmarkPricePerSqm} €/m²; observed central quartiles approximately ${benchmark.q25PricePerSqm}–${benchmark.q75PricePerSqm} €/m². Parcel-size${slopeDegrees !== null ? ', terrain' : ''}${roadDistanceM !== null ? ' and mapped road-access' : ''} screening adjustments were then applied. Buildings and other improvements are excluded.`,
     comparableEvidenceCount: benchmark.sampleCount,
-    marketTrendDescription: `DVF+ bare-land benchmark based on transactions from ${benchmark.oldestTransactionDate || 'the recent query period'} to ${benchmark.newestTransactionDate || 'the recent query period'}; final screening range ${unitMin.toLocaleString('fr-FR')}–${unitMax.toLocaleString('fr-FR')} €/m².`,
+    marketTrendDescription: `DVF+ buildable-land-signalled benchmark based on transactions from ${benchmark.oldestTransactionDate || 'the recent query period'} to ${benchmark.newestTransactionDate || 'the recent query period'}; final screening range ${unitMin.toLocaleString('fr-FR')}–${unitMax.toLocaleString('fr-FR')} €/m².`,
     priceDrivers: [
-      { factor: 'DVF+ bare-land transaction benchmark', impact: `${benchmark.benchmarkPricePerSqm} €/m² median (${benchmark.sampleCount} usable transactions; ${benchmark.scope.toLowerCase()} scope)`, weight: 'High' },
-      { factor: 'Planning / buildability evidence', impact: 'Not verified — DVF bare-land transactions do not prove equivalent PLU/PLUi rights', weight: 'High' },
+      { factor: 'DVF+ buildable-land transaction benchmark', impact: `${benchmark.benchmarkPricePerSqm} €/m² median (${benchmark.sampleCount} usable transactions; ${benchmark.scope.toLowerCase()} scope)`, weight: 'High' },
+      { factor: 'Planning / buildability evidence', impact: 'Not verified — the DVF+/Cerema buildable-land signal does not prove current equivalent PLU/PLUi rights', weight: 'High' },
       { factor: 'Road proximity & access', impact: roadDistanceM !== null && !directRoadAccess && roadDistanceM > 50 ? '-18% screening adjustment' : 'No adverse screening adjustment applied', weight: 'Medium' },
       { factor: 'Terrain topography', impact: slopeDegrees !== null && slopeDegrees > 10 ? '-12% screening adjustment' : 'No adverse screening adjustment applied', weight: 'Medium' },
       { factor: 'Parcel area', impact: areaM2 > 2500 ? '-10% scale adjustment' : areaM2 < 750 ? '+10% scale adjustment' : 'Standard', weight: 'Low' }
     ],
     uncertaintyRating: 'High',
-    disclaimer: 'INDICATIVE LAND VALUE ONLY: automated screening from DVF+ bare-land transactions. Buildings, structures and other improvements are excluded. This is not a certified property appraisal or a substitute for local comparable analysis by a qualified valuer.'
+    disclaimer: 'INDICATIVE LAND VALUE ONLY: automated screening from DVF+ transactions carrying a buildable-land signal. Buildings, structures and other improvements are excluded. The signal does not prove current planning rights. This is not a certified property appraisal or a substitute for local comparable analysis by a qualified valuer.'
   };
 
   const source = report.dataSourcesCited?.find((item: any) => item.type === 'Statistical Market Benchmark');
   if (source) { source.name = DVF_SOURCE; source.organization = 'Cerema / DGFiP'; source.url = DVF_SOURCE_URL; source.status = 'MODELLED'; }
   if (report.evidenceScore?.breakdown?.planningAndMarket) {
     report.evidenceScore.breakdown.planningAndMarket.score = 6;
-    report.evidenceScore.breakdown.planningAndMarket.rationale = `Live Cerema DVF+ bare-land evidence supports an indicative land benchmark (${benchmark.sampleCount} usable transactions), while binding planning rights remain unverified.`;
+    report.evidenceScore.breakdown.planningAndMarket.rationale = `Live Cerema DVF+ buildable-land-signalled evidence supports an indicative land benchmark (${benchmark.sampleCount} usable transactions), while binding planning rights remain unverified.`;
   }
 }

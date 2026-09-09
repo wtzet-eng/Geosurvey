@@ -63,6 +63,14 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
       nationalHydrogeology: true
     }
   },
+  DE: {
+    countryCode: 'DE',
+    maturity: 'LIMITED',
+    capabilities: {
+      ...NONE,
+      nationalValuation: true
+    }
+  },
   FR: {
     countryCode: 'FR',
     maturity: 'LIMITED',

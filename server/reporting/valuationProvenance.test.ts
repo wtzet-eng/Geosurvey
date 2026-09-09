@@ -8,6 +8,15 @@ function polishModelledValuationReport(): any {
   return {
     countryCode: 'PL',
     language: 'pl',
+    parcel: {
+      status: 'REQUIRES_VERIFICATION',
+      countryCode: 'PL',
+      isOfficialGeometry: false,
+      areaCalculatedM2: 3456,
+      cadastralSource: 'fixture',
+      datasetDate: '2026-08-29',
+      limitation: 'fixture'
+    },
     terrain: {
       elevationAmsl: 100,
       minElevationAmsl: 99,

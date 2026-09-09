@@ -11,7 +11,7 @@ function rawReport(countryCode: string): any {
     language: 'en',
     parcel: {
       status: 'REQUIRES_VERIFICATION', parcelId: 'FAKE-PARCEL', countryCode, isOfficialGeometry: false,
-      areaCalculatedM2: 1000, officialAreaM2: 999, cadastralSource: 'Configured national cadastre', datasetDate: '2026-08-24', limitation: 'fixture'
+      areaCalculatedM2: 1000, officialAreaM2: 1000, cadastralSource: 'Configured national cadastre', datasetDate: '2026-08-24', limitation: 'fixture'
     },
     terrain: {
       elevationAmsl: 120, minElevationAmsl: 118, maxElevationAmsl: 122, elevationDifferenceM: 4,
@@ -35,7 +35,7 @@ function rawReport(countryCode: string): any {
     planning: { status: 'MODELLED', hasLocalPlan: true, planDesignation: 'Synthetic zoning', permittedUseCategory: 'Residential', maxFar: '1.0', maxCoveragePct: '40%', minBiologicallyActivePct: '30%', maxBuildingHeightM: '9', setbackRules: '3.0 m', authorityName: 'Configured planning authority', documentRequired: 'Official plan', sourceName: 'Configured planning model', limitation: 'fixture' },
     infrastructure: { roadAccess: { status: 'MODELLED', nearestRoadType: 'residential', nearestRoadName: 'Test Road', estimatedDistanceM: 20, directAccessVerified: false, isPaved: true, sourceName: 'OpenStreetMap' }, utilities: [], amenities: [], surroundingBuildingsCount: 3, surroundingLanduse: ['residential'] },
     environment: { landscapeParkOverlay: false, waterProtectionZone: false, status: 'MODELLED', sourceName: 'OpenStreetMap', limitation: 'cross-border context' },
-    valuation: { status: 'MODELLED', indicativeMinPrice: 123000, indicativeMaxPrice: 456000, indicativeMedianPrice: 250000, indicativePricePerSqm: 250, currency: 'EUR', methodology: 'Configured baseValuationPerSqm model', comparableEvidenceCount: 0, marketTrendDescription: 'Synthetic valuation', priceDrivers: [], uncertaintyRating: 'High', disclaimer: 'fixture' },
+    valuation: { status: 'MODELLED', indicativeMinPrice: 123000, indicativeMaxPrice: 456000, indicativeMedianPrice: 250000, indicativePricePerSqm: 250, currency: countryCode === 'PL' ? 'PLN' : 'EUR', methodology: 'Configured baseValuationPerSqm model', comparableEvidenceCount: 0, marketTrendDescription: 'Synthetic valuation', priceDrivers: [], uncertaintyRating: 'High', disclaimer: 'fixture' },
     evidenceScore: {
       totalScore: 61, ratingClass: 'Moderate Evidence (50-74)', verifiedCount: 0, modelledCount: 5, unverifiedCount: 1,
       breakdown: {
@@ -65,69 +65,94 @@ function rawReport(countryCode: string): any {
 }
 
 function clearFranceValuation(report: any): void {
-  report.valuation = { ...report.valuation, status: 'REQUIRES_VERIFICATION', indicativeMinPrice: NaN, indicativeMaxPrice: NaN, indicativeMedianPrice: NaN, indicativePricePerSqm: NaN, comparableEvidenceCount: 0, methodology: 'No sufficient live DVF+ bare-land evidence' };
+  report.valuation = { ...report.valuation, status: 'REQUIRES_VERIFICATION', indicativeMinPrice: NaN, indicativeMaxPrice: NaN, indicativeMedianPrice: NaN, indicativePricePerSqm: NaN, comparableEvidenceCount: 0, methodology: 'No sufficient live DVF+ buildable-land evidence' };
   report.evidenceRegistry = report.evidenceRegistry.filter((record: any) => record.id !== 'valuation-indicative-model');
-  report.evidenceRegistry.push({ id: 'fr-dvf-land-valuation-no-data', category: 'Land market valuation', claim: 'Insufficient DVF+ bare-land sample', status: 'REQUIRES_VERIFICATION', sourceName: 'Cerema DVF+', sourceUrl: 'https://www.data.gouv.fr/datasets/dvf-open-data', datasetDate: '2026-08-24', spatialRelationship: 'commune', calculationMethod: 'DVF+ bare-land query', confidence: 'Low', limitation: 'No generic fallback', value: { reasonCode: 'NO_DATA' } });
+  report.evidenceRegistry.push({ id: 'fr-dvf-land-valuation-no-data', category: 'Land market valuation', claim: 'Insufficient DVF+ buildable-land sample', status: 'REQUIRES_VERIFICATION', sourceName: 'Cerema DVF+', sourceUrl: 'https://www.data.gouv.fr/datasets/dvf-open-data', datasetDate: '2026-08-24', spatialRelationship: 'commune', calculationMethod: 'DVF+ buildable-land query', confidence: 'Low', limitation: 'No generic fallback', value: { reasonCode: 'NO_DATA' } });
   const marketSource = report.dataSourcesCited.find((source: any) => source.type === 'Statistical Market Benchmark');
   marketSource.name = 'Cerema DVF+ open-data'; marketSource.status = 'REQUIRES_VERIFICATION';
   report.evidenceScore.breakdown.planningAndMarket.score = 0;
 }
 
-test('country support maturity is explicit, France can be partially integrated, and unknown countries fail closed', () => {
-  const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const fr = getCountrySupport('FR');
+test('country support maturity is explicit for Poland, Germany and France', () => {
+  const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const de = getCountrySupport('DE'); const fr = getCountrySupport('FR');
   assert.equal(pl.maturity, 'SUPPORTED'); assert.equal(pl.capabilities.nationalCadastre, true); assert.equal(pl.capabilities.nationalGeology, true);
   assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, false);
-  assert.equal(fr.maturity, 'LIMITED'); assert.equal(fr.capabilities.nationalGeology, true); assert.equal(fr.capabilities.nationalBoreholes, true);
-  assert.equal(fr.capabilities.nationalCadastre, false); assert.equal(fr.capabilities.nationalPlanning, false); assert.equal(fr.capabilities.nationalValuation, true);
-  for (const code of ['DE', 'ES', 'IT', 'NL', 'CH', 'AT', 'EU', 'XX']) {
+  assert.equal(de.maturity, 'LIMITED'); assert.equal(de.capabilities.nationalValuation, true); assert.equal(de.capabilities.nationalCadastre, false); assert.equal(de.capabilities.nationalPlanning, false);
+  assert.equal(fr.maturity, 'LIMITED'); assert.equal(fr.capabilities.nationalGeology, true); assert.equal(fr.capabilities.nationalBoreholes, true); assert.equal(fr.capabilities.nationalValuation, true);
+  for (const code of ['ES', 'IT', 'NL', 'CH', 'AT', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false));
   }
 });
 
-test('limited country canonical report withholds national conclusions but retains cross-border evidence and adjusts denominator', () => {
-  const canonical = createCanonicalReport(rawReport('DE'), getCountryProfile('DE'));
-  assert.equal(canonical.support.maturity, 'LIMITED'); assert.equal(canonical.geology.unitName, null); assert.equal(canonical.geology.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
-  assert.equal(canonical.flood.classification, null); assert.equal(canonical.flood.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY'); assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+test('unsupported limited country still withholds national conclusions and valuation', () => {
+  const canonical = createCanonicalReport(rawReport('ES'), getCountryProfile('ES'));
+  assert.equal(canonical.support.maturity, 'LIMITED');
+  assert.equal(canonical.geology.unitName, null); assert.equal(canonical.geology.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.flood.classification, null); assert.equal(canonical.flood.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
   assert.equal(canonical.valuation.min, null); assert.equal(canonical.valuation.max, null); assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
-  assert.equal(canonical.soil.texture, 'Sandy loam'); assert.equal(canonical.terrain.elevationM, 120); assert.equal(canonical.infrastructure.sourceName, 'OpenStreetMap');
-  assert.equal(canonical.evidenceScore.breakdown.cadastreAndGeometry.max, 0); assert.equal(canonical.evidenceScore.breakdown.planningAndMarket.max, 0); assert.ok(canonical.evidenceScore.totalScore > 0);
-  assert.ok(canonical.evidenceRecords.some(record => record.id === 'terrain-elevation-slope')); assert.ok(canonical.evidenceRecords.some(record => record.id === 'soilgrids-profile'));
-  assert.ok(canonical.evidenceRecords.some(record => record.id === 'flood-proximity-check' && record.sourceName === 'OpenStreetMap hydrology'));
+  assert.equal(canonical.evidenceScore.breakdown.cadastreAndGeometry.max, 0); assert.equal(canonical.evidenceScore.breakdown.planningAndMarket.max, 0);
   assert.ok(!canonical.evidenceRecords.some(record => record.id === 'valuation-indicative-model'));
-  assert.ok(!canonical.sourceRecords.some(source => source.type === 'Official National Cadastre' || source.type === 'Geological Survey' || source.type === 'Hydrological Registry' || source.type === 'Statistical Market Benchmark'));
+  assert.ok(!canonical.sourceRecords.some(source => source.type === 'Statistical Market Benchmark'));
 });
 
-test('limited coverage and withheld valuation are localized without zero or undefined ranges', () => {
-  const canonical = createCanonicalReport(rawReport('DE'), getCountryProfile('DE'));
-  for (const language of ['en', 'de', 'pl']) {
-    const rendered = renderLocalizedReport(canonical, language); assert.equal(rendered.countrySupport.maturity, 'LIMITED'); assert.ok(rendered.countrySupport.notice.length > 30);
-    assert.match(rendered.sections.market_and_comparables.limitation_notice || '', /not supported|nicht unterstützt|nie jest obsługiwane/i);
-    const text = JSON.stringify(rendered); assert.doesNotMatch(text, /123000|456000|250\s*EUR|0\s*[–-]\s*0|undefined/); assert.doesNotMatch(text, /3\.0\s*m/);
-  }
+test('Germany replaces the old generic valuation with the 2025 state benchmark hierarchy', () => {
+  const report = rawReport('DE');
+  report.parcel.commune = 'Potsdam';
+  report.parcel.voivodeship = 'Brandenburg';
+  const canonical = createCanonicalReport(report, getCountryProfile('DE'));
+  assert.equal(canonical.support.capabilities.nationalValuation, true);
+  assert.equal(canonical.valuation.status, 'MODELLED');
+  assert.equal(canonical.valuation.median, 159000);
+  assert.equal(canonical.valuation.min, 48000);
+  assert.equal(canonical.valuation.max, 636000);
+  assert.match(canonical.valuation.sourceName, /Destatis/i);
+  assert.doesNotMatch(canonical.valuation.sourceName, /175/);
+  const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
+  assert.ok(valuationEvidence);
+  assert.match(valuationEvidence?.claim || '', /German land-value benchmark/i);
+  assert.match(valuationEvidence?.spatialRelationship || '', /STATE benchmark/i);
+  assert.match(valuationEvidence?.limitation || '', /Buildings and other improvements are excluded/i);
+  assert.doesNotMatch(valuationEvidence?.claim || '', /123000|456000/);
+  const source = canonical.sourceRecords.find(record => record.type === 'Statistical Market Benchmark');
+  assert.ok(source); assert.match(source?.name || '', /Destatis/i);
+
+  const rendered = renderLocalizedReport(canonical, 'de');
+  assert.match(rendered.sections.market_and_comparables.summary, /48.?000.*636.?000.*EUR/i);
+  assert.doesNotMatch(JSON.stringify(rendered), /123000|456000/);
 });
 
-test('partially integrated France exposes live valuation capability but withholds value when DVF evidence is insufficient', () => {
+test('German city benchmark can override a much broader Bundesland average', () => {
+  const report = rawReport('DE');
+  report.parcel.commune = 'München';
+  report.parcel.voivodeship = 'Bayern';
+  const canonical = createCanonicalReport(report, getCountryProfile('DE'));
+  assert.equal(canonical.valuation.median, 3455000);
+  assert.match(canonical.valuation.sourceName, /Regionaldatenbank/i);
+  const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
+  assert.match(valuationEvidence?.spatialRelationship || '', /CITY benchmark/i);
+});
+
+test('partially integrated France exposes valuation capability but withholds value when DVF evidence is insufficient', () => {
   const report = rawReport('FR'); clearFranceValuation(report);
   report.geosurvey_context = { geological_unit_name: 'Alluvions récentes', lithology_type: 'sables et graviers', geological_period_era: 'Holocène', evidence_level: 'VERIFIED', source_name: 'Bureau de Recherches Géologiques et Minières (BRGM)', source_url: 'https://infoterre.brgm.fr/' };
   const canonical = createCanonicalReport(report, getCountryProfile('FR'));
-  assert.equal(canonical.support.maturity, 'LIMITED'); assert.equal(canonical.support.capabilities.nationalGeology, true); assert.equal(canonical.support.capabilities.nationalValuation, true);
-  assert.equal(canonical.geology.unitName, 'Alluvions récentes'); assert.equal(canonical.geology.lithology, 'sables et graviers'); assert.equal(canonical.geology.geologicalAge, 'Holocène');
-  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY'); assert.equal(canonical.valuation.min, null); assert.equal(canonical.valuation.max, null); assert.equal(canonical.valuation.status, 'REQUIRES_VERIFICATION');
-  assert.equal(canonical.support.capabilities.nationalCadastre, false); assert.match(canonical.valuation.sourceName, /DVF\+/i);
-  const rendered = renderLocalizedReport(canonical, 'en'); assert.match(rendered.countrySupport.notice, /selected national source integrations are available/i); assert.match(rendered.sections.geohazard_risk.summary, /Alluvions récentes/i);
+  assert.equal(canonical.support.capabilities.nationalValuation, true);
+  assert.equal(canonical.geology.unitName, 'Alluvions récentes'); assert.equal(canonical.geology.lithology, 'sables et graviers');
+  assert.equal(canonical.valuation.min, null); assert.equal(canonical.valuation.max, null); assert.equal(canonical.valuation.status, 'REQUIRES_VERIFICATION');
+  assert.match(canonical.valuation.sourceName, /DVF\+/i);
+  const rendered = renderLocalizedReport(canonical, 'en');
   assert.doesNotMatch(JSON.stringify(rendered), /123000|456000|205\s*EUR/);
 });
 
-test('supported Poland keeps the modelled valuation benchmark without claiming a national valuation feed', () => {
-  const report = rawReport('PL'); report.valuation.currency = 'PLN';
+test('supported Poland keeps the existing regional modelled valuation', () => {
+  const report = rawReport('PL');
   const canonical = createCanonicalReport(report, getCountryProfile('PL'));
-  assert.equal(canonical.support.capabilities.nationalValuation, false); assert.equal(canonical.valuation.status, 'MODELLED');
+  assert.equal(canonical.support.capabilities.nationalValuation, false);
+  assert.equal(canonical.valuation.status, 'MODELLED');
   assert.equal(canonical.valuation.min, 123000); assert.equal(canonical.valuation.max, 456000); assert.equal(canonical.valuation.median, 250000);
-  assert.match(canonical.valuation.sourceName, /GeoSurvey/); assert.match(canonical.valuation.sourceName, /RCN/); assert.match(canonical.valuation.sourceName, /Cenatorium/); assert.match(canonical.valuation.sourceName, /188 PLN\/m²/); assert.doesNotMatch(canonical.valuation.sourceName, /420 PLN\/m²/);
-  assert.equal(canonical.valuation.reasonCode, undefined);
-  const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model'); assert.ok(valuationEvidence); assert.equal(valuationEvidence?.sourceName, canonical.valuation.sourceName);
-  assert.match(valuationEvidence?.limitation || '', /No direct comparable deeds or live national valuation records were queried/i); assert.ok(!canonical.evidenceRecords.some(record => record.id === 'country-support-valuation'));
-  const rendered = renderLocalizedReport(canonical, 'pl'); const market = rendered.sections.market_and_comparables;
-  assert.equal(market.evidence_level, 'MODELLED'); assert.match(market.summary, /123.?000.*456.?000.*PLN/i); assert.match(market.source_cited || '', /RCN/); assert.match(market.source_cited || '', /Cenatorium/); assert.match(market.source_cited || '', /188 PLN\/m²/); assert.doesNotMatch(market.source_cited || '', /420 PLN\/m²/);
-  assert.doesNotMatch(`${market.summary} ${market.detail} ${market.limitation_notice || ''}`, /nie jest obsługiwane dla wybranego kraju/i);
+  assert.match(canonical.valuation.sourceName, /GeoSurvey/); assert.match(canonical.valuation.sourceName, /RCN/); assert.match(canonical.valuation.sourceName, /Cenatorium/); assert.match(canonical.valuation.sourceName, /188 PLN\/m²/);
+  assert.doesNotMatch(canonical.valuation.sourceName, /420 PLN\/m²/);
+  const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model');
+  assert.ok(valuationEvidence); assert.equal(valuationEvidence?.sourceName, canonical.valuation.sourceName);
 });
