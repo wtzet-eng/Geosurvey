@@ -3,6 +3,7 @@ import { EvidenceItem, EvidenceLevel, VerifiedSiteReport } from '../types';
 import { CountrySupportProfile, getCountrySupport } from '../../src/data/countrySupport';
 import { GroundContextSummary, PedologicalVariabilitySummary } from '../services/groundContextService';
 import { calculateGermanyLandValue } from '../services/germanyValuationBenchmark';
+import { calculateSlovakiaLandValue } from '../services/slovakiaValuationBenchmark';
 
 export type ReportLanguage = 'en' | 'de' | 'pl';
 export type AvailabilityReason = 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA' | 'PARAMETER_NOT_PROVIDED' | 'INSUFFICIENT_EVIDENCE' | 'NOT_SUPPORTED_FOR_COUNTRY' | 'AUTHORITATIVE_DATA_REQUIRED';
@@ -259,15 +260,25 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
   const geologyStatus: EvidenceLevel = c.nationalGeology ? ((context.evidence_level as EvidenceLevel) || report.soil.status) : 'REQUIRES_VERIFICATION';
   const geologyReason: AvailabilityReason | undefined = c.nationalGeology ? (hasMappedGeology ? undefined : evidenceReason(report, /pgi-(?:smgp|mgp|mlp|engineering)|bgs|brgm|geolog/i) || 'SOURCE_UNAVAILABLE') : 'NOT_SUPPORTED_FOR_COUNTRY';
   const soilTexture = scientific(report.soil.usdaTextureClass);
-  const germanAreaM2 = finite(report.parcel.officialAreaM2) ?? finite(report.parcel.areaCalculatedM2);
-  const germanyValuation = report.countryCode === 'DE' && germanAreaM2 && germanAreaM2 > 0
+  const areaM2 = finite(report.parcel.officialAreaM2) ?? finite(report.parcel.areaCalculatedM2);
+  const germanyValuation = report.countryCode === 'DE' && areaM2 && areaM2 > 0
     ? calculateGermanyLandValue({
-        areaM2: germanAreaM2,
+        areaM2,
         slopeDegrees: finite(report.terrain.averageSlopeDegrees),
         roadDistanceM: finite(report.infrastructure.roadAccess.estimatedDistanceM),
         directRoadAccess: report.infrastructure.roadAccess.directAccessVerified,
         municipality: report.parcel.commune,
         state: report.parcel.voivodeship
+      })
+    : null;
+  const slovakiaValuation = report.countryCode === 'SK' && areaM2 && areaM2 > 0
+    ? calculateSlovakiaLandValue({
+        areaM2,
+        slopeDegrees: finite(report.terrain.averageSlopeDegrees),
+        roadDistanceM: finite(report.infrastructure.roadAccess.estimatedDistanceM),
+        directRoadAccess: report.infrastructure.roadAccess.directAccessVerified,
+        municipality: report.parcel.commune,
+        region: report.parcel.voivodeship
       })
     : null;
   const rawRecords = visibleEvidenceRecords(report, profile, support);
@@ -285,11 +296,29 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
           limitation: 'Land-only screening benchmark. Buildings and other improvements are excluded. State and national averages cover heterogeneous local markets; binding buildability, servicing and a local Bodenrichtwert/comparable analysis remain unverified.'
         }
       : record)
+    : slovakiaValuation
+    ? rawRecords.map(record => record.id === 'valuation-indicative-model'
+      ? {
+          ...record,
+          claim: `Indicative Slovak land asking-price benchmark: ${slovakiaValuation.totalMin.toLocaleString()}–${slovakiaValuation.totalMax.toLocaleString()} € (~${slovakiaValuation.unitMedianPrice} €/m²), based on ${slovakiaValuation.benchmark.label}.`,
+          sourceName: slovakiaValuation.benchmark.sourceName,
+          sourceUrl: slovakiaValuation.benchmark.sourceUrl,
+          datasetDate: slovakiaValuation.benchmark.datasetDate,
+          spatialRelationship: `${slovakiaValuation.benchmark.tier.toUpperCase()} asking benchmark for ${report.parcel.commune || report.parcel.voivodeship || 'Slovakia'}`,
+          calculationMethod: `${slovakiaValuation.benchmark.tier} residential/building-plot asking-price benchmark with parcel-size, road-access and terrain screening adjustments; no generic municipality uplift`,
+          confidence: 'Low' as const,
+          limitation: 'Land-only asking-price screening benchmark. It is based on advertised residential/building-plot prices, not completed cadastral sale prices or direct comparable deeds. Buildings and other improvements are excluded. Binding ÚPN/buildability, servicing, legal road access and parcel-specific comparable evidence remain unverified; a market appraisal requires current local evidence and a qualified valuer.'
+        }
+      : record)
     : rawRecords;
   const rawSourceRecords = visibleSourceRecords(report, support);
   const sourceRecords = germanyValuation
     ? rawSourceRecords.map(source => source.type === 'Statistical Market Benchmark'
       ? { ...source, name: germanyValuation.benchmark.sourceName, organization: 'Statistische Ämter des Bundes und der Länder', url: germanyValuation.benchmark.sourceUrl, status: 'MODELLED' as const }
+      : source)
+    : slovakiaValuation
+    ? rawSourceRecords.map(source => source.type === 'Statistical Market Benchmark'
+      ? { ...source, name: slovakiaValuation.benchmark.sourceName, organization: 'ZRKS / Slovak residential-plot listing-market sources', url: slovakiaValuation.benchmark.sourceUrl, status: 'MODELLED' as const }
       : source)
     : rawSourceRecords;
   const score = supportAwareEvidenceScore(report, support, records, Boolean(hasMappedGeology && geologyStatus === 'VERIFIED'));
@@ -349,6 +378,8 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     environment: { protectedAreaName: scientific(report.environment.nearestProtectedAreaName), distanceM: finite(report.environment.distanceToNatura2000M), status: report.environment.status, sourceName: report.environment.sourceName, reasonCode: report.environment.status === 'REQUIRES_VERIFICATION' ? 'SOURCE_UNAVAILABLE' : undefined },
     valuation: germanyValuation
       ? { min: germanyValuation.totalMin, max: germanyValuation.totalMax, median: germanyValuation.totalMedian, currency: 'EUR', status: 'MODELLED', comparableCount: 0, sourceName: germanyValuation.benchmark.sourceName }
+      : slovakiaValuation
+      ? { min: slovakiaValuation.totalMin, max: slovakiaValuation.totalMax, median: slovakiaValuation.totalMedian, currency: 'EUR', status: 'MODELLED', comparableCount: 0, sourceName: slovakiaValuation.benchmark.sourceName }
       : c.nationalValuation
       ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency, status: report.valuation.status, comparableCount: report.valuation.comparableEvidenceCount, sourceName: profile.valuationDataSource }
       : modelledValuationAvailable
