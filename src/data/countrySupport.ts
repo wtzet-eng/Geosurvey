@@ -80,6 +80,14 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
       nationalBoreholes: true,
       nationalValuation: true
     }
+  },
+  SK: {
+    countryCode: 'SK',
+    maturity: 'LIMITED',
+    capabilities: {
+      ...NONE,
+      nationalValuation: true
+    }
   }
 };
 
