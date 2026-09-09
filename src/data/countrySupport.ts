@@ -41,6 +41,12 @@ const NONE: CountrySupportCapabilities = {
   nationalMining: false
 };
 
+const valuationOnly = (countryCode: string): CountrySupportProfile => ({
+  countryCode,
+  maturity: 'LIMITED',
+  capabilities: { ...NONE, nationalValuation: true }
+});
+
 const SUPPORT: Record<string, CountrySupportProfile> = {
   PL: {
     countryCode: 'PL',
@@ -63,14 +69,7 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
       nationalHydrogeology: true
     }
   },
-  DE: {
-    countryCode: 'DE',
-    maturity: 'LIMITED',
-    capabilities: {
-      ...NONE,
-      nationalValuation: true
-    }
-  },
+  DE: valuationOnly('DE'),
   FR: {
     countryCode: 'FR',
     maturity: 'LIMITED',
@@ -81,14 +80,11 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
       nationalValuation: true
     }
   },
-  SK: {
-    countryCode: 'SK',
-    maturity: 'LIMITED',
-    capabilities: {
-      ...NONE,
-      nationalValuation: true
-    }
-  }
+  SK: valuationOnly('SK'),
+  AT: valuationOnly('AT'),
+  ES: valuationOnly('ES'),
+  FI: valuationOnly('FI'),
+  IE: valuationOnly('IE')
 };
 
 export function getCountrySupport(countryCode: string): CountrySupportProfile {

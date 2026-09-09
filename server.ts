@@ -11,6 +11,7 @@ import { queryUKSiteEvidence, enrichGeologyFromBgs } from './server/services/ukS
 import { enrichGeologyFromBrgm, queryFranceSiteEvidence } from './server/services/franceSiteEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
+import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
 import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
@@ -143,6 +144,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let pgiSiteEvidence: any[] = [];
     let ukSiteEvidence: any[] = [];
     let franceSiteEvidence: any[] = [];
+    let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
       if (support.capabilities.nationalHydrogeology) {
@@ -159,6 +161,19 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'france-report-enrichment'; if (franceSiteEvidence.length) evidenceReport.evidenceRegistry.push(...franceSiteEvidence);
       try { enrichGeologyFromBrgm(evidenceReport, franceSiteEvidence); } catch (e) { console.warn(`[${diagnosticId}] BRGM geology enrichment notice:`, e); }
     }
+
+    if (!countryLocationMismatch && support.capabilities.nationalValuation && ['AT', 'ES', 'FI', 'IE'].includes(countryCode)) {
+      stage = 'europe-land-valuation';
+      try {
+        europeValuationEvidence = await queryEuropeanLandValuationEvidence(countryCode, { municipality, county: countyName, state: stateName });
+        if (europeValuationEvidence) evidenceReport.evidenceRegistry.push(europeValuationEvidence);
+        enrichEuropeanLandValuation(evidenceReport, europeValuationEvidence);
+      } catch (e) {
+        console.warn(`[${diagnosticId}] ${countryCode} land valuation notice:`, e);
+        enrichEuropeanLandValuation(evidenceReport, null);
+      }
+    }
+
     if (countryLocationMismatch) {
       evidenceReport.evidenceRegistry.push({ id: `country-location-mismatch-${diagnosticId}`, category: 'Location Validation', claim: `Selected country (${countryCode}) does not match the country resolved from the site coordinates (${resolvedCountryCode}). National integrations for the selected country were not queried.`, status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap Nominatim reverse geocoding', sourceUrl: 'https://nominatim.openstreetmap.org/', datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: 'Site-centre reverse geocode', calculationMethod: 'Reverse geocode of the selected site coordinates before national acquisition', confidence: 'High', limitation: 'The selected country is retained for the report, but only cross-border evidence is used until the country/location mismatch is corrected.', value: { selectedCountryCode: countryCode, resolvedCountryCode, reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' } });
     }
@@ -207,6 +222,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       pgi_site_evidence_count: pgiSiteEvidence.length,
       uk_site_evidence_count: ukSiteEvidence.length,
       france_site_evidence_count: franceSiteEvidence.length,
+      europe_valuation_evidence: europeValuationEvidence ? { id: europeValuationEvidence.id, status: europeValuationEvidence.status, source: europeValuationEvidence.sourceName } : null,
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };
 
@@ -238,4 +254,5 @@ async function startServer() {
   }
   app.listen(PORT, '0.0.0.0', () => console.log(`Geospatial Evidence Land Survey Server running on http://0.0.0.0:${PORT}`));
 }
-startServer();
+
+startServer().catch(err => { console.error('Failed to start server:', err); process.exit(1); });
