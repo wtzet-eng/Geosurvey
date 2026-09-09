@@ -65,8 +65,8 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     floodPortalUrl: 'https://georisques.gouv.fr',
     planningInstrumentName: 'Plan Local d\'Urbanisme (PLU/PLUi) / Règlement National (RNU)',
     standardSetbackRule: 'Minimum 3.0 m des limites séparatives (ou 4.0 m selon PLU)',
-    baseValuationPerSqm: 205,
-    valuationDataSource: 'Demandes de Valeurs Foncières (DVF / Etalab)'
+    baseValuationPerSqm: 0,
+    valuationDataSource: 'Cerema DVF+ open-data (DGFiP bare-land transactions; no generic national fallback)'
   },
   GB: {
     countryCode: 'GB',
