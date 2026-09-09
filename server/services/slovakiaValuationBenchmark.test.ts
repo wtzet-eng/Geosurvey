@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveSlovakiaValuationBenchmark } from './slovakiaValuationBenchmark';
+import { calculateSlovakiaLandValue, resolveSlovakiaValuationBenchmark } from './slovakiaValuationBenchmark';
 
 test('Slovakia uses city residential-plot asking benchmarks before regional values', () => {
   const bratislava = resolveSlovakiaValuationBenchmark('Bratislava', 'Bratislavský kraj');
@@ -48,4 +48,33 @@ test('Slovakia uses a deliberately wide national asking-price fallback', () => {
   assert.equal(benchmark.lowFactor, 0.45);
   assert.equal(benchmark.highFactor, 1.70);
   assert.match(benchmark.label, /asking fallback/i);
+});
+
+test('Slovak city benchmark replaces generic municipality uplift and retains parcel screens', () => {
+  const bratislava = calculateSlovakiaLandValue({
+    areaM2: 1000,
+    municipality: 'Bratislava',
+    region: 'Bratislavský kraj',
+    slopeDegrees: 2,
+    roadDistanceM: 10,
+    directRoadAccess: true
+  });
+  assert.equal(bratislava.unitMedianPrice, 312);
+  assert.equal(bratislava.totalMedian, 312000);
+  assert.equal(bratislava.locationMultiplier, 1);
+
+  const regional = calculateSlovakiaLandValue({
+    areaM2: 3000,
+    municipality: 'Malá obec',
+    region: 'Nitriansky kraj',
+    slopeDegrees: 12,
+    roadDistanceM: 100,
+    directRoadAccess: false
+  });
+  assert.equal(regional.benchmark.tier, 'region');
+  assert.equal(regional.terrainMultiplier, 0.88);
+  assert.equal(regional.roadMultiplier, 0.82);
+  assert.equal(regional.sizeMultiplier, 0.90);
+  assert.equal(regional.unitMedianPrice, 31);
+  assert.equal(regional.totalMedian, 93000);
 });
