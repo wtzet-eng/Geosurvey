@@ -78,20 +78,40 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
   },
   {
     ...common,
-    id: 'pl-engineering-geology-50k-wms',
+    id: 'pl-mgp-500k-legacy-wms',
+    logicalSourceId: 'PL_MGP_REGIONAL_GEOLOGY',
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/kartografia/mgp500k/MapServer/WMSServer',
+    priority: 3,
+    evidenceTier: 3,
+    compatibilityGroup: 'pl-geology-regional',
+    provenance: 'PGI-PIB Geological Map of Poland, 1:500,000 legacy published fallback'
+  },
+  {
+    ...common,
+    id: 'pl-engineering-geology-50k-abcd-wms',
     logicalSourceId: 'PL_ENGINEERING_GEOLOGY',
-    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/smgip50k/MapServer/WMSServer',
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/MgiP50k/MapServer/WMSServer',
     priority: 1,
     evidenceTier: 1,
     compatibilityGroup: 'pl-engineering-geology',
-    provenance: 'PGI-PIB Engineering Geology Map of Poland, 1:50,000'
+    provenance: 'PGI-PIB Engineering Geology Map of Poland, 1:50,000, published A/B/C/D sheets'
+  },
+  {
+    ...common,
+    id: 'pl-engineering-geology-50k-wms',
+    logicalSourceId: 'PL_ENGINEERING_GEOLOGY',
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/smgip50k/MapServer/WMSServer',
+    priority: 2,
+    evidenceTier: 1,
+    compatibilityGroup: 'pl-engineering-geology',
+    provenance: 'PGI-PIB Engineering Geology Map of Poland, 1:50,000, published A/B fallback'
   },
   {
     ...common,
     id: 'pl-engineering-geology-300k-wms',
     logicalSourceId: 'PL_ENGINEERING_GEOLOGY',
     url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/pmgip300k/MapServer/WMSServer',
-    priority: 2,
+    priority: 3,
     evidenceTier: 2,
     compatibilityGroup: 'pl-engineering-geology',
     provenance: 'PGI-PIB Engineering Geology Map of Poland, 1:300,000'
@@ -100,11 +120,11 @@ export const POLAND_SOURCE_ENDPOINTS: SourceEndpoint[] = [
     ...common,
     id: 'pl-engineering-geology-500k-wms',
     logicalSourceId: 'PL_ENGINEERING_GEOLOGY',
-    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/mgip500k/MapServer/WMSServer',
-    priority: 3,
+    url: 'https://cbdgmapa.pgi.gov.pl/arcgis/services/geoinz/mgip500k/WMSServer',
+    priority: 4,
     evidenceTier: 3,
     compatibilityGroup: 'pl-engineering-geology',
-    provenance: 'PGI-PIB Engineering Geology Map of Poland, 1:500,000'
+    provenance: 'PGI-PIB Engineering Geology Map of Poland, 1:500,000 published fallback'
   },
   {
     ...common,
