@@ -5,16 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "dev:cloudflare": "node scripts/build-cloudflare-server.mjs && vite build && wrangler dev",
+    "dev:cloudflare": "node scripts/build-cloudflare-server.mjs && vite build && bunx wrangler dev",
     "build": "vite build",
     "build:server": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "build:render": "npm run build:server",
-    "build:cloudflare": "node scripts/build-cloudflare-server.mjs && vite build && wrangler deploy --dry-run",
+    "build:cloudflare": "node scripts/build-cloudflare-server.mjs && vite build && bunx wrangler deploy --dry-run",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js server.cloudflare.ts",
     "lint": "node scripts/build-cloudflare-server.mjs && tsc --noEmit",
     "test": "node --import tsx --test server/reporting/*.test.ts server/services/*.test.ts server/sources/*.test.ts server/interpretation/*.test.ts src/i18n/*.test.ts",
-    "deploy": "node scripts/build-cloudflare-server.mjs && vite build && wrangler deploy"
+    "deploy": "node scripts/build-cloudflare-server.mjs && vite build && bunx wrangler deploy"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
