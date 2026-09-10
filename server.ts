@@ -10,6 +10,7 @@ import { queryPolandHydroAndHazards } from './server/services/pgiSupplementEvide
 import { queryUKSiteEvidence, enrichGeologyFromBgs } from './server/services/ukSiteEvidenceService';
 import { enrichGeologyFromBrgm, queryFranceSiteEvidence } from './server/services/franceSiteEvidenceService';
 import { enrichSlovakiaGroundEvidence, querySlovakiaGroundEvidence } from './server/services/slovakiaGroundEvidenceService';
+import { enrichCzechiaGroundEvidence, queryCzechiaGroundEvidence } from './server/services/czechiaGroundEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
@@ -17,6 +18,7 @@ import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
 import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
+import { renderCzechiaGroundPresentation } from './server/reporting/czechiaGroundPresentation';
 import { applySiteSpecificCountryEvidence, buildEvidenceDisplayRecords, enrichValuationPresentation } from './server/reporting/evidenceDisplay';
 import { getCountrySupport } from './src/data/countrySupport';
 
@@ -148,6 +150,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let ukSiteEvidence: any[] = [];
     let franceSiteEvidence: any[] = [];
     let slovakiaGroundEvidence: any[] = [];
+    let czechiaGroundEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -170,6 +173,12 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'slovakia-report-enrichment';
       if (slovakiaGroundEvidence.length) evidenceReport.evidenceRegistry.push(...slovakiaGroundEvidence);
       try { enrichSlovakiaGroundEvidence(evidenceReport, slovakiaGroundEvidence); } catch (e) { console.warn(`[${diagnosticId}] ŠGÚDŠ Slovakia enrichment notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'CZ' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology || support.capabilities.nationalRadon || support.capabilities.nationalMining)) {
+      stage = 'czechia-ground-evidence';
+      try { czechiaGroundEvidence = await queryCzechiaGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] ČGS Czechia evidence notice:`, e); }
+      stage = 'czechia-report-enrichment';
+      if (czechiaGroundEvidence.length) evidenceReport.evidenceRegistry.push(...czechiaGroundEvidence);
+      try { enrichCzechiaGroundEvidence(evidenceReport, czechiaGroundEvidence); } catch (e) { console.warn(`[${diagnosticId}] ČGS Czechia enrichment notice:`, e); }
     }
 
     if (!countryLocationMismatch && support.capabilities.nationalValuation && ['AT', 'ES', 'FI', 'IE'].includes(countryCode)) {
@@ -205,6 +214,12 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const existingSource = presentation.sections.soil_and_ground.source_cited;
       presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...slovakiaGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
+    const czechiaGroundPresentation = renderCzechiaGroundPresentation(canonicalReport, presentation.language);
+    if (czechiaGroundPresentation) {
+      presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${czechiaGroundPresentation.narrative}`.trim();
+      const existingSource = presentation.sections.soil_and_ground.source_cited;
+      presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...czechiaGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
+    }
     const evidenceDisplayRecords = buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && areaSize > 0 ? value / areaSize : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
@@ -214,7 +229,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       confidence_level: presentation.confidenceLabel,
       evidence_score: canonicalReport.evidenceScore,
       country_support: presentation.countrySupport,
-      ground_context: { ...presentation.groundContext, ...(franceGroundPresentation ? { france_context: franceGroundPresentation } : {}), ...(slovakiaGroundPresentation ? { slovakia_context: slovakiaGroundPresentation } : {}) },
+      ground_context: { ...presentation.groundContext, ...(franceGroundPresentation ? { france_context: franceGroundPresentation } : {}), ...(slovakiaGroundPresentation ? { slovakia_context: slovakiaGroundPresentation } : {}), ...(czechiaGroundPresentation ? { czechia_context: czechiaGroundPresentation } : {}) },
       canonical_evidence: canonicalReport,
       evidence_registry: evidenceDisplayRecords,
       verification_checklist: presentation.verificationChecklist,
@@ -242,6 +257,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       uk_site_evidence_count: ukSiteEvidence.length,
       france_site_evidence_count: franceSiteEvidence.length,
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
+      czechia_ground_evidence_count: czechiaGroundEvidence.length,
       europe_valuation_evidence: europeValuationEvidence ? { id: europeValuationEvidence.id, status: europeValuationEvidence.status, source: europeValuationEvidence.sourceName } : null,
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };
