@@ -159,19 +159,21 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
   NL: {
     countryCode: 'NL',
     countryName: 'Netherlands',
-    authorityName: 'TNO Geological Survey of the Netherlands',
-    acronym: 'TNO / GDN',
-    officialPortalUrl: 'https://www.tno.nl/nl/aandachtsgebieden/geologische-dienst-nederland',
+    authorityName: 'TNO – Geologische Dienst Nederland / Basisregistratie Ondergrond',
+    acronym: 'TNO-GDN / BRO / DINOloket',
+    officialPortalUrl: 'https://www.dinoloket.nl',
     mapViewerUrl: 'https://www.dinoloket.nl',
-    cadastrePortalUrl: 'https://www.kadaster.nl',
-    hazardPortalUrl: 'https://www.overstroomik.nl',
-    description: 'TNO DINOloket GeoTOP / REGIS II 3D Subsurface Model & Kadaster',
+    cadastrePortalUrl: 'https://www.pdok.nl/ogc-apis/-/article/kadastrale-kaart',
+    hazardPortalUrl: 'https://www.atlasleefomgeving.nl/kans-op-overstroming-vanuit-zee-meer-of-rivier',
+    description: 'Dutch public subsurface, cadastral and water-risk services: BRO/DINOloket, GeoTOP, REGIS II, Kadaster BRK via PDOK and Rijkswaterstaat/LIWO.',
     datasets: [
-      'DINOloket – Data en Informatie van de Nederlandse Ondergrond',
-      'GeoTOP – 3D Voxel Model of Shallow Geology (0–50 m depth)',
-      'REGIS II – Hydrogeological 3D Subsurface Model',
-      'BRO (Basisregistratie Ondergrond) – Geotechnical CPT & Borehole registry',
-      'Kadaster Basisregistratie Adressen en Gebouwen (BAG)'
+      'BRO / DINOloket – boreholes, CPTs and registered subsurface data',
+      'GeoTOP – 3D shallow subsurface model to approximately 50 m below NAP',
+      'REGIS II – hydrogeological layer model',
+      'Kadaster BRK Kadastrale Kaart via PDOK OGC API – cadastral parcel geometry and registered parcel area',
+      'BRO Bodemkaart 1:50 000 via PDOK',
+      'Rijkswaterstaat / LIWO – flood hazard and water information',
+      'Omgevingswet DSO – official planning documents and rules (verification/API key required)'
     ]
   },
   BE: {
