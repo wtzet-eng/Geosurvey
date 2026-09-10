@@ -91,6 +91,18 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
       nationalValuation: true
     }
   },
+  CZ: {
+    countryCode: 'CZ',
+    maturity: 'LIMITED',
+    capabilities: {
+      ...NONE,
+      nationalGeology: true,
+      nationalBoreholes: true,
+      nationalHydrogeology: true,
+      nationalRadon: true,
+      nationalMining: true
+    }
+  },
   AT: valuationOnly('AT'),
   ES: valuationOnly('ES'),
   FI: valuationOnly('FI'),
