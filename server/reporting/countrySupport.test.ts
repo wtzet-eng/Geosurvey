@@ -9,13 +9,9 @@ function rawReport(countryCode: string): any {
   return {
     countryCode,
     language: 'en',
-    parcel: {
-      status: 'REQUIRES_VERIFICATION', parcelId: 'FAKE-PARCEL', countryCode, isOfficialGeometry: false,
-      areaCalculatedM2: 1000, officialAreaM2: 1000, cadastralSource: 'Configured national cadastre', datasetDate: '2026-08-24', limitation: 'fixture'
-    },
+    parcel: { status: 'REQUIRES_VERIFICATION', parcelId: 'FAKE-PARCEL', countryCode, isOfficialGeometry: false, areaCalculatedM2: 1000, officialAreaM2: 1000, cadastralSource: 'Configured national cadastre', datasetDate: '2026-08-24', limitation: 'fixture' },
     terrain: {
-      elevationAmsl: 120, minElevationAmsl: 118, maxElevationAmsl: 122, elevationDifferenceM: 4,
-      averageSlopePercent: 2, averageSlopeDegrees: 1.2, slopeCategory: 'Flat (0-2°)', aspectDirection: 'South',
+      elevationAmsl: 120, minElevationAmsl: 118, maxElevationAmsl: 122, elevationDifferenceM: 4, averageSlopePercent: 2, averageSlopeDegrees: 1.2, slopeCategory: 'Flat (0-2°)', aspectDirection: 'South',
       floodInundationRisk: { status: 'MODELLED', level: 'Low', distanceToWaterwayM: 300, statutoryZoneStatus: 'configured', description: 'configured flood conclusion', sourceName: 'Configured national flood authority', limitation: 'fixture' },
       geohazards: {
         landslideSusceptibility: { status: 'MODELLED', level: 'Low', description: 'terrain context', sourceName: 'Terrain model' },
@@ -25,25 +21,13 @@ function rawReport(countryCode: string): any {
       }
     },
     soil: {
-      status: 'MODELLED', geologicalUnit: 'Synthetic national unit', lithologyType: 'Synthetic lithology', stratigraphicPeriod: 'Synthetic age',
-      usdaTextureClass: 'Sandy loam', topsoilSandPct: 60, topsoilSiltPct: 25, topsoilClayPct: 15,
-      subsoilSandPct: 55, subsoilSiltPct: 30, subsoilClayPct: 15, meanBulkDensityGcm3: 1.4, meanPhH2O: 6.5, meanOrganicCarbonPct: 2,
-      estimatedWaterTableDepthM: 'Synthetic 2m', groundwaterNotice: 'fixture', estimatedBearingCapacityKpa: '250', effectiveFrictionAngleDeg: 35, cohesionKpa: 10,
-      hydraulicConductivityMs: '1e-5', drainageClass: 'Good', frostSusceptibilityClass: 'Low', topsoilStrippingDepthCm: 30,
-      groundwaterRegime: 'Synthetic groundwater regime', isMeasuredBoreholeData: false, sourceName: 'ISRIC SoilGrids', sourceUrl: 'https://soilgrids.org', datasetVersion: 'fixture', limitation: 'pedological only', stratigraphyLayers: []
+      status: 'MODELLED', geologicalUnit: 'Synthetic national unit', lithologyType: 'Synthetic lithology', stratigraphicPeriod: 'Synthetic age', usdaTextureClass: 'Sandy loam', topsoilSandPct: 60, topsoilSiltPct: 25, topsoilClayPct: 15, subsoilSandPct: 55, subsoilSiltPct: 30, subsoilClayPct: 15, meanBulkDensityGcm3: 1.4, meanPhH2O: 6.5, meanOrganicCarbonPct: 2, estimatedWaterTableDepthM: 'Synthetic 2m', groundwaterNotice: 'fixture', estimatedBearingCapacityKpa: '250', effectiveFrictionAngleDeg: 35, cohesionKpa: 10, hydraulicConductivityMs: '1e-5', drainageClass: 'Good', frostSusceptibilityClass: 'Low', topsoilStrippingDepthCm: 30, groundwaterRegime: 'Synthetic groundwater regime', isMeasuredBoreholeData: false, sourceName: 'ISRIC SoilGrids', sourceUrl: 'https://soilgrids.org', datasetVersion: 'fixture', limitation: 'pedological only', stratigraphyLayers: []
     },
     planning: { status: 'MODELLED', hasLocalPlan: true, planDesignation: 'Synthetic zoning', permittedUseCategory: 'Residential', maxFar: '1.0', maxCoveragePct: '40%', minBiologicallyActivePct: '30%', maxBuildingHeightM: '9', setbackRules: '3.0 m', authorityName: 'Configured planning authority', documentRequired: 'Official plan', sourceName: 'Configured planning model', limitation: 'fixture' },
     infrastructure: { roadAccess: { status: 'MODELLED', nearestRoadType: 'residential', nearestRoadName: 'Test Road', estimatedDistanceM: 20, directAccessVerified: false, isPaved: true, sourceName: 'OpenStreetMap' }, utilities: [], amenities: [], surroundingBuildingsCount: 3, surroundingLanduse: ['residential'] },
     environment: { landscapeParkOverlay: false, waterProtectionZone: false, status: 'MODELLED', sourceName: 'OpenStreetMap', limitation: 'cross-border context' },
     valuation: { status: 'MODELLED', indicativeMinPrice: 123000, indicativeMaxPrice: 456000, indicativeMedianPrice: 250000, indicativePricePerSqm: 250, currency: countryCode === 'PL' ? 'PLN' : 'EUR', methodology: 'Configured baseValuationPerSqm model', comparableEvidenceCount: 0, marketTrendDescription: 'Synthetic valuation', priceDrivers: [], uncertaintyRating: 'High', disclaimer: 'fixture' },
-    evidenceScore: {
-      totalScore: 61, ratingClass: 'Moderate Evidence (50-74)', verifiedCount: 0, modelledCount: 5, unverifiedCount: 1,
-      breakdown: {
-        cadastreAndGeometry: { score: 6, max: 20, rationale: 'unverified cadastre' }, terrainAndElevation: { score: 14, max: 20, rationale: 'terrain' },
-        geologyAndGroundwater: { score: 14, max: 20, rationale: 'SoilGrids' }, infrastructureAndAccess: { score: 12, max: 15, rationale: 'OSM' },
-        environmentalAndFlood: { score: 11, max: 15, rationale: 'OSM context' }, planningAndMarket: { score: 4, max: 10, rationale: 'configured valuation' }
-      }, summaryExplanation: 'fixture'
-    },
+    evidenceScore: { totalScore: 61, ratingClass: 'Moderate Evidence (50-74)', verifiedCount: 0, modelledCount: 5, unverifiedCount: 1, breakdown: { cadastreAndGeometry: { score: 6, max: 20, rationale: 'unverified cadastre' }, terrainAndElevation: { score: 14, max: 20, rationale: 'terrain' }, geologyAndGroundwater: { score: 14, max: 20, rationale: 'SoilGrids' }, infrastructureAndAccess: { score: 12, max: 15, rationale: 'OSM' }, environmentalAndFlood: { score: 11, max: 15, rationale: 'OSM context' }, planningAndMarket: { score: 4, max: 10, rationale: 'configured valuation' } }, summaryExplanation: 'fixture' },
     evidenceRegistry: [
       { id: 'cadastre-spatial-index', category: 'Cadastre & Identification', claim: 'Synthetic parcel conclusion', status: 'REQUIRES_VERIFICATION', sourceName: 'Configured cadastre', datasetDate: '2026-08-24', spatialRelationship: 'fixture', calculationMethod: 'fixture', confidence: 'Medium', limitation: 'fixture' },
       { id: 'terrain-elevation-slope', category: 'Terrain & Topography', claim: 'Terrain evidence', status: 'MODELLED', sourceName: 'Copernicus DEM', datasetDate: '2026-08-24', spatialRelationship: 'fixture', calculationMethod: 'fixture', confidence: 'Medium', limitation: 'fixture' },
@@ -73,7 +57,7 @@ function clearFranceValuation(report: any): void {
   report.evidenceScore.breakdown.planningAndMarket.score = 0;
 }
 
-test('country support maturity exposes calibrated valuation countries and validated Czech ground capabilities', () => {
+test('country support maturity exposes calibrated valuation and validated Czech and Sweden capabilities', () => {
   const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const de = getCountrySupport('DE'); const fr = getCountrySupport('FR');
   assert.equal(pl.maturity, 'SUPPORTED'); assert.equal(pl.capabilities.nationalCadastre, true); assert.equal(pl.capabilities.nationalGeology, true);
   assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, false);
@@ -87,7 +71,13 @@ test('country support maturity exposes calibrated valuation countries and valida
   assert.equal(cz.capabilities.nationalGeology, true); assert.equal(cz.capabilities.nationalBoreholes, true); assert.equal(cz.capabilities.nationalHydrogeology, true);
   assert.equal(cz.capabilities.nationalRadon, true); assert.equal(cz.capabilities.nationalMining, true);
   assert.equal(cz.capabilities.nationalCadastre, true); assert.equal(cz.capabilities.nationalFlood, false); assert.equal(cz.capabilities.nationalPlanning, false); assert.equal(cz.capabilities.nationalValuation, false);
-  for (const code of ['IT', 'NL', 'CH', 'BE', 'SE', 'PT', 'DK', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'NO', 'IS', 'EU', 'XX']) {
+
+  const se = getCountrySupport('SE');
+  assert.equal(se.maturity, 'LIMITED');
+  assert.equal(se.capabilities.nationalGeology, true); assert.equal(se.capabilities.nationalBoreholes, true); assert.equal(se.capabilities.nationalHydrogeology, true);
+  assert.equal(se.capabilities.nationalCadastre, false); assert.equal(se.capabilities.nationalFlood, false); assert.equal(se.capabilities.nationalPlanning, false); assert.equal(se.capabilities.nationalValuation, false); assert.equal(se.capabilities.nationalRadon, false); assert.equal(se.capabilities.nationalMining, false);
+
+  for (const code of ['IT', 'NL', 'CH', 'BE', 'PT', 'DK', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'NO', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });
@@ -102,6 +92,18 @@ test('unsupported limited country still withholds national conclusions and valua
   assert.equal(canonical.evidenceScore.breakdown.cadastreAndGeometry.max, 0); assert.equal(canonical.evidenceScore.breakdown.planningAndMarket.max, 0);
   assert.ok(!canonical.evidenceRecords.some(record => record.id === 'valuation-indicative-model'));
   assert.ok(!canonical.sourceRecords.some(source => source.type === 'Statistical Market Benchmark'));
+});
+
+test('Sweden keeps national ground evidence capability while withholding cadastre, flood, planning and land value', () => {
+  const canonical = createCanonicalReport(rawReport('SE'), getCountryProfile('SE'));
+  assert.equal(canonical.support.capabilities.nationalGeology, true);
+  assert.equal(canonical.support.capabilities.nationalBoreholes, true);
+  assert.equal(canonical.support.capabilities.nationalHydrogeology, true);
+  assert.equal(canonical.support.capabilities.nationalCadastre, false);
+  assert.equal(canonical.flood.classification, null); assert.equal(canonical.flood.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.valuation.min, null); assert.equal(canonical.valuation.max, null); assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.ok(!canonical.evidenceRecords.some(record => record.id === 'valuation-indicative-model'));
 });
 
 test('Germany replaces the old generic valuation with the 2025 state benchmark hierarchy', () => {
