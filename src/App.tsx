@@ -24,16 +24,40 @@ import { SavedReportsModal } from './components/SavedReportsModal';
 import { EmbedModal } from './components/EmbedModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 
-const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl']);
-const SUPPORTED_REPORT_LANGUAGES = REPORT_LANGUAGES.filter((language) => SUPPORTED_REPORT_LANGUAGE_CODES.has(language.code));
-const normalizeReportLanguage = (language: string) => SUPPORTED_REPORT_LANGUAGE_CODES.has(language) ? language : 'en';
+const REPORT_LANGUAGE_OPTIONS = [...REPORT_LANGUAGES, { code: 'sk', label: 'Slovenčina (Slovak)' }];
+const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'sk']);
+const normalizeReportLanguage = (language: string, countryCode = '') => {
+  const code = String(language || '').toLowerCase().split('-')[0];
+  if (code === 'sk') return countryCode === 'SK' ? 'sk' : 'en';
+  return SUPPORTED_REPORT_LANGUAGE_CODES.has(code) ? code : 'en';
+};
+
+const SLOVAK_FRONT_PAGE = {
+  badge: 'Európska platforma pre stavebné pozemky a geologické riziká',
+  heroTitle: 'Ohodnoťte svoj stavebný pozemok: geologické riziká a trhová hodnota',
+  heroSub: 'Nakreslite alebo vyberte stavebný pozemok v Európe. Získajte predbežný report založený na dostupných verejných údajoch o podloží, geologických rizikách, územnom plánovaní a hodnote pozemku.',
+  step1: '1. Určte hranice pozemku',
+  searchPh: 'Hľadať adresu alebo obec…',
+  step2: '2. Konfigurácia a parametre',
+  areaLbl: 'Plocha pozemku (m²)',
+  countryLbl: 'Krajina (Európa)',
+  langLbl: 'Jazyk reportu',
+  btnGen: 'Posúdiť kvalitu a hodnotu pozemku',
+  modeCircle: 'Kruh',
+  modeRect: 'Obdĺžnik',
+  modePoly: 'Voľný polygón',
+  finishPoly: 'Dokončiť polygón',
+  clear: 'Vymazať',
+  clickPrompt: 'Kliknutím na mapu určte hranicu.'
+};
 
 export default function App() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
   const [shape, setShape] = useState<BoundaryShape | null>(null);
   const [areaSize, setAreaSize] = useState<number>(1000);
   const [countryCode, setCountryCode] = useState<string>('DE');
-  const [languageCode, setLanguageCode] = useState<string>(() => normalizeReportLanguage(getBrowserLanguage()));
+  const [languageCode, setLanguageCode] = useState<string>(() => normalizeReportLanguage(getBrowserLanguage(), 'DE'));
+  const [languageWasManuallySelected, setLanguageWasManuallySelected] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -47,7 +71,8 @@ export default function App() {
   const [isAutoFitMode, setIsAutoFitMode] = useState(false);
 
   const currentCountry = EUROPEAN_COUNTRIES.find((c) => c.code === countryCode) || EUROPEAN_COUNTRIES[0];
-  const fp = getFrontPageI18n(languageCode);
+  const availableReportLanguages = REPORT_LANGUAGE_OPTIONS.filter((language) => language.code !== 'sk' || countryCode === 'SK');
+  const fp = languageCode === 'sk' ? SLOVAK_FRONT_PAGE : getFrontPageI18n(languageCode);
 
   useEffect(() => {
     try {
@@ -59,14 +84,19 @@ export default function App() {
       const modeParam = params.get('mode');
       if (modeParam === 'circle' || modeParam === 'rectangle' || modeParam === 'polygon') setMode(modeParam);
       const cCode = params.get('country');
-      if (cCode) {
-        const found = EUROPEAN_COUNTRIES.find((c) => c.code.toLowerCase() === cCode.toLowerCase());
-        if (found) setCountryCode(found.code);
-      }
+      const foundCountry = cCode ? EUROPEAN_COUNTRIES.find((c) => c.code.toLowerCase() === cCode.toLowerCase()) : undefined;
+      if (foundCountry) setCountryCode(foundCountry.code);
+      const effectiveCountryCode = foundCountry?.code || 'DE';
       const lCode = params.get('lang');
       if (lCode) {
-        const foundLang = SUPPORTED_REPORT_LANGUAGES.find((l) => l.code.toLowerCase() === lCode.toLowerCase());
-        if (foundLang) setLanguageCode(foundLang.code);
+        const normalized = normalizeReportLanguage(lCode, effectiveCountryCode);
+        const explicitlySupported = REPORT_LANGUAGE_OPTIONS.some((language) => language.code === normalized);
+        if (explicitlySupported && !(normalized === 'sk' && effectiveCountryCode !== 'SK')) {
+          setLanguageCode(normalized);
+          setLanguageWasManuallySelected(true);
+        }
+      } else if (foundCountry) {
+        setLanguageCode(normalizeReportLanguage(foundCountry.language, foundCountry.code));
       }
       const areaParam = params.get('area');
       if (areaParam && !isNaN(Number(areaParam))) setAreaSize(Math.max(50, Number(areaParam)));
@@ -127,11 +157,21 @@ export default function App() {
     try { localStorage.setItem('saved_site_reports', JSON.stringify(updated)); } catch (e) {}
   };
 
-  // Country and report language are independent. Changing country must never
-  // silently replace the report language selected by the user.
   const handleCountryChange = (newCode: string) => {
+    const nextCountry = EUROPEAN_COUNTRIES.find((country) => country.code === newCode);
     setCountryCode(newCode);
     setShape(null);
+    if (!languageWasManuallySelected && nextCountry) {
+      setLanguageCode(normalizeReportLanguage(nextCountry.language, nextCountry.code));
+    } else if (newCode !== 'SK' && languageCode === 'sk') {
+      setLanguageCode('en');
+      setLanguageWasManuallySelected(false);
+    }
+  };
+
+  const handleLanguageChange = (newLanguage: string) => {
+    setLanguageCode(normalizeReportLanguage(newLanguage, countryCode));
+    setLanguageWasManuallySelected(true);
   };
 
   const handleShapeChange = (newShape: BoundaryShape | null) => {
@@ -148,7 +188,7 @@ export default function App() {
   const handleAnalyzeSite = async () => {
     setErrorMessage('');
     if (!isBoundaryComplete || !shape) {
-      setErrorMessage('Please draw a site boundary on the map first.');
+      setErrorMessage(languageCode === 'sk' ? 'Najprv zakreslite hranicu pozemku na mape.' : 'Please draw a site boundary on the map first.');
       return;
     }
     setIsAnalyzing(true);
@@ -159,7 +199,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shape, areaSize: Math.round(areaSize), country: currentCountry.name, countryCode: currentCountry.code, language: languageCode, currency: currentCountry.currency }),
       });
-      if (!res.ok) throw new Error('Failed to analyze site. Please try again.');
+      if (!res.ok) throw new Error(languageCode === 'sk' ? 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.' : 'Failed to analyze site. Please try again.');
       const reportPayload = await res.json();
       const newReport: SiteReport = reportPayload?.report_data ? {
         ...reportPayload,
@@ -182,7 +222,7 @@ export default function App() {
       saveReportToStore(newReport);
       setActiveReport(newReport);
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while generating the report.');
+      setErrorMessage(err.message || (languageCode === 'sk' ? 'Pri vytváraní reportu sa vyskytla chyba.' : 'An error occurred while generating the report.'));
     } finally {
       setIsAnalyzing(false);
     }
@@ -212,7 +252,7 @@ export default function App() {
             </div>
             <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => setShape(null)} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} />
             <div className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
-              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>Boundary set · approx <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">(adjust area input to resize)</span>}</div> : <span className="text-slate-500">{mode === 'circle' && 'Click the map to place the circle center.'}{mode === 'rectangle' && 'Click two opposite corners on the map to draw the rectangle.'}{mode === 'polygon' && 'Click sequential points on the map to draw a custom polygon boundary.'}</span>}
+              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{languageCode === 'sk' ? 'Hranica určená · približne' : 'Boundary set · approx'} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{languageCode === 'sk' ? '(veľkosť upravíte zmenou plochy)' : '(adjust area input to resize)'}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && (languageCode === 'sk' ? 'Kliknite na mapu a umiestnite stred kruhu.' : 'Click the map to place the circle center.')}{mode === 'rectangle' && (languageCode === 'sk' ? 'Kliknite na dva protiľahlé rohy obdĺžnika.' : 'Click two opposite corners on the map to draw the rectangle.')}{mode === 'polygon' && (languageCode === 'sk' ? 'Postupným klikaním zakreslite hranicu polygónu.' : 'Click sequential points on the map to draw a custom polygon boundary.')}</span>}
             </div>
           </div>
 
@@ -220,7 +260,7 @@ export default function App() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900 border-b border-slate-100 pb-3"><Sliders className="h-4 w-4 text-primary" /><span>{fp.step2}</span></div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">(auto-calculated from boundary)</span>}</label>
+                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{languageCode === 'sk' ? '(automaticky vypočítané z hranice)' : '(auto-calculated from boundary)'}</span>}</label>
                 <input type="number" min={50} max={500000} value={Math.round(areaSize)} onChange={(e) => setAreaSize(Number(e.target.value))} disabled={shape?.type !== 'circle' && isBoundaryComplete} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-75 transition" />
               </div>
               <div className="space-y-1.5">
@@ -231,8 +271,8 @@ export default function App() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700"><span>{fp.langLbl}</span></label>
-                <select value={languageCode} onChange={(e) => setLanguageCode(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
-                  {SUPPORTED_REPORT_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+                <select value={languageCode} onChange={(e) => handleLanguageChange(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                  {availableReportLanguages.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
                 </select>
               </div>
               {errorMessage && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs flex items-center gap-2 border border-red-200/60"><AlertCircle className="h-4 w-4 shrink-0 text-red-500" /><span>{errorMessage}</span></div>}
@@ -240,9 +280,9 @@ export default function App() {
 
             <div className="space-y-3 pt-2">
               <button type="button" onClick={handleAnalyzeSite} disabled={isAnalyzing || !isBoundaryComplete} className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition">
-                {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>Gathering governmental data…</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
+                {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{languageCode === 'sk' ? 'Získavam údaje z verejných zdrojov…' : 'Gathering governmental data…'}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
               </button>
-              <p className="text-center text-[11px] text-slate-400">Country and report language are selected independently.</p>
+              <p className="text-center text-[11px] text-slate-400">{languageCode === 'sk' ? 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.' : 'The country provides a default report language; a manual language selection is preserved.'}</p>
             </div>
           </div>
         </div>
