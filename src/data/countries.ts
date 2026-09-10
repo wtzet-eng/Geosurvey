@@ -35,14 +35,14 @@ export const EUROPEAN_COUNTRIES: Country[] = [
 ];
 
 // Keep the selector aligned with the languages the report renderer can actually
-// localize end-to-end. Additional UI translations remain available elsewhere,
-// but should not be advertised as report languages until their reader pack is complete.
+// localize end-to-end. Country-specific packs are restricted in App.tsx where needed.
 export const REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'pl', label: 'Polski (Polish)' },
   { code: 'en', label: 'English' },
   { code: 'de', label: 'Deutsch (German)' },
   { code: 'nl', label: 'Nederlands (Dutch)' },
-  { code: 'cs', label: 'Čeština (Czech)' }
+  { code: 'cs', label: 'Čeština (Czech)' },
+  { code: 'sv', label: 'Svenska (Swedish)' }
 ];
 
 export interface GeoSurveyProfile {
@@ -103,6 +103,21 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
       'Rijkswaterstaat / LIWO – overstromingsinformatie'
     ]
   },
+  SE: {
+    authorityName: 'Sveriges geologiska undersökning',
+    acronym: 'SGU',
+    mapViewerUrl: 'https://apps.sgu.se/kartvisare/',
+    description: 'Svenska öppna geologiska och hydrogeologiska data via SGU. GeoSurvey hämtar endast de nationella lager som är tekniskt integrerade och validerade i aktuell version.',
+    datasets: [
+      'SGU Jordarter 1:25 000–1:100 000 – detaljerad jordartskartering',
+      'SGU Jordarter 1:250 000 – reservkälla för nordligaste Sverige',
+      'SGU Berggrund 1:50 000–1:250 000 – geologiska enheter och bergarter',
+      'SGU Brunnsarkivet – brunnar, borrhål och registrerade observationer',
+      'SGU Grundvattennivåer, observerade – nationellt stationsnät',
+      'MSB Översvämningsportalen – officiell kontrollkälla, ännu inte automatiserad',
+      'Lantmäteriet / kommunala detaljplaner – officiell kontroll där automatisk åtkomst saknas'
+    ]
+  },
   GB: {
     authorityName: 'British Geological Survey',
     acronym: 'BGS / GeoIndex',
@@ -114,9 +129,7 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
 
 export function getGeoSurveyByCountry(countryCode: string): GeoSurveyProfile {
   const code = (countryCode || 'PL').toUpperCase();
-  if (NATIONAL_GEOSURVEYS[code]) {
-    return NATIONAL_GEOSURVEYS[code];
-  }
+  if (NATIONAL_GEOSURVEYS[code]) return NATIONAL_GEOSURVEYS[code];
   return {
     authorityName: `European Geological Surveys Directory (${code}) / EuroGeoSurveys EGDI`,
     acronym: 'EuroGeoSurveys / EGDI',
