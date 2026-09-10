@@ -12,6 +12,8 @@ import { enrichGeologyFromBrgm, queryFranceSiteEvidence } from './server/service
 import { enrichSlovakiaGroundEvidence, querySlovakiaGroundEvidence } from './server/services/slovakiaGroundEvidenceService';
 import { enrichCzechiaGroundEvidence, queryCzechiaGroundEvidence } from './server/services/czechiaGroundEvidenceService';
 import { applyCzechiaCadastreToReport, queryCzechiaCadastre } from './server/services/czechiaCadastreService';
+import { applyNorwayCadastreToReport, queryNorwayCadastre } from './server/services/norwayCadastreService';
+import { enrichNorwayGroundEvidence, queryNorwayGroundEvidence } from './server/services/norwayGroundEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
@@ -20,6 +22,7 @@ import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderSlovakLocalizedReport } from './server/reporting/slovakLocalizedReport';
 import { renderDutchLocalizedReport } from './server/reporting/dutchLocalizedReport';
 import { renderCzechLocalizedReport } from './server/reporting/czechLocalizedReport';
+import { renderNorwegianLocalizedReport } from './server/reporting/norwegianLocalizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
 import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
 import { renderCzechiaGroundPresentation } from './server/reporting/czechiaGroundPresentation';
@@ -69,6 +72,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   const support = getCountrySupport(country);
   if (support.capabilities.nationalCadastre && country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'CZ') return res.json(await queryCzechiaCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'NO') return res.json(await queryNorwayCadastre(lat, lng));
   return res.json({ success: false, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY', message: `Automated national cadastre acquisition is not implemented for ${profile.countryName}. Verify the parcel with ${profile.cadastreAuthority}.`, cadastreAuthority: profile.cadastreAuthority, portalUrl: profile.cadastrePortalUrl });
 });
 
@@ -83,13 +87,15 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const cProfile = getCountryProfile(countryCode);
     const support = getCountrySupport(countryCode);
     const country = req.body.country || cProfile.countryName;
-    const defaultLanguage = countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : 'en';
+    const defaultLanguage = countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'NO' ? 'no' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : 'en';
     const requestedLanguage = String(req.body.language || req.body.languageCode || defaultLanguage).toLowerCase().split('-')[0];
     const language = requestedLanguage === 'sk'
       ? (countryCode === 'SK' ? 'sk' : 'en')
       : requestedLanguage === 'cs'
         ? (countryCode === 'CZ' ? 'cs' : 'en')
-        : ['en', 'de', 'pl', 'nl'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
+        : (requestedLanguage === 'no' || requestedLanguage === 'nb')
+          ? (countryCode === 'NO' ? 'no' : 'en')
+          : ['en', 'de', 'pl', 'nl'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
 
     stage = 'site-centre';
     const [lat, lng] = getCenterFromShape(shape, req.body);
@@ -124,6 +130,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     evidenceReport.countryCode = countryCode;
 
     let czechiaCadastre: any = null;
+    let norwayCadastre: any = null;
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -143,6 +150,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.evidenceRegistry.push(...czechiaCadastre.evidence);
         }
       } catch (e) { console.warn(`[${diagnosticId}] ČÚZK Czechia cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'NO' && support.capabilities.nationalCadastre) {
+      stage = 'norway-cadastre';
+      try {
+        norwayCadastre = await queryNorwayCadastre(lat, lng);
+        applyNorwayCadastreToReport(evidenceReport, norwayCadastre, areaSize);
+        if (norwayCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = 12;
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Kartverket identifies the Matrikkelen unit at the selected location, but the open property API does not certify legal boundary type or detailed boundary quality; parcel identity is credited without treating the returned map geometry as a surveyed legal boundary.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: norwayCadastre.sourceName, organization: 'Kartverket', url: norwayCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Kartverket Norway cadastre notice:`, e); }
     }
 
     const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
@@ -185,6 +206,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let franceSiteEvidence: any[] = [];
     let slovakiaGroundEvidence: any[] = [];
     let czechiaGroundEvidence: any[] = [];
+    let norwayGroundEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -213,6 +235,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'czechia-report-enrichment';
       if (czechiaGroundEvidence.length) evidenceReport.evidenceRegistry.push(...czechiaGroundEvidence);
       try { enrichCzechiaGroundEvidence(evidenceReport, czechiaGroundEvidence); } catch (e) { console.warn(`[${diagnosticId}] ČGS Czechia enrichment notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'NO' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalRadon)) {
+      stage = 'norway-ground-evidence';
+      try { norwayGroundEvidence = await queryNorwayGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] NGU Norway evidence notice:`, e); }
+      stage = 'norway-report-enrichment';
+      if (norwayGroundEvidence.length) evidenceReport.evidenceRegistry.push(...norwayGroundEvidence);
+      try { enrichNorwayGroundEvidence(evidenceReport, norwayGroundEvidence); } catch (e) { console.warn(`[${diagnosticId}] NGU Norway enrichment notice:`, e); }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
+      evidenceReport.dataSourcesCited.push({
+        name: 'NGU OGC API Features — Løsmasse / NADAG / marin leire / radon',
+        organization: 'Norges geologiske undersøkelse (NGU)',
+        url: 'https://geo.ngu.no/api/features/',
+        type: 'Geological Survey',
+        status: norwayGroundEvidence.some((item: any) => item.status === 'VERIFIED') ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+      });
     }
 
     if (!countryLocationMismatch && support.capabilities.nationalValuation && ['AT', 'ES', 'FI', 'IE'].includes(countryCode)) {
@@ -236,15 +272,18 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const canonicalReport = applySiteSpecificCountryEvidence(baseCanonicalReport, evidenceReport);
     const isSlovakPresentation = countryCode === 'SK' && language === 'sk';
     const isCzechPresentation = countryCode === 'CZ' && language === 'cs';
+    const isNorwegianPresentation = countryCode === 'NO' && language === 'no';
     const isDutchPresentation = language === 'nl';
     const presentation: any = isSlovakPresentation
       ? renderSlovakLocalizedReport(canonicalReport)
       : isCzechPresentation
         ? renderCzechLocalizedReport(canonicalReport)
-        : isDutchPresentation
-          ? renderDutchLocalizedReport(canonicalReport)
-          : renderLocalizedReport(canonicalReport, language);
-    if (!isSlovakPresentation && !isCzechPresentation && !isDutchPresentation) enrichValuationPresentation(canonicalReport, presentation);
+        : isNorwegianPresentation
+          ? renderNorwegianLocalizedReport(canonicalReport)
+          : isDutchPresentation
+            ? renderDutchLocalizedReport(canonicalReport)
+            : renderLocalizedReport(canonicalReport, language);
+    if (!isSlovakPresentation && !isCzechPresentation && !isNorwegianPresentation && !isDutchPresentation) enrichValuationPresentation(canonicalReport, presentation);
     const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
     if (franceGroundPresentation) {
       presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${franceGroundPresentation.narrative}`.trim();
@@ -269,7 +308,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const existingSource = presentation.sections.building_regulations.source_cited;
       presentation.sections.building_regulations.source_cited = [...new Set([existingSource, ...czechiaCadastrePresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
-    const evidenceDisplayRecords = (isSlovakPresentation || isCzechPresentation || isDutchPresentation) ? presentation.evidenceRegistry : buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
+    const evidenceDisplayRecords = (isSlovakPresentation || isCzechPresentation || isNorwegianPresentation || isDutchPresentation) ? presentation.evidenceRegistry : buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && areaSize > 0 ? value / areaSize : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
 
@@ -280,6 +319,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       country_support: presentation.countrySupport,
       ground_context: { ...presentation.groundContext, ...(franceGroundPresentation ? { france_context: franceGroundPresentation } : {}), ...(slovakiaGroundPresentation ? { slovakia_context: slovakiaGroundPresentation } : {}), ...(czechiaGroundPresentation ? { czechia_context: czechiaGroundPresentation } : {}) },
       czechia_cadastre: czechiaCadastre?.success ? { ...evidenceReport.czechia_cadastre, presentation: czechiaCadastrePresentation } : null,
+      norway_cadastre: norwayCadastre?.success ? evidenceReport.norway_cadastre : null,
       canonical_evidence: canonicalReport,
       evidence_registry: evidenceDisplayRecords,
       verification_checklist: presentation.verificationChecklist,
@@ -309,6 +349,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
       czechia_ground_evidence_count: czechiaGroundEvidence.length,
       czechia_cadastre_evidence_count: Array.isArray(czechiaCadastre?.evidence) ? czechiaCadastre.evidence.length : 0,
+      norway_ground_evidence_count: norwayGroundEvidence.length,
+      norway_cadastre_evidence_count: Array.isArray(norwayCadastre?.evidence) ? norwayCadastre.evidence.length : 0,
       europe_valuation_evidence: europeValuationEvidence ? { id: europeValuationEvidence.id, status: europeValuationEvidence.status, source: europeValuationEvidence.sourceName } : null,
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };

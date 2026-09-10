@@ -25,11 +25,13 @@ import { EmbedModal } from './components/EmbedModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 
 const REPORT_LANGUAGE_OPTIONS = [...REPORT_LANGUAGES, { code: 'sk', label: 'Slovenčina (Slovak)' }];
-const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'sk']);
+const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'no', 'sk']);
 const normalizeReportLanguage = (language: string, countryCode = '') => {
-  const code = String(language || '').toLowerCase().split('-')[0];
+  const rawCode = String(language || '').toLowerCase().split('-')[0];
+  const code = rawCode === 'nb' ? 'no' : rawCode;
   if (code === 'sk') return countryCode === 'SK' ? 'sk' : 'en';
   if (code === 'cs') return countryCode === 'CZ' ? 'cs' : 'en';
+  if (code === 'no') return countryCode === 'NO' ? 'no' : 'en';
   return SUPPORTED_REPORT_LANGUAGE_CODES.has(code) ? code : 'en';
 };
 
@@ -37,22 +39,11 @@ const SLOVAK_FRONT_PAGE = {
   badge: 'Európska platforma pre stavebné pozemky a geologické riziká',
   heroTitle: 'Ohodnoťte svoj stavebný pozemok: geologické riziká a trhová hodnota',
   heroSub: 'Nakreslite alebo vyberte stavebný pozemok v Európe. Získajte predbežný report založený na dostupných verejných údajoch o podloží, geologických rizikách, územnom plánovaní a hodnote pozemku.',
-  step1: '1. Určte hranice pozemku',
-  searchPh: 'Hľadať adresu alebo obec…',
-  step2: '2. Konfigurácia a parametre',
-  areaLbl: 'Plocha pozemku (m²)',
-  countryLbl: 'Krajina (Európa)',
-  langLbl: 'Jazyk reportu',
-  btnGen: 'Posúdiť kvalitu a hodnotu pozemku',
-  modeCircle: 'Kruh',
-  modeRect: 'Obdĺžnik',
-  modePoly: 'Voľný polygón',
-  finishPoly: 'Dokončiť polygón',
-  clear: 'Vymazať',
-  clickPrompt: 'Kliknutím na mapu určte hranicu.'
+  step1: '1. Určte hranice pozemku', searchPh: 'Hľadať adresu alebo obec…', step2: '2. Konfigurácia a parametre', areaLbl: 'Plocha pozemku (m²)', countryLbl: 'Krajina (Európa)', langLbl: 'Jazyk reportu', btnGen: 'Posúdiť kvalitu a hodnotu pozemku', modeCircle: 'Kruh', modeRect: 'Obdĺžnik', modePoly: 'Voľný polygón', finishPoly: 'Dokončiť polygón', clear: 'Vymazať', clickPrompt: 'Kliknutím na mapu určte hranicu.'
 };
 
-const uiText = (language: string, en: string, nl: string, cs: string, sk: string) => language === 'nl' ? nl : language === 'cs' ? cs : language === 'sk' ? sk : en;
+const uiText = (language: string, en: string, nl: string, cs: string, no: string, sk: string) =>
+  language === 'nl' ? nl : language === 'cs' ? cs : language === 'no' ? no : language === 'sk' ? sk : en;
 
 export default function App() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
@@ -63,7 +54,6 @@ export default function App() {
   const [languageWasManuallySelected, setLanguageWasManuallySelected] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
   const [activeReport, setActiveReport] = useState<SiteReport | null>(null);
   const [savedReports, setSavedReports] = useState<SiteReport[]>([]);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
@@ -77,6 +67,7 @@ export default function App() {
   const availableReportLanguages = REPORT_LANGUAGE_OPTIONS.filter((language) => {
     if (language.code === 'sk') return countryCode === 'SK';
     if (language.code === 'cs') return countryCode === 'CZ';
+    if (language.code === 'no') return countryCode === 'NO';
     return true;
   });
   const fp = languageCode === 'sk' ? SLOVAK_FRONT_PAGE : getFrontPageI18n(languageCode);
@@ -98,7 +89,11 @@ export default function App() {
       if (lCode) {
         const normalized = normalizeReportLanguage(lCode, effectiveCountryCode);
         const explicitlySupported = REPORT_LANGUAGE_OPTIONS.some((language) => language.code === normalized);
-        const countrySpecificLanguageValid = !((normalized === 'sk' && effectiveCountryCode !== 'SK') || (normalized === 'cs' && effectiveCountryCode !== 'CZ'));
+        const countrySpecificLanguageValid = !(
+          (normalized === 'sk' && effectiveCountryCode !== 'SK') ||
+          (normalized === 'cs' && effectiveCountryCode !== 'CZ') ||
+          (normalized === 'no' && effectiveCountryCode !== 'NO')
+        );
         if (explicitlySupported && countrySpecificLanguageValid) {
           setLanguageCode(normalized);
           setLanguageWasManuallySelected(true);
@@ -110,10 +105,7 @@ export default function App() {
       if (areaParam && !isNaN(Number(areaParam))) setAreaSize(Math.max(50, Number(areaParam)));
       const repId = params.get('report_id');
       if (repId) {
-        fetch(`/api/reports/${repId}`)
-          .then((res) => (res.ok ? res.json() : null))
-          .then((rep) => { if (rep) setActiveReport(rep); })
-          .catch(() => {});
+        fetch(`/api/reports/${repId}`).then((res) => (res.ok ? res.json() : null)).then((rep) => { if (rep) setActiveReport(rep); }).catch(() => {});
       }
     } catch (e) {
       console.warn('Error reading URL search params:', e);
@@ -139,23 +131,14 @@ export default function App() {
     try {
       const local = localStorage.getItem('saved_site_reports');
       if (local) setSavedReports(JSON.parse(local));
-    } catch (e) {
-      console.warn('Could not read saved reports from localStorage');
-    }
-    fetch('/api/reports')
-      .then((res) => res.json())
-      .then((data) => { if (Array.isArray(data) && data.length > 0) setSavedReports(data); })
-      .catch(() => {});
+    } catch (e) { console.warn('Could not read saved reports from localStorage'); }
+    fetch('/api/reports').then((res) => res.json()).then((data) => { if (Array.isArray(data) && data.length > 0) setSavedReports(data); }).catch(() => {});
   }, []);
 
   const saveReportToStore = (report: SiteReport) => {
     const updated = [report, ...savedReports.filter((r) => r.id !== report.id)];
     setSavedReports(updated);
-    try {
-      localStorage.setItem('saved_site_reports', JSON.stringify(updated));
-    } catch (e) {
-      console.warn('LocalStorage save failed');
-    }
+    try { localStorage.setItem('saved_site_reports', JSON.stringify(updated)); } catch (e) { console.warn('LocalStorage save failed'); }
     fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(report) }).catch(() => {});
   };
 
@@ -171,7 +154,11 @@ export default function App() {
     setShape(null);
     if (!languageWasManuallySelected && nextCountry) {
       setLanguageCode(normalizeReportLanguage(nextCountry.language, nextCountry.code));
-    } else if ((newCode !== 'SK' && languageCode === 'sk') || (newCode !== 'CZ' && languageCode === 'cs')) {
+    } else if (
+      (newCode !== 'SK' && languageCode === 'sk') ||
+      (newCode !== 'CZ' && languageCode === 'cs') ||
+      (newCode !== 'NO' && languageCode === 'no')
+    ) {
       setLanguageCode('en');
       setLanguageWasManuallySelected(false);
     }
@@ -196,18 +183,17 @@ export default function App() {
   const handleAnalyzeSite = async () => {
     setErrorMessage('');
     if (!isBoundaryComplete || !shape) {
-      setErrorMessage(uiText(languageCode, 'Please draw a site boundary on the map first.', 'Teken eerst de grens van het perceel op de kaart.', 'Nejprve zakreslete hranici pozemku do mapy.', 'Najprv zakreslite hranicu pozemku na mape.'));
+      setErrorMessage(uiText(languageCode, 'Please draw a site boundary on the map first.', 'Teken eerst de grens van het perceel op de kaart.', 'Nejprve zakreslete hranici pozemku do mapy.', 'Tegn først inn tomtegrensen på kartet.', 'Najprv zakreslite hranicu pozemku na mape.'));
       return;
     }
     setIsAnalyzing(true);
     try {
       const center = getBoundaryCenter(shape) || currentCountry.defaultCenter;
       const res = await fetch('/api/analyze-site', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shape, areaSize: Math.round(areaSize), country: currentCountry.name, countryCode: currentCountry.code, language: languageCode, currency: currentCountry.currency }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shape, areaSize: Math.round(areaSize), country: currentCountry.name, countryCode: currentCountry.code, language: languageCode, currency: currentCountry.currency })
       });
-      if (!res.ok) throw new Error(uiText(languageCode, 'Failed to analyze site. Please try again.', 'De locatieanalyse kon niet worden voltooid. Probeer het opnieuw.', 'Analýzu lokality se nepodařilo dokončit. Zkuste to znovu.', 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.'));
+      if (!res.ok) throw new Error(uiText(languageCode, 'Failed to analyze site. Please try again.', 'De locatieanalyse kon niet worden voltooid. Probeer het opnieuw.', 'Analýzu lokality se nepodařilo dokončit. Zkuste to znovu.', 'Analysen kunne ikke fullføres. Prøv igjen.', 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.'));
       const reportPayload = await res.json();
       const newReport: SiteReport = reportPayload?.report_data ? {
         ...reportPayload,
@@ -217,23 +203,18 @@ export default function App() {
         latitude: Number(reportPayload.latitude ?? center[0]),
         longitude: Number(reportPayload.longitude ?? center[1]),
         area_size: Number(reportPayload.area_size ?? Math.round(areaSize)),
-        boundary: reportPayload.boundary || shape,
+        boundary: reportPayload.boundary || shape
       } : {
-        id: 'rep_' + Math.random().toString(36).substring(2, 9),
-        created_at: new Date().toISOString(),
+        id: 'rep_' + Math.random().toString(36).substring(2, 9), created_at: new Date().toISOString(),
         location_name: reportPayload.location_name || `${center[0].toFixed(4)}, ${center[1].toFixed(4)}`,
-        country: currentCountry.name,
-        country_code: currentCountry.code,
-        language: languageCode,
-        latitude: center[0], longitude: center[1], area_size: Math.round(areaSize), boundary: shape, report_data: reportPayload,
+        country: currentCountry.name, country_code: currentCountry.code, language: languageCode,
+        latitude: center[0], longitude: center[1], area_size: Math.round(areaSize), boundary: shape, report_data: reportPayload
       };
       saveReportToStore(newReport);
       setActiveReport(newReport);
     } catch (err: any) {
-      setErrorMessage(err.message || uiText(languageCode, 'An error occurred while generating the report.', 'Er is een fout opgetreden bij het maken van het rapport.', 'Při vytváření reportu došlo k chybě.', 'Pri vytváraní reportu sa vyskytla chyba.'));
-    } finally {
-      setIsAnalyzing(false);
-    }
+      setErrorMessage(err.message || uiText(languageCode, 'An error occurred while generating the report.', 'Er is een fout opgetreden bij het maken van het rapport.', 'Při vytváření reportu došlo k chybě.', 'Det oppstod en feil under opprettelsen av rapporten.', 'Pri vytváraní reportu sa vyskytla chyba.'));
+    } finally { setIsAnalyzing(false); }
   };
 
   if (activeReport) return <ReportView report={activeReport} onBack={() => setActiveReport(null)} />;
@@ -260,7 +241,7 @@ export default function App() {
             </div>
             <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => setShape(null)} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} />
             <div className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
-              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{uiText(languageCode, 'Boundary set · approx', 'Grens ingesteld · circa', 'Hranice nastavena · přibližně', 'Hranica určená · približne')} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{uiText(languageCode, '(adjust area input to resize)', '(pas de oppervlakte aan om de grootte te wijzigen)', '(velikost upravíte změnou plochy)', '(veľkosť upravíte zmenou plochy)')}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && uiText(languageCode, 'Click the map to place the circle center.', 'Klik op de kaart om het middelpunt van de cirkel te plaatsen.', 'Kliknutím do mapy umístěte střed kruhu.', 'Kliknite na mapu a umiestnite stred kruhu.')}{mode === 'rectangle' && uiText(languageCode, 'Click two opposite corners on the map to draw the rectangle.', 'Klik op twee tegenoverliggende hoeken om de rechthoek te tekenen.', 'Klikněte na dva protilehlé rohy a nakreslete obdélník.', 'Kliknite na dva protiľahlé rohy obdĺžnika.')}{mode === 'polygon' && uiText(languageCode, 'Click sequential points on the map to draw a custom polygon boundary.', 'Klik achtereenvolgens op punten om een vrije perceelgrens te tekenen.', 'Postupným klikáním zakreslete vlastní hranici polygonu.', 'Postupným klikaním zakreslite hranicu polygónu.')}</span>}
+              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{uiText(languageCode, 'Boundary set · approx', 'Grens ingesteld · circa', 'Hranice nastavena · přibližně', 'Grense angitt · ca.', 'Hranica určená · približne')} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{uiText(languageCode, '(adjust area input to resize)', '(pas de oppervlakte aan om de grootte te wijzigen)', '(velikost upravíte změnou plochy)', '(juster arealet for å endre størrelse)', '(veľkosť upravíte zmenou plochy)')}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && uiText(languageCode, 'Click the map to place the circle center.', 'Klik op de kaart om het middelpunt van de cirkel te plaatsen.', 'Kliknutím do mapy umístěte střed kruhu.', 'Klikk på kartet for å plassere sentrum av sirkelen.', 'Kliknite na mapu a umiestnite stred kruhu.')}{mode === 'rectangle' && uiText(languageCode, 'Click two opposite corners on the map to draw the rectangle.', 'Klik op twee tegenoverliggende hoeken om de rechthoek te tekenen.', 'Klikněte na dva protilehlé rohy a nakreslete obdélník.', 'Klikk på to motsatte hjørner for å tegne rektangelet.', 'Kliknite na dva protiľahlé rohy obdĺžnika.')}{mode === 'polygon' && uiText(languageCode, 'Click sequential points on the map to draw a custom polygon boundary.', 'Klik achtereenvolgens op punten om een vrije perceelgrens te tekenen.', 'Postupným klikáním zakreslete vlastní hranici polygonu.', 'Klikk punkt for punkt på kartet for å tegne tomtegrensen.', 'Postupným klikaním zakreslite hranicu polygónu.')}</span>}
             </div>
           </div>
 
@@ -268,7 +249,7 @@ export default function App() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900 border-b border-slate-100 pb-3"><Sliders className="h-4 w-4 text-primary" /><span>{fp.step2}</span></div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{uiText(languageCode, '(auto-calculated from boundary)', '(automatisch berekend uit de grens)', '(automaticky vypočteno z hranice)', '(automaticky vypočítané z hranice)')}</span>}</label>
+                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{uiText(languageCode, '(auto-calculated from boundary)', '(automatisch berekend uit de grens)', '(automaticky vypočteno z hranice)', '(automatisk beregnet fra grensen)', '(automaticky vypočítané z hranice)')}</span>}</label>
                 <input type="number" min={50} max={500000} value={Math.round(areaSize)} onChange={(e) => setAreaSize(Number(e.target.value))} disabled={shape?.type !== 'circle' && isBoundaryComplete} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-75 transition" />
               </div>
               <div className="space-y-1.5">
@@ -285,12 +266,11 @@ export default function App() {
               </div>
               {errorMessage && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs flex items-center gap-2 border border-red-200/60"><AlertCircle className="h-4 w-4 shrink-0 text-red-500" /><span>{errorMessage}</span></div>}
             </div>
-
             <div className="space-y-3 pt-2">
               <button type="button" onClick={handleAnalyzeSite} disabled={isAnalyzing || !isBoundaryComplete} className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition">
-                {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{uiText(languageCode, 'Gathering governmental data…', 'Openbare gegevens worden opgehaald…', 'Načítám veřejná data…', 'Získavam údaje z verejných zdrojov…')}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
+                {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{uiText(languageCode, 'Gathering governmental data…', 'Openbare gegevens worden opgehaald…', 'Načítám veřejná data…', 'Henter offentlige data…', 'Získavam údaje z verejných zdrojov…')}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
               </button>
-              <p className="text-center text-[11px] text-slate-400">{uiText(languageCode, 'The country provides a default report language; a manual language selection is preserved.', 'Het land bepaalt de standaardtaal van het rapport; een handmatig gekozen taal blijft behouden.', 'Země určuje výchozí jazyk reportu; ručně zvolený jazyk zůstane zachován.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.')}</p>
+              <p className="text-center text-[11px] text-slate-400">{uiText(languageCode, 'The country provides a default report language; a manual language selection is preserved.', 'Het land bepaalt de standaardtaal van het rapport; een handmatig gekozen taal blijft behouden.', 'Země určuje výchozí jazyk reportu; ručně zvolený jazyk zůstane zachován.', 'Landet angir standardspråket for rapporten; et manuelt språkvalg beholdes.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.')}</p>
             </div>
           </div>
         </div>
