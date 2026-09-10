@@ -25,7 +25,7 @@ import { EmbedModal } from './components/EmbedModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 
 const REPORT_LANGUAGE_OPTIONS = [...REPORT_LANGUAGES, { code: 'sk', label: 'Slovenčina (Slovak)' }];
-const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'sk']);
+const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'sk']);
 const normalizeReportLanguage = (language: string, countryCode = '') => {
   const code = String(language || '').toLowerCase().split('-')[0];
   if (code === 'sk') return countryCode === 'SK' ? 'sk' : 'en';
@@ -50,6 +50,8 @@ const SLOVAK_FRONT_PAGE = {
   clear: 'Vymazať',
   clickPrompt: 'Kliknutím na mapu určte hranicu.'
 };
+
+const uiText = (language: string, en: string, nl: string, sk: string) => language === 'nl' ? nl : language === 'sk' ? sk : en;
 
 export default function App() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
@@ -188,7 +190,7 @@ export default function App() {
   const handleAnalyzeSite = async () => {
     setErrorMessage('');
     if (!isBoundaryComplete || !shape) {
-      setErrorMessage(languageCode === 'sk' ? 'Najprv zakreslite hranicu pozemku na mape.' : 'Please draw a site boundary on the map first.');
+      setErrorMessage(uiText(languageCode, 'Please draw a site boundary on the map first.', 'Teken eerst de grens van het perceel op de kaart.', 'Najprv zakreslite hranicu pozemku na mape.'));
       return;
     }
     setIsAnalyzing(true);
@@ -199,7 +201,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shape, areaSize: Math.round(areaSize), country: currentCountry.name, countryCode: currentCountry.code, language: languageCode, currency: currentCountry.currency }),
       });
-      if (!res.ok) throw new Error(languageCode === 'sk' ? 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.' : 'Failed to analyze site. Please try again.');
+      if (!res.ok) throw new Error(uiText(languageCode, 'Failed to analyze site. Please try again.', 'De locatieanalyse kon niet worden voltooid. Probeer het opnieuw.', 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.'));
       const reportPayload = await res.json();
       const newReport: SiteReport = reportPayload?.report_data ? {
         ...reportPayload,
@@ -222,7 +224,7 @@ export default function App() {
       saveReportToStore(newReport);
       setActiveReport(newReport);
     } catch (err: any) {
-      setErrorMessage(err.message || (languageCode === 'sk' ? 'Pri vytváraní reportu sa vyskytla chyba.' : 'An error occurred while generating the report.'));
+      setErrorMessage(err.message || uiText(languageCode, 'An error occurred while generating the report.', 'Er is een fout opgetreden bij het maken van het rapport.', 'Pri vytváraní reportu sa vyskytla chyba.'));
     } finally {
       setIsAnalyzing(false);
     }
@@ -252,7 +254,7 @@ export default function App() {
             </div>
             <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => setShape(null)} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} />
             <div className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
-              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{languageCode === 'sk' ? 'Hranica určená · približne' : 'Boundary set · approx'} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{languageCode === 'sk' ? '(veľkosť upravíte zmenou plochy)' : '(adjust area input to resize)'}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && (languageCode === 'sk' ? 'Kliknite na mapu a umiestnite stred kruhu.' : 'Click the map to place the circle center.')}{mode === 'rectangle' && (languageCode === 'sk' ? 'Kliknite na dva protiľahlé rohy obdĺžnika.' : 'Click two opposite corners on the map to draw the rectangle.')}{mode === 'polygon' && (languageCode === 'sk' ? 'Postupným klikaním zakreslite hranicu polygónu.' : 'Click sequential points on the map to draw a custom polygon boundary.')}</span>}
+              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{uiText(languageCode, 'Boundary set · approx', 'Grens ingesteld · circa', 'Hranica určená · približne')} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{uiText(languageCode, '(adjust area input to resize)', '(pas de oppervlakte aan om de grootte te wijzigen)', '(veľkosť upravíte zmenou plochy)')}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && uiText(languageCode, 'Click the map to place the circle center.', 'Klik op de kaart om het middelpunt van de cirkel te plaatsen.', 'Kliknite na mapu a umiestnite stred kruhu.')}{mode === 'rectangle' && uiText(languageCode, 'Click two opposite corners on the map to draw the rectangle.', 'Klik op twee tegenoverliggende hoeken om de rechthoek te tekenen.', 'Kliknite na dva protiľahlé rohy obdĺžnika.')}{mode === 'polygon' && uiText(languageCode, 'Click sequential points on the map to draw a custom polygon boundary.', 'Klik achtereenvolgens op punten om een vrije perceelgrens te tekenen.', 'Postupným klikaním zakreslite hranicu polygónu.')}</span>}
             </div>
           </div>
 
@@ -260,7 +262,7 @@ export default function App() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900 border-b border-slate-100 pb-3"><Sliders className="h-4 w-4 text-primary" /><span>{fp.step2}</span></div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{languageCode === 'sk' ? '(automaticky vypočítané z hranice)' : '(auto-calculated from boundary)'}</span>}</label>
+                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{uiText(languageCode, '(auto-calculated from boundary)', '(automatisch berekend uit de grens)', '(automaticky vypočítané z hranice)')}</span>}</label>
                 <input type="number" min={50} max={500000} value={Math.round(areaSize)} onChange={(e) => setAreaSize(Number(e.target.value))} disabled={shape?.type !== 'circle' && isBoundaryComplete} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-75 transition" />
               </div>
               <div className="space-y-1.5">
@@ -280,9 +282,9 @@ export default function App() {
 
             <div className="space-y-3 pt-2">
               <button type="button" onClick={handleAnalyzeSite} disabled={isAnalyzing || !isBoundaryComplete} className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition">
-                {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{languageCode === 'sk' ? 'Získavam údaje z verejných zdrojov…' : 'Gathering governmental data…'}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
+                {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{uiText(languageCode, 'Gathering governmental data…', 'Openbare gegevens worden opgehaald…', 'Získavam údaje z verejných zdrojov…')}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
               </button>
-              <p className="text-center text-[11px] text-slate-400">{languageCode === 'sk' ? 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.' : 'The country provides a default report language; a manual language selection is preserved.'}</p>
+              <p className="text-center text-[11px] text-slate-400">{uiText(languageCode, 'The country provides a default report language; a manual language selection is preserved.', 'Het land bepaalt de standaardtaal van het rapport; een handmatig gekozen taal blijft behouden.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.')}</p>
             </div>
           </div>
         </div>
