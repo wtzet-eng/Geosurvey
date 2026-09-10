@@ -176,6 +176,27 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
       'Omgevingswet DSO – official planning documents and rules (verification/API key required)'
     ]
   },
+  SE: {
+    countryCode: 'SE',
+    countryName: 'Sweden',
+    authorityName: 'Sveriges geologiska undersökning',
+    acronym: 'SGU',
+    officialPortalUrl: 'https://www.sgu.se',
+    mapViewerUrl: 'https://apps.sgu.se/kartvisare/',
+    cadastrePortalUrl: 'https://geotorget.lantmateriet.se/geodataprodukter/fastighetsindelning-direkt-api',
+    hazardPortalUrl: 'https://gisapp.msb.se/apps/oversvamningsportal/',
+    description: 'Swedish public geological and hydrogeological services. GeoSurvey directly queries selected SGU OGC API Features datasets; cadastral, flood and binding planning information remain official-verification sources until separately automated.',
+    datasets: [
+      'SGU Jordarter 1:25 000–1:100 000 – superficial-deposit mapping',
+      'SGU Jordarter 1:250 000 – northern Sweden fallback',
+      'SGU Berggrund 1:50 000–1:250 000 – bedrock geological units and lithology',
+      'SGU Brunnsarkivet – wells and borehole observations',
+      'SGU Grundvattennivåer, observerade – groundwater observation station network',
+      'MSB Översvämningsportalen – official flood verification source',
+      'Lantmäteriet Fastighetsregistret / Fastighetsindelning Direkt – cadastral verification source',
+      'Municipal detailed plans / Nationella geodataplattformen – planning verification where available'
+    ]
+  },
   BE: {
     countryCode: 'BE',
     countryName: 'Belgium',
