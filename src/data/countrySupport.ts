@@ -96,6 +96,7 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
     maturity: 'LIMITED',
     capabilities: {
       ...NONE,
+      nationalCadastre: true,
       nationalGeology: true,
       nationalBoreholes: true,
       nationalHydrogeology: true,
@@ -121,7 +122,8 @@ export function supportsCountryCapability(countryCode: string, capability: Count
 const labels = {
   en: { SUPPORTED: 'Supported', LIMITED: 'Limited coverage' },
   de: { SUPPORTED: 'Unterstützt', LIMITED: 'Begrenzte Abdeckung' },
-  pl: { SUPPORTED: 'Obsługiwany', LIMITED: 'Ograniczony zakres' }
+  pl: { SUPPORTED: 'Obsługiwany', LIMITED: 'Ograniczony zakres' },
+  sk: { SUPPORTED: 'Podporované', LIMITED: 'Obmedzené pokrytie' }
 } as const;
 
 const notices = {
@@ -139,10 +141,16 @@ const notices = {
     SUPPORTED: 'Dla wybranych zakresów dostępne są integracje ze źródłami krajowymi. Nieobsługiwane kategorie nadal wymagają urzędowej weryfikacji.',
     LIMITED: 'Ograniczony zakres: krajowe integracje katastralne, geologiczne, planistyczne, powodziowe i wycenowe nie są jeszcze zautomatyzowane dla tego kraju. Raport nadal wykorzystuje zweryfikowane dane transgraniczne o terenie, OpenStreetMap i SoilGrids, jeśli są dostępne, oraz wskazuje właściwe organy do ręcznej weryfikacji.',
     PARTIAL: 'Ograniczony zakres: dla wybranych kategorii dostępne są integracje ze źródłami krajowymi, a pozostałe zakresy nadal wymagają urzędowej weryfikacji. Raport zachowuje również zweryfikowane dane transgraniczne o terenie, OpenStreetMap i SoilGrids, jeśli są dostępne.'
+  },
+  sk: {
+    SUPPORTED: 'Pre vybrané oblasti sú dostupné národné zdrojové integrácie. Nepodporované kategórie naďalej vyžadujú úradné overenie.',
+    LIMITED: 'Obmedzené pokrytie: národné katastrálne, geologické, plánovacie, povodňové a oceňovacie integrácie ešte nie sú pre túto krajinu plne automatizované. Report naďalej využíva overené cezhraničné terénne údaje, OpenStreetMap a SoilGrids, ak sú dostupné, a odkazuje na príslušné orgány na manuálne overenie.',
+    PARTIAL: 'Obmedzené pokrytie: vybrané národné zdrojové integrácie sú dostupné, zatiaľ čo ostatné národné kategórie naďalej vyžadujú úradné overenie. Report zároveň zachováva overené cezhraničné terénne údaje, OpenStreetMap a SoilGrids, ak sú dostupné.'
   }
 } as const;
 
-const normalizeLanguage = (language: string): 'en' | 'de' | 'pl' => language === 'de' || language === 'pl' ? language : 'en';
+type SupportLanguage = keyof typeof labels;
+const normalizeLanguage = (language: string): SupportLanguage => language === 'de' || language === 'pl' || language === 'sk' ? language : 'en';
 
 export function getCountrySupportLabel(countryCode: string, language = 'en'): string {
   const lang = normalizeLanguage(language);
