@@ -35,14 +35,14 @@ export const EUROPEAN_COUNTRIES: Country[] = [
 ];
 
 // Keep the selector aligned with the languages the report renderer can actually
-// localize end-to-end. Additional UI translations remain available elsewhere,
-// but should not be advertised as report languages until their reader pack is complete.
+// localize end-to-end. Country-specific packs are restricted in App.tsx where needed.
 export const REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'pl', label: 'Polski (Polish)' },
   { code: 'en', label: 'English' },
   { code: 'de', label: 'Deutsch (German)' },
   { code: 'nl', label: 'Nederlands (Dutch)' },
-  { code: 'cs', label: 'Čeština (Czech)' }
+  { code: 'cs', label: 'Čeština (Czech)' },
+  { code: 'no', label: 'Norsk bokmål (Norwegian)' }
 ];
 
 export interface GeoSurveyProfile {
@@ -103,6 +103,20 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
       'Rijkswaterstaat / LIWO – overstromingsinformatie'
     ]
   },
+  NO: {
+    authorityName: 'Norges geologiske undersøkelse / Kartverket / NVE',
+    acronym: 'NGU / NADAG / Matrikkelen / NVE',
+    mapViewerUrl: 'https://www.ngu.no/geologiske-kart/karttjenester',
+    description: 'Norske offentlige data for grunnforhold, eiendom og naturfare via NGU, Kartverket og NVE. GeoSurvey bruker bare nasjonale lag som er koblet til og kontrollert i den aktuelle versjonen.',
+    datasets: [
+      'NGU Løsmasse detaljert – kartlagte løsmasser og egenskaper',
+      'NGU NADAG – geotekniske borehull og grunnundersøkelser',
+      'NGU Mulighet for marin leire – grov kartbasert screening',
+      'NGU Radon aktsomhet – nasjonalt aktsomhetskart',
+      'Kartverket Åpent eiendoms-API – Matrikkelen eiendomsidentifikasjon og kartgeometri',
+      'NVE aktsomhets- og farekart – flom og skred (offisiell kontrollkilde)'
+    ]
+  },
   GB: {
     authorityName: 'British Geological Survey',
     acronym: 'BGS / GeoIndex',
@@ -114,9 +128,7 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
 
 export function getGeoSurveyByCountry(countryCode: string): GeoSurveyProfile {
   const code = (countryCode || 'PL').toUpperCase();
-  if (NATIONAL_GEOSURVEYS[code]) {
-    return NATIONAL_GEOSURVEYS[code];
-  }
+  if (NATIONAL_GEOSURVEYS[code]) return NATIONAL_GEOSURVEYS[code];
   return {
     authorityName: `European Geological Surveys Directory (${code}) / EuroGeoSurveys EGDI`,
     acronym: 'EuroGeoSurveys / EGDI',
