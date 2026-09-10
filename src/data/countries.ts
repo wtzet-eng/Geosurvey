@@ -40,7 +40,8 @@ export const EUROPEAN_COUNTRIES: Country[] = [
 export const REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'pl', label: 'Polski (Polish)' },
   { code: 'en', label: 'English' },
-  { code: 'de', label: 'Deutsch (German)' }
+  { code: 'de', label: 'Deutsch (German)' },
+  { code: 'nl', label: 'Nederlands (Dutch)' }
 ];
 
 export interface GeoSurveyProfile {
@@ -88,11 +89,18 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
     datasets: ['ISPRA CARG 1:50.000', 'IFFI Frane (Landslides)', 'Catasto Agenzia delle Entrate', 'PAI IdroGEO']
   },
   NL: {
-    authorityName: 'TNO – Geologische Dienst Nederland',
-    acronym: 'TNO / DINOloket / BRO',
+    authorityName: 'TNO – Geologische Dienst Nederland / Basisregistratie Ondergrond',
+    acronym: 'TNO-GDN / DINOloket / BRO / PDOK',
     mapViewerUrl: 'https://www.dinoloket.nl',
-    description: 'Basisregistratie Ondergrond (BRO), GeoTOP 3D subsurface model, REGIS II hydrogeology',
-    datasets: ['BRO 3D Subsurface Model', 'GeoTOP Lithology', 'Kadaster BRK', 'Rijkswaterstaat Waterinfo']
+    description: 'Nederlandse publieke ondergrond- en perceelinformatie via DINOloket/BRO en Kadaster/PDOK, met GeoTOP en REGIS II voor geologische en hydrogeologische context.',
+    datasets: [
+      'BRO / DINOloket – boringen, sonderingen en geregistreerde ondergrondgegevens',
+      'GeoTOP – 3D-model van de ondiepe ondergrond tot circa 50 m onder NAP',
+      'REGIS II – hydrogeologisch lagenmodel',
+      'Kadaster BRK Kadastrale Kaart via PDOK OGC API – perceelgeometrie en kadastrale grootte',
+      'BRO Bodemkaart 1:50 000 via PDOK',
+      'Rijkswaterstaat / LIWO – overstromingsinformatie'
+    ]
   },
   GB: {
     authorityName: 'British Geological Survey',
