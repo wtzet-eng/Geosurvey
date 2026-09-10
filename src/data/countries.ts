@@ -41,7 +41,8 @@ export const REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'pl', label: 'Polski (Polish)' },
   { code: 'en', label: 'English' },
   { code: 'de', label: 'Deutsch (German)' },
-  { code: 'nl', label: 'Nederlands (Dutch)' }
+  { code: 'nl', label: 'Nederlands (Dutch)' },
+  { code: 'cs', label: 'Čeština (Czech)' }
 ];
 
 export interface GeoSurveyProfile {
