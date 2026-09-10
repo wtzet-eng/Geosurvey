@@ -129,6 +129,16 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     planningInstrumentName: 'Omgevingsplan (Omgevingswet)', standardSetbackRule: 'Municipal omgevingsplan; requires verification',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  NO: {
+    countryCode: 'NO', countryName: 'Norway', currency: 'NOK', symbol: 'kr',
+    cadastreAuthority: 'Kartverket (Matrikkelen / Grunnboken)', cadastrePortalUrl: 'https://kartverket.no/api-og-data/eiendomsdata/tilgang-til-apne-eiendomsdata',
+    geologyAuthority: 'Norges geologiske undersøkelse (NGU / NADAG)', geologyPortalUrl: 'https://www.ngu.no/geologiske-kart/karttjenester',
+    floodAuthority: 'Norges vassdrags- og energidirektorat (NVE)', floodPortalUrl: 'https://www.nve.no/karttjenester',
+    planningInstrumentName: 'Kommuneplanens arealdel / reguleringsplan',
+    standardSetbackRule: 'Determined by the applicable municipal plan and building-control rules; requires municipal confirmation',
+    baseValuationPerSqm: 0,
+    valuationDataSource: NO_GENERIC_VALUE
+  },
   EU: {
     countryCode: 'EU', countryName: 'Europe', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'National cadastral authority / INSPIRE cadastral parcels', cadastrePortalUrl: 'https://inspire.ec.europa.eu/',
