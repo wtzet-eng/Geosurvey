@@ -12,6 +12,7 @@ import { enrichGeologyFromBrgm, queryFranceSiteEvidence } from './server/service
 import { enrichSlovakiaGroundEvidence, querySlovakiaGroundEvidence } from './server/services/slovakiaGroundEvidenceService';
 import { enrichCzechiaGroundEvidence, queryCzechiaGroundEvidence } from './server/services/czechiaGroundEvidenceService';
 import { applyCzechiaCadastreToReport, queryCzechiaCadastre } from './server/services/czechiaCadastreService';
+import { enrichSwedenGroundEvidence, querySwedenGroundEvidence } from './server/services/swedenGroundEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
@@ -20,6 +21,7 @@ import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderSlovakLocalizedReport } from './server/reporting/slovakLocalizedReport';
 import { renderDutchLocalizedReport } from './server/reporting/dutchLocalizedReport';
 import { renderCzechLocalizedReport } from './server/reporting/czechLocalizedReport';
+import { renderSwedishLocalizedReport } from './server/reporting/swedishLocalizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
 import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
 import { renderCzechiaGroundPresentation } from './server/reporting/czechiaGroundPresentation';
@@ -83,13 +85,15 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const cProfile = getCountryProfile(countryCode);
     const support = getCountrySupport(countryCode);
     const country = req.body.country || cProfile.countryName;
-    const defaultLanguage = countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : 'en';
+    const defaultLanguage = countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'SE' ? 'sv' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : 'en';
     const requestedLanguage = String(req.body.language || req.body.languageCode || defaultLanguage).toLowerCase().split('-')[0];
     const language = requestedLanguage === 'sk'
       ? (countryCode === 'SK' ? 'sk' : 'en')
       : requestedLanguage === 'cs'
         ? (countryCode === 'CZ' ? 'cs' : 'en')
-        : ['en', 'de', 'pl', 'nl'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
+        : requestedLanguage === 'sv'
+          ? (countryCode === 'SE' ? 'sv' : 'en')
+          : ['en', 'de', 'pl', 'nl'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
 
     stage = 'site-centre';
     const [lat, lng] = getCenterFromShape(shape, req.body);
@@ -139,9 +143,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           }
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
           evidenceReport.dataSourcesCited.push({ name: czechiaCadastre.sourceName, organization: 'Český úřad zeměměřický a katastrální (ČÚZK)', url: czechiaCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
-        } else if (Array.isArray(czechiaCadastre.evidence)) {
-          evidenceReport.evidenceRegistry.push(...czechiaCadastre.evidence);
-        }
+        } else if (Array.isArray(czechiaCadastre.evidence)) evidenceReport.evidenceRegistry.push(...czechiaCadastre.evidence);
       } catch (e) { console.warn(`[${diagnosticId}] ČÚZK Czechia cadastre notice:`, e); }
     }
 
@@ -164,18 +166,11 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       evidenceReport.soil_variability = soilVariability;
       if (soilVariability.validSampleCount > 0) {
         evidenceReport.evidenceRegistry.push({
-          id: 'soilgrids-spatial-variability',
-          category: 'Pedological spatial context',
+          id: 'soilgrids-spatial-variability', category: 'Pedological spatial context',
           claim: `SoilGrids returned ${soilVariability.validSampleCount} usable model samples across the selected geometry and vicinity.`,
-          status: 'MODELLED',
-          sourceName: soilVariability.sourceName,
-          sourceUrl: evidenceReport.soil?.sourceUrl || 'https://soilgrids.org/',
-          datasetDate: new Date().toISOString().slice(0, 10),
+          status: 'MODELLED', sourceName: soilVariability.sourceName, sourceUrl: evidenceReport.soil?.sourceUrl || 'https://soilgrids.org/', datasetDate: new Date().toISOString().slice(0, 10),
           spatialRelationship: `${soilVariability.validSampleCount} valid samples from a maximum of ${soilVariability.sampleCount} deterministic site/parcel/vicinity positions`,
-          calculationMethod: 'Deterministic multi-point SoilGrids sampling; descriptive texture and sand/silt/clay ranges only',
-          confidence: 'Medium',
-          limitation: soilVariability.limitation,
-          value: soilVariability
+          calculationMethod: 'Deterministic multi-point SoilGrids sampling; descriptive texture and sand/silt/clay ranges only', confidence: 'Medium', limitation: soilVariability.limitation, value: soilVariability
         });
       }
     } catch (e) { console.warn(`[${diagnosticId}] SoilGrids spatial variability notice:`, e); }
@@ -185,7 +180,9 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let franceSiteEvidence: any[] = [];
     let slovakiaGroundEvidence: any[] = [];
     let czechiaGroundEvidence: any[] = [];
+    let swedenGroundEvidence: any[] = [];
     let europeValuationEvidence: any = null;
+
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
       if (support.capabilities.nationalHydrogeology) {
@@ -213,6 +210,15 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'czechia-report-enrichment';
       if (czechiaGroundEvidence.length) evidenceReport.evidenceRegistry.push(...czechiaGroundEvidence);
       try { enrichCzechiaGroundEvidence(evidenceReport, czechiaGroundEvidence); } catch (e) { console.warn(`[${diagnosticId}] ČGS Czechia enrichment notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'SE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
+      stage = 'sweden-ground-evidence';
+      try { swedenGroundEvidence = await querySwedenGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden evidence notice:`, e); }
+      stage = 'sweden-report-enrichment';
+      if (swedenGroundEvidence.length) evidenceReport.evidenceRegistry.push(...swedenGroundEvidence);
+      try { enrichSwedenGroundEvidence(evidenceReport, swedenGroundEvidence); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden enrichment notice:`, e); }
+      const verifiedSgu = swedenGroundEvidence.some(item => item.status === 'VERIFIED');
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
+      evidenceReport.dataSourcesCited.push({ name: 'SGU OGC API Features — Jordarter / Berggrund / Brunnsarkivet / Grundvattennivåer', organization: 'Sveriges geologiska undersökning (SGU)', url: 'https://api.sgu.se/oppnadata/', type: 'Geological Survey', status: verifiedSgu ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     }
 
     if (!countryLocationMismatch && support.capabilities.nationalValuation && ['AT', 'ES', 'FI', 'IE'].includes(countryCode)) {
@@ -236,15 +242,19 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const canonicalReport = applySiteSpecificCountryEvidence(baseCanonicalReport, evidenceReport);
     const isSlovakPresentation = countryCode === 'SK' && language === 'sk';
     const isCzechPresentation = countryCode === 'CZ' && language === 'cs';
+    const isSwedishPresentation = countryCode === 'SE' && language === 'sv';
     const isDutchPresentation = language === 'nl';
     const presentation: any = isSlovakPresentation
       ? renderSlovakLocalizedReport(canonicalReport)
       : isCzechPresentation
         ? renderCzechLocalizedReport(canonicalReport)
-        : isDutchPresentation
-          ? renderDutchLocalizedReport(canonicalReport)
-          : renderLocalizedReport(canonicalReport, language);
-    if (!isSlovakPresentation && !isCzechPresentation && !isDutchPresentation) enrichValuationPresentation(canonicalReport, presentation);
+        : isSwedishPresentation
+          ? renderSwedishLocalizedReport(canonicalReport)
+          : isDutchPresentation
+            ? renderDutchLocalizedReport(canonicalReport)
+            : renderLocalizedReport(canonicalReport, language);
+    if (!isSlovakPresentation && !isCzechPresentation && !isSwedishPresentation && !isDutchPresentation) enrichValuationPresentation(canonicalReport, presentation);
+
     const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
     if (franceGroundPresentation) {
       presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${franceGroundPresentation.narrative}`.trim();
@@ -269,7 +279,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const existingSource = presentation.sections.building_regulations.source_cited;
       presentation.sections.building_regulations.source_cited = [...new Set([existingSource, ...czechiaCadastrePresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
-    const evidenceDisplayRecords = (isSlovakPresentation || isCzechPresentation || isDutchPresentation) ? presentation.evidenceRegistry : buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
+    const evidenceDisplayRecords = (isSlovakPresentation || isCzechPresentation || isSwedishPresentation || isDutchPresentation) ? presentation.evidenceRegistry : buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && areaSize > 0 ? value / areaSize : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
 
@@ -308,6 +318,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       france_site_evidence_count: franceSiteEvidence.length,
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
       czechia_ground_evidence_count: czechiaGroundEvidence.length,
+      sweden_ground_evidence_count: swedenGroundEvidence.length,
       czechia_cadastre_evidence_count: Array.isArray(czechiaCadastre?.evidence) ? czechiaCadastre.evidence.length : 0,
       europe_valuation_evidence: europeValuationEvidence ? { id: europeValuationEvidence.id, status: europeValuationEvidence.status, source: europeValuationEvidence.sourceName } : null,
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
