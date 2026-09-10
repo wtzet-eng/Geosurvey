@@ -74,6 +74,11 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
     maturity: 'LIMITED',
     capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true, nationalRadon: true, nationalMining: true }
   },
+  SE: {
+    countryCode: 'SE',
+    maturity: 'LIMITED',
+    capabilities: { ...NONE, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true }
+  },
   NO: {
     countryCode: 'NO',
     maturity: 'LIMITED',

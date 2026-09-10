@@ -3,6 +3,7 @@ import { ReportViewEvidenceV2 } from './ReportViewEvidenceV2';
 import { ReportViewSlovak } from './ReportViewSlovak';
 import { ReportViewCzech } from './ReportViewCzech';
 import { ReportViewNorwegian } from './ReportViewNorwegian';
+import { ReportViewSwedish } from './ReportViewSwedish';
 import { SiteReport } from '../types';
 
 interface ReportViewProps {
@@ -19,5 +20,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
   if (language.startsWith('sk')) return <ReportViewSlovak report={report} onBack={onBack} />;
   if (language.startsWith('cs')) return <ReportViewCzech report={report} onBack={onBack} />;
   if (language.startsWith('no') || language.startsWith('nb')) return <ReportViewNorwegian report={report} onBack={onBack} />;
+  if (language.startsWith('sv')) return <ReportViewSwedish report={report} onBack={onBack} />;
   return <ReportViewEvidenceV2 report={report} onBack={onBack} />;
 };

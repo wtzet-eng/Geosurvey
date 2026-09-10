@@ -25,13 +25,14 @@ import { EmbedModal } from './components/EmbedModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 
 const REPORT_LANGUAGE_OPTIONS = [...REPORT_LANGUAGES, { code: 'sk', label: 'Slovenčina (Slovak)' }];
-const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'no', 'sk']);
+const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'no', 'sv', 'sk']);
 const normalizeReportLanguage = (language: string, countryCode = '') => {
   const rawCode = String(language || '').toLowerCase().split('-')[0];
   const code = rawCode === 'nb' ? 'no' : rawCode;
   if (code === 'sk') return countryCode === 'SK' ? 'sk' : 'en';
   if (code === 'cs') return countryCode === 'CZ' ? 'cs' : 'en';
   if (code === 'no') return countryCode === 'NO' ? 'no' : 'en';
+  if (code === 'sv') return countryCode === 'SE' ? 'sv' : 'en';
   return SUPPORTED_REPORT_LANGUAGE_CODES.has(code) ? code : 'en';
 };
 
@@ -42,8 +43,8 @@ const SLOVAK_FRONT_PAGE = {
   step1: '1. Určte hranice pozemku', searchPh: 'Hľadať adresu alebo obec…', step2: '2. Konfigurácia a parametre', areaLbl: 'Plocha pozemku (m²)', countryLbl: 'Krajina (Európa)', langLbl: 'Jazyk reportu', btnGen: 'Posúdiť kvalitu a hodnotu pozemku', modeCircle: 'Kruh', modeRect: 'Obdĺžnik', modePoly: 'Voľný polygón', finishPoly: 'Dokončiť polygón', clear: 'Vymazať', clickPrompt: 'Kliknutím na mapu určte hranicu.'
 };
 
-const uiText = (language: string, en: string, nl: string, cs: string, no: string, sk: string) =>
-  language === 'nl' ? nl : language === 'cs' ? cs : language === 'no' ? no : language === 'sk' ? sk : en;
+const uiText = (language: string, en: string, nl: string, cs: string, sv: string, no: string, sk: string) =>
+  language === 'nl' ? nl : language === 'cs' ? cs : language === 'sv' ? sv : language === 'no' ? no : language === 'sk' ? sk : en;
 
 export default function App() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
@@ -68,6 +69,7 @@ export default function App() {
     if (language.code === 'sk') return countryCode === 'SK';
     if (language.code === 'cs') return countryCode === 'CZ';
     if (language.code === 'no') return countryCode === 'NO';
+    if (language.code === 'sv') return countryCode === 'SE';
     return true;
   });
   const fp = languageCode === 'sk' ? SLOVAK_FRONT_PAGE : getFrontPageI18n(languageCode);
@@ -92,7 +94,8 @@ export default function App() {
         const countrySpecificLanguageValid = !(
           (normalized === 'sk' && effectiveCountryCode !== 'SK') ||
           (normalized === 'cs' && effectiveCountryCode !== 'CZ') ||
-          (normalized === 'no' && effectiveCountryCode !== 'NO')
+          (normalized === 'no' && effectiveCountryCode !== 'NO') ||
+          (normalized === 'sv' && effectiveCountryCode !== 'SE')
         );
         if (explicitlySupported && countrySpecificLanguageValid) {
           setLanguageCode(normalized);
@@ -157,7 +160,8 @@ export default function App() {
     } else if (
       (newCode !== 'SK' && languageCode === 'sk') ||
       (newCode !== 'CZ' && languageCode === 'cs') ||
-      (newCode !== 'NO' && languageCode === 'no')
+      (newCode !== 'NO' && languageCode === 'no') ||
+      (newCode !== 'SE' && languageCode === 'sv')
     ) {
       setLanguageCode('en');
       setLanguageWasManuallySelected(false);
@@ -183,7 +187,7 @@ export default function App() {
   const handleAnalyzeSite = async () => {
     setErrorMessage('');
     if (!isBoundaryComplete || !shape) {
-      setErrorMessage(uiText(languageCode, 'Please draw a site boundary on the map first.', 'Teken eerst de grens van het perceel op de kaart.', 'Nejprve zakreslete hranici pozemku do mapy.', 'Tegn først inn tomtegrensen på kartet.', 'Najprv zakreslite hranicu pozemku na mape.'));
+      setErrorMessage(uiText(languageCode, 'Please draw a site boundary on the map first.', 'Teken eerst de grens van het perceel op de kaart.', 'Nejprve zakreslete hranici pozemku do mapy.', 'Rita först in tomtgränsen på kartan.', 'Tegn først inn tomtegrensen på kartet.', 'Najprv zakreslite hranicu pozemku na mape.'));
       return;
     }
     setIsAnalyzing(true);
@@ -193,7 +197,7 @@ export default function App() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shape, areaSize: Math.round(areaSize), country: currentCountry.name, countryCode: currentCountry.code, language: languageCode, currency: currentCountry.currency })
       });
-      if (!res.ok) throw new Error(uiText(languageCode, 'Failed to analyze site. Please try again.', 'De locatieanalyse kon niet worden voltooid. Probeer het opnieuw.', 'Analýzu lokality se nepodařilo dokončit. Zkuste to znovu.', 'Analysen kunne ikke fullføres. Prøv igjen.', 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.'));
+      if (!res.ok) throw new Error(uiText(languageCode, 'Failed to analyze site. Please try again.', 'De locatieanalyse kon niet worden voltooid. Probeer het opnieuw.', 'Analýzu lokality se nepodařilo dokončit. Zkuste to znovu.', 'Platsanalysen kunde inte slutföras. Försök igen.', 'Analysen kunne ikke fullføres. Prøv igjen.', 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.'));
       const reportPayload = await res.json();
       const newReport: SiteReport = reportPayload?.report_data ? {
         ...reportPayload,
@@ -213,7 +217,7 @@ export default function App() {
       saveReportToStore(newReport);
       setActiveReport(newReport);
     } catch (err: any) {
-      setErrorMessage(err.message || uiText(languageCode, 'An error occurred while generating the report.', 'Er is een fout opgetreden bij het maken van het rapport.', 'Při vytváření reportu došlo k chybě.', 'Det oppstod en feil under opprettelsen av rapporten.', 'Pri vytváraní reportu sa vyskytla chyba.'));
+      setErrorMessage(err.message || uiText(languageCode, 'An error occurred while generating the report.', 'Er is een fout opgetreden bij het maken van het rapport.', 'Při vytváření reportu došlo k chybě.', 'Ett fel uppstod när rapporten skapades.', 'Det oppstod en feil under opprettelsen av rapporten.', 'Pri vytváraní reportu sa vyskytla chyba.'));
     } finally { setIsAnalyzing(false); }
   };
 
@@ -241,7 +245,7 @@ export default function App() {
             </div>
             <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => setShape(null)} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} />
             <div className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
-              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{uiText(languageCode, 'Boundary set · approx', 'Grens ingesteld · circa', 'Hranice nastavena · přibližně', 'Grense angitt · ca.', 'Hranica určená · približne')} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{uiText(languageCode, '(adjust area input to resize)', '(pas de oppervlakte aan om de grootte te wijzigen)', '(velikost upravíte změnou plochy)', '(juster arealet for å endre størrelse)', '(veľkosť upravíte zmenou plochy)')}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && uiText(languageCode, 'Click the map to place the circle center.', 'Klik op de kaart om het middelpunt van de cirkel te plaatsen.', 'Kliknutím do mapy umístěte střed kruhu.', 'Klikk på kartet for å plassere sentrum av sirkelen.', 'Kliknite na mapu a umiestnite stred kruhu.')}{mode === 'rectangle' && uiText(languageCode, 'Click two opposite corners on the map to draw the rectangle.', 'Klik op twee tegenoverliggende hoeken om de rechthoek te tekenen.', 'Klikněte na dva protilehlé rohy a nakreslete obdélník.', 'Klikk på to motsatte hjørner for å tegne rektangelet.', 'Kliknite na dva protiľahlé rohy obdĺžnika.')}{mode === 'polygon' && uiText(languageCode, 'Click sequential points on the map to draw a custom polygon boundary.', 'Klik achtereenvolgens op punten om een vrije perceelgrens te tekenen.', 'Postupným klikáním zakreslete vlastní hranici polygonu.', 'Klikk punkt for punkt på kartet for å tegne tomtegrensen.', 'Postupným klikaním zakreslite hranicu polygónu.')}</span>}
+              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{uiText(languageCode, 'Boundary set · approx', 'Grens ingesteld · circa', 'Hranice nastavena · přibližně', 'Gräns angiven · cirka', 'Grense angitt · ca.', 'Hranica určená · približne')} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{uiText(languageCode, '(adjust area input to resize)', '(pas de oppervlakte aan om de grootte te wijzigen)', '(velikost upravíte změnou plochy)', '(justera arean för att ändra storlek)', '(juster arealet for å endre størrelse)', '(veľkosť upravíte zmenou plochy)')}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && uiText(languageCode, 'Click the map to place the circle center.', 'Klik op de kaart om het middelpunt van de cirkel te plaatsen.', 'Kliknutím do mapy umístěte střed kruhu.', 'Klicka på kartan för att placera cirkelns centrum.', 'Klikk på kartet for å plassere sentrum av sirkelen.', 'Kliknite na mapu a umiestnite stred kruhu.')}{mode === 'rectangle' && uiText(languageCode, 'Click two opposite corners on the map to draw the rectangle.', 'Klik op twee tegenoverliggende hoeken om de rechthoek te tekenen.', 'Klikněte na dva protilehlé rohy a nakreslete obdélník.', 'Klicka på två motsatta hörn för att rita rektangeln.', 'Klikk på to motsatte hjørner for å tegne rektangelet.', 'Kliknite na dva protiľahlé rohy obdĺžnika.')}{mode === 'polygon' && uiText(languageCode, 'Click sequential points on the map to draw a custom polygon boundary.', 'Klik achtereenvolgens op punten om een vrije perceelgrens te tekenen.', 'Postupným klikáním zakreslete vlastní hranici polygonu.', 'Klicka punkt för punkt på kartan för att rita en egen tomtgräns.', 'Klikk punkt for punkt på kartet for å tegne tomtegrensen.', 'Postupným klikaním zakreslite hranicu polygónu.')}</span>}
             </div>
           </div>
 
@@ -249,7 +253,7 @@ export default function App() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900 border-b border-slate-100 pb-3"><Sliders className="h-4 w-4 text-primary" /><span>{fp.step2}</span></div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{uiText(languageCode, '(auto-calculated from boundary)', '(automatisch berekend uit de grens)', '(automaticky vypočteno z hranice)', '(automatisk beregnet fra grensen)', '(automaticky vypočítané z hranice)')}</span>}</label>
+                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{uiText(languageCode, '(auto-calculated from boundary)', '(automatisch berekend uit de grens)', '(automaticky vypočteno z hranice)', '(automatiskt beräknad från gränsen)', '(automatisk beregnet fra grensen)', '(automaticky vypočítané z hranice)')}</span>}</label>
                 <input type="number" min={50} max={500000} value={Math.round(areaSize)} onChange={(e) => setAreaSize(Number(e.target.value))} disabled={shape?.type !== 'circle' && isBoundaryComplete} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-75 transition" />
               </div>
               <div className="space-y-1.5">
@@ -268,9 +272,9 @@ export default function App() {
             </div>
             <div className="space-y-3 pt-2">
               <button type="button" onClick={handleAnalyzeSite} disabled={isAnalyzing || !isBoundaryComplete} className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition">
-                {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{uiText(languageCode, 'Gathering governmental data…', 'Openbare gegevens worden opgehaald…', 'Načítám veřejná data…', 'Henter offentlige data…', 'Získavam údaje z verejných zdrojov…')}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
+                {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{uiText(languageCode, 'Gathering governmental data…', 'Openbare gegevens worden opgehaald…', 'Načítám veřejná data…', 'Hämtar offentliga data…', 'Henter offentlige data…', 'Získavam údaje z verejných zdrojov…')}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
               </button>
-              <p className="text-center text-[11px] text-slate-400">{uiText(languageCode, 'The country provides a default report language; a manual language selection is preserved.', 'Het land bepaalt de standaardtaal van het rapport; een handmatig gekozen taal blijft behouden.', 'Země určuje výchozí jazyk reportu; ručně zvolený jazyk zůstane zachován.', 'Landet angir standardspråket for rapporten; et manuelt språkvalg beholdes.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.')}</p>
+              <p className="text-center text-[11px] text-slate-400">{uiText(languageCode, 'The country provides a default report language; a manual language selection is preserved.', 'Het land bepaalt de standaardtaal van het rapport; een handmatig gekozen taal blijft behouden.', 'Země určuje výchozí jazyk reportu; ručně zvolený jazyk zůstane zachován.', 'Landet anger rapportens standardspråk; ett manuellt språkval behålls.', 'Landet angir standardspråket for rapporten; et manuelt språkvalg beholdes.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.')}</p>
             </div>
           </div>
         </div>

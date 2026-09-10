@@ -129,6 +129,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     planningInstrumentName: 'Omgevingsplan (Omgevingswet)', standardSetbackRule: 'Municipal omgevingsplan; requires verification',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  SE: {
+    countryCode: 'SE', countryName: 'Sweden', currency: 'SEK', symbol: 'kr',
+    cadastreAuthority: 'Lantmäteriet (Fastighetsregistret / Fastighetsindelning Direkt)', cadastrePortalUrl: 'https://geotorget.lantmateriet.se/geodataprodukter/fastighetsindelning-direkt-api',
+    geologyAuthority: 'Sveriges geologiska undersökning (SGU)', geologyPortalUrl: 'https://apps.sgu.se/kartvisare/',
+    floodAuthority: 'Myndigheten för samhällsskydd och beredskap (MSB)', floodPortalUrl: 'https://gisapp.msb.se/apps/oversvamningsportal/',
+    planningInstrumentName: 'Detaljplan / översiktsplan enligt plan- och bygglagen',
+    standardSetbackRule: 'Determined by the applicable detailed plan and building-permit rules; requires municipal verification',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   NO: {
     countryCode: 'NO', countryName: 'Norway', currency: 'NOK', symbol: 'kr',
     cadastreAuthority: 'Kartverket (Matrikkelen / Grunnboken)', cadastrePortalUrl: 'https://kartverket.no/api-og-data/eiendomsdata/tilgang-til-apne-eiendomsdata',

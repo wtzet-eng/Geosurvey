@@ -8,7 +8,7 @@ const TITLES_MAP: Record<string, string> = {
   nl: "Evalueer uw bouwkavel: geologische risico's en marktwaarde",
   pt: "Avalie o seu terreno para construção: riscos geológicos e valor de mercado",
   cs: "Oceňte svůj stavební pozemek: geologická rizika a tržní hodnota",
-  sv: "Utvärdera din byggnadstomt: georisker och marknadsvärde",
+  sv: "Bedöm din byggtomt: geologiska risker och tomtmarknadsvärde",
   da: "Evaluer din byggegrund: georisici og markedsværdi",
   fi: "Arvioi tonttisi: geologiset riskit ja markkina-arvo",
   hu: "Értékelje építési telkét: geológiai kockázatok és piaci érték",
@@ -88,6 +88,18 @@ const FRONT_PAGE_DICTIONARY: Record<string, Partial<FrontPageI18n>> = {
     badge: "Evropská platforma pro stavební pozemky a geologická rizika",
     heroSub: "Nakreslete nebo vyberte stavební pozemek v Evropě. Získejte předběžný report založený na dostupných veřejných datech o podloží, geologických rizicích, územním plánování a hodnotě pozemku.",
     step1: "1. Určete hranice pozemku", searchPh: "Hledat adresu nebo obec (např. Praha, Brno, Ostrava)...", step2: "2. Konfigurace a parametry", areaLbl: "Plocha pozemku (m²)", countryLbl: "Země (Evropa)", langLbl: "Jazyk reportu", btnGen: "Posoudit kvalitu a hodnotu pozemku", modeCircle: "Kruh", modeRect: "Obdélník", modePoly: "Volný polygon", finishPoly: "Dokončit polygon", clear: "Vymazat", clickPrompt: "Kliknutím do mapy určete hranici pozemku."
+  },
+  sv: {
+    badge: "Europeisk plattform för byggmark och geologiska risker",
+    heroSub: "Rita eller välj en byggtomt i Europa. Få en preliminär rapport baserad på tillgängliga offentliga data om markförhållanden, geologiska risker, planläggning och tomtmarknadsvärde.",
+    step1: "1. Ange tomtgränsen",
+    searchPh: "Sök adress eller ort (t.ex. Stockholm, Göteborg, Malmö)...",
+    step2: "2. Konfiguration och parametrar",
+    areaLbl: "Tomtarea (m²)",
+    countryLbl: "Land (Europa)",
+    langLbl: "Rapportspråk",
+    btnGen: "Bedöm tomtens kvalitet och värde",
+    modeCircle: "Cirkel", modeRect: "Rektangel", modePoly: "Fri polygon", finishPoly: "Slutför polygon", clear: "Rensa", clickPrompt: "Klicka på kartan för att ange gränsen."
   },
   no: {
     badge: "Europeisk plattform for byggegrunn og geofarer",
