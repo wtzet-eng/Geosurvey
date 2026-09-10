@@ -1,5 +1,6 @@
 import React from 'react';
 import { ReportViewEvidenceV2 } from './ReportViewEvidenceV2';
+import { ReportViewSlovak } from './ReportViewSlovak';
 import { SiteReport } from '../types';
 
 interface ReportViewProps {
@@ -12,5 +13,7 @@ interface ReportViewProps {
  * deliberately performs no DOM mutation or translation of scientific values.
  */
 export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => (
-  <ReportViewEvidenceV2 report={report} onBack={onBack} />
+  report.language?.toLowerCase().startsWith('sk')
+    ? <ReportViewSlovak report={report} onBack={onBack} />
+    : <ReportViewEvidenceV2 report={report} onBack={onBack} />
 );
