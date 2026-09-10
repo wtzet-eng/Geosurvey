@@ -19,6 +19,7 @@ import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderSlovakLocalizedReport } from './server/reporting/slovakLocalizedReport';
 import { renderDutchLocalizedReport } from './server/reporting/dutchLocalizedReport';
+import { renderCzechLocalizedReport } from './server/reporting/czechLocalizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
 import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
 import { renderCzechiaGroundPresentation } from './server/reporting/czechiaGroundPresentation';
@@ -82,8 +83,13 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const cProfile = getCountryProfile(countryCode);
     const support = getCountrySupport(countryCode);
     const country = req.body.country || cProfile.countryName;
-    const defaultLanguage = countryCode === 'SK' ? 'sk' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : 'en';
-    const language = String(req.body.language || req.body.languageCode || defaultLanguage).toLowerCase();
+    const defaultLanguage = countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : 'en';
+    const requestedLanguage = String(req.body.language || req.body.languageCode || defaultLanguage).toLowerCase().split('-')[0];
+    const language = requestedLanguage === 'sk'
+      ? (countryCode === 'SK' ? 'sk' : 'en')
+      : requestedLanguage === 'cs'
+        ? (countryCode === 'CZ' ? 'cs' : 'en')
+        : ['en', 'de', 'pl', 'nl'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
 
     stage = 'site-centre';
     const [lat, lng] = getCenterFromShape(shape, req.body);
@@ -229,13 +235,16 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const baseCanonicalReport = createCanonicalReport(evidenceReport, cProfile);
     const canonicalReport = applySiteSpecificCountryEvidence(baseCanonicalReport, evidenceReport);
     const isSlovakPresentation = countryCode === 'SK' && language === 'sk';
+    const isCzechPresentation = countryCode === 'CZ' && language === 'cs';
     const isDutchPresentation = language === 'nl';
     const presentation: any = isSlovakPresentation
       ? renderSlovakLocalizedReport(canonicalReport)
-      : isDutchPresentation
-        ? renderDutchLocalizedReport(canonicalReport)
-        : renderLocalizedReport(canonicalReport, language);
-    if (!isSlovakPresentation && !isDutchPresentation) enrichValuationPresentation(canonicalReport, presentation);
+      : isCzechPresentation
+        ? renderCzechLocalizedReport(canonicalReport)
+        : isDutchPresentation
+          ? renderDutchLocalizedReport(canonicalReport)
+          : renderLocalizedReport(canonicalReport, language);
+    if (!isSlovakPresentation && !isCzechPresentation && !isDutchPresentation) enrichValuationPresentation(canonicalReport, presentation);
     const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
     if (franceGroundPresentation) {
       presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${franceGroundPresentation.narrative}`.trim();
@@ -248,19 +257,19 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const existingSource = presentation.sections.soil_and_ground.source_cited;
       presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...slovakiaGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
-    const czechiaGroundPresentation = renderCzechiaGroundPresentation(canonicalReport, presentation.language);
+    const czechiaGroundPresentation = isCzechPresentation ? null : renderCzechiaGroundPresentation(canonicalReport, presentation.language);
     if (czechiaGroundPresentation) {
       presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${czechiaGroundPresentation.narrative}`.trim();
       const existingSource = presentation.sections.soil_and_ground.source_cited;
       presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...czechiaGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
-    const czechiaCadastrePresentation = renderCzechiaCadastrePresentation(canonicalReport, presentation.language);
+    const czechiaCadastrePresentation = isCzechPresentation ? null : renderCzechiaCadastrePresentation(canonicalReport, presentation.language);
     if (czechiaCadastrePresentation) {
       presentation.sections.building_regulations.detail = `${presentation.sections.building_regulations.detail} ${czechiaCadastrePresentation.narrative}`.trim();
       const existingSource = presentation.sections.building_regulations.source_cited;
       presentation.sections.building_regulations.source_cited = [...new Set([existingSource, ...czechiaCadastrePresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
-    const evidenceDisplayRecords = (isSlovakPresentation || isDutchPresentation) ? presentation.evidenceRegistry : buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
+    const evidenceDisplayRecords = (isSlovakPresentation || isCzechPresentation || isDutchPresentation) ? presentation.evidenceRegistry : buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && areaSize > 0 ? value / areaSize : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
 
