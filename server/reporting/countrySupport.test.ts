@@ -87,11 +87,15 @@ test('country support maturity exposes calibrated valuation and validated Czech 
   assert.equal(cz.capabilities.nationalGeology, true); assert.equal(cz.capabilities.nationalBoreholes, true); assert.equal(cz.capabilities.nationalHydrogeology, true);
   assert.equal(cz.capabilities.nationalRadon, true); assert.equal(cz.capabilities.nationalMining, true);
   assert.equal(cz.capabilities.nationalCadastre, true); assert.equal(cz.capabilities.nationalFlood, false); assert.equal(cz.capabilities.nationalPlanning, false); assert.equal(cz.capabilities.nationalValuation, false);
+  const se = getCountrySupport('SE');
+  assert.equal(se.maturity, 'LIMITED');
+  assert.equal(se.capabilities.nationalGeology, true); assert.equal(se.capabilities.nationalBoreholes, true); assert.equal(se.capabilities.nationalHydrogeology, true);
+  assert.equal(se.capabilities.nationalCadastre, false); assert.equal(se.capabilities.nationalFlood, false); assert.equal(se.capabilities.nationalPlanning, false); assert.equal(se.capabilities.nationalValuation, false); assert.equal(se.capabilities.nationalRadon, false); assert.equal(se.capabilities.nationalMining, false);
   const no = getCountrySupport('NO');
   assert.equal(no.maturity, 'LIMITED');
   assert.equal(no.capabilities.nationalCadastre, true); assert.equal(no.capabilities.nationalGeology, true); assert.equal(no.capabilities.nationalBoreholes, true); assert.equal(no.capabilities.nationalRadon, true);
   assert.equal(no.capabilities.nationalHydrogeology, false); assert.equal(no.capabilities.nationalFlood, false); assert.equal(no.capabilities.nationalPlanning, false); assert.equal(no.capabilities.nationalValuation, false); assert.equal(no.capabilities.nationalMining, false);
-  for (const code of ['IT', 'NL', 'CH', 'BE', 'SE', 'PT', 'DK', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  for (const code of ['IT', 'NL', 'CH', 'BE', 'PT', 'DK', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });
