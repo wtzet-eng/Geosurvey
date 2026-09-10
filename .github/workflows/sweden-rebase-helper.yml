@@ -1,0 +1,183 @@
+name: Sweden rebase helper
+
+on:
+  push:
+    branches: [sweden-reporting-rebased]
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sweden-reporting-rebased
+          fetch-depth: 0
+      - name: Fetch original Sweden branch
+        run: git fetch origin sweden-reporting:refs/remotes/origin/sweden-reporting
+      - name: Copy Sweden-only files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in \
+            server/services/swedenGroundEvidenceService.ts \
+            server/services/swedenGroundEvidenceService.test.ts \
+            server/reporting/swedishLocalizedReport.ts \
+            server/reporting/swedishLocalizedReport.test.ts \
+            src/components/ReportViewSwedish.tsx; do
+            mkdir -p "$(dirname "$f")"
+            git show "origin/sweden-reporting:$f" > "$f"
+          done
+      - name: Add Sweden wiring without overwriting Norway
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def edit(path, fn):
+              p = Path(path)
+              s = p.read_text()
+              n = fn(s)
+              if n == s:
+                  print(f'No textual change for {path}')
+              p.write_text(n)
+
+          def once(s, old, new, label):
+              if old not in s:
+                  raise SystemExit(f'Missing marker for {label}: {old[:120]!r}')
+              return s.replace(old, new, 1)
+
+          # server.ts
+          def patch_server(s):
+              s = once(s,
+                  "import { applyCzechiaCadastreToReport, queryCzechiaCadastre } from './server/services/czechiaCadastreService';\n",
+                  "import { applyCzechiaCadastreToReport, queryCzechiaCadastre } from './server/services/czechiaCadastreService';\nimport { enrichSwedenGroundEvidence, querySwedenGroundEvidence } from './server/services/swedenGroundEvidenceService';\n",
+                  'server Sweden service import')
+              s = once(s,
+                  "import { renderCzechLocalizedReport } from './server/reporting/czechLocalizedReport';\n",
+                  "import { renderCzechLocalizedReport } from './server/reporting/czechLocalizedReport';\nimport { renderSwedishLocalizedReport } from './server/reporting/swedishLocalizedReport';\n",
+                  'server Swedish renderer import')
+              s = s.replace("countryCode === 'NO' ? 'no' : countryCode === 'PL' ? 'pl'", "countryCode === 'NO' ? 'no' : countryCode === 'SE' ? 'sv' : countryCode === 'PL' ? 'pl'", 1)
+              marker = ": (requestedLanguage === 'no' || requestedLanguage === 'nb')\n"
+              if marker not in s: raise SystemExit('Missing Norway language marker')
+              s = s.replace(marker, ": requestedLanguage === 'sv'\n          ? (countryCode === 'SE' ? 'sv' : 'en')\n          " + marker, 1)
+              s = once(s, "    let norwayGroundEvidence: any[] = [];\n", "    let norwayGroundEvidence: any[] = [];\n    let swedenGroundEvidence: any[] = [];\n", 'Sweden evidence variable')
+              no_block = "    } else if (!countryLocationMismatch && countryCode === 'NO' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalRadon)) {\n"
+              se_block = "    } else if (!countryLocationMismatch && countryCode === 'SE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {\n      stage = 'sweden-ground-evidence';\n      try { swedenGroundEvidence = await querySwedenGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden evidence notice:`, e); }\n      stage = 'sweden-report-enrichment';\n      if (swedenGroundEvidence.length) evidenceReport.evidenceRegistry.push(...swedenGroundEvidence);\n      try { enrichSwedenGroundEvidence(evidenceReport, swedenGroundEvidence); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden enrichment notice:`, e); }\n      const verifiedSgu = swedenGroundEvidence.some(item => item.status === 'VERIFIED');\n      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];\n      evidenceReport.dataSourcesCited.push({ name: 'SGU OGC API Features — Jordarter / Berggrund / Brunnsarkivet / Grundvattennivåer', organization: 'Sveriges geologiska undersökning (SGU)', url: 'https://api.sgu.se/oppnadata/', type: 'Geological Survey', status: verifiedSgu ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });\n"
+              s = once(s, no_block, se_block + no_block, 'Sweden evidence branch')
+              s = once(s, "    const isNorwegianPresentation = countryCode === 'NO' && language === 'no';\n", "    const isNorwegianPresentation = countryCode === 'NO' && language === 'no';\n    const isSwedishPresentation = countryCode === 'SE' && language === 'sv';\n", 'Swedish presentation flag')
+              s = once(s,
+                  "        : isNorwegianPresentation\n          ? renderNorwegianLocalizedReport(canonicalReport)\n          : isDutchPresentation",
+                  "        : isSwedishPresentation\n          ? renderSwedishLocalizedReport(canonicalReport)\n          : isNorwegianPresentation\n            ? renderNorwegianLocalizedReport(canonicalReport)\n            : isDutchPresentation",
+                  'Swedish renderer route')
+              s = s.replace("!isSlovakPresentation && !isCzechPresentation && !isNorwegianPresentation && !isDutchPresentation", "!isSlovakPresentation && !isCzechPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isDutchPresentation", 1)
+              s = s.replace("isSlovakPresentation || isCzechPresentation || isNorwegianPresentation || isDutchPresentation", "isSlovakPresentation || isCzechPresentation || isSwedishPresentation || isNorwegianPresentation || isDutchPresentation", 1)
+              s = once(s, "      norway_ground_evidence_count: norwayGroundEvidence.length,\n", "      norway_ground_evidence_count: norwayGroundEvidence.length,\n      sweden_ground_evidence_count: swedenGroundEvidence.length,\n", 'Sweden evidence count')
+              return s
+          edit('server.ts', patch_server)
+
+          # App.tsx
+          def patch_app(s):
+              s = s.replace("new Set(['en', 'de', 'pl', 'nl', 'cs', 'no', 'sk'])", "new Set(['en', 'de', 'pl', 'nl', 'cs', 'no', 'sv', 'sk'])", 1)
+              s = once(s, "  if (code === 'no') return countryCode === 'NO' ? 'no' : 'en';\n", "  if (code === 'no') return countryCode === 'NO' ? 'no' : 'en';\n  if (code === 'sv') return countryCode === 'SE' ? 'sv' : 'en';\n", 'App sv normalization')
+              s = once(s,
+                  "const uiText = (language: string, en: string, nl: string, cs: string, no: string, sk: string) =>\n  language === 'nl' ? nl : language === 'cs' ? cs : language === 'no' ? no : language === 'sk' ? sk : en;",
+                  "const uiText = (language: string, en: string, nl: string, cs: string, sv: string, no: string, sk: string) =>\n  language === 'nl' ? nl : language === 'cs' ? cs : language === 'sv' ? sv : language === 'no' ? no : language === 'sk' ? sk : en;",
+                  'App uiText signature')
+              s = once(s, "    if (language.code === 'no') return countryCode === 'NO';\n", "    if (language.code === 'no') return countryCode === 'NO';\n    if (language.code === 'sv') return countryCode === 'SE';\n", 'App language filter')
+              s = once(s, "          (normalized === 'no' && effectiveCountryCode !== 'NO')\n", "          (normalized === 'no' && effectiveCountryCode !== 'NO') ||\n          (normalized === 'sv' && effectiveCountryCode !== 'SE')\n", 'App URL language validation')
+              s = once(s, "      (newCode !== 'NO' && languageCode === 'no')\n", "      (newCode !== 'NO' && languageCode === 'no') ||\n      (newCode !== 'SE' && languageCode === 'sv')\n", 'App country switch')
+              pairs = [
+                ("'Tegn først inn tomtegrensen på kartet.', 'Najprv zakreslite hranicu pozemku na mape.'", "'Rita först in tomtgränsen på kartan.', 'Tegn først inn tomtegrensen på kartet.', 'Najprv zakreslite hranicu pozemku na mape.'"),
+                ("'Analysen kunne ikke fullføres. Prøv igjen.', 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.'", "'Platsanalysen kunde inte slutföras. Försök igen.', 'Analysen kunne ikke fullføres. Prøv igjen.', 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.'"),
+                ("'Det oppstod en feil under opprettelsen av rapporten.', 'Pri vytváraní reportu sa vyskytla chyba.'", "'Ett fel uppstod när rapporten skapades.', 'Det oppstod en feil under opprettelsen av rapporten.', 'Pri vytváraní reportu sa vyskytla chyba.'"),
+                ("'Grense angitt · ca.', 'Hranica určená · približne'", "'Gräns angiven · cirka', 'Grense angitt · ca.', 'Hranica určená · približne'"),
+                ("'(juster arealet for å endre størrelse)', '(veľkosť upravíte zmenou plochy)'", "'(justera arean för att ändra storlek)', '(juster arealet for å endre størrelse)', '(veľkosť upravíte zmenou plochy)'"),
+                ("'Klikk på kartet for å plassere sentrum av sirkelen.', 'Kliknite na mapu a umiestnite stred kruhu.'", "'Klicka på kartan för att placera cirkelns centrum.', 'Klikk på kartet for å plassere sentrum av sirkelen.', 'Kliknite na mapu a umiestnite stred kruhu.'"),
+                ("'Klikk på to motsatte hjørner for å tegne rektangelet.', 'Kliknite na dva protiľahlé rohy obdĺžnika.'", "'Klicka på två motsatta hörn för att rita rektangeln.', 'Klikk på to motsatte hjørner for å tegne rektangelet.', 'Kliknite na dva protiľahlé rohy obdĺžnika.'"),
+                ("'Klikk punkt for punkt på kartet for å tegne tomtegrensen.', 'Postupným klikaním zakreslite hranicu polygónu.'", "'Klicka punkt för punkt på kartan för att rita en egen tomtgräns.', 'Klikk punkt for punkt på kartet for å tegne tomtegrensen.', 'Postupným klikaním zakreslite hranicu polygónu.'"),
+                ("'(automatisk beregnet fra grensen)', '(automaticky vypočítané z hranice)'", "'(automatiskt beräknad från gränsen)', '(automatisk beregnet fra grensen)', '(automaticky vypočítané z hranice)'"),
+                ("'Henter offentlige data…', 'Získavam údaje z verejných zdrojov…'", "'Hämtar offentliga data…', 'Henter offentlige data…', 'Získavam údaje z verejných zdrojov…'"),
+                ("'Landet angir standardspråket for rapporten; et manuelt språkvalg beholdes.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.'", "'Landet anger rapportens standardspråk; ett manuellt språkval behålls.', 'Landet angir standardspråket for rapporten; et manuelt språkvalg beholdes.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.'")
+              ]
+              for i, (old, new) in enumerate(pairs):
+                  if old not in s: raise SystemExit(f'Missing App Swedish text marker {i}')
+                  s = s.replace(old, new, 1)
+              return s
+          edit('src/App.tsx', patch_app)
+
+          # ReportView.tsx
+          def patch_report_view(s):
+              s = once(s, "import { ReportViewNorwegian } from './ReportViewNorwegian';\n", "import { ReportViewNorwegian } from './ReportViewNorwegian';\nimport { ReportViewSwedish } from './ReportViewSwedish';\n", 'ReportView Swedish import')
+              s = once(s, "  if (language.startsWith('no') || language.startsWith('nb')) return <ReportViewNorwegian report={report} onBack={onBack} />;\n", "  if (language.startsWith('no') || language.startsWith('nb')) return <ReportViewNorwegian report={report} onBack={onBack} />;\n  if (language.startsWith('sv')) return <ReportViewSwedish report={report} onBack={onBack} />;\n", 'ReportView Swedish route')
+              return s
+          edit('src/components/ReportView.tsx', patch_report_view)
+
+          # countries.ts
+          def patch_countries(s):
+              s = s.replace("  { code: 'cs', label: 'Čeština (Czech)' },\n  { code: 'no', label: 'Norsk bokmål (Norwegian)' }", "  { code: 'cs', label: 'Čeština (Czech)' },\n  { code: 'sv', label: 'Svenska (Swedish)' },\n  { code: 'no', label: 'Norsk bokmål (Norwegian)' }", 1)
+              se = "  SE: {\n    authorityName: 'Sveriges geologiska undersökning',\n    acronym: 'SGU',\n    mapViewerUrl: 'https://apps.sgu.se/kartvisare/',\n    description: 'Svenska öppna geologiska och hydrogeologiska data via SGU. GeoSurvey hämtar endast de nationella lager som är tekniskt integrerade och validerade i aktuell version.',\n    datasets: [\n      'SGU Jordarter 1:25 000–1:100 000 – detaljerad jordartskartering',\n      'SGU Jordarter 1:250 000 – reservkälla för nordligaste Sverige',\n      'SGU Berggrund 1:50 000–1:250 000 – geologiska enheter och bergarter',\n      'SGU Brunnsarkivet – brunnar, borrhål och registrerade observationer',\n      'SGU Grundvattennivåer, observerade – nationellt stationsnät',\n      'MSB Översvämningsportalen – officiell kontrollkälla, ännu inte automatiserad',\n      'Lantmäteriet / kommunala detaljplaner – officiell kontroll där automatisk åtkomst saknas'\n    ]\n  },\n"
+              s = once(s, "  NO: {\n", se + "  NO: {\n", 'Sweden national geosurvey profile')
+              return s
+          edit('src/data/countries.ts', patch_countries)
+
+          # countrySupport.ts
+          def patch_support(s):
+              se = "  SE: {\n    countryCode: 'SE',\n    maturity: 'LIMITED',\n    capabilities: { ...NONE, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true }\n  },\n"
+              s = once(s, "  NO: {\n", se + "  NO: {\n", 'Sweden support profile')
+              return s
+          edit('src/data/countrySupport.ts', patch_support)
+
+          # server/adapters/countries.ts
+          def patch_adapters(s):
+              se = "  SE: {\n    countryCode: 'SE', countryName: 'Sweden', currency: 'SEK', symbol: 'kr',\n    cadastreAuthority: 'Lantmäteriet (Fastighetsregistret / Fastighetsindelning Direkt)', cadastrePortalUrl: 'https://geotorget.lantmateriet.se/geodataprodukter/fastighetsindelning-direkt-api',\n    geologyAuthority: 'Sveriges geologiska undersökning (SGU)', geologyPortalUrl: 'https://apps.sgu.se/kartvisare/',\n    floodAuthority: 'Myndigheten för samhällsskydd och beredskap (MSB)', floodPortalUrl: 'https://gisapp.msb.se/apps/oversvamningsportal/',\n    planningInstrumentName: 'Detaljplan / översiktsplan enligt plan- och bygglagen',\n    standardSetbackRule: 'Determined by the applicable detailed plan and building-permit rules; requires municipal verification',\n    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE\n  },\n"
+              s = once(s, "  NO: {\n", se + "  NO: {\n", 'Sweden adapter')
+              return s
+          edit('server/adapters/countries.ts', patch_adapters)
+
+          # geosurveys.ts
+          def patch_geosurveys(s):
+              se = "  SE: {\n    countryCode: 'SE', countryName: 'Sweden', authorityName: 'Sveriges geologiska undersökning', acronym: 'SGU',\n    officialPortalUrl: 'https://www.sgu.se', mapViewerUrl: 'https://apps.sgu.se/kartvisare/', cadastrePortalUrl: 'https://geotorget.lantmateriet.se/geodataprodukter/fastighetsindelning-direkt-api', hazardPortalUrl: 'https://gisapp.msb.se/apps/oversvamningsportal/',\n    description: 'Swedish public geological and hydrogeological services. GeoSurvey directly queries selected SGU OGC API Features datasets; cadastral, flood and binding planning information remain official-verification sources until separately automated.',\n    datasets: ['SGU Jordarter 1:25 000–1:100 000 – superficial-deposit mapping', 'SGU Jordarter 1:250 000 – northern Sweden fallback', 'SGU Berggrund 1:50 000–1:250 000 – bedrock geological units and lithology', 'SGU Brunnsarkivet – wells and borehole observations', 'SGU Grundvattennivåer, observerade – groundwater observation station network', 'MSB Översvämningsportalen – official flood verification source', 'Lantmäteriet Fastighetsregistret / Fastighetsindelning Direkt – cadastral verification source', 'Municipal detailed plans / Nationella geodataplattformen – planning verification where available']\n  },\n"
+              s = once(s, "  NO: {\n", se + "  NO: {\n", 'Sweden geosurvey registry')
+              return s
+          edit('src/data/geosurveys.ts', patch_geosurveys)
+
+          # i18nTitle.ts
+          def patch_i18n(s):
+              s = s.replace('sv: "Utvärdera din byggnadstomt: georisker och marknadsvärde"', 'sv: "Bedöm din byggtomt: geologiska risker och tomtmarknadsvärde"', 1)
+              sv = "  sv: {\n    badge: \"Europeisk plattform för byggmark och geologiska risker\",\n    heroSub: \"Rita eller välj en byggtomt i Europa. Få en preliminär rapport baserad på tillgängliga offentliga data om markförhållanden, geologiska risker, planläggning och tomtmarknadsvärde.\",\n    step1: \"1. Ange tomtgränsen\",\n    searchPh: \"Sök adress eller ort (t.ex. Stockholm, Göteborg, Malmö)...\",\n    step2: \"2. Konfiguration och parametrar\",\n    areaLbl: \"Tomtarea (m²)\",\n    countryLbl: \"Land (Europa)\",\n    langLbl: \"Rapportspråk\",\n    btnGen: \"Bedöm tomtens kvalitet och värde\",\n    modeCircle: \"Cirkel\", modeRect: \"Rektangel\", modePoly: \"Fri polygon\", finishPoly: \"Slutför polygon\", clear: \"Rensa\", clickPrompt: \"Klicka på kartan för att ange gränsen.\"\n  },\n"
+              s = once(s, "  no: {\n", sv + "  no: {\n", 'Swedish front page dictionary')
+              return s
+          edit('src/utils/i18nTitle.ts', patch_i18n)
+
+          # countrySupport test
+          def patch_support_test(s):
+              s = s.replace("'BE', 'SE', 'PT'", "'BE', 'PT'", 1)
+              se = "  const se = getCountrySupport('SE');\n  assert.equal(se.maturity, 'LIMITED');\n  assert.equal(se.capabilities.nationalGeology, true); assert.equal(se.capabilities.nationalBoreholes, true); assert.equal(se.capabilities.nationalHydrogeology, true);\n  assert.equal(se.capabilities.nationalCadastre, false); assert.equal(se.capabilities.nationalFlood, false); assert.equal(se.capabilities.nationalPlanning, false); assert.equal(se.capabilities.nationalValuation, false); assert.equal(se.capabilities.nationalRadon, false); assert.equal(se.capabilities.nationalMining, false);\n"
+              s = once(s, "  const no = getCountrySupport('NO');\n", se + "  const no = getCountrySupport('NO');\n", 'Sweden support assertions')
+              return s
+          edit('server/reporting/countrySupport.test.ts', patch_support_test)
+          PY
+      - name: Install dependencies
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.15
+      - run: bun install --frozen-lockfile
+      - name: Verify lint and types
+        run: bun run lint
+      - name: Verify tests
+        run: bun test
+      - name: Verify Cloudflare build
+        run: bun run build:cloudflare
+      - name: Commit resolved Sweden pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/sweden-rebase-helper.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Rebase Sweden pack onto Norway-enabled main'
+          git push origin HEAD:sweden-reporting-rebased
