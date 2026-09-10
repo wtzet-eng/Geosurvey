@@ -64,6 +64,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     planningInstrumentName: 'Územný plán obce/mesta (ÚPN) / záväzné územnoplánovacie stanovisko', standardSetbackRule: 'Determined by the applicable zoning plan and Slovak building rules; requires local authority confirmation',
     baseValuationPerSqm: 69, valuationDataSource: 'ZoznamRealit.SK / 2026 Slovak residential-building-plot asking benchmarks — city → kraj → national fallback'
   },
+  CZ: {
+    countryCode: 'CZ', countryName: 'Czechia', currency: 'CZK', symbol: 'Kč',
+    cadastreAuthority: 'Český úřad zeměměřický a katastrální (ČÚZK / KN / RÚIAN)', cadastrePortalUrl: 'https://cuzk.gov.cz/',
+    geologyAuthority: 'Czech Geological Survey (ČGS)', geologyPortalUrl: 'https://cgs.gov.cz/en/maps-and-data/web-services',
+    floodAuthority: 'Czech Hydrometeorological Institute (ČHMÚ) / competent water authorities', floodPortalUrl: 'https://www.chmi.cz/',
+    planningInstrumentName: 'Územní plán / územně plánovací dokumentace',
+    standardSetbackRule: 'Applicable planning and building-control rules require confirmation by the competent municipal/building authority',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   ES: {
     countryCode: 'ES', countryName: 'Spain', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Sede Electrónica del Catastro (Dirección General del Catastro)', cadastrePortalUrl: 'https://sedecatastro.gob.es',
@@ -131,7 +140,7 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
 };
 
 const NAMES: Record<string, { name: string; currency: string; symbol: string }> = {
-  BE:{name:'Belgium',currency:'EUR',symbol:'€'}, SE:{name:'Sweden',currency:'SEK',symbol:'kr'}, PT:{name:'Portugal',currency:'EUR',symbol:'€'}, DK:{name:'Denmark',currency:'DKK',symbol:'kr'}, CZ:{name:'Czechia',currency:'CZK',symbol:'Kč'}, HU:{name:'Hungary',currency:'HUF',symbol:'Ft'}, RO:{name:'Romania',currency:'RON',symbol:'lei'}, HR:{name:'Croatia',currency:'EUR',symbol:'€'}, GR:{name:'Greece',currency:'EUR',symbol:'€'}, EE:{name:'Estonia',currency:'EUR',symbol:'€'}, LV:{name:'Latvia',currency:'EUR',symbol:'€'}, LT:{name:'Lithuania',currency:'EUR',symbol:'€'}, LU:{name:'Luxembourg',currency:'EUR',symbol:'€'}, CY:{name:'Cyprus',currency:'EUR',symbol:'€'}, MT:{name:'Malta',currency:'EUR',symbol:'€'}, SI:{name:'Slovenia',currency:'EUR',symbol:'€'}, BG:{name:'Bulgaria',currency:'BGN',symbol:'лв'}, NO:{name:'Norway',currency:'NOK',symbol:'kr'}, IS:{name:'Iceland',currency:'ISK',symbol:'kr'}
+  BE:{name:'Belgium',currency:'EUR',symbol:'€'}, SE:{name:'Sweden',currency:'SEK',symbol:'kr'}, PT:{name:'Portugal',currency:'EUR',symbol:'€'}, DK:{name:'Denmark',currency:'DKK',symbol:'kr'}, HU:{name:'Hungary',currency:'HUF',symbol:'Ft'}, RO:{name:'Romania',currency:'RON',symbol:'lei'}, HR:{name:'Croatia',currency:'EUR',symbol:'€'}, GR:{name:'Greece',currency:'EUR',symbol:'€'}, EE:{name:'Estonia',currency:'EUR',symbol:'€'}, LV:{name:'Latvia',currency:'EUR',symbol:'€'}, LT:{name:'Lithuania',currency:'EUR',symbol:'€'}, LU:{name:'Luxembourg',currency:'EUR',symbol:'€'}, CY:{name:'Cyprus',currency:'EUR',symbol:'€'}, MT:{name:'Malta',currency:'EUR',symbol:'€'}, SI:{name:'Slovenia',currency:'EUR',symbol:'€'}, BG:{name:'Bulgaria',currency:'BGN',symbol:'лв'}, NO:{name:'Norway',currency:'NOK',symbol:'kr'}, IS:{name:'Iceland',currency:'ISK',symbol:'kr'}
 };
 
 export function getCountryProfile(countryCode: string): CountryAdapterProfile {
