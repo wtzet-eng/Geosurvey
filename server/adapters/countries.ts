@@ -73,6 +73,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'Applicable planning and building-control rules require confirmation by the competent municipal/building authority',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  SE: {
+    countryCode: 'SE', countryName: 'Sweden', currency: 'SEK', symbol: 'kr',
+    cadastreAuthority: 'Lantmäteriet (Fastighetsregistret / Fastighetsindelning Direkt)', cadastrePortalUrl: 'https://geotorget.lantmateriet.se/geodataprodukter/fastighetsindelning-direkt-api',
+    geologyAuthority: 'Sveriges geologiska undersökning (SGU)', geologyPortalUrl: 'https://apps.sgu.se/kartvisare/',
+    floodAuthority: 'Myndigheten för samhällsskydd och beredskap (MSB)', floodPortalUrl: 'https://gisapp.msb.se/apps/oversvamningsportal/',
+    planningInstrumentName: 'Detaljplan / översiktsplan enligt plan- och bygglagen',
+    standardSetbackRule: 'Determined by the applicable detailed plan and building-permit rules; requires municipal verification',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   ES: {
     countryCode: 'ES', countryName: 'Spain', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Sede Electrónica del Catastro (Dirección General del Catastro)', cadastrePortalUrl: 'https://sedecatastro.gob.es',
