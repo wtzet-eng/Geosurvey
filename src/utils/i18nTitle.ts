@@ -156,6 +156,23 @@ const FRONT_PAGE_DICTIONARY: Record<string, Partial<FrontPageI18n>> = {
     finishPoly: "Polygoon voltooien",
     clear: "Wis",
     clickPrompt: "Klik op de kaart om de grens te plaatsen."
+  },
+  cs: {
+    badge: "Evropská platforma pro stavební pozemky a geologická rizika",
+    heroSub: "Nakreslete nebo vyberte stavební pozemek v Evropě. Získejte předběžný report založený na dostupných veřejných datech o podloží, geologických rizicích, územním plánování a hodnotě pozemku.",
+    step1: "1. Určete hranice pozemku",
+    searchPh: "Hledat adresu nebo obec (např. Praha, Brno, Ostrava)...",
+    step2: "2. Konfigurace a parametry",
+    areaLbl: "Plocha pozemku (m²)",
+    countryLbl: "Země (Evropa)",
+    langLbl: "Jazyk reportu",
+    btnGen: "Posoudit kvalitu a hodnotu pozemku",
+    modeCircle: "Kruh",
+    modeRect: "Obdélník",
+    modePoly: "Volný polygon",
+    finishPoly: "Dokončit polygon",
+    clear: "Vymazat",
+    clickPrompt: "Kliknutím do mapy určete hranici pozemku."
   }
 };
 

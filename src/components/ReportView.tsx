@@ -1,6 +1,7 @@
 import React from 'react';
 import { ReportViewEvidenceV2 } from './ReportViewEvidenceV2';
 import { ReportViewSlovak } from './ReportViewSlovak';
+import { ReportViewCzech } from './ReportViewCzech';
 import { SiteReport } from '../types';
 
 interface ReportViewProps {
@@ -12,8 +13,9 @@ interface ReportViewProps {
  * Report prose is rendered by the server presentation layer. This component
  * deliberately performs no DOM mutation or translation of scientific values.
  */
-export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => (
-  report.language?.toLowerCase().startsWith('sk')
-    ? <ReportViewSlovak report={report} onBack={onBack} />
-    : <ReportViewEvidenceV2 report={report} onBack={onBack} />
-);
+export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
+  const language = report.language?.toLowerCase() || 'en';
+  if (language.startsWith('sk')) return <ReportViewSlovak report={report} onBack={onBack} />;
+  if (language.startsWith('cs')) return <ReportViewCzech report={report} onBack={onBack} />;
+  return <ReportViewEvidenceV2 report={report} onBack={onBack} />;
+};
