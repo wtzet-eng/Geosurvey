@@ -25,12 +25,13 @@ import { EmbedModal } from './components/EmbedModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 
 const REPORT_LANGUAGE_OPTIONS = [...REPORT_LANGUAGES, { code: 'sk', label: 'Slovenčina (Slovak)' }];
-const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'no', 'sv', 'sk']);
+const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'da', 'no', 'sv', 'sk']);
 const normalizeReportLanguage = (language: string, countryCode = '') => {
   const rawCode = String(language || '').toLowerCase().split('-')[0];
   const code = rawCode === 'nb' ? 'no' : rawCode;
   if (code === 'sk') return countryCode === 'SK' ? 'sk' : 'en';
   if (code === 'cs') return countryCode === 'CZ' ? 'cs' : 'en';
+  if (code === 'da') return countryCode === 'DK' ? 'da' : 'en';
   if (code === 'no') return countryCode === 'NO' ? 'no' : 'en';
   if (code === 'sv') return countryCode === 'SE' ? 'sv' : 'en';
   return SUPPORTED_REPORT_LANGUAGE_CODES.has(code) ? code : 'en';
@@ -68,6 +69,7 @@ export default function App() {
   const availableReportLanguages = REPORT_LANGUAGE_OPTIONS.filter((language) => {
     if (language.code === 'sk') return countryCode === 'SK';
     if (language.code === 'cs') return countryCode === 'CZ';
+    if (language.code === 'da') return countryCode === 'DK';
     if (language.code === 'no') return countryCode === 'NO';
     if (language.code === 'sv') return countryCode === 'SE';
     return true;
@@ -94,6 +96,7 @@ export default function App() {
         const countrySpecificLanguageValid = !(
           (normalized === 'sk' && effectiveCountryCode !== 'SK') ||
           (normalized === 'cs' && effectiveCountryCode !== 'CZ') ||
+          (normalized === 'da' && effectiveCountryCode !== 'DK') ||
           (normalized === 'no' && effectiveCountryCode !== 'NO') ||
           (normalized === 'sv' && effectiveCountryCode !== 'SE')
         );
@@ -160,6 +163,7 @@ export default function App() {
     } else if (
       (newCode !== 'SK' && languageCode === 'sk') ||
       (newCode !== 'CZ' && languageCode === 'cs') ||
+      (newCode !== 'DK' && languageCode === 'da') ||
       (newCode !== 'NO' && languageCode === 'no') ||
       (newCode !== 'SE' && languageCode === 'sv')
     ) {
