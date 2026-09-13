@@ -7,9 +7,11 @@ export interface VerifiedFirebaseUser {
   emailVerified: boolean;
 }
 
+export type FirebaseAuthFailureReason = 'AUTH_NOT_CONFIGURED' | 'MISSING_TOKEN' | 'INVALID_TOKEN' | 'USER_DISABLED' | 'USER_NOT_FOUND';
+
 export type FirebaseAuthResult =
-  | { ok: true; user: VerifiedFirebaseUser }
-  | { ok: false; reason: 'AUTH_NOT_CONFIGURED' | 'MISSING_TOKEN' | 'INVALID_TOKEN' | 'USER_DISABLED' | 'USER_NOT_FOUND' };
+  | { ok: true; user: VerifiedFirebaseUser; reason?: never }
+  | { ok: false; reason: FirebaseAuthFailureReason; user?: never };
 
 export async function verifyFirebaseAuthorization(
   authorizationHeader: string | undefined,
