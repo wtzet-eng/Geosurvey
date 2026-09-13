@@ -1,3 +1,7 @@
+import { verifyFirebaseAuthorization } from './firebaseAuthService';
+import { getAiEntitlement, getAiQuotaRuntimeConfig, grantPurchasedCredits, refundAiInterpretation, reserveAiInterpretation } from './aiQuotaService';
+import { confirmPaddleCreditTransaction, createPaddleCreditTransaction, getPaddleBillingRuntimeConfig } from './paddleBillingService';
+
 export type AiInterpretationProvider = 'mistral' | 'ollama';
 
 type FetchLike = typeof fetch;
@@ -18,6 +22,7 @@ export interface AiEvidenceInterpretation {
   verificationRequired: AiVerificationItem[];
   overallConfidence: 'high' | 'medium' | 'low';
   disclaimer: string;
+  entitlement?: unknown;
 }
 
 export interface AiInterpretationRuntimeConfig {
@@ -31,6 +36,7 @@ export interface AiInterpretationRuntimeConfig {
 const MAX_EVIDENCE_RECORDS = 120;
 const MAX_STRING_LENGTH = 4000;
 const MAX_PACKAGE_CHARS = 120_000;
+const INTERNAL_ACTIONS = new Set(['entitlement', 'create_checkout', 'confirm_purchase']);
 
 export const AI_INTERPRETATION_SCHEMA = {
   type: 'object',
@@ -202,7 +208,7 @@ function validateStringArray(value: unknown, field: string): string[] {
   });
 }
 
-export function validateAiInterpretation(value: unknown): Omit<AiEvidenceInterpretation, 'provider' | 'model' | 'generatedAt'> {
+export function validateAiInterpretation(value: unknown): Omit<AiEvidenceInterpretation, 'provider' | 'model' | 'generatedAt' | 'entitlement'> {
   if (!value || typeof value !== 'object') throw new Error('AI response was not a JSON object.');
   const data = value as any;
   const confidence = String(data.overallConfidence || '').toLowerCase();
@@ -279,24 +285,100 @@ async function callOllama(evidencePackage: unknown, config: AiInterpretationRunt
   return JSON.parse(content);
 }
 
+async function authenticateInternalAction(report: any, env: NodeJS.ProcessEnv, fetcher: FetchLike) {
+  const token = typeof report?.__surveyland_token === 'string' ? report.__surveyland_token.trim() : '';
+  if (!token) throw new Error('A signed-in SurveyLand user is required for AI quota and billing actions.');
+  const auth = await verifyFirebaseAuthorization(`Bearer ${token}`, { apiKey: env.FIREBASE_WEB_API_KEY, fetcher });
+  if (!auth.ok) throw new Error('SurveyLand could not verify the signed-in user for AI quota and billing actions.');
+  return auth.user;
+}
+
+const publicBillingState = (env: NodeJS.ProcessEnv) => {
+  const config = getPaddleBillingRuntimeConfig(env);
+  return {
+    provider: 'paddle' as const,
+    configured: config.checkoutConfigured,
+    environment: config.environment,
+    creditPackSize: config.creditPackSize
+  };
+};
+
+async function handleInternalAction(report: any, env: NodeJS.ProcessEnv, fetcher: FetchLike): Promise<any | null> {
+  const action = typeof report?.__surveyland_action === 'string' ? report.__surveyland_action : '';
+  if (!INTERNAL_ACTIONS.has(action)) return null;
+  const user = await authenticateInternalAction(report, env, fetcher);
+  const billing = publicBillingState(env);
+
+  if (action === 'entitlement') {
+    return { kind: 'entitlement', entitlement: await getAiEntitlement(user.uid, { fetcher, env }), billing };
+  }
+
+  if (action === 'create_checkout') {
+    const entitlement = await getAiEntitlement(user.uid, { fetcher, env });
+    if (!entitlement.enabled) return { kind: 'billing_unavailable', error: 'AI quota enforcement is not configured yet.', entitlement, billing };
+    if (!billing.configured) return { kind: 'billing_unavailable', error: 'Paddle checkout is not configured yet.', entitlement, billing };
+    if (!entitlement.paywallRequired) return { kind: 'entitlement', entitlement, billing };
+    const checkout = await createPaddleCreditTransaction({ uid: user.uid, email: user.email }, { fetcher, env });
+    return { kind: 'checkout', entitlement, billing, ...checkout };
+  }
+
+  const transactionId = typeof report?.__surveyland_transaction_id === 'string' ? report.__surveyland_transaction_id.trim() : '';
+  if (!transactionId) return { kind: 'purchase_pending', error: 'Missing Paddle transaction ID.', entitlement: await getAiEntitlement(user.uid, { fetcher, env }), billing };
+  try {
+    const completion = await confirmPaddleCreditTransaction(transactionId, user.uid, { fetcher, env });
+    const grant = await grantPurchasedCredits(user.uid, completion.credits, completion.transactionId, { fetcher, env });
+    return { kind: 'purchase_confirmed', entitlement: grant.entitlement, billing, duplicate: grant.duplicate };
+  } catch (error: any) {
+    return { kind: 'purchase_pending', error: String(error?.message || 'Purchase confirmation is still pending.'), entitlement: await getAiEntitlement(user.uid, { fetcher, env }), billing };
+  }
+}
+
 export async function interpretSurveyLandEvidence(
   report: any,
   options: { fetcher?: FetchLike; env?: NodeJS.ProcessEnv } = {}
-): Promise<AiEvidenceInterpretation> {
+): Promise<any> {
   const fetcher = options.fetcher || fetch;
   const env = options.env || process.env;
   const config = getAiInterpretationRuntimeConfig(env);
   if (!config.configured) {
     throw new Error(config.provider === 'mistral' ? 'MISTRAL_API_KEY is not configured.' : 'Ollama is not configured.');
   }
+
+  const internalResult = await handleInternalAction(report, env, fetcher);
+  if (internalResult) return internalResult;
+
   const evidencePackage = buildAiEvidencePackage(report);
-  const raw = config.provider === 'mistral'
-    ? await callMistral(evidencePackage, config, fetcher, String(env.MISTRAL_API_KEY || ''))
-    : await callOllama(evidencePackage, config, fetcher);
-  return {
-    provider: config.provider,
-    model: config.model,
-    generatedAt: new Date().toISOString(),
-    ...validateAiInterpretation(raw)
-  };
+  const quotaConfig = getAiQuotaRuntimeConfig(env);
+  let quotaUser: Awaited<ReturnType<typeof authenticateInternalAction>> | null = null;
+  let reservation: Awaited<ReturnType<typeof reserveAiInterpretation>> = null;
+
+  if (quotaConfig.enabled) {
+    quotaUser = await authenticateInternalAction(report, env, fetcher);
+    reservation = await reserveAiInterpretation(quotaUser.uid, { fetcher, env });
+    if (!reservation) {
+      return {
+        kind: 'quota_exhausted',
+        entitlement: await getAiEntitlement(quotaUser.uid, { fetcher, env }),
+        billing: publicBillingState(env)
+      };
+    }
+  }
+
+  try {
+    const raw = config.provider === 'mistral'
+      ? await callMistral(evidencePackage, config, fetcher, String(env.MISTRAL_API_KEY || ''))
+      : await callOllama(evidencePackage, config, fetcher);
+    return {
+      provider: config.provider,
+      model: config.model,
+      generatedAt: new Date().toISOString(),
+      ...validateAiInterpretation(raw),
+      ...(reservation ? { entitlement: reservation.entitlement } : {})
+    };
+  } catch (error) {
+    if (quotaUser && reservation) {
+      try { await refundAiInterpretation(quotaUser.uid, reservation.bucket, { fetcher, env }); } catch (refundError) { console.error('Failed to refund AI quota after model error:', refundError); }
+    }
+    throw error;
+  }
 }
