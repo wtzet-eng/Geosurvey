@@ -30,9 +30,9 @@ export interface DenmarkCadastreResult {
 
 type FetchLike = typeof fetch;
 
-const SOURCE_NAME = 'Dataforsyningen (DAWA) — Matrikelkortet';
-const BASE = 'https://api.dataforsyningen.dk/jordstykker';
-const PORTAL = 'https://dawadocs.dataforsyningen.dk/dok/matrikelkortet';
+const SOURCE_NAME = 'Datafordeleren — Matriklen WFS';
+const BASE = 'https://wfs.datafordeler.dk/MAT/MAT_WFS/1.0.0/WFS';
+const PORTAL = 'https://datafordeler.dk/dataoversigt/matriklen-mat/matriklen-wfs-entiteter/';
 const today = () => new Date().toISOString().slice(0, 10);
 
 function text(value: unknown): string | null {
@@ -44,12 +44,93 @@ function text(value: unknown): string | null {
 
 function numberValue(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && Number.isFinite(Number(value.replace(',', '.')))) return Number(value.replace(',', '.'));
+  if (typeof value === 'string') {
+    const n = Number(value.replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  }
   return null;
 }
 
 function booleanValue(value: unknown): boolean | null {
-  return typeof value === 'boolean' ? value : null;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string' && /^(true|false)$/i.test(value.trim())) return value.trim().toLowerCase() === 'true';
+  return null;
+}
+
+function pick(obj: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (obj[key] !== undefined && obj[key] !== null && String(obj[key]).trim() !== '') return obj[key];
+    const actual = Object.keys(obj).find(candidate => candidate.toLowerCase() === key.toLowerCase());
+    if (actual && obj[actual] !== undefined && obj[actual] !== null && String(obj[actual]).trim() !== '') return obj[actual];
+  }
+  return null;
+}
+
+function wgs84ToUtm32(latDeg: number, lngDeg: number): [number, number] {
+  const a = 6378137;
+  const f = 1 / 298.257223563;
+  const e2 = f * (2 - f);
+  const ep2 = e2 / (1 - e2);
+  const k0 = 0.9996;
+  const lon0 = 9 * Math.PI / 180;
+  const lat = latDeg * Math.PI / 180;
+  const lon = lngDeg * Math.PI / 180;
+  const sinLat = Math.sin(lat);
+  const cosLat = Math.cos(lat);
+  const tanLat = Math.tan(lat);
+  const n = a / Math.sqrt(1 - e2 * sinLat * sinLat);
+  const t = tanLat * tanLat;
+  const c = ep2 * cosLat * cosLat;
+  const A = cosLat * (lon - lon0);
+  const m = a * (
+    (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * lat
+    - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * lat)
+    + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * lat)
+    - (35 * e2 ** 3 / 3072) * Math.sin(6 * lat)
+  );
+  const easting = 500000 + k0 * n * (A + (1 - t + c) * A ** 3 / 6 + (5 - 18 * t + t ** 2 + 72 * c - 58 * ep2) * A ** 5 / 120);
+  const northing = k0 * (m + n * tanLat * (A ** 2 / 2 + (5 - t + 9 * c + 4 * c ** 2) * A ** 4 / 24 + (61 - 58 * t + t ** 2 + 600 * c - 330 * ep2) * A ** 6 / 720));
+  return [easting, northing];
+}
+
+function utm32ToWgs84(easting: number, northing: number): [number, number] {
+  const a = 6378137;
+  const f = 1 / 298.257223563;
+  const e2 = f * (2 - f);
+  const ep2 = e2 / (1 - e2);
+  const k0 = 0.9996;
+  const lon0 = 9 * Math.PI / 180;
+  const x = easting - 500000;
+  const m = northing / k0;
+  const mu = m / (a * (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256));
+  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+  const phi1 = mu
+    + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu)
+    + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu)
+    + (151 * e1 ** 3 / 96) * Math.sin(6 * mu)
+    + (1097 * e1 ** 4 / 512) * Math.sin(8 * mu);
+  const sin1 = Math.sin(phi1);
+  const cos1 = Math.cos(phi1);
+  const tan1 = Math.tan(phi1);
+  const c1 = ep2 * cos1 * cos1;
+  const t1 = tan1 * tan1;
+  const n1 = a / Math.sqrt(1 - e2 * sin1 * sin1);
+  const r1 = a * (1 - e2) / Math.pow(1 - e2 * sin1 * sin1, 1.5);
+  const d = x / (n1 * k0);
+  const lat = phi1 - (n1 * tan1 / r1) * (d ** 2 / 2 - (5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - 9 * ep2) * d ** 4 / 24 + (61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - 252 * ep2 - 3 * c1 ** 2) * d ** 6 / 720);
+  const lon = lon0 + (d - (1 + 2 * t1 + c1) * d ** 3 / 6 + (5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + 8 * ep2 + 24 * t1 ** 2) * d ** 5 / 120) / cos1;
+  return [lat * 180 / Math.PI, lon * 180 / Math.PI];
+}
+
+function normalizeRingCoordinates(ring: any[]): [number, number][] {
+  return ring.map((pair: any) => {
+    const x = numberValue(pair?.[0]);
+    const y = numberValue(pair?.[1]);
+    if (x === null || y === null) return null;
+    if (Math.abs(x) <= 180 && Math.abs(y) <= 90) return [y, x] as [number, number];
+    if (x > 100000 && y > 5000000) return utm32ToWgs84(x, y);
+    return null;
+  }).filter((point: [number, number] | null): point is [number, number] => Boolean(point));
 }
 
 function firstOuterRing(geometry: any): [number, number][] | undefined {
@@ -58,25 +139,33 @@ function firstOuterRing(geometry: any): [number, number][] | undefined {
   if (type === 'Polygon' && Array.isArray(geometry?.coordinates?.[0])) ring = geometry.coordinates[0];
   if (type === 'MultiPolygon' && Array.isArray(geometry?.coordinates?.[0]?.[0])) ring = geometry.coordinates[0][0];
   if (!ring) return undefined;
-  const points = ring.map((pair: any) => {
-    const lng = numberValue(pair?.[0]);
-    const lat = numberValue(pair?.[1]);
-    return lat !== null && lng !== null ? [lat, lng] as [number, number] : null;
-  }).filter((point: [number, number] | null): point is [number, number] => Boolean(point));
+  const points = normalizeRingCoordinates(ring);
   return points.length >= 3 ? points : undefined;
 }
 
-async function fetchJson(fetcher: FetchLike, url: string, timeoutMs = 7000): Promise<any | null> {
+function pointInRing(lat: number, lng: number, ring?: [number, number][]): boolean {
+  if (!ring || ring.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const yi = ring[i][0], xi = ring[i][1];
+    const yj = ring[j][0], xj = ring[j][1];
+    const intersects = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / ((yj - yi) || Number.EPSILON) + xi);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+async function fetchFeatures(fetcher: FetchLike, requestUrl: string, timeoutMs = 8000): Promise<any[] | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetcher(url, {
-      headers: { Accept: 'application/geo+json, application/json', 'User-Agent': 'GeoSurvey/1.0 Denmark cadastral evidence' },
+    const response = await fetcher(requestUrl, {
+      headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 Denmark cadastral evidence' },
       signal: controller.signal
     });
     if (!response.ok) return null;
-    const json = await response.json();
-    return json && typeof json === 'object' ? json : null;
+    const json: any = await response.json();
+    return Array.isArray(json?.features) ? json.features : null;
   } catch {
     return null;
   } finally {
@@ -84,13 +173,20 @@ async function fetchJson(fetcher: FetchLike, url: string, timeoutMs = 7000): Pro
   }
 }
 
-function nested(obj: any, key: string, nestedKey: string): unknown {
-  return obj?.[key]?.[nestedKey] ?? obj?.[`${key}_${nestedKey}`] ?? obj?.[`${key}${nestedKey}`];
+function wfsUrl(typeName: string, apiKey: string, extra: Record<string, string>): string {
+  const params = new URLSearchParams({ service: 'WFS', version: '2.0.0', request: 'GetFeature', typeName, count: '20', outputFormat: 'application/json', apiKey, ...extra });
+  return `${BASE}?${params}`;
 }
 
-function unavailable(reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA', claim: string, sourceUrl = BASE): DenmarkCadastreResult {
+function publicSourceUrl(typeName = 'jordstykke_current'): string {
+  const params = new URLSearchParams({ service: 'WFS', version: '2.0.0', request: 'GetFeature', typeName, outputFormat: 'application/json' });
+  return `${BASE}?${params}`;
+}
+
+function unavailable(reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA', claim: string): DenmarkCadastreResult {
+  const sourceUrl = publicSourceUrl();
   const evidence: EvidenceItem = {
-    id: 'dk-dawa-cadastre-unavailable',
+    id: 'dk-datafordeler-cadastre-unavailable',
     category: 'Matrikel og identifikation',
     claim,
     status: 'REQUIRES_VERIFICATION',
@@ -98,30 +194,41 @@ function unavailable(reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_D
     sourceUrl,
     datasetDate: today(),
     spatialRelationship: 'Valgt stedkoordinat',
-    calculationMethod: 'DAWA jordstykkeopslag ved WGS84-punkt',
+    calculationMethod: 'Datafordeler MAT WFS jordstykke_current; punktnært opslag med EPSG:25832-bounding box',
     confidence: 'Low',
-    limitation: 'Et tomt eller mislykket opslag er ikke dokumentation for, at der ikke findes et registreret jordstykke. Kontrollér matriklen og de originale ejendomsoplysninger hos de kompetente danske myndigheder.',
+    limitation: 'Et tomt eller mislykket opslag er ikke dokumentation for, at der ikke findes et registreret jordstykke. Kontrollér Matriklen/Datafordeleren og matriklen.dk. Datafordelerens WFS kræver en API-nøgle, som skal være konfigureret server-side.',
     value: { reasonCode }
   };
   return { success: false, reasonCode, sourceName: SOURCE_NAME, sourceUrl, datasetDate: today(), evidence: [evidence], limitation: evidence.limitation };
 }
 
-export async function queryDenmarkCadastre(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<DenmarkCadastreResult> {
-  const params = new URLSearchParams({
-    x: String(lng), y: String(lat), srid: '4326', format: 'geojson', struktur: 'nestet', per_side: '10'
-  });
-  const url = `${BASE}?${params}`;
-  const response = await fetchJson(fetcher, url);
-  if (!response) return unavailable('SOURCE_UNAVAILABLE', 'DAWA kunne ikke nås eller returnerede ikke gyldige GeoJSON-data.', url);
-  if (!Array.isArray(response.features)) return unavailable('MALFORMED_DATA', 'DAWA returnerede en uventet datastruktur for jordstykker.', url);
-  if (!response.features.length) return unavailable('NO_DATA', 'DAWA returnerede ikke et jordstykke for det valgte punkt.', url);
+export async function queryDenmarkCadastre(lat: number, lng: number, fetcher: FetchLike = fetch, apiKey = process.env.DATAFORDELER_API_KEY || ''): Promise<DenmarkCadastreResult> {
+  if (!apiKey.trim()) return unavailable('SOURCE_UNAVAILABLE', 'Datafordelerens Matriklen-WFS er integreret, men DATAFORDELER_API_KEY er ikke konfigureret på serveren.');
 
-  const feature = response.features[0];
-  const p: any = feature?.properties && typeof feature.properties === 'object' ? feature.properties : {};
-  const cadastralNumber = text(p.matrikelnr);
-  const districtCode = text(nested(p, 'ejerlav', 'kode') ?? p.ejerlavkode);
-  const districtName = text(nested(p, 'ejerlav', 'navn') ?? p.ejerlavnavn);
-  if (!cadastralNumber || (!districtCode && !districtName)) return unavailable('MALFORMED_DATA', 'DAWA returnerede et jordstykke uden et brugbart matrikelnummer/ejerlav.', url);
+  const [easting, northing] = wgs84ToUtm32(lat, lng);
+  const bbox = `${(easting - 3).toFixed(3)},${(northing - 3).toFixed(3)},${(easting + 3).toFixed(3)},${(northing + 3).toFixed(3)}`;
+  const requestUrl = wfsUrl('jordstykke_current', apiKey, { bbox });
+  const features = await fetchFeatures(fetcher, requestUrl);
+  if (features === null) return unavailable('SOURCE_UNAVAILABLE', 'Datafordelerens Matriklen-WFS kunne ikke nås eller returnerede ikke gyldige GeoJSON-data.');
+  if (!features.length) return unavailable('NO_DATA', 'Matriklen-WFS returnerede ikke et jordstykke ved det valgte punkt.');
+
+  const candidates = features.map(feature => ({ feature, ring: firstOuterRing(feature?.geometry) }));
+  const selected = candidates.find(candidate => pointInRing(lat, lng, candidate.ring)) || candidates[0];
+  const feature = selected.feature;
+  const p: Record<string, unknown> = feature?.properties && typeof feature.properties === 'object' ? feature.properties : {};
+  const cadastralNumber = text(pick(p, 'matrikelnummer', 'matrikelnr'));
+  const districtCode = text(pick(p, 'ejerlavLokalId', 'ejerlavskode', 'ejerlavkode'));
+  if (!cadastralNumber || !districtCode) return unavailable('MALFORMED_DATA', 'Matriklen-WFS returnerede et jordstykke uden brugbart matrikelnummer eller ejerlav-id.');
+
+  let districtName: string | null = null;
+  try {
+    const cql = `id_lokalId='${districtCode.replace(/'/g, "''")}'`;
+    const districtFeatures = await fetchFeatures(fetcher, wfsUrl('ejerlav_current', apiKey, { cql_filter: cql, count: '2' }));
+    const dp: Record<string, unknown> = districtFeatures?.[0]?.properties && typeof districtFeatures[0].properties === 'object' ? districtFeatures[0].properties : {};
+    districtName = text(pick(dp, 'ejerlavsnavn', 'navn'));
+  } catch {
+    districtName = null;
+  }
 
   const parcelId = `${districtName || districtCode} ${cadastralNumber}`;
   const parcel: DenmarkCadastreParcel = {
@@ -129,34 +236,35 @@ export async function queryDenmarkCadastre(lat: number, lng: number, fetcher: Fe
     cadastralNumber,
     districtCode,
     districtName,
-    bfeNumber: numberValue(p.bfenummer),
-    municipalityCode: text(nested(p, 'kommune', 'kode') ?? p.kommunekode),
-    municipalityName: text(nested(p, 'kommune', 'navn') ?? p.kommunenavn),
-    registeredAreaM2: numberValue(p.registreretareal),
-    areaMethod: text(p.arealberegningsmetode),
-    featureId: text(p.featureid),
-    commonLot: booleanValue(p['fælleslod'] ?? p.faelleslod),
-    changedAt: text(p['ændret'] ?? p.aendret),
-    geometryChangedAt: text(p['geo_ændret'] ?? p.geo_aendret),
-    registryGeometryPoints: firstOuterRing(feature?.geometry)
+    bfeNumber: null,
+    municipalityCode: text(pick(p, 'kommuneLokalId', 'kommunekode')),
+    municipalityName: null,
+    registeredAreaM2: numberValue(pick(p, 'registreretAreal', 'registreretareal')),
+    areaMethod: text(pick(p, 'arealberegningsmetode')),
+    featureId: text(pick(p, 'id_lokalId', 'objectid')),
+    commonLot: booleanValue(pick(p, 'faelleslod', 'fælleslod')),
+    changedAt: text(pick(p, 'datafordelerOpdateringstid', 'registreringFra')),
+    geometryChangedAt: text(pick(p, 'datafordelerOpdateringstid')),
+    registryGeometryPoints: selected.ring
   };
 
+  const sourceUrl = publicSourceUrl();
   const evidence: EvidenceItem = {
-    id: 'dk-dawa-cadastre',
+    id: 'dk-datafordeler-cadastre',
     category: 'Matrikel og identifikation',
-    claim: `DAWA identificerer jordstykket ${parcel.parcelId}${parcel.registeredAreaM2 !== null ? ` med registreret areal ${parcel.registeredAreaM2} m²` : ''}.`,
+    claim: `Datafordelerens Matriklen-WFS identificerer jordstykket ${parcel.parcelId}${parcel.registeredAreaM2 !== null ? ` med registreret areal ${parcel.registeredAreaM2} m²` : ''}.`,
     status: 'VERIFIED',
     sourceName: SOURCE_NAME,
-    sourceUrl: url,
+    sourceUrl,
     datasetDate: parcel.geometryChangedAt || parcel.changedAt || today(),
-    spatialRelationship: 'Jordstykke returneret for det valgte WGS84-punkt',
-    calculationMethod: 'DAWA /jordstykker punktforespørgsel i EPSG:4326 med GeoJSON-geometri',
+    spatialRelationship: 'Aktuelt jordstykke fra jordstykke_current i en lille EPSG:25832-bounding box omkring det valgte koordinat',
+    calculationMethod: 'WGS84-koordinat omregnet til ETRS89/UTM32; Datafordeler WFS GetFeature med GeoJSON-output; polygontræffer valgt ved punkt-i-polygon-kontrol',
     confidence: 'High',
-    limitation: 'Matrikelkortet er et officielt registerkort, men kortgrænser er ikke i sig selv en landinspektørfastlagt juridisk grænse. Registreret areal kan afvige fra geometrisk beregnet areal. Ejerskab, servitutter, hæftelser og grænsens retlige status skal verificeres i de relevante originale registre.',
+    limitation: 'Matriklen er det officielle ejendomsregister, men matrikelkortets viste grænse er ikke i sig selv en ny landinspektørfastlagt grænseafsætning. Registreret areal kan afvige fra geometrisk beregnet areal. Ejerskab, servitutter, hæftelser og grænsetvivl kræver kontrol i de relevante originale registre og eventuelt landinspektør.',
     value: parcel
   };
 
-  return { success: true, sourceName: SOURCE_NAME, sourceUrl: url, datasetDate: evidence.datasetDate, parcel, evidence: [evidence], limitation: evidence.limitation };
+  return { success: true, sourceName: SOURCE_NAME, sourceUrl, datasetDate: evidence.datasetDate, parcel, evidence: [evidence], limitation: evidence.limitation };
 }
 
 export function applyDenmarkCadastreToReport(report: any, result: DenmarkCadastreResult, requestedAreaM2: number): void {
