@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   MapPin,
   Sparkles,
@@ -15,6 +15,7 @@ import {
 
 import { BoundaryShape, BoundaryType, SiteReport } from './types';
 import { EUROPEAN_COUNTRIES, REPORT_LANGUAGES } from './data/countries';
+import { getCountrySupport } from './data/countrySupport';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
 import { getBrowserLanguage, getFrontPageI18n } from './utils/i18nTitle';
 import { MapPicker } from './components/MapPicker';
@@ -26,6 +27,10 @@ import { GoogleDriveModal } from './components/GoogleDriveModal';
 
 const REPORT_LANGUAGE_OPTIONS = [...REPORT_LANGUAGES, { code: 'sk', label: 'Slovenčina (Slovak)' }];
 const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'da', 'no', 'sv', 'sk']);
+const SELECTABLE_COUNTRIES = EUROPEAN_COUNTRIES
+  .filter((country) => Object.values(getCountrySupport(country.code).capabilities).some(Boolean))
+  .sort((a, b) => a.name.localeCompare(b.name, 'en'));
+
 const normalizeReportLanguage = (language: string, countryCode = '') => {
   const rawCode = String(language || '').toLowerCase().split('-')[0];
   const code = rawCode === 'nb' ? 'no' : rawCode;
@@ -52,8 +57,10 @@ export default function App() {
   const [shape, setShape] = useState<BoundaryShape | null>(null);
   const [areaSize, setAreaSize] = useState<number>(1000);
   const [countryCode, setCountryCode] = useState<string>('DE');
+  const [detectedCountryCode, setDetectedCountryCode] = useState<string | null>(null);
   const [languageCode, setLanguageCode] = useState<string>(() => normalizeReportLanguage(getBrowserLanguage(), 'DE'));
   const [languageWasManuallySelected, setLanguageWasManuallySelected] = useState(false);
+  const countryWasManuallySelected = useRef(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeReport, setActiveReport] = useState<SiteReport | null>(null);
@@ -65,7 +72,13 @@ export default function App() {
   const [hideHeaderInEmbed, setHideHeaderInEmbed] = useState(false);
   const [isAutoFitMode, setIsAutoFitMode] = useState(false);
 
-  const currentCountry = EUROPEAN_COUNTRIES.find((c) => c.code === countryCode) || EUROPEAN_COUNTRIES[0];
+  const displayedCountries = detectedCountryCode
+    ? [
+        ...SELECTABLE_COUNTRIES.filter((country) => country.code === detectedCountryCode),
+        ...SELECTABLE_COUNTRIES.filter((country) => country.code !== detectedCountryCode)
+      ]
+    : SELECTABLE_COUNTRIES;
+  const currentCountry = EUROPEAN_COUNTRIES.find((c) => c.code === countryCode) || SELECTABLE_COUNTRIES[0] || EUROPEAN_COUNTRIES[0];
   const availableReportLanguages = REPORT_LANGUAGE_OPTIONS.filter((language) => {
     if (language.code === 'sk') return countryCode === 'SK';
     if (language.code === 'cs') return countryCode === 'CZ';
@@ -120,6 +133,39 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('country')) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 3000);
+    const explicitLanguage = Boolean(params.get('lang'));
+
+    fetch('https://ipapi.co/country/', { signal: controller.signal, headers: { Accept: 'text/plain' } })
+      .then((response) => response.ok ? response.text() : '')
+      .then((value) => {
+        if (cancelled) return;
+        const code = String(value || '').trim().toUpperCase();
+        const detectedCountry = SELECTABLE_COUNTRIES.find((country) => country.code === code);
+        if (!detectedCountry) return;
+        setDetectedCountryCode(detectedCountry.code);
+        if (!countryWasManuallySelected.current) {
+          setCountryCode(detectedCountry.code);
+          if (!explicitLanguage) setLanguageCode(normalizeReportLanguage(detectedCountry.language, detectedCountry.code));
+        }
+      })
+      .catch(() => {})
+      .finally(() => window.clearTimeout(timer));
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     const postHeightToParent = () => {
       try {
         const docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, document.body.offsetHeight, document.documentElement.offsetHeight);
@@ -155,6 +201,7 @@ export default function App() {
   };
 
   const handleCountryChange = (newCode: string) => {
+    countryWasManuallySelected.current = true;
     const nextCountry = EUROPEAN_COUNTRIES.find((country) => country.code === newCode);
     setCountryCode(newCode);
     setShape(null);
@@ -263,7 +310,7 @@ export default function App() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 flex items-center gap-1"><Globe2 className="h-3.5 w-3.5 text-slate-400" /><span>{fp.countryLbl}</span></label>
                 <select value={countryCode} onChange={(e) => handleCountryChange(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
-                  {EUROPEAN_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name} ({c.currency})</option>)}
+                  {displayedCountries.map((c) => <option key={c.code} value={c.code}>{c.name} ({c.currency})</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">
