@@ -20,6 +20,8 @@ import { enrichDenmarkGroundEvidence, queryDenmarkGroundEvidence } from './serve
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
+import { getAiInterpretationRuntimeConfig, interpretSurveyLandEvidence } from './server/services/aiInterpretationService';
+import { verifyFirebaseAuthorization } from './server/services/firebaseAuthService';
 import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderSlovakLocalizedReport } from './server/reporting/slovakLocalizedReport';
@@ -49,6 +51,19 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '10mb' }));
 const reportsStore: Record<string, any> = {};
+const aiRateLimits = new Map<string, { windowStart: number; count: number }>();
+
+function consumeAiRateLimit(key: string) {
+  const now = Date.now();
+  const current = aiRateLimits.get(key);
+  if (!current || now - current.windowStart >= 60_000) {
+    aiRateLimits.set(key, { windowStart: now, count: 1 });
+    return true;
+  }
+  if (current.count >= 10) return false;
+  current.count += 1;
+  return true;
+}
 
 function getCenterFromShape(shape: any, reqBody?: any): [number, number] {
   if (reqBody?.latitude !== undefined && reqBody?.longitude !== undefined) return [Number(reqBody.latitude), Number(reqBody.longitude)];
@@ -117,7 +132,6 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             : (requestedLanguage === 'no' || requestedLanguage === 'nb')
               ? (countryCode === 'NO' ? 'no' : 'en')
               : ['en', 'de', 'pl', 'nl'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
-
     stage = 'site-centre';
     const [lat, lng] = getCenterFromShape(shape, req.body);
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return res.status(400).json({ error: 'Valid latitude and longitude are required.' });
@@ -237,7 +251,6 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         });
       }
     } catch (e) { console.warn(`[${diagnosticId}] SoilGrids spatial variability notice:`, e); }
-
     let pgiSiteEvidence: any[] = [];
     let ukSiteEvidence: any[] = [];
     let franceSiteEvidence: any[] = [];
@@ -438,6 +451,51 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
 
 app.post('/api/analyze-site', handleAnalyzeSite);
 app.post('/api/reports/analyze', handleAnalyzeSite);
+
+app.get('/api/ai/status', (req, res) => {
+  const config = getAiInterpretationRuntimeConfig();
+  const authConfigured = Boolean(process.env.FIREBASE_WEB_API_KEY);
+  res.json({
+    providerConfigured: config.configured,
+    available: config.configured && (config.allowAnonymous || authConfigured),
+    provider: config.provider,
+    model: config.model,
+    authRequired: !config.allowAnonymous,
+    authConfigured
+  });
+});
+
+app.post('/api/ai/interpret', async (req, res) => {
+  const diagnosticId = randomUUID();
+  const config = getAiInterpretationRuntimeConfig();
+  if (!config.configured) return res.status(503).json({ error: 'AI interpretation is not configured on this deployment.' });
+
+  let rateLimitKey = req.ip || 'anonymous';
+  if (!config.allowAnonymous) {
+    const auth = await verifyFirebaseAuthorization(req.headers.authorization);
+    if (!auth.ok) {
+      if (auth.reason === 'AUTH_NOT_CONFIGURED') return res.status(503).json({ error: 'Sign-in is not configured on this deployment.' });
+      if (auth.reason === 'USER_DISABLED') return res.status(403).json({ error: 'This user account cannot access AI interpretation.' });
+      return res.status(401).json({ error: 'Please sign in to use AI interpretation.' });
+    }
+    rateLimitKey = auth.user.uid;
+  }
+
+  if (!consumeAiRateLimit(rateLimitKey)) return res.status(429).json({ error: 'AI interpretation rate limit reached. Please try again shortly.' });
+  const report = req.body?.report;
+  if (!report?.report_data) return res.status(400).json({ error: 'A valid SurveyLand report is required.' });
+
+  try {
+    const interpretation = await interpretSurveyLandEvidence(report);
+    return res.json(interpretation);
+  } catch (error: any) {
+    console.error(`[${diagnosticId}] AI evidence interpretation failed:`, error);
+    const message = String(error?.message || '');
+    if (/valid SurveyLand report|too large/i.test(message)) return res.status(400).json({ error: message });
+    return res.status(502).json({ error: 'AI interpretation is temporarily unavailable.', diagnostic_id: diagnosticId });
+  }
+});
+
 app.get('/api/reports', (req, res) => res.json(Object.values(reportsStore)));
 app.get('/api/reports/:id', (req, res) => { const rep = reportsStore[req.params.id]; if (rep) res.json(rep); else res.status(404).json({ error: 'Report not found' }); });
 app.post('/api/reports', (req, res) => { const report = req.body; if (report && report.id) { reportsStore[report.id] = report; res.json({ success: true, id: report.id }); } else res.status(400).json({ error: 'Invalid report data' }); });
