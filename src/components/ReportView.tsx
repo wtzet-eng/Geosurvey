@@ -5,6 +5,7 @@ import { ReportViewCzech } from './ReportViewCzech';
 import { ReportViewNorwegian } from './ReportViewNorwegian';
 import { ReportViewSwedish } from './ReportViewSwedish';
 import { ReportViewDanish } from './ReportViewDanish';
+import { AIInterpretationPanel } from './AIInterpretationPanel';
 import { SiteReport } from '../types';
 
 interface ReportViewProps {
@@ -18,10 +19,20 @@ interface ReportViewProps {
  */
 export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
   const language = report.language?.toLowerCase() || 'en';
-  if (language.startsWith('sk')) return <ReportViewSlovak report={report} onBack={onBack} />;
-  if (language.startsWith('cs')) return <ReportViewCzech report={report} onBack={onBack} />;
-  if (language.startsWith('no') || language.startsWith('nb')) return <ReportViewNorwegian report={report} onBack={onBack} />;
-  if (language.startsWith('sv')) return <ReportViewSwedish report={report} onBack={onBack} />;
-  if (language.startsWith('da')) return <ReportViewDanish report={report} onBack={onBack} />;
-  return <ReportViewEvidenceV2 report={report} onBack={onBack} />;
+  const reportView = language.startsWith('sk')
+    ? <ReportViewSlovak report={report} onBack={onBack} />
+    : language.startsWith('cs')
+      ? <ReportViewCzech report={report} onBack={onBack} />
+      : language.startsWith('no') || language.startsWith('nb')
+        ? <ReportViewNorwegian report={report} onBack={onBack} />
+        : language.startsWith('sv')
+          ? <ReportViewSwedish report={report} onBack={onBack} />
+          : language.startsWith('da')
+            ? <ReportViewDanish report={report} onBack={onBack} />
+            : <ReportViewEvidenceV2 report={report} onBack={onBack} />;
+
+  return <>
+    {reportView}
+    <AIInterpretationPanel report={report} />
+  </>;
 };
