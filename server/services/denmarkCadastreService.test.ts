@@ -4,38 +4,57 @@ import { applyDenmarkCadastreToReport, queryDenmarkCadastre } from './denmarkCad
 
 const ok = (body: any) => ({ ok: true, json: async () => body }) as any;
 
-test('DAWA parcel query preserves registered area and official registry geometry with legal-boundary caveat', async () => {
+test('Datafordeler parcel query preserves registered area and official registry geometry with legal-boundary caveat', async () => {
   const fetcher: any = async (url: string) => {
-    assert.match(url, /api\.dataforsyningen\.dk\/jordstykker/);
-    assert.match(url, /srid=4326/);
-    return ok({ features: [{
-      type: 'Feature',
-      properties: {
-        matrikelnr: '12a', ejerlav: { kode: 2000176, navn: 'Test By' }, bfenummer: 123456,
-        kommune: { kode: '0101', navn: 'København' }, registreretareal: 845, arealberegningsmetode: 'o',
-        featureid: 'parcel-1', 'ændret': '2026-01-02', 'geo_ændret': '2026-02-03'
-      },
-      geometry: { type: 'Polygon', coordinates: [[[12.55,55.65],[12.551,55.65],[12.551,55.651],[12.55,55.65]]] }
-    }] });
+    assert.match(url, /wfs\.datafordeler\.dk\/MAT\/MAT_WFS/);
+    assert.match(url, /apiKey=test-key/);
+    if (url.includes('typeName=jordstykke_current')) {
+      assert.match(url, /bbox=/);
+      return ok({ features: [{
+        type: 'Feature',
+        properties: {
+          matrikelnummer: '12a', ejerlavLokalId: '2000176', kommuneLokalId: '0101', registreretAreal: 845,
+          arealberegningsmetode: 'Areal beregnet efter opmåling - o', id_lokalId: 'parcel-1', faelleslod: false,
+          datafordelerOpdateringstid: '2026-09-12T08:00:00Z'
+        },
+        geometry: { type: 'Polygon', coordinates: [[[12.549,55.649],[12.552,55.649],[12.552,55.652],[12.549,55.652],[12.549,55.649]]] }
+      }] });
+    }
+    if (url.includes('typeName=ejerlav_current')) {
+      return ok({ features: [{ type: 'Feature', properties: { id_lokalId: '2000176', ejerlavsnavn: 'Test By' }, geometry: null }] });
+    }
+    throw new Error(`Unexpected URL: ${url}`);
   };
 
-  const result = await queryDenmarkCadastre(55.65, 12.55, fetcher);
+  const result = await queryDenmarkCadastre(55.65, 12.55, fetcher, 'test-key');
   assert.equal(result.success, true);
   assert.equal(result.parcel?.parcelId, 'Test By 12a');
   assert.equal(result.parcel?.registeredAreaM2, 845);
-  assert.equal(result.parcel?.municipalityName, 'København');
-  assert.equal(result.parcel?.registryGeometryPoints?.length, 4);
+  assert.equal(result.parcel?.municipalityCode, '0101');
+  assert.equal(result.parcel?.registryGeometryPoints?.length, 5);
+  assert.doesNotMatch(result.sourceUrl, /test-key/);
 
   const report: any = { evidenceRegistry: [], parcel: {}, evidenceScore: { breakdown: { cadastreAndGeometry: { score: 0 } } } };
   applyDenmarkCadastreToReport(report, result, 900);
   assert.equal(report.parcel.isOfficialGeometry, true);
   assert.equal(report.parcel.officialAreaM2, 845);
-  assert.match(report.parcel.limitation, /ikke i sig selv.*juridisk grænse/i);
+  assert.match(report.parcel.limitation, /ikke i sig selv.*grænseafsætning/i);
 });
 
-test('DAWA failures fail closed', async () => {
+test('Datafordeler cadastre fails closed when API key is absent', async () => {
+  let called = false;
+  const fetcher: any = async () => { called = true; return ok({ features: [] }); };
+  const result = await queryDenmarkCadastre(55.65, 12.55, fetcher, '');
+  assert.equal(called, false);
+  assert.equal(result.success, false);
+  assert.equal(result.reasonCode, 'SOURCE_UNAVAILABLE');
+  assert.equal(result.evidence[0].status, 'REQUIRES_VERIFICATION');
+  assert.match(result.evidence[0].claim, /DATAFORDELER_API_KEY/);
+});
+
+test('Datafordeler source failures fail closed', async () => {
   const fetcher: any = async () => ({ ok: false, json: async () => ({}) });
-  const result = await queryDenmarkCadastre(55.65, 12.55, fetcher);
+  const result = await queryDenmarkCadastre(55.65, 12.55, fetcher, 'test-key');
   assert.equal(result.success, false);
   assert.equal(result.reasonCode, 'SOURCE_UNAVAILABLE');
   assert.equal(result.evidence[0].status, 'REQUIRES_VERIFICATION');
