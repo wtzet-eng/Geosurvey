@@ -27,7 +27,7 @@ function localizedClassification(value: string | null): string {
 }
 
 function supportNotice(): string {
-  return 'For Danmark anvender GeoSurvey udvalgte nationale kilder fra Dataforsyningen/DAWA, GEUS Jupiter, Danmarks Digitale Jordartskort og Plandata.dk. Oversvømmelse, radon, råstof-/mineforhold og automatisk jordværdi kræver fortsat særskilt officiel kontrol.';
+  return 'For Danmark anvender GeoSurvey udvalgte nationale kilder fra Datafordeleren/Matriklen, GEUS Jupiter, Danmarks Digitale Jordartskort og Plandata.dk. Oversvømmelse, radon, råstof-/mineforhold og automatisk jordværdi kræver fortsat særskilt officiel kontrol.';
 }
 
 function denmarkGroundNarrative(canonical: CanonicalReport): string[] {
@@ -36,7 +36,7 @@ function denmarkGroundNarrative(canonical: CanonicalReport): string[] {
   const boreholes = canonical.evidenceRecords.find(record => record.id === 'dk-jupiter-boreholes' && record.status === 'VERIFIED');
   const groundwater = canonical.evidenceRecords.find(record => record.id === 'dk-jupiter-groundwater' && record.status === 'VERIFIED');
   const planning = canonical.evidenceRecords.find(record => record.id === 'dk-plandata-localplan' && record.status === 'VERIFIED');
-  const cadastre = canonical.evidenceRecords.find(record => record.id === 'dk-dawa-cadastre' && record.status === 'VERIFIED');
+  const cadastre = canonical.evidenceRecords.find(record => record.id === 'dk-datafordeler-cadastre' && record.status === 'VERIFIED');
 
   if (surface) {
     const v = (surface.value || {}) as Record<string, unknown>;
@@ -57,7 +57,7 @@ function denmarkGroundNarrative(canonical: CanonicalReport): string[] {
   }
   if (cadastre) {
     const v = (cadastre.value || {}) as Record<string, unknown>;
-    parts.push(`DAWA Matrikelkort: ${str(v.parcelId) || 'jordstykke identificeret'}${num(v.registeredAreaM2) !== null ? `; registreret areal ${num(v.registeredAreaM2)} m²` : ''}.`);
+    parts.push(`Datafordeleren/Matriklen: ${str(v.parcelId) || 'jordstykke identificeret'}${num(v.registeredAreaM2) !== null ? `; registreret areal ${num(v.registeredAreaM2)} m²` : ''}.`);
   }
   if (parts.length) parts.push('Kortdata, naboboringer og pejlinger er screeningsgrundlag. De dokumenterer ikke jordlag, bæreevne, sætninger eller grundvand på hele den valgte grund og erstatter ikke en stedsspecifik geoteknisk undersøgelse.');
   return parts;
@@ -66,8 +66,8 @@ function denmarkGroundNarrative(canonical: CanonicalReport): string[] {
 function localizedEvidenceRecord(record: any): any {
   const code = (record.value as { reasonCode?: AvailabilityReason } | null)?.reasonCode;
   const names: Record<string, string> = {
-    'dk-dawa-cadastre': 'DAWA — matrikel og jordstykke',
-    'dk-dawa-cadastre-unavailable': 'DAWA — matrikel og jordstykke',
+    'dk-datafordeler-cadastre': 'Datafordeleren/Matriklen — matrikel og jordstykke',
+    'dk-datafordeler-cadastre-unavailable': 'Datafordeleren/Matriklen — matrikel og jordstykke',
     'dk-geus-surface-geology': 'GEUS — Jordartskort 1:25.000',
     'dk-geus-surface-geology-unavailable': 'GEUS — Jordartskort 1:25.000',
     'dk-geus-surface-geology-no-data': 'GEUS — Jordartskort 1:25.000',
@@ -121,6 +121,7 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
     ? `Indikativ statistisk jordværdi: ${canonical.valuation.min!.toLocaleString('da-DK')}–${canonical.valuation.max!.toLocaleString('da-DK')} ${canonical.valuation.currency}.`
     : 'Automatisk jordværdi vises ikke, fordi GeoSurvey endnu ikke har integreret et tilstrækkeligt dokumenteret dansk datagrundlag, som isolerer selve jordværdien fra bygninger og andre forbedringer.';
   const planningVerified = canonical.evidenceRecords.some(record => record.id === 'dk-plandata-localplan' && record.status === 'VERIFIED');
+  const cadastreVerified = canonical.evidenceRecords.some(record => record.id === 'dk-datafordeler-cadastre' && record.status === 'VERIFIED');
   const planningText = planningVerified
     ? `Plandata.dk har returneret en vedtaget lokalplan ved stedet. Det dokumenterer planens registrerede overlap, men den konkrete byggeret og alle bestemmelser skal læses i originalplanen og verificeres hos kommunen.`
     : `Planforhold skal verificeres efter ${canonical.planning.instrumentName}.`;
@@ -162,7 +163,7 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
       geohazard_risk: section('Geologisk screening er foreløbig.', 'GEUS-data giver jordarts- og borehulskontekst. Stabilitet, erosion, skråningsforhold og andre projektrelevante georisici skal vurderes særskilt, når terræn eller projekt kræver det.', 'REQUIRES_VERIFICATION', canonical.authorities.geology, reason('AUTHORITATIVE_DATA_REQUIRED')),
       flooding_risk: section(floodText, 'Kontrollér relevante nationale og kommunale oversvømmelsesdata samt planbestemmelser før køb eller projektering.', 'REQUIRES_VERIFICATION', canonical.authorities.flood, reason('AUTHORITATIVE_DATA_REQUIRED')),
       zoning_and_land_use: section(planningText, 'Plandata.dk viser registreret planoverlap. Byggefelter, anvendelse, bebyggelsesprocent, højde, afstande, dispensationer og øvrige bindende bestemmelser skal verificeres i plandokumentet og hos kommunen.', planningVerified ? 'VERIFIED' : 'REQUIRES_VERIFICATION', 'Plandata.dk', reason('AUTHORITATIVE_DATA_REQUIRED')),
-      building_regulations: section('DAWA kan identificere jordstykket og registreret areal, men kortgrænsen er ikke i sig selv en juridisk landinspektørfastlagt grænse.', 'Kontrollér ejendomsidentitet, grænsens retlige status, ejerskab, servitutter og hæftelser i de originale danske registre. Ved grænsetvivl anvendes landinspektør.', canonical.support.capabilities.nationalCadastre ? 'VERIFIED' : 'REQUIRES_VERIFICATION', canonical.authorities.cadastre, reason('AUTHORITATIVE_DATA_REQUIRED')),
+      building_regulations: section(cadastreVerified ? 'Datafordelerens Matriklen-WFS identificerer jordstykket og kan levere registreret areal/registergeometri; kortgrænsen er ikke i sig selv en ny juridisk grænseafsætning.' : 'Automatisk matrikelopslag blev ikke verificeret for denne kørsel. Kontrollér Matriklen/Datafordeleren eller matriklen.dk.', 'Kontrollér ejendomsidentitet, grænsens retlige status, ejerskab, servitutter og hæftelser i de originale danske registre. Ved grænsetvivl anvendes landinspektør.', cadastreVerified ? 'VERIFIED' : 'REQUIRES_VERIFICATION', canonical.authorities.cadastre, reason('AUTHORITATIVE_DATA_REQUIRED')),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.environment.status, canonical.environment.sourceName, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : undefined),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.infrastructure.status, canonical.infrastructure.sourceName, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : undefined),
       market_and_comparables: section(valuationText, 'Værdiomfanget er strengt jord/grund. Bygninger, konstruktioner og andre forbedringer er udtrykkeligt udelukket.', canonical.valuation.status, canonical.valuation.sourceName, canonical.valuation.reasonCode ? reason(canonical.valuation.reasonCode) : undefined),
@@ -174,7 +175,7 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
       'Den automatiserede rapport er kun en indledende screening og er ikke en myndighedsafgørelse, juridisk rådgivning, geoteknisk undersøgelse eller vurderingsrapport.',
       'Danmarks Digitale Jordartskort beskriver kortlagt overfladegeologi omkring kortlægningsdybden og dokumenterer ikke den konkrete lagfølge under grunden.',
       'Nærliggende Jupiter-boringer og grundvandspejlinger beskriver deres egne observationspunkter og dokumenterer ikke grundvand eller jordlag under hele den valgte grund.',
-      'DAWA/Matrikelkortets registrerede geometri og areal skal ikke forveksles med en ny juridisk grænseafsætning; rettigheder og grænsetvivl kræver original registerkontrol og eventuelt landinspektør.',
+      'Datafordelerens/Matriklens registrerede geometri og areal skal ikke forveksles med en ny juridisk grænseafsætning; rettigheder og grænsetvivl kræver original registerkontrol og eventuelt landinspektør.',
       'Plandata.dk-overlap erstatter ikke læsning af den gældende lokalplan og kommunal bekræftelse af den konkrete byggeret.',
       'Et eventuelt indikativt beløb gælder kun selve jorden/grunden. Bygninger, konstruktioner og andre forbedringer er udtrykkeligt udelukket.',
       'Automatisk jordværdi vises ikke, før en tilstrækkeligt dokumenteret dansk land-only kilde er integreret.'
