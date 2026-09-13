@@ -74,6 +74,11 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
     maturity: 'LIMITED',
     capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true, nationalRadon: true, nationalMining: true }
   },
+  DK: {
+    countryCode: 'DK',
+    maturity: 'LIMITED',
+    capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true, nationalPlanning: true }
+  },
   SE: {
     countryCode: 'SE',
     maturity: 'LIMITED',
@@ -109,7 +114,8 @@ const labels = {
   en: { SUPPORTED: 'Supported', LIMITED: 'Limited coverage' },
   de: { SUPPORTED: 'Unterstützt', LIMITED: 'Begrenzte Abdeckung' },
   pl: { SUPPORTED: 'Obsługiwany', LIMITED: 'Ograniczony zakres' },
-  sk: { SUPPORTED: 'Podporované', LIMITED: 'Obmedzené pokrytie' }
+  sk: { SUPPORTED: 'Podporované', LIMITED: 'Obmedzené pokrytie' },
+  da: { SUPPORTED: 'Understøttet', LIMITED: 'Begrænset dækning' }
 } as const;
 
 const notices = {
@@ -132,11 +138,16 @@ const notices = {
     SUPPORTED: 'Pre vybrané oblasti sú dostupné národné zdrojové integrácie. Nepodporované kategórie naďalej vyžadujú úradné overenie.',
     LIMITED: 'Obmedzené pokrytie: národné katastrálne, geologické, plánovacie, povodňové a oceňovacie integrácie ešte nie sú pre túto krajinu plne automatizované. Report naďalej využíva overené cezhraničné terénne údaje, OpenStreetMap a SoilGrids, ak sú dostupné, a odkazuje na príslušné orgány na manuálne overenie.',
     PARTIAL: 'Obmedzené pokrytie: vybrané národné zdrojové integrácie sú dostupné, zatiaľ čo ostatné národné kategórie naďalej vyžadujú úradné overenie. Report zároveň zachováva overené cezhraničné terénne údaje, OpenStreetMap a SoilGrids, ak sú dostupné.'
+  },
+  da: {
+    SUPPORTED: 'Nationale kildeintegrationer er tilgængelige for udvalgte områder. Ikke-understøttede kategorier kræver fortsat officiel verifikation.',
+    LIMITED: 'Begrænset dækning: nationale integrationer for matrikel, geologi, planlægning, oversvømmelse og værdi er endnu ikke fuldt automatiseret. Rapporten anvender fortsat validerede tværnationale terræn-, OpenStreetMap- og SoilGrids-data, hvor de er tilgængelige, og henviser til officielle myndigheder for kontrol.',
+    PARTIAL: 'Begrænset dækning: udvalgte danske nationale kilder er integreret, mens øvrige kategorier fortsat kræver officiel verifikation. Rapporten bevarer også validerede tværnationale terræn-, OpenStreetMap- og SoilGrids-data, hvor de er tilgængelige.'
   }
 } as const;
 
 type SupportLanguage = keyof typeof labels;
-const normalizeLanguage = (language: string): SupportLanguage => language === 'de' || language === 'pl' || language === 'sk' ? language : 'en';
+const normalizeLanguage = (language: string): SupportLanguage => language === 'de' || language === 'pl' || language === 'sk' || language === 'da' ? language : 'en';
 
 export function getCountrySupportLabel(countryCode: string, language = 'en'): string {
   const lang = normalizeLanguage(language);

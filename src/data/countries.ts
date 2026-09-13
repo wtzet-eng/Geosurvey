@@ -42,6 +42,7 @@ export const REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'de', label: 'Deutsch (German)' },
   { code: 'nl', label: 'Nederlands (Dutch)' },
   { code: 'cs', label: 'Čeština (Czech)' },
+  { code: 'da', label: 'Dansk (Danish)' },
   { code: 'sv', label: 'Svenska (Swedish)' },
   { code: 'no', label: 'Norsk bokmål (Norwegian)' }
 ];
@@ -102,6 +103,20 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
       'Kadaster BRK Kadastrale Kaart via PDOK OGC API – perceelgeometrie en kadastrale grootte',
       'BRO Bodemkaart 1:50 000 via PDOK',
       'Rijkswaterstaat / LIWO – overstromingsinformatie'
+    ]
+  },
+  DK: {
+    authorityName: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland / Dataforsyningen / Plandata.dk',
+    acronym: 'GEUS / Jupiter / DAWA / Plandata.dk',
+    mapViewerUrl: 'https://data.geus.dk/geusmap/',
+    description: 'Danske nationale data for jordarter, boringer, grundvandsobservationer, matrikel og vedtagne lokalplaner. GeoSurvey anvender kun de lag, der er teknisk integreret og valideret i den aktuelle version.',
+    datasets: [
+      'GEUS Danmarks Digitale Jordartskort 1:25.000 v7.1 – kortlagt overfladegeologi',
+      'GEUS Jupiter – registrerede boringer',
+      'GEUS Jupiter – seneste registrerede grundvandspejlinger',
+      'Dataforsyningen / DAWA Matrikelkort – jordstykkeidentitet, registreret areal og registergeometri',
+      'Plandata.dk WFS – vedtagne lokalplaner',
+      'Oversvømmelse, radon og råstof-/mineforhold – officiel kontrol, endnu ikke automatiseret'
     ]
   },
   SE: {

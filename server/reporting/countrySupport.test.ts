@@ -73,7 +73,7 @@ function clearFranceValuation(report: any): void {
   report.evidenceScore.breakdown.planningAndMarket.score = 0;
 }
 
-test('country support maturity exposes calibrated valuation and validated Czech and Norway capabilities', () => {
+test('country support maturity exposes calibrated valuation and validated Czech, Norway and Denmark capabilities', () => {
   const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const de = getCountrySupport('DE'); const fr = getCountrySupport('FR');
   assert.equal(pl.maturity, 'SUPPORTED'); assert.equal(pl.capabilities.nationalCadastre, true); assert.equal(pl.capabilities.nationalGeology, true);
   assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, false);
@@ -95,7 +95,11 @@ test('country support maturity exposes calibrated valuation and validated Czech 
   assert.equal(no.maturity, 'LIMITED');
   assert.equal(no.capabilities.nationalCadastre, true); assert.equal(no.capabilities.nationalGeology, true); assert.equal(no.capabilities.nationalBoreholes, true); assert.equal(no.capabilities.nationalRadon, true);
   assert.equal(no.capabilities.nationalHydrogeology, false); assert.equal(no.capabilities.nationalFlood, false); assert.equal(no.capabilities.nationalPlanning, false); assert.equal(no.capabilities.nationalValuation, false); assert.equal(no.capabilities.nationalMining, false);
-  for (const code of ['IT', 'NL', 'CH', 'BE', 'PT', 'DK', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  const dk = getCountrySupport('DK');
+  assert.equal(dk.maturity, 'LIMITED');
+  assert.equal(dk.capabilities.nationalCadastre, true); assert.equal(dk.capabilities.nationalGeology, true); assert.equal(dk.capabilities.nationalBoreholes, true); assert.equal(dk.capabilities.nationalHydrogeology, true); assert.equal(dk.capabilities.nationalPlanning, true);
+  assert.equal(dk.capabilities.nationalFlood, false); assert.equal(dk.capabilities.nationalValuation, false); assert.equal(dk.capabilities.nationalRadon, false); assert.equal(dk.capabilities.nationalMining, false);
+  for (const code of ['IT', 'NL', 'CH', 'BE', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });
