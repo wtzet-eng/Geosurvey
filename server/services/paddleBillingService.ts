@@ -40,6 +40,12 @@ export function getPaddleBillingRuntimeConfig(env: NodeJS.ProcessEnv = process.e
   };
 }
 
+const paddleHeaders = (apiKey: string) => ({
+  Authorization: `Bearer ${apiKey}`,
+  'Content-Type': 'application/json',
+  'Paddle-Version': '1'
+});
+
 export async function createPaddleCreditTransaction(
   user: { uid: string; email?: string | null },
   options: { fetcher?: FetchLike; env?: NodeJS.ProcessEnv } = {}
@@ -49,11 +55,7 @@ export async function createPaddleCreditTransaction(
   const fetcher = options.fetcher || fetch;
   const response = await fetcher(`${config.apiBaseUrl}/transactions`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json',
-      'Paddle-Version': '1'
-    },
+    headers: paddleHeaders(config.apiKey),
     body: JSON.stringify({
       items: [{ price_id: config.priceId, quantity: 1 }],
       collection_mode: 'automatic',
@@ -73,6 +75,42 @@ export async function createPaddleCreditTransaction(
     clientToken: config.clientToken,
     creditPackSize: config.creditPackSize
   };
+}
+
+export interface PaddleCreditCompletion {
+  transactionId: string;
+  uid: string;
+  credits: number;
+}
+
+function parseCompletedTransaction(data: any, expectedUid: string | null, config: PaddleBillingConfig): PaddleCreditCompletion | null {
+  if (!data?.id || data?.status !== 'completed') return null;
+  if (data?.custom_data?.surveyland_product !== 'ai_credit_pack') return null;
+  const uid = typeof data?.custom_data?.surveyland_uid === 'string' ? data.custom_data.surveyland_uid.trim() : '';
+  if (!uid || (expectedUid && uid !== expectedUid)) return null;
+  const items = Array.isArray(data?.items) ? data.items : [];
+  const priceMatches = Boolean(config.priceId) && items.some((item: any) => item?.price?.id === config.priceId || item?.price_id === config.priceId);
+  if (!priceMatches) return null;
+  return { transactionId: String(data.id), uid, credits: config.creditPackSize };
+}
+
+export async function confirmPaddleCreditTransaction(
+  transactionId: string,
+  expectedUid: string,
+  options: { fetcher?: FetchLike; env?: NodeJS.ProcessEnv } = {}
+): Promise<PaddleCreditCompletion> {
+  const config = getPaddleBillingRuntimeConfig(options.env || process.env);
+  if (!config.checkoutConfigured) throw new Error('Paddle checkout is not configured.');
+  if (!/^txn_[a-z0-9]+$/i.test(transactionId)) throw new Error('Invalid Paddle transaction ID.');
+  const fetcher = options.fetcher || fetch;
+  const response = await fetcher(`${config.apiBaseUrl}/transactions/${encodeURIComponent(transactionId)}`, {
+    headers: paddleHeaders(config.apiKey)
+  });
+  const payload: any = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(`Paddle transaction lookup failed (${response.status}).`);
+  const completion = parseCompletedTransaction(payload?.data, expectedUid, config);
+  if (!completion) throw new Error('Paddle transaction is not a completed SurveyLand credit purchase for this user.');
+  return completion;
 }
 
 function safeHexEqual(left: string, right: string): boolean {
@@ -98,23 +136,8 @@ export function verifyPaddleWebhookSignature(
   return signatures.some(signature => safeHexEqual(expected, signature));
 }
 
-export interface PaddleCreditCompletion {
-  transactionId: string;
-  uid: string;
-  credits: number;
-}
-
 export function parsePaddleCreditCompletion(event: any, env: NodeJS.ProcessEnv = process.env): PaddleCreditCompletion | null {
   const config = getPaddleBillingRuntimeConfig(env);
   if (event?.event_type !== 'transaction.completed') return null;
-  const data = event?.data;
-  if (!data?.id || data?.status !== 'completed') return null;
-  if (data?.custom_data?.surveyland_product !== 'ai_credit_pack') return null;
-  const uid = typeof data?.custom_data?.surveyland_uid === 'string' ? data.custom_data.surveyland_uid.trim() : '';
-  if (!uid) return null;
-  const items = Array.isArray(data?.items) ? data.items : [];
-  const expectedPrice = config.priceId;
-  const priceMatches = Boolean(expectedPrice) && items.some((item: any) => item?.price?.id === expectedPrice || item?.price_id === expectedPrice);
-  if (!priceMatches) return null;
-  return { transactionId: String(data.id), uid, credits: config.creditPackSize };
+  return parseCompletedTransaction(event?.data, null, config);
 }
