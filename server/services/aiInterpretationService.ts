@@ -81,7 +81,14 @@ STRICT EVIDENCE RULES:
 - Do not recommend a specific foundation system or certify a site as safe/buildable.
 - Keep the result useful for a purchaser deciding what to verify next.
 
-Return one JSON object with exactly these fields: observations, interpretation, limitations, verificationRequired, overallConfidence, disclaimer. Human-readable text must use the requested report language. Keep source and authority proper names unchanged. Keep the response concise: at most six entries per array and one or two short sentences per entry. Always finish the complete JSON object.`;
+Return one JSON object with exactly these fields: observations, interpretation, limitations, verificationRequired, overallConfidence, disclaimer. Human-readable text must use the requested report language. Keep source and authority proper names unchanged. Keep the response concise: at most six entries per array and one or two short sentences per entry. Always finish the complete JSON object.
+
+OUTPUT CONTRACT:
+- Return all required fields using exactly the field names in the schema below.
+- overallConfidence must be exactly "high", "medium", or "low". Do not translate these machine-readable values or replace them with a number or explanation.
+- Every verificationRequired item must contain topic, reason, and priority. priority must be exactly "high", "medium", or "standard" and must not be translated.
+- Translate only narrative text into the requested report language. observations, interpretation, and limitations must be arrays of strings.
+JSON schema: ${JSON.stringify(AI_INTERPRETATION_SCHEMA)}`;
 
 function cleanString(value: unknown, max = MAX_STRING_LENGTH): string | null {
   if (typeof value !== 'string') return null;
