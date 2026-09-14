@@ -24,6 +24,8 @@ const dutchLeakage = [
   'Indicative land-value range', 'Calculation method', 'Confidence level'
 ];
 
+const newLanguageLeakage = ['Executive Summary', 'Requires verification', 'Modelled', 'Verified', 'No data', 'Land value only', 'Recommended Investigations'];
+
 test('Polish report presentation dictionary has no known English leakage', () => {
   const text = presentationTextValues('pl').join('\n');
   for (const phrase of polishLeakage) assert.doesNotMatch(text, new RegExp(`\\b${phrase.replaceAll(' ', '\\s+')}\\b`, 'i'), phrase);
@@ -48,11 +50,21 @@ test('Dutch report presentation dictionary has no known English leakage', () => 
   assert.match(text, /Verificatie vereist/);
 });
 
-test('English, German, Polish and Dutch dictionaries expose the same presentation contract', () => {
+test('French, Spanish and Finnish report presentation dictionaries avoid known English UI leakage', () => {
+  for (const language of ['fr', 'es', 'fi']) {
+    const text = presentationTextValues(language).join('\n');
+    for (const phrase of newLanguageLeakage) assert.doesNotMatch(text, new RegExp(phrase, 'i'), `${language}: ${phrase}`);
+  }
+  assert.match(getReportPresentation('fr').executive, /Synthèse/);
+  assert.match(getReportPresentation('es').executive, /Resumen/);
+  assert.match(getReportPresentation('fi').executive, /Yhteenveto/);
+});
+
+test('all report dictionaries expose the same presentation contract', () => {
   const keys = Object.keys(getReportPresentation('en')).sort();
-  assert.deepEqual(Object.keys(getReportPresentation('de')).sort(), keys);
-  assert.deepEqual(Object.keys(getReportPresentation('pl')).sort(), keys);
-  assert.deepEqual(Object.keys(getReportPresentation('nl')).sort(), keys);
+  for (const language of ['de', 'pl', 'nl', 'fr', 'es', 'fi']) {
+    assert.deepEqual(Object.keys(getReportPresentation(language)).sort(), keys, language);
+  }
 });
 
 test('valuation presentation is explicitly land-only in every supported report language', () => {
@@ -79,6 +91,18 @@ test('valuation presentation is explicitly land-only in every supported report l
   assert.match(dutch.indicativeRange, /grondwaarde/i);
   assert.match(dutch.valuationNote, /Alleen grondwaarde/i);
   assert.match(dutch.valuationNote, /gebouwen.*bouwwerken.*verbeteringen/i);
+
+  const french = getReportPresentation('fr');
+  assert.match(french.valuationNote, /Valeur du terrain uniquement/i);
+  assert.match(french.valuationNote, /bâtiments.*constructions.*améliorations/i);
+
+  const spanish = getReportPresentation('es');
+  assert.match(spanish.valuationNote, /Solo valor del suelo/i);
+  assert.match(spanish.valuationNote, /edificios.*construcciones.*mejoras/i);
+
+  const finnish = getReportPresentation('fi');
+  assert.match(finnish.valuationNote, /Vain maan arvo/i);
+  assert.match(finnish.valuationNote, /rakennukset.*rakenteet.*parannukset/i);
 });
 
 test('land-value scope is repeated in the professional disclaimer', () => {
@@ -86,6 +110,9 @@ test('land-value scope is repeated in the professional disclaimer', () => {
   assert.match(getReportPresentation('de').disclaimerOne, /Bodenwert.*Gebäude.*bauliche Anlagen.*Aufbauten/i);
   assert.match(getReportPresentation('pl').disclaimerOne, /wartością gruntu.*budynków.*budowli.*naniesień/i);
   assert.match(getReportPresentation('nl').disclaimerOne, /grondwaarde.*gebouwen.*bouwwerken.*verbeteringen/i);
+  assert.match(getReportPresentation('fr').disclaimerOne, /terrain.*bâtiments.*constructions.*améliorations/i);
+  assert.match(getReportPresentation('es').disclaimerOne, /suelo.*edificios.*construcciones.*mejoras/i);
+  assert.match(getReportPresentation('fi').disclaimerOne, /maata.*rakennukset.*rakenteet.*parannukset/i);
 });
 
 test('canonical enums and unavailable sentinels never leak into localized presentation values', () => {
@@ -93,10 +120,16 @@ test('canonical enums and unavailable sentinels never leak into localized presen
   assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'de')), ['Modelliert', 'Verifiziert', 'Prüfung erforderlich']);
   assert.deepEqual(['NEGLIGIBLE', 'LOW', 'MODERATE', 'HIGH'].map(value => localizePresentationValue(value, 'nl')), ['Verwaarloosbaar', 'Laag', 'Matig', 'Hoog']);
   assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'nl')), ['Gemodelleerd', 'Geverifieerd', 'Verificatie vereist']);
+  assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'fr')), ['Modélisé', 'Vérifié', 'Vérification requise']);
+  assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'es')), ['Modelado', 'Verificado', 'Requiere verificación']);
+  assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'fi')), ['Mallinnettu', 'Vahvistettu', 'Vaatii tarkistuksen']);
   for (const value of ['Not available', 'No data', 'Unknown', 'Unavailable', 'Not assessed', 'Requires verification', 'Not measured']) {
     assert.equal(localizePresentationValue(value, 'pl'), 'Brak danych');
     assert.equal(localizePresentationValue(value, 'de'), 'Keine Daten');
     assert.equal(localizePresentationValue(value, 'nl'), 'Geen gegevens');
+    assert.equal(localizePresentationValue(value, 'fr'), 'Aucune donnée');
+    assert.equal(localizePresentationValue(value, 'es'), 'Sin datos');
+    assert.equal(localizePresentationValue(value, 'fi'), 'Ei tietoja');
   }
 });
 
@@ -131,4 +164,11 @@ test('Dutch unavailable reasons remain distinct and localized', () => {
   assert.equal(localizePresentationValue('ISRIC soil texture not available', 'nl'), 'SoilGrids-textuur niet beschikbaar');
   assert.notEqual(localizeAvailabilityReason('NO_DATA', 'nl'), localizeAvailabilityReason('SOURCE_UNAVAILABLE', 'nl'));
   assert.notEqual(localizeAvailabilityReason('PARAMETER_NOT_PROVIDED', 'nl'), localizeAvailabilityReason('AUTHORITATIVE_DATA_REQUIRED', 'nl'));
+});
+
+test('French Spanish and Finnish unavailable reasons remain distinct and localized', () => {
+  for (const language of ['fr', 'es', 'fi']) {
+    assert.notEqual(localizeAvailabilityReason('NO_DATA', language), localizeAvailabilityReason('SOURCE_UNAVAILABLE', language));
+    assert.notEqual(localizeAvailabilityReason('PARAMETER_NOT_PROVIDED', language), localizeAvailabilityReason('AUTHORITATIVE_DATA_REQUIRED', language));
+  }
 });

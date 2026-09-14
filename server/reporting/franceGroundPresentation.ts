@@ -7,6 +7,9 @@ export interface FranceGroundPresentation {
   shrinkSwell?: { descriptor: string };
 }
 
+type FrancePresentationLanguage = ReportLanguage | 'fr' | 'es' | 'fi';
+type FranceCopyLanguage = ReportLanguage | 'fr';
+
 const copy = {
   en: {
     bss: (count: number, distance: number | null, id: string | null) => `BRGM Banque du Sous-Sol: ${count} nearby contextual record${count === 1 ? '' : 's'} returned${distance === null ? '' : `; nearest approximately ${distance.toFixed(2)} km away`}${id ? ` (record ${id})` : ''}.`,
@@ -22,8 +25,13 @@ const copy = {
     bss: (count: number, distance: number | null, id: string | null) => `BRGM Banque du Sous-Sol: zwrócono ${count} kontekstowe rekord${count === 1 ? '' : 'y'} w otoczeniu${distance === null ? '' : `; najbliższy około ${distance.toFixed(2)} km od lokalizacji`}${id ? ` (rekord ${id})` : ''}.`,
     clay: (descriptor: string) => `BRGM/Géorisques — kartowana podatność gruntów ilastych na skurcz i pęcznienie: ${descriptor}.`,
     boundary: 'Pobliskie rekordy BSS i kartowana ekspozycja na skurcz–pęcznienie są wyłącznie kontekstem analizy wstępnej; nie potwierdzają profilu gruntu pod działką, warunków wodnych ani parametrów projektowych.'
+  },
+  fr: {
+    bss: (count: number, distance: number | null, id: string | null) => `BRGM Banque du Sous-Sol : ${count} enregistrement${count === 1 ? '' : 's'} contextuel${count === 1 ? '' : 's'} à proximité${distance === null ? '' : ` ; le plus proche se situe à environ ${distance.toFixed(2)} km`}${id ? ` (enregistrement ${id})` : ''}.`,
+    clay: (descriptor: string) => `BRGM/Géorisques — présélection du retrait-gonflement des argiles au droit du site : ${descriptor}.`,
+    boundary: 'Les enregistrements BSS voisins et l’exposition cartographiée au retrait-gonflement constituent uniquement un contexte de présélection ; ils ne déterminent ni le profil de sol de la parcelle, ni les conditions d’eau souterraine, ni les paramètres de dimensionnement.'
   }
-} satisfies Record<ReportLanguage, {
+} satisfies Record<FranceCopyLanguage, {
   bss: (count: number, distance: number | null, id: string | null) => string;
   clay: (descriptor: string) => string;
   boundary: string;
@@ -32,13 +40,14 @@ const copy = {
 const finiteOrNull = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
 const stringOrNull = (value: unknown): string | null => typeof value === 'string' && value.trim() ? value.trim() : null;
 
-export function renderFranceGroundPresentation(canonical: CanonicalReport, language: ReportLanguage): FranceGroundPresentation | null {
+export function renderFranceGroundPresentation(canonical: CanonicalReport, language: FrancePresentationLanguage): FranceGroundPresentation | null {
   if (canonical.countryCode !== 'FR') return null;
   const bssRecord = canonical.evidenceRecords.find(record => record.id === 'fr-brgm-bss-context' && record.status === 'VERIFIED');
   const clayRecord = canonical.evidenceRecords.find(record => record.id === 'fr-brgm-shrink-swell-site' && record.status === 'VERIFIED');
   if (!bssRecord && !clayRecord) return null;
 
-  const c = copy[language];
+  const copyLanguage: FranceCopyLanguage = language === 'fr' ? 'fr' : language === 'de' ? 'de' : language === 'pl' ? 'pl' : 'en';
+  const c = copy[copyLanguage];
   const parts: string[] = [];
   const sources = new Set<string>();
   let bss: FranceGroundPresentation['bss'];

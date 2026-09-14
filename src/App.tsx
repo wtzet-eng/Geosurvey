@@ -25,8 +25,14 @@ import { SavedReportsModal } from './components/SavedReportsModal';
 import { EmbedModal } from './components/EmbedModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
 
-const REPORT_LANGUAGE_OPTIONS = [...REPORT_LANGUAGES, { code: 'sk', label: 'Slovenčina (Slovak)' }];
-const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'da', 'no', 'sv', 'sk']);
+const REPORT_LANGUAGE_OPTIONS = [
+  ...REPORT_LANGUAGES,
+  { code: 'fr', label: 'Français (French)' },
+  { code: 'es', label: 'Español (Spanish)' },
+  { code: 'fi', label: 'Suomi (Finnish)' },
+  { code: 'sk', label: 'Slovenčina (Slovak)' }
+].filter((item, index, all) => all.findIndex(other => other.code === item.code) === index);
+const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'da', 'no', 'sv', 'sk', 'fr', 'es', 'fi']);
 const SELECTABLE_COUNTRIES = EUROPEAN_COUNTRIES
   .filter((country) => Object.values(getCountrySupport(country.code).capabilities).some(Boolean))
   .sort((a, b) => a.name.localeCompare(b.name, 'en'));
@@ -49,8 +55,73 @@ const SLOVAK_FRONT_PAGE = {
   step1: '1. Určte hranice pozemku', searchPh: 'Hľadať adresu alebo obec…', step2: '2. Konfigurácia a parametre', areaLbl: 'Plocha pozemku (m²)', countryLbl: 'Krajina (Európa)', langLbl: 'Jazyk reportu', btnGen: 'Posúdiť kvalitu a hodnotu pozemku', modeCircle: 'Kruh', modeRect: 'Obdĺžnik', modePoly: 'Voľný polygón', finishPoly: 'Dokončiť polygón', clear: 'Vymazať', clickPrompt: 'Kliknutím na mapu určte hranicu.'
 };
 
-const uiText = (language: string, en: string, nl: string, cs: string, sv: string, no: string, sk: string) =>
-  language === 'nl' ? nl : language === 'cs' ? cs : language === 'sv' ? sv : language === 'no' ? no : language === 'sk' ? sk : en;
+const NATIVE_FRONT_PAGES: Record<string, ReturnType<typeof getFrontPageI18n>> = {
+  fr: {
+    badge: 'Plateforme européenne de vérification des terrains à bâtir',
+    heroTitle: 'Vérifiez votre terrain à bâtir : risques du sol et valeur foncière',
+    heroSub: 'Dessinez ou sélectionnez une parcelle en Europe. Obtenez une évaluation préliminaire fondée sur les données publiques disponibles concernant le sous-sol, les géorisques, l’urbanisme et la valeur du terrain.',
+    step1: '1. Définir les limites du terrain', searchPh: 'Rechercher une adresse ou une commune…', step2: '2. Configuration et paramètres', areaLbl: 'Surface du terrain (m²)', countryLbl: 'Pays (Europe)', langLbl: 'Langue du rapport', btnGen: 'Vérifier la qualité et la valeur du terrain', modeCircle: 'Cercle', modeRect: 'Rectangle', modePoly: 'Polygone libre', finishPoly: 'Terminer le polygone', clear: 'Effacer', clickPrompt: 'Cliquez sur la carte pour définir la limite.'
+  },
+  es: {
+    badge: 'Plataforma europea de verificación de parcelas edificables',
+    heroTitle: 'Compruebe su parcela: riesgos del terreno y valor del suelo',
+    heroSub: 'Dibuje o seleccione una parcela en Europa. Obtenga una evaluación preliminar basada en los datos públicos disponibles sobre el terreno, riesgos geológicos, planeamiento y valor del suelo.',
+    step1: '1. Definir los límites de la parcela', searchPh: 'Buscar dirección o municipio…', step2: '2. Configuración y parámetros', areaLbl: 'Superficie de la parcela (m²)', countryLbl: 'País (Europa)', langLbl: 'Idioma del informe', btnGen: 'Comprobar calidad y valor de la parcela', modeCircle: 'Círculo', modeRect: 'Rectángulo', modePoly: 'Polígono libre', finishPoly: 'Finalizar polígono', clear: 'Borrar', clickPrompt: 'Haga clic en el mapa para definir el límite.'
+  },
+  fi: {
+    badge: 'Eurooppalainen rakennustonttien ennakkotarkastus',
+    heroTitle: 'Arvioi rakennustontti: maaperäriskit ja maan arvo',
+    heroSub: 'Piirrä tai valitse rakennustontti Euroopassa. Saat alustavan arvion saatavilla olevien julkisten tietojen perusteella maaperästä, georiskeistä, kaavoituksesta ja maan arvosta.',
+    step1: '1. Määritä tontin rajaus', searchPh: 'Hae osoitetta tai kuntaa…', step2: '2. Asetukset ja parametrit', areaLbl: 'Tontin pinta-ala (m²)', countryLbl: 'Maa (Eurooppa)', langLbl: 'Raportin kieli', btnGen: 'Tarkista tontin laatu ja arvo', modeCircle: 'Ympyrä', modeRect: 'Suorakulmio', modePoly: 'Vapaa monikulmio', finishPoly: 'Viimeistele monikulmio', clear: 'Tyhjennä', clickPrompt: 'Määritä rajaus napsauttamalla karttaa.'
+  }
+};
+
+const extraUi: Record<string, Record<string, string>> = {
+  fr: {
+    'Please draw a site boundary on the map first.': 'Dessinez d’abord les limites du terrain sur la carte.',
+    'Failed to analyze site. Please try again.': 'L’analyse du site a échoué. Veuillez réessayer.',
+    'An error occurred while generating the report.': 'Une erreur est survenue lors de la génération du rapport.',
+    'Boundary set · approx': 'Limite définie · env.',
+    '(adjust area input to resize)': '(modifiez la surface pour redimensionner)',
+    'Click the map to place the circle center.': 'Cliquez sur la carte pour placer le centre du cercle.',
+    'Click two opposite corners on the map to draw the rectangle.': 'Cliquez sur deux coins opposés pour dessiner le rectangle.',
+    'Click sequential points on the map to draw a custom polygon boundary.': 'Cliquez successivement sur la carte pour dessiner une limite polygonale.',
+    '(auto-calculated from boundary)': '(calculé automatiquement à partir de la limite)',
+    'Gathering governmental data…': 'Collecte des données publiques…',
+    'The country provides a default report language; a manual language selection is preserved.': 'Le pays définit une langue de rapport par défaut ; un choix manuel est conservé.'
+  },
+  es: {
+    'Please draw a site boundary on the map first.': 'Dibuje primero el límite de la parcela en el mapa.',
+    'Failed to analyze site. Please try again.': 'No se pudo analizar la parcela. Inténtelo de nuevo.',
+    'An error occurred while generating the report.': 'Se produjo un error al generar el informe.',
+    'Boundary set · approx': 'Límite definido · aprox.',
+    '(adjust area input to resize)': '(ajuste la superficie para cambiar el tamaño)',
+    'Click the map to place the circle center.': 'Haga clic en el mapa para situar el centro del círculo.',
+    'Click two opposite corners on the map to draw the rectangle.': 'Haga clic en dos esquinas opuestas para dibujar el rectángulo.',
+    'Click sequential points on the map to draw a custom polygon boundary.': 'Haga clic en puntos sucesivos para dibujar un límite poligonal.',
+    '(auto-calculated from boundary)': '(calculado automáticamente a partir del límite)',
+    'Gathering governmental data…': 'Recopilando datos públicos…',
+    'The country provides a default report language; a manual language selection is preserved.': 'El país establece un idioma de informe predeterminado; se conserva la selección manual.'
+  },
+  fi: {
+    'Please draw a site boundary on the map first.': 'Piirrä ensin tontin rajaus kartalle.',
+    'Failed to analyze site. Please try again.': 'Tontin analysointi epäonnistui. Yritä uudelleen.',
+    'An error occurred while generating the report.': 'Raporttia luotaessa tapahtui virhe.',
+    'Boundary set · approx': 'Rajaus asetettu · noin',
+    '(adjust area input to resize)': '(muuta pinta-alaa koon säätämiseksi)',
+    'Click the map to place the circle center.': 'Aseta ympyrän keskipiste napsauttamalla karttaa.',
+    'Click two opposite corners on the map to draw the rectangle.': 'Piirrä suorakulmio napsauttamalla kahta vastakkaista kulmaa.',
+    'Click sequential points on the map to draw a custom polygon boundary.': 'Piirrä monikulmiorajaus napsauttamalla pisteitä peräkkäin.',
+    '(auto-calculated from boundary)': '(laskettu automaattisesti rajauksesta)',
+    'Gathering governmental data…': 'Haetaan julkisia aineistoja…',
+    'The country provides a default report language; a manual language selection is preserved.': 'Maa määrittää raportin oletuskielen; käsin valittu kieli säilytetään.'
+  }
+};
+
+const uiText = (language: string, en: string, nl: string, cs: string, sv: string, no: string, sk: string) => {
+  if (language === 'fr' || language === 'es' || language === 'fi') return extraUi[language]?.[en] || en;
+  return language === 'nl' ? nl : language === 'cs' ? cs : language === 'sv' ? sv : language === 'no' ? no : language === 'sk' ? sk : en;
+};
 
 export default function App() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
@@ -87,7 +158,7 @@ export default function App() {
     if (language.code === 'sv') return countryCode === 'SE';
     return true;
   });
-  const fp = languageCode === 'sk' ? SLOVAK_FRONT_PAGE : getFrontPageI18n(languageCode);
+  const fp = languageCode === 'sk' ? SLOVAK_FRONT_PAGE : NATIVE_FRONT_PAGES[languageCode] || getFrontPageI18n(languageCode);
 
   useEffect(() => {
     try {

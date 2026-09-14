@@ -15,6 +15,33 @@ const StatusDot: React.FC<{ className: string; size: 'sm' | 'md' | 'lg' }> = ({ 
   />
 );
 
+const copies: Record<string, { labels: { verified: string; modelled: string; requires: string }; titles: { verified: string; modelled: string; requires: string } }> = {
+  en: {
+    labels: { verified: 'Verified Data', modelled: 'Modelled / Regional', requires: 'Requires Verification' },
+    titles: { verified: 'Directly verified from an authoritative registry', modelled: 'Modelled from regional evidence or statistical estimates', requires: 'Requires on-site or authoritative verification' }
+  },
+  pl: {
+    labels: { verified: 'Dane zweryfikowane', modelled: 'Modelowane / regionalne', requires: 'Wymaga weryfikacji' },
+    titles: { verified: 'Bezpośrednio potwierdzone w urzędowym rejestrze', modelled: 'Model regionalny lub szacunek statystyczny', requires: 'Wymaga potwierdzenia terenowego lub urzędowego' }
+  },
+  de: {
+    labels: { verified: 'Verifizierte Daten', modelled: 'Modelliert / regional', requires: 'Prüfung erforderlich' },
+    titles: { verified: 'Direkt durch ein amtliches Register bestätigt', modelled: 'Regionalmodell oder statistische Schätzung', requires: 'Standortbezogene oder amtliche Bestätigung erforderlich' }
+  },
+  fr: {
+    labels: { verified: 'Données vérifiées', modelled: 'Modélisé / régional', requires: 'Vérification requise' },
+    titles: { verified: 'Vérifié directement dans une source officielle', modelled: 'Modélisé à partir de données régionales ou d’estimations statistiques', requires: 'Une vérification sur site ou officielle est requise' }
+  },
+  es: {
+    labels: { verified: 'Datos verificados', modelled: 'Modelado / regional', requires: 'Requiere verificación' },
+    titles: { verified: 'Verificado directamente en una fuente oficial', modelled: 'Modelado a partir de evidencia regional o estimaciones estadísticas', requires: 'Requiere verificación sobre el terreno o por una fuente oficial' }
+  },
+  fi: {
+    labels: { verified: 'Vahvistettu tieto', modelled: 'Mallinnettu / alueellinen', requires: 'Vaatii tarkistuksen' },
+    titles: { verified: 'Vahvistettu suoraan virallisesta rekisteristä', modelled: 'Mallinnettu alueellisesta aineistosta tai tilastollisesta arviosta', requires: 'Vaatii kohdekohtaisen tai viranomaisvahvistuksen' }
+  }
+};
+
 export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({
   level = 'MODELLED',
   size = 'md',
@@ -22,16 +49,8 @@ export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({
   language = 'en'
 }) => {
   const norm = String(level).toUpperCase();
-  const labels = language === 'pl'
-    ? { verified: 'Dane zweryfikowane', modelled: 'Modelowane / regionalne', requires: 'Wymaga weryfikacji' }
-    : language === 'de'
-      ? { verified: 'Verifizierte Daten', modelled: 'Modelliert / regional', requires: 'Prüfung erforderlich' }
-      : { verified: 'Verified Data', modelled: 'Modelled / Regional', requires: 'Requires Verification' };
-  const titles = language === 'pl'
-    ? { verified: 'Bezpośrednio potwierdzone w urzędowym rejestrze', modelled: 'Model regionalny lub szacunek statystyczny', requires: 'Wymaga potwierdzenia terenowego lub urzędowego' }
-    : language === 'de'
-      ? { verified: 'Direkt durch ein amtliches Register bestätigt', modelled: 'Regionalmodell oder statistische Schätzung', requires: 'Standortbezogene oder amtliche Bestätigung erforderlich' }
-      : { verified: 'Directly verified from an authoritative registry', modelled: 'Modelled from regional evidence or statistical estimates', requires: 'Requires on-site or authoritative verification' };
+  const copy = copies[language] || copies.en;
+  const { labels, titles } = copy;
   const padding = size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : size === 'lg' ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[11px]';
 
   if (norm === 'VERIFIED') {
