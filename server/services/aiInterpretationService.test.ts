@@ -106,6 +106,11 @@ test('Mistral interpretation uses server key, JSON mode and strict evidence guar
   assert.match(systemPrompt, /Use only the structured evidence/i);
   assert.match(systemPrompt, /Never infer parcel-specific bearing capacity/i);
   assert.match(systemPrompt, /LAND VALUE ONLY/i);
+  const suppliedSchema = JSON.parse(systemPrompt.split('JSON schema: ')[1]);
+  assert.deepEqual(suppliedSchema.properties.overallConfidence.enum, ['high', 'medium', 'low']);
+  assert.deepEqual(suppliedSchema.properties.verificationRequired.items.properties.priority.enum, ['high', 'medium', 'standard']);
+  assert.ok(suppliedSchema.required.includes('overallConfidence'));
+  assert.match(systemPrompt, /Do not translate these machine-readable values/);
   assert.equal(result.provider, 'mistral');
   assert.equal(result.overallConfidence, 'medium');
 });
