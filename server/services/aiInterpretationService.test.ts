@@ -130,3 +130,26 @@ test('Ollama mode uses local structured-output endpoint without an API key', asy
   assert.equal(request.body.model, 'ministral-3:8b');
   assert.equal(result.provider, 'ollama');
 });
+
+
+test('Mistral rejects incomplete responses without exposing report content', async () => {
+  const cases = [
+    { data: { choices: [{ finish_reason: 'length', message: { content: JSON.stringify(validInterpretation) } }] }, error: /output token limit/ },
+    { data: { choices: [{ finish_reason: 'stop', message: { content: '' } }] }, error: /empty interpretation content/ },
+    { data: { choices: [{ finish_reason: 'stop', message: { content: '{"private parcel":' } }] }, error: /incomplete or invalid interpretation JSON/ },
+    { data: { choices: [{ finish_reason: 'model_length', message: { content: '{}' } }] }, error: /did not finish normally/ },
+    { data: null, error: /invalid JSON API response/, brokenEnvelope: true }
+  ];
+  for (const scenario of cases) {
+    const fetcher: any = async () => ({
+      ok: true, status: 200,
+      json: async () => {
+        if (scenario.brokenEnvelope) throw new SyntaxError('private upstream body');
+        return scenario.data;
+      }
+    });
+    await assert.rejects(interpretSurveyLandEvidence(report, {
+      fetcher, env: { MISTRAL_API_KEY: 'test-key' } as NodeJS.ProcessEnv
+    }), scenario.error);
+  }
+});
