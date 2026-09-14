@@ -81,7 +81,7 @@ STRICT EVIDENCE RULES:
 - Do not recommend a specific foundation system or certify a site as safe/buildable.
 - Keep the result useful for a purchaser deciding what to verify next.
 
-Return one JSON object with exactly these fields: observations, interpretation, limitations, verificationRequired, overallConfidence, disclaimer. Human-readable text must use the requested report language. Keep source and authority proper names unchanged.`;
+Return one JSON object with exactly these fields: observations, interpretation, limitations, verificationRequired, overallConfidence, disclaimer. Human-readable text must use the requested report language. Keep source and authority proper names unchanged. Keep the response concise: at most six entries per array and one or two short sentences per entry. Always finish the complete JSON object.`;
 
 function cleanString(value: unknown, max = MAX_STRING_LENGTH): string | null {
   if (typeof value !== 'string') return null;
@@ -243,7 +243,7 @@ async function callMistral(evidencePackage: unknown, config: AiInterpretationRun
     body: JSON.stringify({
       model: config.model,
       temperature: 0,
-      max_tokens: 1800,
+      max_tokens: 4096,
       safe_prompt: true,
       response_format: { type: 'json_object' },
       messages: [
@@ -256,8 +256,26 @@ async function callMistral(evidencePackage: unknown, config: AiInterpretationRun
     const detail = cleanString(await response.text().catch(() => ''), 1000);
     throw new Error(`Mistral request failed (${response.status})${detail ? `: ${detail}` : ''}`);
   }
-  const data: any = await response.json();
-  return JSON.parse(extractMistralContent(data));
+  let data: any;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('Mistral returned an empty or invalid JSON API response.');
+  }
+  const finishReason = data?.choices?.[0]?.finish_reason;
+  if (finishReason === 'length') {
+    throw new Error('Mistral interpretation exceeded the output token limit; incomplete output was rejected.');
+  }
+  if (finishReason && finishReason !== 'stop') {
+    throw new Error('Mistral interpretation did not finish normally; output was rejected.');
+  }
+  const content = extractMistralContent(data).trim();
+  if (!content) throw new Error('Mistral returned empty interpretation content.');
+  try {
+    return JSON.parse(content);
+  } catch {
+    throw new Error('Mistral returned incomplete or invalid interpretation JSON.');
+  }
 }
 
 async function callOllama(evidencePackage: unknown, config: AiInterpretationRuntimeConfig, fetcher: FetchLike) {
