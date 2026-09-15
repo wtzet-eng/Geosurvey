@@ -163,13 +163,14 @@ export function parseWktToPolygon(wktStr: string): [number, number][] {
  * Fetch official parcel metadata & boundary polygon geometry from GUGiK ULDK API
  */
 export async function fetchPolandCadastralParcel(lat: number, lng: number): Promise<GUGiKParcelResponse> {
-  // GUGiK ULDK uses xy=lng,lat (WGS84 EPSG:4326)
+  // GUGiK ULDK requires xy=lng,lat,4326; the SRID suffix is part of the
+  // coordinate parameter (the separate srid query parameter alone is ignored).
   // Requesting: id, geom_wkt, teryt, commune, county, voivodeship, region with srid=4326
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 4500);
 
-    const url = `https://uldk.gugik.gov.pl/?request=GetParcelByXY&xy=${lng.toFixed(6)},${lat.toFixed(6)}&result=id,geom_wkt,teryt,commune,county,voivodeship,region&srid=4326`;
+    const url = `https://uldk.gugik.gov.pl/?request=GetParcelByXY&xy=${lng.toFixed(6)},${lat.toFixed(6)},4326&result=id,geom_wkt,teryt,commune,county,voivodeship,region&srid=4326`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'EuropeanLandValuationEngine/5.0 (Cadastral Verification)' },
       signal: controller.signal
@@ -218,7 +219,7 @@ export async function fetchPolandCadastralParcel(lat: number, lng: number): Prom
     try {
       const controller2 = new AbortController();
       const timer2 = setTimeout(() => controller2.abort(), 3500);
-      const url2 = `https://uldk.gugik.gov.pl/?request=GetParcelByXY&xy=${lng.toFixed(6)},${lat.toFixed(6)}&result=id,teryt,commune,county,voivodeship,region`;
+      const url2 = `https://uldk.gugik.gov.pl/?request=GetParcelByXY&xy=${lng.toFixed(6)},${lat.toFixed(6)},4326&result=id,teryt,commune,county,voivodeship,region`;
       const res2 = await fetch(url2, { signal: controller2.signal });
       clearTimeout(timer2);
 

@@ -158,3 +158,38 @@ test('Mistral rejects incomplete responses without exposing report content', asy
     }), scenario.error);
   }
 });
+
+
+test('German AI valuation exposes the exact area and coherent unit prices', () => {
+  const sample = { ...report, country_code: 'DE', area_size: 45489, report_data: {
+    ...report.report_data,
+    site_value_estimate: { min: 909780, max: 12009096, median: 4548900, currency: 'EUR', evidence_level: 'MODELLED' },
+    valuation_metrics: { valuation_area_m2: 45489, price_per_sqm_min: 66, price_per_sqm_max: 833 }
+  } };
+  const valuation = buildAiEvidencePackage(sample).landValuation;
+  assert.equal(valuation.valuationAreaM2, 45489);
+  assert.deepEqual(valuation.pricePerSqm, { min: 20, max: 264, median: 100 });
+  assert.equal(valuation.consistencyWarnings.length, 2);
+  assert.match(valuation.classification!, /NOT_OFFICIAL_BODENRICHTWERT/);
+  assert.match(valuation.applicability!, /Actual land use.*not verified/);
+});
+
+test('Valuation uses its declared calculation area rather than the drawn area', () => {
+  const sample = { ...report, area_size: 900, report_data: {
+    ...report.report_data,
+    site_value_estimate: { min: 84500, max: 169000, median: 126750, currency: 'EUR' },
+    valuation_metrics: { valuation_area_m2: 845, price_per_sqm_min: 100, price_per_sqm_max: 200, price_per_sqm_median: 150 }
+  } };
+  const valuation = buildAiEvidencePackage(sample).landValuation;
+  assert.deepEqual(valuation.pricePerSqm, { min: 100, max: 200, median: 150 });
+  assert.deepEqual(valuation.consistencyWarnings, []);
+});
+
+test('Missing amounts and unverified official areas are not converted into zero', () => {
+  const sample = { ...report, is_official_parcel: false, official_area_m2: 845, area_size: 0 };
+  const pkg = buildAiEvidencePackage(sample);
+  assert.equal(pkg.site.officialAreaM2, null);
+  assert.equal(pkg.landValuation.min, null);
+  assert.equal(pkg.landValuation.valuationAreaM2, null);
+  assert.deepEqual(pkg.landValuation.pricePerSqm, { min: null, max: null, median: null });
+});

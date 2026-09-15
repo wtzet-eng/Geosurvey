@@ -76,6 +76,10 @@ STRICT EVIDENCE RULES:
 - A cadastral map or parcel identifier does not prove title, legal boundary conclusiveness, ownership, buildability, or planning permission.
 - Planning-map overlap is screening evidence, not proof that construction is permitted.
 - Land valuation means LAND VALUE ONLY. Buildings, structures, improvements, fixtures, and business value are excluded.
+- Use landValuation totals and pricePerSqm together with valuationAreaM2. Never combine prices from other narrative sections or invent a new range. If consistencyWarnings is nonempty, explain the discrepancy and require verification.
+- A German modelled building-land benchmark is not an official parcel-specific Bodenrichtwert or a market appraisal. It assumes building land; it does not establish that this plot is buildable, serviced, or suitable for that use. Never apply it as a confirmed value for agricultural, forest or otherwise unverified land use.
+- Missing environmental records do not establish absence of contamination, protected areas or restrictions. Say not verified. Flat terrain does not establish building suitability.
+- isOfficialParcel=false means the selected boundary was not confirmed as an official parcel, not that the land has no official cadastral subdivision. Unavailable national evidence means it was not obtained by this app, not that national sources do not exist.
 - When evidence is missing, unavailable, modelled, contradictory, stale, or requires verification, say so explicitly.
 - Never turn an unavailable value into a numeric estimate.
 - Do not recommend a specific foundation system or certify a site as safe/buildable.
@@ -107,6 +111,41 @@ function sanitizeUnknown(value: unknown, depth = 0): unknown {
     return Object.fromEntries(entries.map(([key, item]) => [key, sanitizeUnknown(item, depth + 1)]));
   }
   return String(value).slice(0, MAX_STRING_LENGTH);
+}
+
+function buildAiLandValuation(report: any) {
+  const data = report.report_data;
+  const raw = data.site_value_estimate || {};
+  const metrics = data.valuation_metrics || {};
+  const number = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+  const area = number(metrics.valuation_area_m2 ?? report.area_size);
+  const valuationAreaM2 = area !== null && area > 0 ? area : null;
+  const totals = { min: number(raw.min), max: number(raw.max), median: number(raw.median) };
+  const pricePerSqm: Record<string, number | null> = {};
+  const consistencyWarnings: string[] = [];
+  for (const key of ['min', 'max', 'median'] as const) {
+    const total = totals[key];
+    const derived = total !== null && valuationAreaM2 !== null ? total / valuationAreaM2 : null;
+    pricePerSqm[key] = derived;
+    const supplied = number(metrics[`price_per_sqm_${key}`]);
+    if (supplied !== null && derived !== null && Math.abs(supplied - derived) > 0.51) {
+      consistencyWarnings.push(`Reported ${key} unit price does not match total divided by valuation area; use the derived unit price only after verifying the report.`);
+    }
+  }
+  if (totals.min !== null && totals.max !== null && totals.min > totals.max) consistencyWarnings.push('Valuation minimum exceeds maximum; do not quote this range.');
+  if (totals.median !== null && ((totals.min !== null && totals.median < totals.min) || (totals.max !== null && totals.median > totals.max))) consistencyWarnings.push('Valuation median lies outside the range; verify before quoting.');
+  return {
+    ...(sanitizeUnknown(raw) as Record<string, unknown>),
+    ...totals,
+    valuationAreaM2,
+    pricePerSqm,
+    consistencyWarnings,
+    scope: 'LAND_ONLY',
+    ...(report.country_code === 'DE' ? {
+      classification: 'MODELLED_BUILDING_LAND_BENCHMARK_NOT_OFFICIAL_BODENRICHTWERT',
+      applicability: 'Building-land scenario only. Actual land use, buildability, servicing and local market value are not verified.'
+    } : {})
+  };
 }
 
 export function buildAiEvidencePackage(report: any) {
@@ -143,7 +182,7 @@ export function buildAiEvidencePackage(report: any) {
       longitude: Number.isFinite(Number(report.longitude)) ? Number(report.longitude) : null,
       areaM2: Number.isFinite(Number(report.area_size)) ? Number(report.area_size) : null,
       isOfficialParcel: Boolean(report.is_official_parcel),
-      officialAreaM2: Number.isFinite(Number(report.official_area_m2)) ? Number(report.official_area_m2) : null
+      officialAreaM2: report.is_official_parcel === true && typeof report.official_area_m2 === 'number' && Number.isFinite(report.official_area_m2) && report.official_area_m2 > 0 ? report.official_area_m2 : null
     },
     evidenceScore: sanitizeUnknown(data.evidence_score),
     evidenceRegistry: evidence,
@@ -151,7 +190,7 @@ export function buildAiEvidencePackage(report: any) {
     groundContext: sanitizeUnknown(data.ground_context),
     geologyContext: sanitizeUnknown(data.geosurvey_context),
     technicalParameters: sanitizeUnknown(data.technical_parameters),
-    landValuation: sanitizeUnknown(data.site_value_estimate),
+    landValuation: buildAiLandValuation(report),
     sections: sanitizeUnknown({
       soilAndGround: data.soil_and_ground,
       geohazardRisk: data.geohazard_risk,
