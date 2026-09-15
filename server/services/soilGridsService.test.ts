@@ -31,6 +31,46 @@ test('SoilGrids WMS parses realistic plain-text GetFeatureInfo values', async ()
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('SoilGrids WMS sends the required style and feature-info format parameters', async () => {
+  let firstWmsUrl = '';
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('maps.isric.org') && !firstWmsUrl) firstWmsUrl = url;
+    if (url.includes('rest.isric.org')) return new Response('{}', { status: 503 });
+    const layer = new URL(url).searchParams.get('QUERY_LAYERS') || '';
+    return wmsText(layer);
+  }) as typeof fetch;
+  try {
+    await fetchGenuineSoilGridsData(52, -1);
+    assert.ok(firstWmsUrl);
+    const params = new URL(firstWmsUrl).searchParams;
+    assert.equal(params.get('STYLES'), '');
+    assert.equal(params.get('FORMAT'), 'image/png');
+    assert.equal(params.get('INFO_FORMAT'), 'application/geo+json');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('SoilGrids WMS reads pixel values instead of GeoJSON geometry coordinates', async () => {
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('rest.isric.org')) return new Response('{}', { status: 503 });
+    const layer = new URL(url).searchParams.get('QUERY_LAYERS') || '';
+    const raw = rawFor(layer);
+    return new Response(JSON.stringify({
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', id: layer, geometry: { type: 'Point', coordinates: [12.361883, 51.494125] }, properties: { pixel_value: raw, unit: 'g/kg' } }]
+    }), { status: 200, headers: { 'content-type': 'application/geo+json' } });
+  }) as typeof fetch;
+  try {
+    const result = await fetchGenuineSoilGridsData(51.494125, 12.361883);
+    assert.equal(result.success, true);
+    assert.equal(result.topsoilSandPct, 40);
+    assert.equal(result.topsoilSiltPct, 35);
+    assert.equal(result.topsoilClayPct, 25);
+    assert.equal(result.meanPhH2O, 6.5);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('SoilGrids WMS parses GML/XML attributes without assuming JSON', async () => {
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
