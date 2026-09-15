@@ -192,12 +192,21 @@ async function fetchWithTimeout(url: string, accept: string, timeoutMs: number):
 function numericValue(input: any): number | null {
   if (typeof input === 'number' && Number.isFinite(input)) return input;
   if (!input || typeof input !== 'object') return null;
-  for (const [key, value] of Object.entries(input)) {
-    if (/value|mean|GRAY_INDEX/i.test(key) && Number.isFinite(Number(value))) return Number(value);
-    const nested = numericValue(value);
-    if (nested !== null) return nested;
-  }
-  return null;
+
+  // GeoJSON GetFeatureInfo responses contain geometry coordinates before the
+  // actual raster value. Search value-bearing fields first so a longitude or
+  // latitude can never be mistaken for the soil measurement.
+  const findValueField = (value: any): number | null => {
+    if (!value || typeof value !== 'object') return null;
+    for (const [key, child] of Object.entries(value)) {
+      if (/value|mean|GRAY_INDEX/i.test(key) && Number.isFinite(Number(child))) return Number(child);
+      const nested = findValueField(child);
+      if (nested !== null) return nested;
+    }
+    return null;
+  };
+
+  return findValueField(input);
 }
 
 function responseValue(body: string, contentType: string): number | null {
@@ -218,7 +227,7 @@ async function fetchSoilGridsWmsData(lat: number, lng: number): Promise<SoilGrid
   const point = async (property: typeof WMS_PROPERTIES[number], depth: typeof WMS_DEPTHS[number]) => {
     const delta = 0.001;
     const layer = `${property}_${depth}_mean`;
-    const params = new URLSearchParams({ map: `/map/${property}.map`, SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetFeatureInfo', SRS: 'EPSG:4326', BBOX: `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`, WIDTH: '3', HEIGHT: '3', X: '1', Y: '1', LAYERS: layer, QUERY_LAYERS: layer, INFO_FORMAT: 'text/plain', FEATURE_COUNT: '1' });
+    const params = new URLSearchParams({ map: `/map/${property}.map`, SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetFeatureInfo', SRS: 'EPSG:4326', BBOX: `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`, WIDTH: '3', HEIGHT: '3', X: '1', Y: '1', LAYERS: layer, QUERY_LAYERS: layer, STYLES: '', FORMAT: 'image/png', INFO_FORMAT: 'application/geo+json', FEATURE_COUNT: '1' });
     return withWmsRequestPermit(async () => {
       const response = await fetchWithTimeout(`${SOILGRIDS_WMS}?${params}`, 'text/plain, application/json, application/xml, text/xml', 4500);
       if (!response?.ok) return null;
