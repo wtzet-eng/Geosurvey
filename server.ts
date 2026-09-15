@@ -1,4 +1,5 @@
 import express from 'express';
+import { createBillingRouter } from './server/services/billingRoutes';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { randomUUID } from 'crypto';
@@ -50,6 +51,7 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   next();
 });
+app.use('/api/billing', createBillingRouter());
 app.use(express.json({ limit: '10mb' }));
 const reportsStore: Record<string, any> = {};
 const aiRateLimits = new Map<string, { windowStart: number; count: number }>();

@@ -5,6 +5,33 @@ import { getCountrySupport } from '../../src/data/countrySupport';
 import { createCanonicalReport } from './canonicalReport';
 import { renderLocalizedReport } from './localizedReport';
 
+for (const language of ['en', 'de', 'pl']) {
+  test(`Unavailable environment does not render a negative finding in ${language}`, () => {
+    const raw = rawReport('DE');
+    raw.environment.status = 'REQUIRES_VERIFICATION';
+    const canonical = createCanonicalReport(raw, getCountryProfile('DE'));
+    const failed = renderLocalizedReport(canonical, language).sections.environmental_factors;
+    assert.doesNotMatch(failed.summary, /No protected-area|kein Schutzgebietsobjekt|nie zmapowano/);
+    canonical.environment.status = 'MODELLED';
+    canonical.environment.reasonCode = undefined;
+    const empty = renderLocalizedReport(canonical, language).sections.environmental_factors;
+    assert.match(empty.summary, /No protected-area|kein Schutzgebietsobjekt|nie zmapowano/);
+    canonical.environment.protectedAreaName = 'Test protected area';
+    assert.match(renderLocalizedReport(canonical, language).sections.environmental_factors.summary, /Test protected area/);
+  });
+}
+test('Soil-only samples do not establish geological uniformity and contacts fit tasks', () => {
+  const canonical = createCanonicalReport(rawReport('DE'), getCountryProfile('DE'));
+  canonical.groundContext = { status: 'MODELLED', mapped: null, soilVariability: {
+    validSampleCount: 4, variationObserved: false, sourceName: 'SoilGrids'
+  } } as any;
+  const result = renderLocalizedReport(canonical, 'de');
+  assert.equal(result.groundContext.variability_code, 'INSUFFICIENT_EVIDENCE');
+  assert.equal(result.groundContext.soil_model_sample_count, 4);
+  assert.match(result.verificationChecklist[1].recommendedAuthorityOrExpert, /Geotechnisches/);
+  assert.match(result.verificationChecklist[3].recommendedAuthorityOrExpert, /Versorgungsnetzbetreiber/);
+});
+
 function rawReport(countryCode: string): any {
   return {
     countryCode,

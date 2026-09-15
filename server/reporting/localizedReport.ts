@@ -219,9 +219,10 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const gcText = groundContextCopy[language];
   const mapped = gc?.mapped || null;
   const soilVariability = gc?.soilVariability || null;
-  const variabilityCode: GroundVariabilityClass = mapped?.variabilityClass || (soilVariability && soilVariability.validSampleCount >= 2 ? (soilVariability.variationObserved ? 'MODERATE' : 'LOW') : 'INSUFFICIENT_EVIDENCE');
+  // Soil texture samples cannot establish mapped geological variability.
+  const variabilityCode: GroundVariabilityClass = mapped && mapped.sampleCount >= 2 ? mapped.variabilityClass : 'INSUFFICIENT_EVIDENCE';
   const importantOrganic = Boolean(mapped?.materialIndicators.some(indicator => indicator === 'ORGANIC_OR_PEAT' || indicator === 'ALLUVIAL' || indicator === 'MADE_GROUND'));
-  const contextSummary = mapped?.sampleCount
+  const contextSummary = variabilityCode !== 'INSUFFICIENT_EVIDENCE'
     ? mapped.transitionIndicated ? gcText.transition : gcText.mappedUniform
     : gcText.insufficient;
   const investigationFocus = importantOrganic ? gcText.investigateOrganic : mapped?.transitionIndicated ? gcText.investigateTransition : gcText.investigateGeneral;
@@ -263,7 +264,9 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const floodText = canonical.flood.classification ? interpolate(t.flood as string, { risk: risk(canonical.flood.classification, language) }) : localizeAvailabilityReason(canonical.flood.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language);
   const hazardText = hazardCopy[language];
   const roadText = interpolate(t.road as string, { road: value(canonical.infrastructure.roadName || canonical.infrastructure.roadType, unavailable), distance: value(canonical.infrastructure.distanceM, unavailable) });
-  const environmentText = canonical.environment.protectedAreaName ? interpolate(t.environment as string, { area: canonical.environment.protectedAreaName }) : t.environmentClear as string;
+  const environmentText = canonical.environment.status === 'REQUIRES_VERIFICATION' || canonical.environment.reasonCode
+    ? localizeAvailabilityReason(canonical.environment.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language)
+    : canonical.environment.protectedAreaName ? interpolate(t.environment as string, { area: canonical.environment.protectedAreaName }) : t.environmentClear as string;
   const valuationAvailable = canonical.valuation.min !== null && canonical.valuation.max !== null;
   const valuationText = valuationAvailable
     ? interpolate(t.valuation as string, { min: canonical.valuation.min!.toLocaleString(language), max: canonical.valuation.max!.toLocaleString(language), currency: canonical.valuation.currency })
@@ -296,7 +299,12 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
       limitation: record.status === 'REQUIRES_VERIFICATION' ? localizeAvailabilityReason(reason || 'AUTHORITATIVE_DATA_REQUIRED', language) : t.authoritative as string
     }];
   });
-  const checklist = (t.checklist as string[]).map((reason, index) => ({ topic: (t.topics as string[])[index], reason, recommendedAuthorityOrExpert: index === 0 ? canonical.planning.authorityName : canonical.authorities.cadastre, priority: index === 3 ? 'Medium' : 'High' }));
+  const verificationExperts = {
+    en: ['Local planning authority', 'Geotechnical engineer / ground investigation specialist', 'Qualified land surveyor', 'Relevant utility network operators', 'Land registry / cadastral authority and property lawyer'],
+    de: ['Zuständiges Bauamt / Stadtplanungsamt', 'Geotechnisches Ingenieurbüro / Baugrundgutachter', 'Qualifiziertes Vermessungsbüro', 'Zuständige Versorgungsnetzbetreiber', 'Grundbuchamt / Katasterbehörde und rechtliche Beratung'],
+    pl: ['Właściwy urząd planowania przestrzennego', 'Geotechnik / specjalista badań podłoża', 'Uprawniony geodeta', 'Właściwi operatorzy sieci uzbrojenia', 'Sąd wieczystoksięgowy / organ ewidencji gruntów i prawnik']
+  };
+  const checklist = (t.checklist as string[]).map((reason, index) => ({ topic: (t.topics as string[])[index], reason, recommendedAuthorityOrExpert: verificationExperts[language][index], priority: index === 3 ? 'Medium' : 'High' }));
   const utilityNames = {
     en: { ELECTRICITY: 'Electricity', WATER: 'Potable water', SEWER: 'Sanitary sewer', GAS: 'Natural gas', TELECOM: 'Telecommunications', OTHER: 'Utility' },
     de: { ELECTRICITY: 'Strom', WATER: 'Trinkwasser', SEWER: 'Schmutzwasserkanal', GAS: 'Erdgas', TELECOM: 'Telekommunikation', OTHER: 'Versorgung' },

@@ -10,6 +10,7 @@ import {
 } from './paddleBillingService';
 
 const env = {
+  PADDLE_BILLING_ENABLED: 'true',
   PADDLE_ENVIRONMENT: 'sandbox',
   PADDLE_API_KEY: 'pdl_sdbx_test_api_key',
   PADDLE_CLIENT_TOKEN: 'test_client_token',
@@ -36,7 +37,7 @@ test('credit checkout transaction is created server-side with authenticated Surv
     return {
       ok: true,
       status: 201,
-      json: async () => ({ data: { id: 'txn_checkout123' } })
+      json: async () => ({ data: { id: 'txn_checkout123', items: [{ quantity: 1, price: { id: 'pri_testcredits', billing_cycle: null } }] } })
     };
   };
 
@@ -56,7 +57,7 @@ test('completed Paddle transaction is accepted only for the authenticated user a
     id: 'txn_paid123',
     status: 'completed',
     custom_data: { surveyland_uid: 'firebase-user-7', surveyland_product: 'ai_credit_pack' },
-    items: [{ price: { id: 'pri_testcredits' }, quantity: 1 }]
+    items: [{ price: { id: 'pri_testcredits', billing_cycle: null }, quantity: 1 }]
   };
   const fetcher: any = async () => ({ ok: true, status: 200, json: async () => ({ data: transaction }) });
 
@@ -92,8 +93,22 @@ test('Paddle webhook helper validates HMAC over raw body and parses only matchin
       id: 'txn_webhook',
       status: 'completed',
       custom_data: { surveyland_uid: 'firebase-user-7', surveyland_product: 'ai_credit_pack' },
-      items: [{ price: { id: 'pri_testcredits' } }]
+      items: [{ price: { id: 'pri_testcredits', billing_cycle: null }, quantity: 1 }]
     }
   }, env);
   assert.deepEqual(parsed, { transactionId: 'txn_webhook', uid: 'firebase-user-7', credits: 50 });
+});
+
+test('checkout requires deliberate enablement and a webhook secret', () => {
+  assert.equal(getPaddleBillingRuntimeConfig({ ...env, PADDLE_BILLING_ENABLED: undefined }).checkoutConfigured, false);
+  assert.equal(getPaddleBillingRuntimeConfig({ ...env, PADDLE_WEBHOOK_SECRET: '' }).checkoutConfigured, false);
+});
+test('signature checking rejects edited bodies, stale and future timestamps', () => {
+  const raw = '{ "event_type": "transaction.completed" }';
+  const now = 1700000000;
+  const h = createHmac('sha256', 'whsec_test').update(`${now}:${raw}`).digest('hex');
+  for (const time of [now - 6, now + 6]) {
+    assert.equal(verifyPaddleWebhookSignature(raw, `ts=${now};h1=${h}`, 'whsec_test', time * 1000), false);
+  }
+  assert.equal(verifyPaddleWebhookSignature(raw + ' ', `ts=${now};h1=${h}`, 'whsec_test', now * 1000), false);
 });

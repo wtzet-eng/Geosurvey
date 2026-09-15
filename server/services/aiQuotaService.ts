@@ -32,7 +32,7 @@ interface RuntimeConfig {
   freeLimit: number;
 }
 
-interface ServiceOptions {
+export interface ServiceOptions {
   fetcher?: FetchLike;
   accessToken?: string;
   env?: NodeJS.ProcessEnv;
@@ -210,7 +210,10 @@ export async function grantPurchasedCredits(
     const receipt = await readDocument(transactionName(transactionId, config), token, fetcher);
     const current = await readDocument(entitlementName(uid, config), token, fetcher);
     const stored = current.exists ? parseStoredDocument(current.payload) : { freeUsed: 0, purchasedCredits: 0, updateTime: null };
-    if (receipt.exists) return { entitlement: entitlementFromStored(stored, config), duplicate: true };
+    if (receipt.exists) {
+      if (receipt.payload?.fields?.uid?.stringValue !== uid) throw new Error('Purchase receipt belongs to another account.');
+      return { entitlement: entitlementFromStored(stored, config), duplicate: true };
+    }
 
     const next = { ...stored, purchasedCredits: stored.purchasedCredits + amount };
     const receiptWrite = {
@@ -230,4 +233,47 @@ export async function grantPurchasedCredits(
     if (!retryableCommit(response)) throw new Error(`Firestore credit grant failed (${response.status}).`);
   }
   throw new Error('Firestore credit grant conflicted repeatedly.');
+}
+
+/** Server-created checkout snapshot. Never accept credit amounts from the browser. */
+export interface CreditPurchaseOrder {
+  transactionId: string;
+  uid: string;
+  priceId: string;
+  credits: number;
+  environment: 'sandbox' | 'production';
+}
+const orderName = (id: string, config: RuntimeConfig) =>
+  `${databaseName(config)}/documents/${config.transactionCollection}Orders/${safeDocumentId(id)}`;
+
+export async function saveCreditPurchaseOrder(order: CreditPurchaseOrder, options: ServiceOptions = {}) {
+  const config = getAiQuotaRuntimeConfig(options.env || process.env);
+  if (!config.enabled) throw new Error('Persistent AI quota storage is not configured.');
+  if (!/^txn_[a-z0-9]+$/i.test(order.transactionId) || !order.uid || !order.priceId
+    || !Number.isSafeInteger(order.credits) || order.credits <= 0) throw new Error('Invalid credit order.');
+  const fetcher = options.fetcher || fetch;
+  const token = await getGoogleAccessToken(fetcher, options);
+  const response = await commitWrites(config, token, fetcher, [{
+    update: { name: orderName(order.transactionId, config), fields: {
+      uid: stringField(order.uid), priceId: stringField(order.priceId),
+      credits: intField(order.credits), environment: stringField(order.environment),
+      createdAt: timestampField()
+    } }, currentDocument: { exists: false }
+  }]);
+  if (!response.ok) throw new Error(`Could not save checkout order (${response.status}).`);
+}
+
+export async function getCreditPurchaseOrder(id: string, options: ServiceOptions = {}): Promise<CreditPurchaseOrder | null> {
+  const config = getAiQuotaRuntimeConfig(options.env || process.env);
+  if (!config.enabled || !/^txn_[a-z0-9]+$/i.test(id)) throw new Error('Credit purchase lookup unavailable.');
+  const fetcher = options.fetcher || fetch;
+  const token = await getGoogleAccessToken(fetcher, options);
+  const record = await readDocument(orderName(id, config), token, fetcher);
+  if (!record.exists) return null;
+  const f = record.payload?.fields;
+  const credits = Number(f?.credits?.integerValue);
+  if (!f?.uid?.stringValue || !f?.priceId?.stringValue || !Number.isSafeInteger(credits) || credits <= 0
+    || !['sandbox', 'production'].includes(f?.environment?.stringValue)) throw new Error('Invalid stored checkout order.');
+  return { transactionId: id, uid: f.uid.stringValue, priceId: f.priceId.stringValue,
+    credits, environment: f.environment.stringValue };
 }

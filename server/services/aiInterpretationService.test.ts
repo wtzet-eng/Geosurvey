@@ -160,6 +160,12 @@ test('Mistral rejects incomplete responses without exposing report content', asy
 });
 
 
+test('AI evidence preserves modelled hazard screening separately from missing geology', () => {
+  const risk_matrix = [{ category: 'Seismic', level: 'Low', evidence_level: 'MODELLED' }];
+  const pkg = buildAiEvidencePackage({ ...report, report_data: { ...report.report_data, risk_matrix } });
+  assert.deepEqual(pkg.hazardScreening, risk_matrix);
+});
+
 test('German AI valuation exposes the exact area and coherent unit prices', () => {
   const sample = { ...report, country_code: 'DE', area_size: 45489, report_data: {
     ...report.report_data,

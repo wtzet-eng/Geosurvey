@@ -1,6 +1,6 @@
 import { verifyFirebaseAuthorization } from './firebaseAuthService';
-import { getAiEntitlement, getAiQuotaRuntimeConfig, grantPurchasedCredits, refundAiInterpretation, reserveAiInterpretation } from './aiQuotaService';
-import { confirmPaddleCreditTransaction, createPaddleCreditTransaction, getPaddleBillingRuntimeConfig } from './paddleBillingService';
+import { getAiEntitlement, getAiQuotaRuntimeConfig, refundAiInterpretation, reserveAiInterpretation } from './aiQuotaService';
+import { createCreditCheckout, fulfillCreditPurchase, publicCreditBillingState } from './creditCheckoutService';
 
 export type AiInterpretationProvider = 'mistral' | 'ollama';
 
@@ -79,6 +79,8 @@ STRICT EVIDENCE RULES:
 - Use landValuation totals and pricePerSqm together with valuationAreaM2. Never combine prices from other narrative sections or invent a new range. If consistencyWarnings is nonempty, explain the discrepancy and require verification.
 - A German modelled building-land benchmark is not an official parcel-specific Bodenrichtwert or a market appraisal. It assumes building land; it does not establish that this plot is buildable, serviced, or suitable for that use. Never apply it as a confirmed value for agricultural, forest or otherwise unverified land use.
 - Missing environmental records do not establish absence of contamination, protected areas or restrictions. Say not verified. Flat terrain does not establish building suitability.
+- Missing planning documents mean development rights and restrictions are unknown, never that no binding restrictions exist. Soil texture, pH and bulk density cannot establish suitability for construction. A topographic survey cannot exclude ground risks.
+- Repeated identical SoilGrids values describe the sampled model only, not uniform site strata. Preserve modelled seismic and other hazard evidence as modelled; do not describe supplied screening values as missing.
 - isOfficialParcel=false means the selected boundary was not confirmed as an official parcel, not that the land has no official cadastral subdivision. Unavailable national evidence means it was not obtained by this app, not that national sources do not exist.
 - When evidence is missing, unavailable, modelled, contradictory, stale, or requires verification, say so explicitly.
 - Never turn an unavailable value into a numeric estimate.
@@ -190,6 +192,7 @@ export function buildAiEvidencePackage(report: any) {
     groundContext: sanitizeUnknown(data.ground_context),
     geologyContext: sanitizeUnknown(data.geosurvey_context),
     technicalParameters: sanitizeUnknown(data.technical_parameters),
+    hazardScreening: sanitizeUnknown(data.risk_matrix),
     landValuation: buildAiLandValuation(report),
     sections: sanitizeUnknown({
       soilAndGround: data.soil_and_ground,
@@ -357,15 +360,7 @@ async function authenticateInternalAction(report: any, env: NodeJS.ProcessEnv, f
   return auth.user;
 }
 
-const publicBillingState = (env: NodeJS.ProcessEnv) => {
-  const config = getPaddleBillingRuntimeConfig(env);
-  return {
-    provider: 'paddle' as const,
-    configured: config.checkoutConfigured,
-    environment: config.environment,
-    creditPackSize: config.creditPackSize
-  };
-};
+const publicBillingState = publicCreditBillingState;
 
 async function handleInternalAction(report: any, env: NodeJS.ProcessEnv, fetcher: FetchLike): Promise<any | null> {
   const action = typeof report?.__surveyland_action === 'string' ? report.__surveyland_action : '';
@@ -381,16 +376,14 @@ async function handleInternalAction(report: any, env: NodeJS.ProcessEnv, fetcher
     const entitlement = await getAiEntitlement(user.uid, { fetcher, env });
     if (!entitlement.enabled) return { kind: 'billing_unavailable', error: 'AI quota enforcement is not configured yet.', entitlement, billing };
     if (!billing.configured) return { kind: 'billing_unavailable', error: 'Paddle checkout is not configured yet.', entitlement, billing };
-    if (!entitlement.paywallRequired) return { kind: 'entitlement', entitlement, billing };
-    const checkout = await createPaddleCreditTransaction({ uid: user.uid, email: user.email }, { fetcher, env });
+    const checkout = await createCreditCheckout({ uid: user.uid, email: user.email }, { fetcher, env });
     return { kind: 'checkout', entitlement, billing, ...checkout };
   }
 
   const transactionId = typeof report?.__surveyland_transaction_id === 'string' ? report.__surveyland_transaction_id.trim() : '';
   if (!transactionId) return { kind: 'purchase_pending', error: 'Missing Paddle transaction ID.', entitlement: await getAiEntitlement(user.uid, { fetcher, env }), billing };
   try {
-    const completion = await confirmPaddleCreditTransaction(transactionId, user.uid, { fetcher, env });
-    const grant = await grantPurchasedCredits(user.uid, completion.credits, completion.transactionId, { fetcher, env });
+    const grant = await fulfillCreditPurchase(transactionId, user.uid, { fetcher, env });
     return { kind: 'purchase_confirmed', entitlement: grant.entitlement, billing, duplicate: grant.duplicate };
   } catch (error: any) {
     return { kind: 'purchase_pending', error: String(error?.message || 'Purchase confirmation is still pending.'), entitlement: await getAiEntitlement(user.uid, { fetcher, env }), billing };

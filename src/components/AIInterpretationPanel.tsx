@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { AlertTriangle, BrainCircuit, CheckCircle2, CreditCard, Loader2, LogIn, LogOut, RefreshCw, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { SiteReport } from '../types';
@@ -65,7 +65,7 @@ const loadPaddle = () => {
     script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Could not load Paddle Checkout.'));
+    script.onerror = () => { paddleScriptPromise = null; script.remove(); reject(new Error('Could not load Paddle Checkout.')); };
     document.head.appendChild(script);
   });
   return paddleScriptPromise;
@@ -92,6 +92,7 @@ const priorityLabel = (priority: string) => priority === 'high' ? 'High' : prior
 const PENDING_TRANSACTION_KEY = 'surveyland_pending_paddle_transaction';
 
 export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
+  const userIdRef = useRef<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -110,8 +111,14 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
       .then(async response => response.ok ? response.json() : null)
       .then(value => { if (active && value) setStatus(value); })
       .catch(() => undefined);
-    const unsubscribe = subscribeToAuthState(nextUser => { if (active) setUser(nextUser); });
-    return () => { active = false; unsubscribe(); };
+    const unsubscribe = subscribeToAuthState(nextUser => {
+      if (active) {
+        userIdRef.current = nextUser?.uid || null;
+        setUser(nextUser);
+        setEntitlement(null); setBilling(null); setBillingMessage(''); setError(''); setIsBilling(false);
+      }
+    });
+    return () => { active = false; userIdRef.current = null; paddleCompletionHandler = null; unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -120,22 +127,19 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
     setBillingMessage('');
   }, [report.id]);
 
+  const pendingKey = () => user && billing ? `${PENDING_TRANSACTION_KEY}:${user.uid}:${billing.environment}` : null;
   const authenticatedRequest = async (action: 'entitlement' | 'create_checkout' | 'confirm_purchase', extras: Record<string, unknown> = {}) => {
+    const uid = userIdRef.current;
     const token = await getCurrentFirebaseIdToken();
-    if (!token) throw new Error('Please sign in before using AI interpretation.');
-    const response = await fetch('/api/ai/interpret', {
-      method: 'POST',
+    if (!uid || !token || userIdRef.current !== uid) throw new Error('Please sign in to manage AI credits.');
+    const route = action === 'entitlement' ? 'status' : action === 'create_checkout' ? 'checkout' : 'confirm';
+    const response = await fetch(`/api/billing/${route}`, {
+      method: action === 'entitlement' ? 'GET' : 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        report: {
-          ...report,
-          __surveyland_token: token,
-          __surveyland_action: action,
-          ...extras
-        }
-      })
+      ...(action !== 'entitlement' ? { body: JSON.stringify(action === 'confirm_purchase' ? { transactionId: extras.transactionId } : {}) } : {})
     });
     const payload = await response.json().catch(() => ({}));
+    if (userIdRef.current !== uid) throw new Error('The signed-in account changed.');
     if (!response.ok) throw new Error(payload.error || 'AI account request failed.');
     if (payload.entitlement) setEntitlement(payload.entitlement);
     if (payload.billing) setBilling(payload.billing);
@@ -147,6 +151,9 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
     try {
       const payload = await authenticatedRequest('entitlement');
       if (payload.kind === 'entitlement') setBillingMessage('');
+      let pending: string | null = null;
+      try { const key = pendingKey(); if (key) pending = localStorage.getItem(key); } catch { /* optional browser recovery */ }
+      if (pending) await confirmPurchase(pending);
     } catch (err: any) {
       setError(err?.message || 'Could not load AI allowance.');
     }
@@ -161,35 +168,32 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
     refreshEntitlement();
   }, [user?.uid, status?.authConfigured, status?.authRequired]);
 
-  const confirmPurchase = async (transactionId: string, attempt = 0): Promise<void> => {
-    if (!transactionId) return;
+  const confirmPurchase = async (transactionId: string): Promise<void> => {
+    const uid = userIdRef.current;
+    if (!transactionId || !uid) return;
+    const key = pendingKey();
     setIsBilling(true);
     try {
-      const payload = await authenticatedRequest('confirm_purchase', { __surveyland_transaction_id: transactionId });
+      const payload = await authenticatedRequest('confirm_purchase', { transactionId });
       if (payload.kind === 'purchase_confirmed') {
-        localStorage.removeItem(PENDING_TRANSACTION_KEY);
-        setBillingMessage(payload.duplicate ? 'These AI credits were already added to your account.' : 'AI credits added to your account.');
-        return;
+        try { if (key) localStorage.removeItem(key); } catch { /* server receipt is authoritative */ }
+        setBillingMessage(payload.duplicate ? 'These AI credits are already in your account.' : 'AI credits added to your account.');
+      } else {
+        setBillingMessage('Purchase is not confirmed yet. If you completed payment, refresh credits shortly.');
       }
-      if (payload.kind === 'purchase_pending' && attempt < 3) {
-        window.setTimeout(() => { confirmPurchase(transactionId, attempt + 1); }, 1800 + attempt * 1200);
-        return;
-      }
-      setBillingMessage(payload.error || 'Payment was received but credit confirmation is still processing. Use Refresh credits shortly.');
     } catch (err: any) {
-      setBillingMessage(err?.message || 'Credit confirmation is still pending.');
+      if (userIdRef.current === uid) setBillingMessage(err?.message || 'Credit confirmation is still pending.');
     } finally {
-      if (attempt === 0) setIsBilling(false);
+      if (userIdRef.current === uid) setIsBilling(false);
     }
   };
 
   useEffect(() => {
-    if (!user) return;
-    try {
-      const pending = localStorage.getItem(PENDING_TRANSACTION_KEY);
-      if (pending) confirmPurchase(pending);
-    } catch { /* localStorage may be unavailable */ }
-  }, [user?.uid]);
+    const key = pendingKey();
+    if (!key) return;
+    try { const pending = localStorage.getItem(key); if (pending) confirmPurchase(pending); } catch { /* optional browser recovery */ }
+    return () => { paddleCompletionHandler = null; };
+  }, [user?.uid, billing?.environment]);
 
   if (!status?.providerConfigured) return null;
 
@@ -248,8 +252,9 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
         if (payload.error) throw new Error(payload.error);
         return;
       }
-      localStorage.setItem(PENDING_TRANSACTION_KEY, payload.transactionId);
-      paddleCompletionHandler = transactionId => { confirmPurchase(transactionId); };
+      const uid = userIdRef.current;
+      try { if (uid) localStorage.setItem(`${PENDING_TRANSACTION_KEY}:${uid}:${payload.environment}`, payload.transactionId); } catch { /* webhook fulfillment does not depend on browser storage */ }
+      paddleCompletionHandler = transactionId => { if (userIdRef.current === uid) void confirmPurchase(transactionId); };
       await initializePaddle(payload.clientToken, payload.environment);
       window.Paddle?.Checkout.open({ transactionId: payload.transactionId });
     } catch (err: any) {
@@ -311,15 +316,15 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
             </div>}
           </div>}
 
-          {entitlement?.enabled && entitlement.paywallRequired && <div className="rounded-3xl border border-violet-200 bg-violet-50 p-5">
+          {entitlement?.enabled && (billing?.configured || entitlement.paywallRequired) && <div className="rounded-3xl border border-violet-200 bg-violet-50 p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-violet-700"><CreditCard className="h-5 w-5" /></div>
               <div className="flex-1">
-                <h3 className="text-sm font-black text-slate-950">Your {entitlement.freeLimit} free AI interpretations are used</h3>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">The underlying SurveyLand evidence report remains available. Buy additional AI interpretation credits only when you need them.</p>
+                <h3 className="text-sm font-black text-slate-950">{entitlement.paywallRequired ? 'No AI credits remaining' : 'AI interpretation credits'}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">The evidence report remains available. One credit is used per successful AI interpretation. Credit packs are a one-time purchase; the full price and taxes are shown in checkout.</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {billing?.configured ? <button type="button" onClick={buyCredits} disabled={isBilling} className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{isBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}Buy {billing.creditPackSize} AI credits</button> : <span className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-violet-800">Paid credit packs are not configured yet.</span>}
-                  <button type="button" onClick={refreshEntitlement} className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-800"><RefreshCw className="h-3.5 w-3.5" />Refresh credits</button>
+                  {billing?.configured ? <button type="button" onClick={buyCredits} disabled={isBilling} className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{isBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}View price & buy {billing.creditPackSize} AI credits</button> : <span className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-violet-800">Paid credit packs are not configured yet.</span>}
+                  <button type="button" onClick={refreshEntitlement} disabled={isBilling} className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-800"><RefreshCw className="h-3.5 w-3.5" />Refresh credits</button>
                 </div>
                 {billing?.environment === 'sandbox' && <p className="mt-3 text-[11px] font-semibold text-violet-700">Paddle sandbox mode — no real money is charged.</p>}
               </div>
