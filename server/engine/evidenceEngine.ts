@@ -461,15 +461,15 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // 6. Environmental Overlays (Priority 11)
   // =========================================================================
   const environmentalAnalysis: EnvironmentalAnalysis = {
-    natura2000Intersect: osmAvailable ? false : undefined,
+    natura2000Intersect: undefined,
     distanceToNatura2000M: osmAvailable && osmFeatures.protectedAreaNearby.found ? osmFeatures.protectedAreaNearby.distanceM : undefined,
     nearestProtectedAreaName: osmFeatures.protectedAreaNearby.name,
     protectedAreaType: osmFeatures.protectedAreaNearby.type,
     landscapeParkOverlay: false,
     waterProtectionZone: false,
     status: osmAvailable ? 'MODELLED' : 'REQUIRES_VERIFICATION',
-    sourceName: 'European Environment Agency (EEA Natura 2000) & General Directorate for Environmental Protection (GDOŚ)',
-    limitation: 'Regional spatial overlay. Local environmental constraints (e.g. tree felling permits under art. 83 ustawy o ochronie przyrody, protected species habitats) require on-site inspection.'
+    sourceName: 'OpenStreetMap Overpass — mapped protected-area context',
+    limitation: 'OpenStreetMap is incomplete and is not an official protected-area register. Confirm statutory designations and local environmental constraints with the competent authority.'
   };
 
   evidenceRegistry.push({
@@ -478,15 +478,15 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     claim: !osmAvailable
       ? 'Environmental spatial query unavailable; no protected-area overlap or distance conclusion was inferred.'
       : osmFeatures.protectedAreaNearby.found
-      ? `Protected environmental area (${osmFeatures.protectedAreaNearby.name || 'Nature Reserve'}) detected within ~${osmFeatures.protectedAreaNearby.distanceM} m`
-      : 'No Natura 2000 special protection areas directly overlapping the parcel footprint in open regional vector index',
+      ? `OpenStreetMap maps ${osmFeatures.protectedAreaNearby.name || 'a protected-area feature'} approximately ${osmFeatures.protectedAreaNearby.distanceM} m from the selected coordinate; confirm its legal status in the national register.`
+      : 'The OpenStreetMap query returned no nearby protected-area feature; this does not establish that statutory designations are absent.',
     status: osmAvailable ? 'MODELLED' : 'REQUIRES_VERIFICATION',
-    sourceName: 'EEA / General Directorate for Environmental Protection (GDOŚ)',
-    datasetDate: '2025/2026 Register',
-    spatialRelationship: `Spatial buffer intersection check across parcel extent (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E)`,
-    calculationMethod: 'Geospatial buffer query against European protected area registers',
+    sourceName: 'OpenStreetMap Overpass — mapped protected-area context',
+    datasetDate: todayStr,
+    spatialRelationship: `Mapped feature proximity around site centre (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E)`,
+    calculationMethod: 'OpenStreetMap Overpass nearby protected-area feature lookup; no official Natura 2000 register queried',
     confidence: osmAvailable ? 'Medium' : 'Low',
-    limitation: 'Does not replace an on-site dendrological inspection for tree felling permissions or local environmental screening.'
+    limitation: 'OpenStreetMap coverage is incomplete. No returned feature is not evidence that a statutory protected area or local environmental restriction is absent.'
   });
 
   // =========================================================================
