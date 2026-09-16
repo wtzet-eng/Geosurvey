@@ -153,7 +153,9 @@ export function renderFrEsFiLocalizedReport(canonical: CanonicalReport, language
   const summaryValuation = valuationAvailable ? `${valuationText} ${c.landOnly}` : c.noValuation;
   const floodText = canonical.flood.classification ? c.flood(localRisk(c, canonical.flood.classification)) : reason(language, canonical.flood.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED');
   const roadText = c.road(shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType, c.unavailable), shown(canonical.infrastructure.distanceM, c.unavailable));
-  const environmentText = canonical.environment.protectedAreaName ? c.environment(canonical.environment.protectedAreaName) : c.environmentClear;
+  const environmentText = canonical.environment.status === 'REQUIRES_VERIFICATION' || canonical.environment.reasonCode
+    ? reason(language, canonical.environment.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED')
+    : canonical.environment.protectedAreaName ? c.environment(canonical.environment.protectedAreaName) : c.environmentClear;
   const summaryCore = c.summary(canonical.countryName, geologyUnit, terrainText, soilTexture, canonical.evidenceScore.totalScore, summaryValuation);
 
   const evidenceRegistry = canonical.evidenceRecords.map(record => {
@@ -161,8 +163,8 @@ export function renderFrEsFiLocalizedReport(canonical: CanonicalReport, language
     const isSupport = record.id.startsWith('country-support-');
     return {
       ...record,
-      category: isSupport ? c.countryCoverage : c.evidence,
-      claim: isSupport ? reason(language, 'NOT_SUPPORTED_FOR_COUNTRY') : `${c.evidence}: ${record.category}.`,
+      category: isSupport ? c.countryCoverage : record.category,
+      claim: isSupport ? reason(language, 'NOT_SUPPORTED_FOR_COUNTRY') : record.id === 'environmental-natura2000' && code ? reason(language, code) : record.claim,
       spatialRelationship: isSupport ? support : record.spatialRelationship,
       calculationMethod: record.calculationMethod,
       confidence: record.confidence === 'High' ? c.confidenceHigh : record.confidence === 'Medium' ? c.confidenceMedium : c.confidenceLow,

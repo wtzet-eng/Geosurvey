@@ -37,3 +37,19 @@ for (const [language, code, name, expected] of [
     assert.doesNotMatch(report.legalDisclaimers.join(' '), /buildings, structures and other improvements are excluded/i);
   });
 }
+
+test('Spanish report preserves source findings and does not call an unavailable environmental query clear', () => {
+  const canonical = canonicalFixture('ES', 'Spain');
+  canonical.environment = { protectedAreaName: null, distanceM: null, status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap Overpass', reasonCode: 'SOURCE_UNAVAILABLE' };
+  canonical.evidenceRecords.push(
+    { id: 'environmental-natura2000', category: 'Environmental & Conservation', claim: 'Environmental spatial query unavailable; no overlap was inferred.', status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap Overpass', value: { reasonCode: 'SOURCE_UNAVAILABLE' } },
+    { id: 'direct-geology', category: 'Geological evidence', claim: 'Mapped sandstone at the site centre.', status: 'VERIFIED', sourceName: 'National geology' }
+  );
+  const report = renderFrEsFiLocalizedReport(canonical, 'es');
+  assert.match(report.sections.environmental_factors.summary, /no est[aá] disponible|no se pudo alcanzar/i);
+  assert.doesNotMatch(report.sections.environmental_factors.summary, /No se cartografi[oó] ninguna/);
+  assert.match(report.evidenceRegistry.find(item => item.id === 'direct-geology')!.claim, /Mapped sandstone/);
+  const environmentRecord = report.evidenceRegistry.find(item => item.id === 'environmental-natura2000')!;
+  assert.equal(environmentRecord.sourceName, 'OpenStreetMap Overpass');
+  assert.match(environmentRecord.claim, /no est[aá] disponible|no se pudo alcanzar/i);
+});
