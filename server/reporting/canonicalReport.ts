@@ -241,6 +241,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     geosurvey_context?: Record<string, unknown>;
     ground_context?: GroundContextSummary;
     soil_variability?: PedologicalVariabilitySummary;
+    countryLocationMismatch?: boolean;
   };
   const context = extended.geosurvey_context || {};
   const mappedContext = extended.ground_context?.sampleCount ? extended.ground_context : null;
@@ -261,7 +262,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
   const geologyReason: AvailabilityReason | undefined = c.nationalGeology ? (hasMappedGeology ? undefined : evidenceReason(report, /pgi-(?:smgp|mgp|mlp|engineering)|bgs|brgm|geolog/i) || 'SOURCE_UNAVAILABLE') : 'NOT_SUPPORTED_FOR_COUNTRY';
   const soilTexture = scientific(report.soil.usdaTextureClass);
   const areaM2 = finite(report.parcel.officialAreaM2) ?? finite(report.parcel.areaCalculatedM2);
-  const germanyValuation = report.countryCode === 'DE' && areaM2 && areaM2 > 0
+  const germanyValuation = !extended.countryLocationMismatch && report.countryCode === 'DE' && areaM2 && areaM2 > 0
     ? calculateGermanyLandValue({
         areaM2,
         slopeDegrees: finite(report.terrain.averageSlopeDegrees),
@@ -271,7 +272,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
         state: report.parcel.voivodeship
       })
     : null;
-  const slovakiaValuation = report.countryCode === 'SK' && areaM2 && areaM2 > 0
+  const slovakiaValuation = !extended.countryLocationMismatch && report.countryCode === 'SK' && areaM2 && areaM2 > 0
     ? calculateSlovakiaLandValue({
         areaM2,
         slopeDegrees: finite(report.terrain.averageSlopeDegrees),
@@ -281,7 +282,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
         region: report.parcel.voivodeship
       })
     : null;
-  const rawRecords = visibleEvidenceRecords(report, profile, support);
+  const rawRecords = visibleEvidenceRecords(report, profile, support).filter(record => !extended.countryLocationMismatch || !/valuation|market benchmark|price/i.test(`${record.id} ${record.category}`));
   const records = germanyValuation
     ? rawRecords.map(record => record.id === 'valuation-indicative-model'
       ? {
@@ -311,7 +312,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
         }
       : record)
     : rawRecords;
-  const rawSourceRecords = visibleSourceRecords(report, support);
+  const rawSourceRecords = visibleSourceRecords(report, support).filter(source => !extended.countryLocationMismatch || source.type !== 'Statistical Market Benchmark');
   const sourceRecords = germanyValuation
     ? rawSourceRecords.map(source => source.type === 'Statistical Market Benchmark'
       ? { ...source, name: germanyValuation.benchmark.sourceName, organization: 'Statistische Ämter des Bundes und der Länder', url: germanyValuation.benchmark.sourceUrl, status: 'MODELLED' as const }
@@ -376,13 +377,13 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
       reasonCode: item.mappedInDataset ? undefined : 'AUTHORITATIVE_DATA_REQUIRED'
     })),
     environment: { protectedAreaName: scientific(report.environment.nearestProtectedAreaName), distanceM: finite(report.environment.distanceToNatura2000M), status: report.environment.status, sourceName: report.environment.sourceName, reasonCode: report.environment.status === 'REQUIRES_VERIFICATION' ? 'SOURCE_UNAVAILABLE' : undefined },
-    valuation: germanyValuation
+    valuation: !extended.countryLocationMismatch && germanyValuation
       ? { min: germanyValuation.totalMin, max: germanyValuation.totalMax, median: germanyValuation.totalMedian, currency: 'EUR', status: 'MODELLED', comparableCount: 0, sourceName: germanyValuation.benchmark.sourceName }
       : slovakiaValuation
       ? { min: slovakiaValuation.totalMin, max: slovakiaValuation.totalMax, median: slovakiaValuation.totalMedian, currency: 'EUR', status: 'MODELLED', comparableCount: 0, sourceName: slovakiaValuation.benchmark.sourceName }
-      : c.nationalValuation
+      : c.nationalValuation && !extended.countryLocationMismatch
       ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency, status: report.valuation.status, comparableCount: report.valuation.comparableEvidenceCount, sourceName: profile.valuationDataSource }
-      : modelledValuationAvailable
+      : modelledValuationAvailable && !extended.countryLocationMismatch
       ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency || profile.currency, status: 'MODELLED', comparableCount: report.valuation.comparableEvidenceCount, sourceName: modelledValuationSource(profile, report) }
       : { min: null, max: null, median: null, currency: report.valuation.currency || profile.currency, status: 'REQUIRES_VERIFICATION', comparableCount: 0, sourceName: profile.valuationDataSource, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     evidenceScore: score,
