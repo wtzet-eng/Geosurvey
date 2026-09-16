@@ -19,6 +19,8 @@ import { applyNetherlandsCadastreToReport, queryNetherlandsCadastre } from './se
 import { enrichNorwayGroundEvidence, queryNorwayGroundEvidence } from './server/services/norwayGroundEvidenceService';
 import { applyDenmarkCadastreToReport, queryDenmarkCadastre } from './server/services/denmarkCadastreService';
 import { enrichDenmarkGroundEvidence, queryDenmarkGroundEvidence } from './server/services/denmarkGroundEvidenceService';
+import { applyIrelandCadastreToReport, queryIrelandCadastre } from './server/services/irelandCadastreService';
+import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './server/services/irelandNationalEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
@@ -99,6 +101,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'NO') return res.json(await queryNorwayCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'NL') return res.json(await queryNetherlandsCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'DK') return res.json(await queryDenmarkCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'IE') return res.json(await queryIrelandCadastre(lat, lng));
   return res.json({ success: false, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY', message: `Automated national cadastre acquisition is not implemented for ${profile.countryName}. Verify the parcel with ${profile.cadastreAuthority}.`, cadastreAuthority: profile.cadastreAuthority, portalUrl: profile.cadastrePortalUrl });
 });
 
@@ -174,6 +177,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let norwayCadastre: any = null;
     let netherlandsCadastre: any = null;
     let denmarkCadastre: any = null;
+    let irelandCadastre: any = null;
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -221,6 +225,21 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: norwayCadastre.sourceName, organization: 'Kartverket', url: norwayCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Kartverket Norway cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'IE' && support.capabilities.nationalCadastre) {
+      stage = 'ireland-cadastre';
+      try {
+        irelandCadastre = await queryIrelandCadastre(lat, lng);
+        applyIrelandCadastreToReport(evidenceReport, irelandCadastre, areaSize);
+        if (irelandCadastre.success) {
+          countyName = irelandCadastre.parcel?.county || countyName;
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(12, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Tailte Éireann identifies a public freehold/leasehold title-boundary polygon and spatial parcel identifier. The open geometry is explicitly generalised and is credited as cadastral screening, not as a legally surveyed boundary.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: irelandCadastre.sourceName, organization: 'Tailte Éireann', url: irelandCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Tailte Éireann cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'DK' && support.capabilities.nationalCadastre) {
       stage = 'denmark-cadastre';
       try {
@@ -280,6 +299,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let norwayGroundEvidence: any[] = [];
     let swedenGroundEvidence: any[] = [];
     let denmarkGroundEvidence: any[] = [];
+    let irelandNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -321,6 +341,19 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
       evidenceReport.dataSourcesCited.push({ name: 'GEUS — Jordartskort 1:25.000 / Jupiter', organization: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland (GEUS)', url: 'https://data.geus.dk/geusmap/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+    } else if (!countryLocationMismatch && countryCode === 'IE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology || support.capabilities.nationalRadon)) {
+      stage = 'ireland-national-evidence';
+      try { irelandNationalEvidence = await queryIrelandNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Ireland national evidence notice:`, e); }
+      stage = 'ireland-report-enrichment';
+      if (irelandNationalEvidence.length) evidenceReport.evidenceRegistry.push(...irelandNationalEvidence);
+      try { enrichIrelandNationalEvidence(evidenceReport, irelandNationalEvidence); } catch (e) { console.warn(`[${diagnosticId}] Ireland evidence enrichment notice:`, e); }
+      const verifiedGround = irelandNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['ie-gsi-bedrock', 'ie-gsi-quaternary', 'ie-gsi-aquifer', 'ie-gsi-boreholes'].includes(item.id));
+      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Geological Survey Ireland returned national bedrock, superficial-geology, hydrogeological and/or verified-borehole evidence. These are credited as screening evidence without inferring parcel design parameters.';
+      }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
+      evidenceReport.dataSourcesCited.push({ name: 'Geological Survey Ireland — Bedrock / Quaternary / Groundwater / Boreholes', organization: 'Geological Survey Ireland', url: 'https://www.gsi.ie/en-ie/data-and-maps/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'SE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
       stage = 'sweden-ground-evidence';
       try { swedenGroundEvidence = await querySwedenGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden evidence notice:`, e); }

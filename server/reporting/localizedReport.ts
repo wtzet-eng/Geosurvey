@@ -264,9 +264,30 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const floodText = canonical.flood.classification ? interpolate(t.flood as string, { risk: risk(canonical.flood.classification, language) }) : localizeAvailabilityReason(canonical.flood.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language);
   const hazardText = hazardCopy[language];
   const roadText = interpolate(t.road as string, { road: value(canonical.infrastructure.roadName || canonical.infrastructure.roadType, unavailable), distance: value(canonical.infrastructure.distanceM, unavailable) });
+  const irelandNoProtectedOverlap = canonical.countryCode === 'IE' && canonical.environment.status === 'VERIFIED' && /NPWS/i.test(canonical.environment.sourceName || '') && !canonical.environment.protectedAreaName;
+  const irelandEnvironmentClear = language === 'de'
+    ? 'Die NPWS-Layer für SAC, SPA, NHA und pNHA zeigen keine direkte Überschneidung am ausgewählten Standortpunkt.'
+    : language === 'pl'
+      ? 'Warstwy NPWS dla SAC, SPA, NHA i pNHA nie wykazują bezpośredniego przecięcia w wybranym punkcie lokalizacji.'
+      : 'NPWS SAC, SPA, NHA and pNHA layers show no direct overlap at the selected site point.';
   const environmentText = canonical.environment.status === 'REQUIRES_VERIFICATION' || canonical.environment.reasonCode
     ? localizeAvailabilityReason(canonical.environment.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED', language)
-    : canonical.environment.protectedAreaName ? interpolate(t.environment as string, { area: canonical.environment.protectedAreaName }) : t.environmentClear as string;
+    : canonical.environment.protectedAreaName ? interpolate(t.environment as string, { area: canonical.environment.protectedAreaName }) : irelandNoProtectedOverlap ? irelandEnvironmentClear : t.environmentClear as string;
+  const irelandPlanningRecords = canonical.countryCode === 'IE' ? canonical.evidenceRecords.filter(record => /^ie-(?:myplan-gzt|npad-)/.test(record.id)) : [];
+  const hasIrelandPlanningContext = irelandPlanningRecords.length > 0;
+  const irelandPlanningSummary = language === 'de'
+    ? `Vorläufiger irischer Planungskontext wurde über MyPlan und/oder die National Planning Application Database geprüft; verbindliche Bauleitplanung und Baurechte müssen weiterhin nach ${canonical.planning.instrumentName} bestätigt werden.`
+    : language === 'pl'
+      ? `Wstępny irlandzki kontekst planistyczny sprawdzono w MyPlan i/lub National Planning Application Database; wiążące przeznaczenie i prawa zabudowy nadal wymagają potwierdzenia zgodnie z ${canonical.planning.instrumentName}.`
+      : `Preliminary Irish planning context was checked through MyPlan and/or the National Planning Application Database; binding zoning and development rights still require confirmation under ${canonical.planning.instrumentName}.`;
+  const irelandPlanningDetail = language === 'de'
+    ? 'MyPlan-Generalised-Zoning und nahe Planungsanträge sind Kontextinformationen und ersetzen weder den rechtsverbindlichen Development Plan noch die Bestätigung der zuständigen Planning Authority.'
+    : language === 'pl'
+      ? 'Uogólnione strefy MyPlan i pobliskie wnioski planistyczne są wyłącznie kontekstem i nie zastępują prawnie wiążącego Development Plan ani potwierdzenia właściwego organu planistycznego.'
+      : 'MyPlan generalised zoning and nearby planning applications are contextual evidence only; they do not replace the statutory development plan or confirmation by the competent planning authority.';
+  const planningSummary = hasIrelandPlanningContext ? irelandPlanningSummary : interpolate(t.planning as string, { instrument: canonical.planning.instrumentName });
+  const planningDetail = hasIrelandPlanningContext ? irelandPlanningDetail : localizeAvailabilityReason(canonical.planning.reasonCode, language);
+  const planningSource = hasIrelandPlanningContext ? 'Department of Housing — MyPlan / National Planning Application Database (context only)' : canonical.planning.sourceName;
   const valuationAvailable = canonical.valuation.min !== null && canonical.valuation.max !== null;
   const valuationText = valuationAvailable
     ? interpolate(t.valuation as string, { min: canonical.valuation.min!.toLocaleString(language), max: canonical.valuation.max!.toLocaleString(language), currency: canonical.valuation.currency })
@@ -343,7 +364,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
       soil_and_ground: section(soilText, groundDetail, canonical.soil.status, canonical.soil.sourceName, unavailableNotice(canonical.soil.reasonCode)),
       geohazard_risk: section(geologyText, geologyDetail, canonical.geology.status, geologySource, unavailableNotice(canonical.geology.reasonCode)),
       flooding_risk: section(floodText, unavailableNotice(canonical.flood.reasonCode) || t.authoritative as string, canonical.flood.status, canonical.flood.sourceName, unavailableNotice(canonical.flood.reasonCode)),
-      zoning_and_land_use: section(interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), unavailableNotice(canonical.planning.reasonCode) || t.authoritative as string, canonical.planning.status, canonical.planning.sourceName, unavailableNotice(canonical.planning.reasonCode)),
+      zoning_and_land_use: section(planningSummary, planningDetail, canonical.planning.status, planningSource, unavailableNotice(canonical.planning.reasonCode)),
       building_regulations: section(t.authoritative as string, interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), canonical.planning.status, canonical.planning.authorityName, unavailableNotice(canonical.planning.reasonCode)),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? t.sourceUnavailable as string : t.authoritative as string, canonical.environment.status, canonical.environment.sourceName, unavailableNotice(canonical.environment.reasonCode)),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? t.sourceUnavailable as string : t.authoritative as string, canonical.infrastructure.status, canonical.infrastructure.sourceName, unavailableNotice(canonical.infrastructure.reasonCode)),

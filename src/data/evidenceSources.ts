@@ -188,6 +188,16 @@ export const EVIDENCE_SOURCES: Record<string, EvidenceSourceLink[]> = {
       description: 'WMS/WFS and other standards-based geological services.'
     }
   ],
+  IE: [
+    { id: 'gsi-bedrock', title: 'GSI Bedrock Geology', provider: 'Geological Survey Ireland', category: 'geology', scale: '1:100,000', url: 'https://www.gsi.ie/en-ie/data-and-maps/Pages/Bedrock.aspx', description: 'National bedrock geological units and descriptions used for site-scale geological screening.' },
+    { id: 'gsi-quaternary', title: 'GSI Quaternary Sediments', provider: 'Geological Survey Ireland', category: 'engineering', scale: '1:50,000', url: 'https://www.gsi.ie/en-ie/data-and-maps/Pages/Quaternary.aspx', description: 'National near-surface sediment mapping used as superficial-ground context, not measured parcel stratigraphy.' },
+    { id: 'gsi-groundwater', title: 'GSI Groundwater Data', provider: 'Geological Survey Ireland', category: 'hydrogeology', url: 'https://www.gsi.ie/en-ie/data-and-maps/Pages/Groundwater.aspx', description: 'Bedrock aquifers, groundwater vulnerability and related hydrogeological screening datasets.' },
+    { id: 'gsi-boreholes', title: 'GSI Verified Bedrock Boreholes', provider: 'Geological Survey Ireland', category: 'boreholes', url: 'https://www.gsi.ie/en-ie/data-and-maps/Pages/Bedrock.aspx', description: 'Verified borehole locations and logs used only as nearby contextual observations.' },
+    { id: 'tailte-cadastre', title: 'Tailte Éireann Cadastral Parcels', provider: 'Tailte Éireann', category: 'planning', url: 'https://data-osi.opendata.arcgis.com/', description: 'CC BY 4.0 generalised freehold and leasehold cadastral parcel polygons; reference-only and not legal boundary proof.' },
+    { id: 'epa-radon-ie', title: 'EPA Radon Risk Map', provider: 'Environmental Protection Agency Ireland', category: 'hazards', url: 'https://www.epa.ie/environment-and-you/radon/radon-map/', description: 'Official area-level radon risk screening; direct building measurement remains necessary.' },
+    { id: 'npws-designated-areas', title: 'NPWS Designated Areas', provider: 'National Parks and Wildlife Service', category: 'environment', url: 'https://www.npws.ie/maps-and-data/designated-site-data/download-boundary-data', description: 'Official SAC, SPA, NHA and proposed-NHA boundary data for direct-overlap screening.' },
+    { id: 'myplan-ie', title: 'MyPlan / National Planning Application Database', provider: 'Department of Housing, Local Government and Heritage', category: 'planning', url: 'https://www.myplan.ie/', description: 'Generalised zoning and national planning-application context; not a substitute for the statutory development plan or local planning authority.' }
+  ],
   GB: [
     {
       id: 'bgs-geoindex-onshore',
