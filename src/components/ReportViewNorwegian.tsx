@@ -63,7 +63,7 @@ export const ReportViewNorwegian: React.FC<Props> = ({ report, onBack }) => {
         <div className="flex items-center gap-3 min-w-0">
           {onBack && <button type="button" onClick={onBack} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold shrink-0"><ArrowLeft className="h-3.5 w-3.5" />Tilbake</button>}
           <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0"><Landmark className="h-4 w-4" /></div>
-          <div className="min-w-0"><div className="font-bold text-sm truncate">GeoSurvey</div><div className="text-[10px] text-slate-500 truncate">Foreløpig tomtevurdering · dokumentasjon først</div></div>
+          <div className="min-w-0"><div className="font-bold text-sm truncate">SurveyLand</div><div className="text-[10px] text-slate-500 truncate">Foreløpig tomtevurdering · dokumentasjon først</div></div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button type="button" onClick={() => setIsDriveOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold"><HardDrive className="h-3.5 w-3.5" />Drive</button>
@@ -132,7 +132,7 @@ export const ReportViewNorwegian: React.FC<Props> = ({ report, onBack }) => {
 
       <section className="rounded-3xl bg-amber-50 border border-amber-200 p-6 sm:p-8">
         <div className="flex items-center gap-2 text-amber-900 font-bold text-sm"><ShieldAlert className="h-5 w-5" />Viktige begrensninger</div>
-        <div className="mt-3 space-y-2">{legal.length ? legal.map((item: string, index: number) => <p key={index} className="text-xs text-amber-900/80 leading-relaxed">{item}</p>) : <p className="text-xs text-amber-900/80">GeoSurvey er et innledende screeningverktøy og erstatter ikke offentlige dokumenter, fagundersøkelser, juridisk rådgivning eller takst.</p>}</div>
+        <div className="mt-3 space-y-2">{legal.length ? legal.map((item: string, index: number) => <p key={index} className="text-xs text-amber-900/80 leading-relaxed">{item}</p>) : <p className="text-xs text-amber-900/80">SurveyLand er et innledende screeningverktøy og erstatter ikke offentlige dokumenter, fagundersøkelser, juridisk rådgivning eller takst.</p>}</div>
       </section>
     </main>
   </div>;

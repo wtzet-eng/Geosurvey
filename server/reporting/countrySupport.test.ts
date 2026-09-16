@@ -195,7 +195,7 @@ test('supported Poland keeps the existing regional modelled valuation', () => {
   const report = rawReport('PL'); const canonical = createCanonicalReport(report, getCountryProfile('PL'));
   assert.equal(canonical.support.capabilities.nationalValuation, false); assert.equal(canonical.valuation.status, 'MODELLED');
   assert.equal(canonical.valuation.min, 123000); assert.equal(canonical.valuation.max, 456000); assert.equal(canonical.valuation.median, 250000);
-  assert.match(canonical.valuation.sourceName, /GeoSurvey/); assert.match(canonical.valuation.sourceName, /RCN/); assert.match(canonical.valuation.sourceName, /Cenatorium/); assert.match(canonical.valuation.sourceName, /188 PLN\/m²/);
+  assert.match(canonical.valuation.sourceName, /SurveyLand/); assert.match(canonical.valuation.sourceName, /RCN/); assert.match(canonical.valuation.sourceName, /Cenatorium/); assert.match(canonical.valuation.sourceName, /188 PLN\/m²/);
   assert.doesNotMatch(canonical.valuation.sourceName, /420 PLN\/m²/);
   const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model'); assert.ok(valuationEvidence); assert.equal(valuationEvidence?.sourceName, canonical.valuation.sourceName);
 });

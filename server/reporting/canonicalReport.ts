@@ -117,9 +117,9 @@ const hasModelledValuation = (report: VerifiedSiteReport, support: CountrySuppor
 
 const modelledValuationSource = (profile: CountryAdapterProfile, report: VerifiedSiteReport): string => {
   const dynamic = report.evidenceRegistry.find(record => record.id === 'valuation-indicative-model' && record.status === 'MODELLED');
-  if (dynamic?.sourceName && !/^(Configured valuation|GeoSurvey)$/i.test(dynamic.sourceName.trim())) return dynamic.sourceName;
+  if (dynamic?.sourceName && !/^(Configured valuation|SurveyLand)$/i.test(dynamic.sourceName.trim())) return dynamic.sourceName;
   const baseline = profile.baseValuationPerSqm > 0 ? ` · ${profile.baseValuationPerSqm} ${profile.currency}/m²` : '';
-  return `GeoSurvey · ${profile.valuationDataSource}${baseline}`;
+  return `SurveyLand · ${profile.valuationDataSource}${baseline}`;
 };
 
 function supportRecord(id: string, claim: string, sourceName: string, sourceUrl?: string): EvidenceItem {

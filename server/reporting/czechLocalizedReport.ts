@@ -78,7 +78,7 @@ function localizedClassification(value: string | null): string {
 
 function supportNotice(canonical: CanonicalReport): string {
   if (canonical.countryCode === 'CZ') {
-    return 'Pro Česko jsou integrovány vybrané národní zdroje ČÚZK/RÚIAN a České geologické služby (ČGS). Údaje, které tato verze GeoSurvey automaticky nezískává, musí být ověřeny v příslušném oficiálním registru nebo u kompetentního úřadu.';
+    return 'Pro Česko jsou integrovány vybrané národní zdroje ČÚZK/RÚIAN a České geologické služby (ČGS). Údaje, které tato verze SurveyLand automaticky nezískává, musí být ověřeny v příslušném oficiálním registru nebo u kompetentního úřadu.';
   }
   if (canonical.support.maturity === 'SUPPORTED') return 'Pro vybrané oblasti jsou dostupné národní zdrojové integrace; nepodporované kategorie stále vyžadují úřední ověření.';
   return 'Omezené pokrytí: pro tuto zemi jsou automatizovány pouze vybrané národní zdroje. Ostatní kategorie vyžadují ověření u příslušného orgánu.';
