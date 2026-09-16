@@ -145,7 +145,10 @@ function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdap
   const filtered = report.evidenceRegistry.flatMap(record => {
     const text = `${record.id} ${record.category}`.toLowerCase();
     if (!c.nationalCadastre && /cadastre|cadastr|parcel/.test(text)) return [];
-    if (!c.nationalPlanning && /planning|zoning|mpzp|bebau/.test(text)) return [];
+    if (!c.nationalPlanning && /planning|zoning|mpzp|bebau/.test(text)) {
+      const irelandContext = support.countryCode === 'IE' && /^ie-(?:myplan-gzt(?:-(?:no-data|unavailable))?|npad-(?:nearby-applications|unavailable))$/.test(record.id);
+      if (!irelandContext) return [];
+    }
     if (!c.nationalValuation && /valuation|market valuation|econom/.test(text) && !(modelledValuationAvailable && record.id === 'valuation-indicative-model')) return [];
     if (!c.nationalRadon && /radon/.test(text)) return [];
     if (!c.nationalMining && /mining|mine|górnic|gornic/.test(text)) return [];
@@ -215,6 +218,10 @@ function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountryS
   if (c.nationalCadastre && report.evidenceScore.cappingApplied && totalScore > 65) {
     totalScore = 65;
     cappingApplied = report.evidenceScore.cappingApplied;
+  }
+  if (support.countryCode === 'IE' && (!c.nationalPlanning || !c.nationalFlood) && totalScore > 74) {
+    totalScore = 74;
+    cappingApplied = 'Overall Irish evidence quality is capped below Robust while binding planning and automated national flood mapping remain outside current coverage.';
   }
   const ratingClass: CanonicalEvidenceScore['ratingClass'] = totalScore >= 75 ? 'Robust Evidence (75-100)' : totalScore >= 50 ? 'Moderate Evidence (50-74)' : 'Preliminary / Low Evidence (<50)';
   const verifiedCount = evidenceRecords.filter(record => record.status === 'VERIFIED').length;

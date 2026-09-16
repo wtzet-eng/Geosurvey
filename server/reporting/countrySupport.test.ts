@@ -116,9 +116,13 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, false);
   assert.equal(de.maturity, 'LIMITED'); assert.equal(de.capabilities.nationalValuation, true); assert.equal(de.capabilities.nationalCadastre, false); assert.equal(de.capabilities.nationalPlanning, false);
   assert.equal(fr.maturity, 'LIMITED'); assert.equal(fr.capabilities.nationalGeology, true); assert.equal(fr.capabilities.nationalBoreholes, true); assert.equal(fr.capabilities.nationalValuation, true);
-  for (const code of ['SK', 'AT', 'ES', 'FI', 'IE']) {
+  for (const code of ['SK', 'AT', 'ES', 'FI']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.equal(support.capabilities.nationalValuation, true); assert.equal(support.capabilities.nationalCadastre, false);
   }
+  const ie = getCountrySupport('IE');
+  assert.equal(ie.maturity, 'LIMITED'); assert.equal(ie.capabilities.nationalCadastre, true); assert.equal(ie.capabilities.nationalGeology, true);
+  assert.equal(ie.capabilities.nationalBoreholes, true); assert.equal(ie.capabilities.nationalHydrogeology, true); assert.equal(ie.capabilities.nationalValuation, true); assert.equal(ie.capabilities.nationalRadon, true);
+  assert.equal(ie.capabilities.nationalFlood, false); assert.equal(ie.capabilities.nationalPlanning, false); assert.equal(ie.capabilities.nationalMining, false);
   const cz = getCountrySupport('CZ');
   assert.equal(cz.maturity, 'LIMITED');
   assert.equal(cz.capabilities.nationalGeology, true); assert.equal(cz.capabilities.nationalBoreholes, true); assert.equal(cz.capabilities.nationalHydrogeology, true);

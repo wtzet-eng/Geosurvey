@@ -56,6 +56,12 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
     description: 'IGME MAGNA50 Mapa Geológico de España 1:50 000 & Sede Electrónica del Catastro',
     datasets: ['IGME MAGNA50 – Mapa Geológico de España 1:50 000', 'SNCZI – Sistema Nacional de Cartografía de Zonas Inundables', 'Sede Electrónica del Catastro (SEC) – Referencia Catastral', 'Base de Datos de Deslizamientos de España']
   },
+  IE: {
+    countryCode: 'IE', countryName: 'Ireland', authorityName: 'Geological Survey Ireland / Tailte Éireann / EPA / NPWS', acronym: 'GSI / Tailte Éireann / EPA / NPWS',
+    officialPortalUrl: 'https://www.gsi.ie/en-ie/data-and-maps/', mapViewerUrl: 'https://dcenr.maps.arcgis.com/apps/MapSeries/index.html?appid=a30af518e87a4c0ab2fbde2aaac3c228', cadastrePortalUrl: 'https://data-osi.opendata.arcgis.com/', hazardPortalUrl: 'https://www.epa.ie/environment-and-you/radon/radon-map/',
+    description: 'Irish national open-data evidence for bedrock, Quaternary deposits, hydrogeology, boreholes, radon, protected areas and generalised cadastral parcels.',
+    datasets: ['GSI Bedrock Geology 1:100,000', 'GSI Quaternary Sediments 1:50,000', 'GSI Bedrock Aquifers and Groundwater Vulnerability', 'GSI Verified Bedrock Boreholes', 'GSI Landslide Susceptibility 1:50,000', 'EPA Radon Risk Map', 'NPWS SAC / SPA / NHA / pNHA designated areas', 'Tailte Éireann High Value Dataset — generalised freehold/leasehold cadastral parcels', 'MyPlan generalised zoning and National Planning Application Database — preliminary planning context only']
+  },
   IT: {
     countryCode: 'IT', countryName: 'Italy', authorityName: 'Istituto Superiore per la Protezione e la Ricerca Ambientale', acronym: 'ISPRA / Servizio Geologico d\'Italia',
     officialPortalUrl: 'https://www.isprambiente.gov.it', mapViewerUrl: 'https://sgi.isprambiente.it/geoportal', cadastrePortalUrl: 'https://www.agenziaentrate.gov.it', hazardPortalUrl: 'https://idrogeo.isprambiente.it',
