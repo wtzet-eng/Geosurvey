@@ -56,12 +56,12 @@ export interface FrontPageI18n {
 const FRONT_PAGE_DICTIONARY: Record<string, Partial<FrontPageI18n>> = {
   pl: {
     badge: "Europejski System Informacji O Terenie i Ryzyku Geologicznym",
-    heroSub: "Wskaż lub narysuj dowolną działkę budowlaną w Europie. Otrzymaj natychmiastowy raport AI analizujący nośność gruntu, ryzyka geologiczne, plan zagospodarowania oraz szacunkową wartość rynkową.",
+    heroSub: "Zbieramy w jednym miejscu dostępne dane o działce. Wybierz lokalizację, aby sprawdzić podłoże, zagrożenia, planowanie i wartość samego gruntu wraz z lukami w danych.",
     step1: "1. Określ granice działki", searchPh: "Szukaj adresu lub miejscowości (np. Warszawa, Kraków, Berlin)...", step2: "2. Konfiguracja i Parametry", areaLbl: "Powierzchnia działki (m²)", countryLbl: "Kraj (Europa)", langLbl: "Język raportu", btnGen: "Sprawdź jakość i wartość działki", modeCircle: "Koło", modeRect: "Prostokąt", modePoly: "Dowolny wielokąt", finishPoly: "Zakończ wielokąt", clear: "Wyczyść", clickPrompt: "Kliknij na mapie, aby umieścić obszar działki."
   },
   de: {
     badge: "Europäische Baugrund- und Georisiko-Plattform",
-    heroSub: "Zeichnen oder wählen Sie ein Baugrundstück in Europa. Erhalten Sie einen KI-Baugrundbericht mit Analyse von Tragfähigkeit, Geogefahren, Bebauungsplan und Marktwert.",
+    heroSub: "Wir bündeln die verfügbaren Daten zu einem Grundstück an einem Ort. Wählen Sie einen Standort und prüfen Sie Untergrund, Gefahren, Planung und Bodenwert samt Datenlücken.",
     step1: "1. Grundstücksgrenzen festlegen", searchPh: "Adresse oder Stadt suchen (z.B. München, Berlin, Wien)...", step2: "2. Konfiguration & Parameter", areaLbl: "Grundstücksfläche (m²)", countryLbl: "Land (Europa)", langLbl: "Berichtssprache", btnGen: "Baugrundstück prüfen & bewerten", modeCircle: "Kreis", modeRect: "Rechteck", modePoly: "Freies Polygon", finishPoly: "Polygon fertigstellen", clear: "Löschen", clickPrompt: "Klicken Sie auf die Karte, um die Grenze festzulegen."
   },
   fr: {
@@ -126,7 +126,7 @@ export function getFrontPageI18n(langCode?: string): FrontPageI18n {
   return {
     badge: custom.badge || "European Real Estate & Geotechnical Intelligence",
     heroTitle: TITLES_MAP[code] || TITLES_MAP.en,
-    heroSub: custom.heroSub || "Draw or specify any building plot across Europe. Receive an instant AI-powered ground-truth report analyzing soil bearing capacity, geohazard risks, zoning restrictions, and real market value.",
+    heroSub: custom.heroSub || "We collect the land data you need to know in one place. Choose a site to see available ground, hazard, planning and land-value evidence, with gaps clearly marked.",
     step1: custom.step1 || "1. Define site boundary",
     searchPh: custom.searchPh || "Search address or city (e.g. London, Paris, Warsaw)...",
     step2: custom.step2 || "2. Configuration & Parameters",

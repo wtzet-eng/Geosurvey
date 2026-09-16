@@ -33,7 +33,7 @@ function localizedClassification(value: string | null): string {
 
 function supportNotice(canonical: CanonicalReport): string {
   if (canonical.countryCode === 'NO') {
-    return 'For Norge bruker GeoSurvey utvalgte nasjonale kilder fra Kartverket og NGU. Eiendomsidentifikasjon, detaljerte løsmasser, NADAG-borehull, mulighet for marin leire og radonaktsomhet kan hentes automatisk. NVE-farekart, kommunale arealplaner, juridisk eiendomsinformasjon og tomteverdi må fortsatt kontrolleres i de offisielle tjenestene.';
+    return 'For Norge bruker SurveyLand utvalgte nasjonale kilder fra Kartverket og NGU. Eiendomsidentifikasjon, detaljerte løsmasser, NADAG-borehull, mulighet for marin leire og radonaktsomhet kan hentes automatisk. NVE-farekart, kommunale arealplaner, juridisk eiendomsinformasjon og tomteverdi må fortsatt kontrolleres i de offisielle tjenestene.';
   }
   return canonical.support.maturity === 'SUPPORTED'
     ? 'Nasjonale kildeintegrasjoner finnes for utvalgte områder. Andre kategorier krever fortsatt offisiell kontroll.'
@@ -99,7 +99,7 @@ function localizedEvidenceRecord(record: any): any {
     category: names[record.id] || (record.id.startsWith('country-support-') ? 'Landdekning' : 'Dokumentasjon'),
     claim: names[record.id] ? `${names[record.id]} er inkludert som stedsspesifikk screeningdokumentasjon.` : record.id.startsWith('country-support-') ? reason('NOT_SUPPORTED_FOR_COUNTRY') : 'Dokumentasjonsrecord for valgt sted.',
     spatialRelationship: record.id.startsWith('country-support-') ? 'Nasjonal støtteprofil for Norge.' : 'Romlig relasjon er registrert for valgt sted eller angitt søkeområde.',
-    calculationMethod: record.id.startsWith('country-support-') ? 'Kontroll av tilgjengelige nasjonale integrasjoner.' : 'Kildespesifikk innhenting og normalisering til GeoSurveys dokumentasjonsmodell.',
+    calculationMethod: record.id.startsWith('country-support-') ? 'Kontroll av tilgjengelige nasjonale integrasjoner.' : 'Kildespesifikk innhenting og normalisering til SurveyLands dokumentasjonsmodell.',
     confidence: confidenceLabel[record.confidence as keyof typeof confidenceLabel] || record.confidence,
     limitation: record.status === 'REQUIRES_VERIFICATION' ? reason(code) : record.limitation || 'Bindende eller prosjekteringsrettede konklusjoner må bekreftes i autoritativ kilde eller ved stedsspesifikk undersøkelse.'
   };
@@ -159,7 +159,7 @@ export function renderNorwegianLocalizedReport(canonical: CanonicalReport): any 
   const evidenceRegistry = canonical.evidenceRecords.map(localizedEvidenceRecord);
   const summaryCore = valuationAvailable
     ? `Denne kunnskapsbaserte vurderingen gjelder en tomt i Norge. Kartlagt grunnkontekst: ${geologyUnit}. ${terrainText} Jord: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Dokumentasjonsscore: ${canonical.evidenceScore.totalScore}/100. Indikativ tomteverdi er ${canonical.valuation.min!.toLocaleString('nb-NO')}–${canonical.valuation.max!.toLocaleString('nb-NO')} ${canonical.valuation.currency}.`
-    : `Denne kunnskapsbaserte vurderingen gjelder en tomt i Norge. Kartlagt grunnkontekst: ${geologyUnit}. ${terrainText} Jord: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Dokumentasjonsscore: ${canonical.evidenceScore.totalScore}/100. Automatisk tomteverdi vises ikke fordi GeoSurvey ennå ikke har en tilstrekkelig dokumentert norsk kilde for tomteverdi.`;
+    : `Denne kunnskapsbaserte vurderingen gjelder en tomt i Norge. Kartlagt grunnkontekst: ${geologyUnit}. ${terrainText} Jord: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Dokumentasjonsscore: ${canonical.evidenceScore.totalScore}/100. Automatisk tomteverdi vises ikke fordi SurveyLand ennå ikke har en tilstrekkelig dokumentert norsk kilde for tomteverdi.`;
   const section = (summary: string, detail: string, status: string, source?: string, limitation?: string) => ({ summary, detail, evidence_level: status, source_cited: source, limitation_notice: limitation });
   const groundDetail = [`${contextSummary} ${investigationFocus}`, ...groundSpecific].join(' ');
   const parcelDetail = cadastreSpecific.length ? cadastreSpecific.join(' ') : reason('AUTHORITATIVE_DATA_REQUIRED');
