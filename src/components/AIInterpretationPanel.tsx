@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { AlertTriangle, BrainCircuit, CheckCircle2, CreditCard, Loader2, LogIn, LogOut, RefreshCw, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, CheckCircle2, CreditCard, Heart, Loader2, LogIn, LogOut, RefreshCw, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { SiteReport } from '../types';
 import { getCurrentFirebaseIdToken, isFirebaseAuthConfigured, signInWithGoogle, signOutCurrentUser, subscribeToAuthState } from '../lib/firebaseAuth';
 
@@ -270,16 +270,29 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
     : null;
 
   return <>
-    <button
-      type="button"
-      onClick={() => setIsOpen(true)}
-      className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-xl shadow-indigo-950/20 hover:bg-indigo-700 print:hidden"
-      aria-label="Interpret report evidence with AI"
-    >
-      <Sparkles className="h-4 w-4" />
-      <span className="hidden sm:inline">Interpret with AI</span>
-      <span className="sm:hidden">AI</span>
-    </button>
+    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2 print:hidden">
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-xl shadow-indigo-950/20 hover:bg-indigo-700"
+        aria-label="Interpret report evidence with AI"
+      >
+        <Sparkles className="h-4 w-4" />
+        <span className="hidden sm:inline">Interpret with AI</span>
+        <span className="sm:hidden">AI</span>
+      </button>
+      <a
+        href="https://ko-fi.com/surveyland"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Support SurveyLand on Ko-fi"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 shadow-md hover:bg-indigo-50"
+      >
+        <Heart className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Support on Ko-fi</span>
+        <span className="sm:hidden">Ko-fi</span>
+      </a>
+    </div>
 
     {isOpen && <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm p-3 sm:p-6 print:hidden" role="dialog" aria-modal="true">
       <div className="mx-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
