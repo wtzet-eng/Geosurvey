@@ -15,6 +15,7 @@ import { enrichCzechiaGroundEvidence, queryCzechiaGroundEvidence } from './serve
 import { applyCzechiaCadastreToReport, queryCzechiaCadastre } from './server/services/czechiaCadastreService';
 import { enrichSwedenGroundEvidence, querySwedenGroundEvidence } from './server/services/swedenGroundEvidenceService';
 import { applyNorwayCadastreToReport, queryNorwayCadastre } from './server/services/norwayCadastreService';
+import { applyNetherlandsCadastreToReport, queryNetherlandsCadastre } from './server/services/netherlandsCadastreService';
 import { enrichNorwayGroundEvidence, queryNorwayGroundEvidence } from './server/services/norwayGroundEvidenceService';
 import { applyDenmarkCadastreToReport, queryDenmarkCadastre } from './server/services/denmarkCadastreService';
 import { enrichDenmarkGroundEvidence, queryDenmarkGroundEvidence } from './server/services/denmarkGroundEvidenceService';
@@ -96,6 +97,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'CZ') return res.json(await queryCzechiaCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'NO') return res.json(await queryNorwayCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'NL') return res.json(await queryNetherlandsCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'DK') return res.json(await queryDenmarkCadastre(lat, lng));
   return res.json({ success: false, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY', message: `Automated national cadastre acquisition is not implemented for ${profile.countryName}. Verify the parcel with ${profile.cadastreAuthority}.`, cadastreAuthority: profile.cadastreAuthority, portalUrl: profile.cadastrePortalUrl });
 });
@@ -166,9 +168,11 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     stage = 'geospatial-analysis-pipeline';
     const evidenceReport: any = await runGeospatialAnalysisPipeline({ lat, lng, areaSizeM2: areaSize, countryCode: acquisitionCountryCode, language, locationName, municipality, county: countyName, state: stateName, roadName });
     evidenceReport.countryCode = countryCode;
+    evidenceReport.countryLocationMismatch = countryLocationMismatch;
 
     let czechiaCadastre: any = null;
     let norwayCadastre: any = null;
+    let netherlandsCadastre: any = null;
     let denmarkCadastre: any = null;
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
@@ -189,6 +193,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.evidenceRegistry.push(...czechiaCadastre.evidence);
         }
       } catch (e) { console.warn(`[${diagnosticId}] ČÚZK Czechia cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'NL' && support.capabilities.nationalCadastre) {
+      stage = 'netherlands-cadastre';
+      try {
+        netherlandsCadastre = await queryNetherlandsCadastre(lat, lng);
+        applyNetherlandsCadastreToReport(evidenceReport, netherlandsCadastre, areaSize);
+        if (netherlandsCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(12, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'PDOK BRK identifies the mapped parcel and registered area at this coordinate; map position is approximate and is not credited as a surveyed legal boundary.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: netherlandsCadastre.sourceName, organization: 'Kadaster / PDOK', url: netherlandsCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] PDOK Netherlands cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'NO' && support.capabilities.nationalCadastre) {
       stage = 'norway-cadastre';
       try {
@@ -402,6 +420,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       : areaSize;
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && valuationAreaM2 !== null && valuationAreaM2 > 0 ? value / valuationAreaM2 : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
+    const registeredAreaM2 = hasOfficialParcel || (countryCode === 'NL' && netherlandsCadastre?.success)
+      ? evidenceReport.parcel?.officialAreaM2 ?? null : null;
 
     const reportData = {
       site_value_estimate: { min: canonicalReport.valuation.min, max: canonicalReport.valuation.max, median: canonicalReport.valuation.median, currency: canonicalReport.valuation.currency, basis: presentation.valuationMethodology, evidence_level: canonicalReport.valuation.status, uncertainty_rating: canonicalReport.valuation.min === null ? undefined : evidenceReport.valuation?.uncertaintyRating },
@@ -419,7 +439,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       titles: presentation.titles,
       unavailable_reasons: presentation.unavailableReasons,
       geosurvey_context: { survey_authority: canonicalReport.geology.sourceName, geological_unit_name: canonicalReport.geology.unitName, lithology_type: canonicalReport.geology.lithology, geological_period_era: canonicalReport.geology.geologicalAge, groundwater_regime: canonicalReport.geology.groundwaterRegime, seismic_hazard_zone: canonicalReport.hazards.seismic.classification, radon_class: canonicalReport.hazards.radon.classification, official_portal_url: canonicalReport.geology.sourceUrl, evidence_level: canonicalReport.geology.status },
-      technical_parameters: { cadastral_id_format: support.capabilities.nationalCadastre ? evidenceReport.parcel?.cadastralSource : null, cadastral_parcel_id: support.capabilities.nationalCadastre ? evidenceReport.parcel?.parcelId || null : null, cadastral_teryt: support.capabilities.nationalCadastre ? evidenceReport.parcel?.teryt : null, cadastral_commune: support.capabilities.nationalCadastre ? evidenceReport.parcel?.commune : null, cadastral_county: support.capabilities.nationalCadastre ? evidenceReport.parcel?.county : null, cadastral_voivodeship: support.capabilities.nationalCadastre ? evidenceReport.parcel?.voivodeship : null, cadastre_evidence_level: support.capabilities.nationalCadastre ? evidenceReport.parcel?.status : 'REQUIRES_VERIFICATION', is_official_parcel: hasOfficialParcel, official_area_m2: hasOfficialParcel ? evidenceReport.parcel?.officialAreaM2 ?? null : null, elevation_amsl: canonicalReport.terrain.elevationM, min_elevation_amsl: canonicalReport.terrain.minElevationM, max_elevation_amsl: canonicalReport.terrain.maxElevationM, local_relief_m: canonicalReport.terrain.localReliefM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: null },
+      technical_parameters: { cadastral_id_format: support.capabilities.nationalCadastre ? evidenceReport.parcel?.cadastralSource : null, cadastral_parcel_id: support.capabilities.nationalCadastre ? evidenceReport.parcel?.parcelId || null : null, cadastral_teryt: support.capabilities.nationalCadastre ? evidenceReport.parcel?.teryt : null, cadastral_commune: support.capabilities.nationalCadastre ? evidenceReport.parcel?.commune : null, cadastral_county: support.capabilities.nationalCadastre ? evidenceReport.parcel?.county : null, cadastral_voivodeship: support.capabilities.nationalCadastre ? evidenceReport.parcel?.voivodeship : null, cadastre_evidence_level: support.capabilities.nationalCadastre ? evidenceReport.parcel?.status : 'REQUIRES_VERIFICATION', is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, elevation_amsl: canonicalReport.terrain.elevationM, min_elevation_amsl: canonicalReport.terrain.minElevationM, max_elevation_amsl: canonicalReport.terrain.maxElevationM, local_relief_m: canonicalReport.terrain.localReliefM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: null },
       valuation_metrics: { valuation_area_m2: valuationAreaM2, price_per_sqm_min: safePerSqm(canonicalReport.valuation.min), price_per_sqm_max: safePerSqm(canonicalReport.valuation.max), price_per_sqm_median: safePerSqm(canonicalReport.valuation.median), comparable_evidence_count: canonicalReport.valuation.comparableCount, feasibility_rating: canonicalReport.valuation.min === null ? undefined : evidenceReport.valuation?.uncertaintyRating, soil_bearing_capacity_kpa: null },
       soil_metrics: { usda_texture: evidenceReport.soil?.usdaTextureClass, topsoil_sand_pct: evidenceReport.soil?.topsoilSandPct, topsoil_silt_pct: evidenceReport.soil?.topsoilSiltPct, topsoil_clay_pct: evidenceReport.soil?.topsoilClayPct, subsoil_sand_pct: evidenceReport.soil?.subsoilSandPct, subsoil_silt_pct: evidenceReport.soil?.subsoilSiltPct, subsoil_clay_pct: evidenceReport.soil?.subsoilClayPct, mean_bulk_density: evidenceReport.soil?.meanBulkDensityGcm3, mean_ph: evidenceReport.soil?.meanPhH2O, mean_soc: evidenceReport.soil?.meanOrganicCarbonPct, bearing_capacity_kpa: null, friction_angle_deg: null, cohesion_kpa: null, hydraulic_conductivity: null, drainage_class: null, frost_class: evidenceReport.soil?.frostSusceptibilityClass, topsoil_stripping_cm: null, source_name: evidenceReport.soil?.sourceName },
       stratigraphy: (evidenceReport.soil?.stratigraphyLayers || []).map((l: any) => ({ depth_range: l.depthRange, soil_type: l.soilType, bearing_capacity: presentation.unavailableReasons.engineeringParameter, description: presentation.unavailableReasons.engineeringParameter, sand_pct: l.sandPct, silt_pct: l.siltPct, clay_pct: l.clayPct, bulk_density: l.bulkDensity, ph: l.ph, soc: l.soc })),
@@ -450,7 +470,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };
 
-    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: hasOfficialParcel ? evidenceReport.parcel?.geometryPoints : null, is_official_parcel: hasOfficialParcel, official_area_m2: hasOfficialParcel ? evidenceReport.parcel?.officialAreaM2 ?? null : null, report_data: reportData };
+    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: hasOfficialParcel ? evidenceReport.parcel?.geometryPoints : null, is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, report_data: reportData };
     reportsStore[finalReport.id] = finalReport;
     res.json(finalReport);
   } catch (error: any) {

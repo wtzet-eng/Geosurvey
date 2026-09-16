@@ -32,6 +32,16 @@ test('Soil-only samples do not establish geological uniformity and contacts fit 
   assert.match(result.verificationChecklist[3].recommendedAuthorityOrExpert, /Versorgungsnetzbetreiber/);
 });
 
+test('country mismatch suppresses national valuation', () => {
+  const raw = rawReport('DE');
+  raw.countryLocationMismatch = true;
+  const canonical = createCanonicalReport(raw, getCountryProfile('DE'));
+  assert.equal(canonical.valuation.min, null);
+  assert.equal(canonical.valuation.max, null);
+  assert.equal(canonical.valuation.status, 'REQUIRES_VERIFICATION');
+  assert.equal(canonical.evidenceRecords.some(item => item.id === 'valuation-indicative-model'), false);
+});
+
 function rawReport(countryCode: string): any {
   return {
     countryCode,
@@ -126,7 +136,12 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.equal(dk.maturity, 'LIMITED');
   assert.equal(dk.capabilities.nationalCadastre, true); assert.equal(dk.capabilities.nationalGeology, true); assert.equal(dk.capabilities.nationalBoreholes, true); assert.equal(dk.capabilities.nationalHydrogeology, true); assert.equal(dk.capabilities.nationalPlanning, true);
   assert.equal(dk.capabilities.nationalFlood, false); assert.equal(dk.capabilities.nationalValuation, false); assert.equal(dk.capabilities.nationalRadon, false); assert.equal(dk.capabilities.nationalMining, false);
-  for (const code of ['IT', 'NL', 'CH', 'BE', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  const nl = getCountrySupport('NL');
+  assert.equal(nl.maturity, 'LIMITED');
+  assert.equal(nl.capabilities.nationalCadastre, true);
+  assert.equal(nl.capabilities.nationalGeology, false);
+  assert.equal(nl.capabilities.nationalMining, false);
+  for (const code of ['IT', 'CH', 'BE', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });
