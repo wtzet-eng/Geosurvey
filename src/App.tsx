@@ -18,6 +18,7 @@ import { EUROPEAN_COUNTRIES, REPORT_LANGUAGES } from './data/countries';
 import { getCountrySupport } from './data/countrySupport';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
 import { getBrowserLanguage, getFrontPageI18n } from './utils/i18nTitle';
+import { getBoundaryStatusText } from './utils/boundaryStatusI18n';
 import { MapPicker } from './components/MapPicker';
 import { Header } from './components/Header';
 import { ReportView } from './components/ReportView';
@@ -161,6 +162,7 @@ export default function App() {
     return true;
   });
   const fp = languageCode === 'sk' ? SLOVAK_FRONT_PAGE : NATIVE_FRONT_PAGES[languageCode] || getFrontPageI18n(languageCode);
+  const boundaryText = getBoundaryStatusText(languageCode);
 
   useEffect(() => {
     try {
@@ -370,7 +372,7 @@ export default function App() {
             </div>
             <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => setShape(null)} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} language={languageCode} />
             <div className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
-              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{uiText(languageCode, 'Boundary set · approx', 'Grens ingesteld · circa', 'Hranice nastavena · přibližně', 'Gräns angiven · cirka', 'Grense angitt · ca.', 'Hranica určená · približne')} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{uiText(languageCode, '(adjust area input to resize)', '(pas de oppervlakte aan om de grootte te wijzigen)', '(velikost upravíte změnou plochy)', '(justera arean för att ändra storlek)', '(juster arealet for å endre størrelse)', '(veľkosť upravíte zmenou plochy)')}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && uiText(languageCode, 'Click the map to place the circle center.', 'Klik op de kaart om het middelpunt van de cirkel te plaatsen.', 'Kliknutím do mapy umístěte střed kruhu.', 'Klicka på kartan för att placera cirkelns centrum.', 'Klikk på kartet for å plassere sentrum av sirkelen.', 'Kliknite na mapu a umiestnite stred kruhu.')}{mode === 'rectangle' && uiText(languageCode, 'Click two opposite corners on the map to draw the rectangle.', 'Klik op twee tegenoverliggende hoeken om de rechthoek te tekenen.', 'Klikněte na dva protilehlé rohy a nakreslete obdélník.', 'Klicka på två motsatta hörn för att rita rektangeln.', 'Klikk på to motsatte hjørner for å tegne rektangelet.', 'Kliknite na dva protiľahlé rohy obdĺžnika.')}{mode === 'polygon' && uiText(languageCode, 'Click sequential points on the map to draw a custom polygon boundary.', 'Klik achtereenvolgens op punten om een vrije perceelgrens te tekenen.', 'Postupným klikáním zakreslete vlastní hranici polygonu.', 'Klicka punkt för punkt på kartan för att rita en egen tomtgräns.', 'Klikk punkt for punkt på kartet for å tegne tomtegrensen.', 'Postupným klikaním zakreslite hranicu polygónu.')}</span>}
+              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{boundaryText.boundarySet} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{boundaryText.adjustArea}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && boundaryText.circleInstruction}{mode === 'rectangle' && boundaryText.rectangleInstruction}{mode === 'polygon' && boundaryText.polygonInstruction}</span>}
             </div>
           </div>
 
@@ -378,7 +380,7 @@ export default function App() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900 border-b border-slate-100 pb-3"><Sliders className="h-4 w-4 text-primary" /><span>{fp.step2}</span></div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{uiText(languageCode, '(auto-calculated from boundary)', '(automatisch berekend uit de grens)', '(automaticky vypočteno z hranice)', '(automatiskt beräknad från gränsen)', '(automatisk beregnet fra grensen)', '(automaticky vypočítané z hranice)')}</span>}</label>
+                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between"><span>{fp.areaLbl}</span>{shape?.type !== 'circle' && isBoundaryComplete && <span className="text-[11px] text-slate-400 font-normal">{boundaryText.autoCalculated}</span>}</label>
                 <input type="number" min={50} max={500000} value={Math.round(areaSize)} onChange={(e) => setAreaSize(Number(e.target.value))} disabled={shape?.type !== 'circle' && isBoundaryComplete} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-75 transition" />
               </div>
               <div className="space-y-1.5">
