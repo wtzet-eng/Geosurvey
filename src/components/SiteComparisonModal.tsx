@@ -3,8 +3,9 @@ import type { User } from 'firebase/auth';
 import { AlertTriangle, BrainCircuit, CheckCircle2, GitCompareArrows, Loader2, LogIn, ShieldCheck, Sparkles, X } from 'lucide-react';
 import type { SiteReport } from '../types';
 import { getCurrentFirebaseIdToken, isFirebaseAuthConfigured, signInWithGoogle, subscribeToAuthState } from '../lib/firebaseAuth';
+import { getActionText } from '../utils/actionI18n';
 
-interface Props { isOpen: boolean; onClose: () => void; reports: SiteReport[]; }
+interface Props { isOpen: boolean; onClose: () => void; reports: SiteReport[]; language?: string; }
 interface AiStatus { providerConfigured: boolean; available: boolean; provider: 'mistral' | 'ollama'; model: string; authRequired: boolean; authConfigured: boolean; }
 interface ComparisonResult {
   provider: string; model: string; generatedAt: string; summary: string; intendedUse: string | null;
@@ -13,7 +14,8 @@ interface ComparisonResult {
   decisionGuidance: string; overallConfidence: string; disclaimer: string;
 }
 
-export const SiteComparisonModal: React.FC<Props> = ({ isOpen, onClose, reports }) => {
+export const SiteComparisonModal: React.FC<Props> = ({ isOpen, onClose, reports, language = 'en' }) => {
+  const actionText = getActionText(language);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -76,7 +78,7 @@ export const SiteComparisonModal: React.FC<Props> = ({ isOpen, onClose, reports 
     <div className="mx-auto flex h-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
       <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
         <div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700"><GitCompareArrows className="h-5 w-5" /></div><div>
-          <div className="text-xs font-bold uppercase tracking-widest text-indigo-600">LandSurf — Site Due Diligence</div>
+          <div className="text-xs font-bold uppercase tracking-widest text-indigo-600">LandSurf — {actionText.brandSubtitle}</div>
           <h2 className="mt-0.5 text-lg font-black text-slate-950">Compare sites with AI</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">Compare 2–4 saved reports. AI receives only the structured LandSurf evidence and your optional intended-use scenario.</p>
         </div></div>
