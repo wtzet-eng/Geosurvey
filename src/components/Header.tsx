@@ -1,5 +1,6 @@
 import React from 'react';
 import { Building2, FolderKanban, Code2, HardDrive, GitCompareArrows, Sparkles } from 'lucide-react';
+import { getActionText } from '../utils/actionI18n';
 
 interface HeaderProps {
   onOpenSaved: () => void;
@@ -7,9 +8,11 @@ interface HeaderProps {
   onOpenDrive?: () => void;
   onOpenCompare?: () => void;
   savedCount: number;
+  language?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpenDrive, onOpenCompare, savedCount }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpenDrive, onOpenCompare, savedCount, language = 'en' }) => {
+  const t = getActionText(language);
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
@@ -36,10 +39,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpen
               onClick={onOpenCompare}
               disabled={savedCount < 2}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100/80 disabled:bg-slate-100 disabled:text-slate-400 text-indigo-700 border border-indigo-200 disabled:border-slate-200 rounded-xl text-xs font-semibold transition"
-              title={savedCount < 2 ? 'Save at least two site reports to compare them' : 'Compare saved sites with AI'}
+              title={savedCount < 2 ? t.compareDisabledTitle : t.compareReadyTitle}
             >
               <GitCompareArrows className="h-4 w-4" />
-              <span className="hidden md:inline">Compare sites with AI</span>
+              <span className="hidden md:inline">{t.compare}</span>
               <Sparkles className="h-3 w-3" />
             </button>
           )}
@@ -49,10 +52,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpen
               type="button"
               onClick={onOpenDrive}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100/80 text-blue-700 border border-blue-200 rounded-xl text-xs font-semibold transition"
-              title="Manage reports in Google Drive"
+              title={t.driveTitle}
             >
               <HardDrive className="h-4 w-4 text-blue-600" />
-              <span className="hidden sm:inline">Google Drive</span>
+              <span className="hidden sm:inline">{t.drive}</span>
             </button>
           )}
 
@@ -60,10 +63,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpen
             type="button"
             onClick={onOpenEmbed}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-xl text-xs font-semibold transition"
-            title="Get embed code for your website"
+            title={t.embedTitle}
           >
             <Code2 className="h-4 w-4 text-primary" />
-            <span className="hidden sm:inline">Embed Widget</span>
+            <span className="hidden sm:inline">{t.embed}</span>
             <span className="sm:hidden">&lt;/&gt;</span>
           </button>
 
@@ -73,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpen
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-xl text-xs font-semibold transition"
           >
             <FolderKanban className="h-4 w-4 text-slate-500" />
-            <span>Saved</span>
+            <span>{t.saved}</span>
             {savedCount > 0 && (
               <span className="px-1.5 py-0.2 bg-primary text-white rounded-full text-[10px] font-bold">
                 {savedCount}

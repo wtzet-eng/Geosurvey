@@ -32,8 +32,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
             : <ReportViewEvidenceV2 report={report} onBack={onBack} />;
 
   return <>
-    {reportView}
     <AIInterpretationPanel report={report} />
+    {reportView}
     <section className="mt-6 w-full bg-[#496931] px-4 py-8 sm:px-6" aria-label="Support LandSurf">
       <div className="mx-auto max-w-5xl text-center text-white">
         <h2 className="text-base font-semibold text-white">Support LandSurf</h2>
