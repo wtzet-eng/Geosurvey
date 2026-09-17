@@ -28,3 +28,17 @@ test('zero coverage remains zero and is explicitly separated from risk', () => {
   assert.match(html, /width:0%/);
   assert.doesNotMatch(html, /Direct On-Site Evidence|Calculated Quality|Robust Evidence/);
 });
+
+import { buyerSummary } from './reportFindings';
+test('buyer summary does not turn missing evidence into a purchase advantage', () => {
+ const result=buyerSummary({risks:[{category:'Landslide',level:'Low',evidence_level:'REQUIRES_VERIFICATION'}],planningConfirmed:false,floodConfirmed:false},'en');
+ assert.equal(result.positives.length,0);
+ assert.equal(result.checks.length,3);
+ assert.match(result.copy.noConcern,/other risks may remain/);
+});
+test('buyer summary explains supported findings and prioritises high concerns', () => {
+ const result=buyerSummary({slope:1.7,risks:[{category:'Radon',level:'Moderate'},{category:'Landslide',level:'High'}],planningConfirmed:true,floodConfirmed:true},'en');
+ assert.match(result.positives[0],/1.7°/);
+ assert.match(result.concerns[0],/Landslide: High/);
+ assert.equal(result.checks.length,1);
+});
