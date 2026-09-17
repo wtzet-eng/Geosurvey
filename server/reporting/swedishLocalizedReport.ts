@@ -39,7 +39,7 @@ function localizedClassification(value: string | null): string {
 
 function supportNotice(canonical: CanonicalReport): string {
   if (canonical.countryCode === 'SE') {
-    return 'För Sverige använder SurveyLand utvalda nationella SGU-källor för jordarter, berggrund, Brunnsarkivet och nätet för observerade grundvattennivåer. Fastighetsindelning hos Lantmäteriet, bindande detaljplaner, MSB:s översvämningsunderlag och tomtmarknadsvärde måste fortfarande kontrolleras i respektive officiell tjänst.';
+    return 'För Sverige använder LandSurf utvalda nationella SGU-källor för jordarter, berggrund, Brunnsarkivet och nätet för observerade grundvattennivåer. Fastighetsindelning hos Lantmäteriet, bindande detaljplaner, MSB:s översvämningsunderlag och tomtmarknadsvärde måste fortfarande kontrolleras i respektive officiell tjänst.';
   }
   return canonical.support.maturity === 'SUPPORTED'
     ? 'Nationella källintegrationer finns för utvalda delar. Övriga kategorier kräver fortsatt officiell kontroll.'
@@ -91,7 +91,7 @@ function localizedEvidenceRecord(record: any): any {
     category: names[record.id] || (record.id.startsWith('country-support-') ? 'Landstäckning' : record.category || 'Underlag'),
     claim: isSwedish ? `${names[record.id]} ingår som platsanknutet screeningsunderlag.` : record.id.startsWith('country-support-') ? reason('NOT_SUPPORTED_FOR_COUNTRY') : record.claim,
     spatialRelationship: isSwedish ? 'Rumslig relation till vald plats eller angivet sökområde finns registrerad i källposten.' : record.spatialRelationship,
-    calculationMethod: isSwedish ? 'Källspecifik SGU-hämtning och normalisering till SurveyLands evidensmodell.' : record.calculationMethod,
+    calculationMethod: isSwedish ? 'Källspecifik SGU-hämtning och normalisering till LandSurfs evidensmodell.' : record.calculationMethod,
     confidence: confidenceLabel[record.confidence as keyof typeof confidenceLabel] || record.confidence,
     limitation: record.status === 'REQUIRES_VERIFICATION' ? reason(code) : record.limitation || 'Bindande eller projekteringsinriktade slutsatser måste bekräftas i auktoritativ källa eller genom platsspecifik undersökning.'
   };
@@ -126,7 +126,7 @@ export function renderSwedishLocalizedReport(canonical: CanonicalReport): any {
   };
 
   const valuationAvailable = canonical.valuation.min !== null && canonical.valuation.max !== null;
-  const valuationText = valuationAvailable ? `Indikativ statistisk tomtmarknadsvärde: ${canonical.valuation.min!.toLocaleString('sv-SE')}–${canonical.valuation.max!.toLocaleString('sv-SE')} ${canonical.valuation.currency}.` : 'Automatiskt tomtmarknadsvärde visas inte eftersom SurveyLand ännu saknar en tillräckligt dokumenterad svensk källa som isolerar själva markvärdet från byggnader och andra förbättringar.';
+  const valuationText = valuationAvailable ? `Indikativ statistisk tomtmarknadsvärde: ${canonical.valuation.min!.toLocaleString('sv-SE')}–${canonical.valuation.max!.toLocaleString('sv-SE')} ${canonical.valuation.currency}.` : 'Automatiskt tomtmarknadsvärde visas inte eftersom LandSurf ännu saknar en tillräckligt dokumenterad svensk källa som isolerar själva markvärdet från byggnader och andra förbättringar.';
   const floodText = canonical.flood.classification ? `Inledande klassificering av översvämningsrisk: ${risk(canonical.flood.classification)}.` : 'MSB:s översvämningskartering är inte automatiserad i denna version. Kontrollera Översvämningsportalen och kommunens riskunderlag för platsen.';
   const roadText = `Närmaste kartlagda väg: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, cirka ${shown(canonical.infrastructure.distanceM)} m från platsen.`;
   const environmentText = canonical.environment.protectedAreaName ? `Miljöscreeningen identifierade ${canonical.environment.protectedAreaName}.` : 'Ingen skyddsområdespost returnerades i den öppna miljöscreeningen för sökområdet.';
@@ -169,7 +169,7 @@ export function renderSwedishLocalizedReport(canonical: CanonicalReport): any {
       geohazard_risk: section(geologyText, 'Nationell geologisk screening är tillgänglig via SGU, men bindande eller projekteringsrelevant bedömning av ras, skred, erosion och stabilitet måste kontrolleras i relevanta SGU/SGI-, MSB- och kommunala underlag.', canonical.geology.status, canonical.geology.sourceName, reason('AUTHORITATIVE_DATA_REQUIRED')),
       flooding_risk: section(floodText, 'Kontrollera MSB:s Översvämningsportal, kommunens riskunderlag och gällande planeringsförutsättningar före mark- eller byggbeslut.', 'REQUIRES_VERIFICATION', canonical.authorities.flood, reason('AUTHORITATIVE_DATA_REQUIRED')),
       zoning_and_land_use: section(`Planstatus måste bekräftas enligt ${canonical.planning.instrumentName}.`, 'Kontrollera kommunens plankarta, planbestämmelser, detaljplanens genomförandestatus och eventuella andra bindande markanvändningskrav.', canonical.planning.status, canonical.planning.sourceName, reason(canonical.planning.reasonCode)),
-      building_regulations: section('Fastighetsindelning och rättsliga fastighetsuppgifter hämtas inte automatiskt i denna version.', 'Kontrollera fastighetsbeteckning, gränser, lagfart, servitut och andra rättigheter hos Lantmäteriet. SurveyLand behandlar inte en ritad användargräns som juridisk fastighetsgräns.', 'REQUIRES_VERIFICATION', canonical.authorities.cadastre, reason('AUTHORITATIVE_DATA_REQUIRED')),
+      building_regulations: section('Fastighetsindelning och rättsliga fastighetsuppgifter hämtas inte automatiskt i denna version.', 'Kontrollera fastighetsbeteckning, gränser, lagfart, servitut och andra rättigheter hos Lantmäteriet. LandSurf behandlar inte en ritad användargräns som juridisk fastighetsgräns.', 'REQUIRES_VERIFICATION', canonical.authorities.cadastre, reason('AUTHORITATIVE_DATA_REQUIRED')),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.environment.status, canonical.environment.sourceName, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : undefined),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.infrastructure.status, canonical.infrastructure.sourceName, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : undefined),
       market_and_comparables: section(valuationText, 'Värderingsomfånget är strikt mark/tomt. Byggnader, konstruktioner och andra förbättringar är uttryckligen exkluderade.', canonical.valuation.status, canonical.valuation.sourceName, canonical.valuation.reasonCode ? reason(canonical.valuation.reasonCode) : undefined),

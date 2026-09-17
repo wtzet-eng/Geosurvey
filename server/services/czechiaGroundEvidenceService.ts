@@ -50,7 +50,7 @@ async function fetchJson(fetcher: FetchLike, url: string, timeoutMs = 7500): Pro
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetcher(url, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 Czechia ground evidence' }, signal: controller.signal });
+    const response = await fetcher(url, { headers: { Accept: 'application/json', 'User-Agent': 'LandSurf/1.0 Czechia ground evidence' }, signal: controller.signal });
     if (!response.ok) return null;
     const data = await response.json();
     return data && typeof data === 'object' && !data.error ? data : null;
@@ -266,7 +266,7 @@ async function queryLandslideSusceptibility(lat: number, lng: number, fetcher: F
     id: 'cz-cgs-landslide-susceptibility', category: 'Landslide susceptibility',
     claim: `ČGS landslide-susceptibility mapping classifies the selected coordinate as ${level}${descriptor ? ` (${descriptor})` : ''}.`, status: 'VERIFIED', sourceName: CGS,
     sourceUrl: `${LANDSLIDE_SUSCEPTIBILITY}/0`, datasetDate: today(), spatialRelationship: 'Susceptibility polygon containing the selected site coordinate',
-    calculationMethod: 'ArcGIS point-in-polygon query; official low / medium / high susceptibility class mapped conservatively to GeoSurvey Low / Moderate / High', confidence: 'High',
+    calculationMethod: 'ArcGIS point-in-polygon query; official low / medium / high susceptibility class mapped conservatively to LandSurf Low / Moderate / High', confidence: 'High',
     value: { level, descriptor, attributes: attrs }, limitation: 'Susceptibility mapping is screening evidence based on regional conditions. It does not predict a specific future landslide or replace engineering-geological investigation of the site.'
   };
 }

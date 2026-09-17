@@ -119,7 +119,7 @@ export async function confirmPaddleCreditTransaction(
   const payload: any = await response.json().catch(() => null);
   if (!response.ok) throw new Error(`Paddle transaction lookup failed (${response.status}).`);
   const completion = parseCompletedTransaction(payload?.data, expectedUid, config);
-  if (!completion) throw new Error('Paddle transaction is not a completed SurveyLand credit purchase for this user.');
+  if (!completion) throw new Error('Paddle transaction is not a completed LandSurf credit purchase for this user.');
   return completion;
 }
 

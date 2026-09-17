@@ -34,11 +34,11 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
   return <>
     {reportView}
     <AIInterpretationPanel report={report} />
-    <section className="mt-6 w-full bg-[#496931] px-4 py-8 sm:px-6" aria-label="Support SurveyLand">
+    <section className="mt-6 w-full bg-[#496931] px-4 py-8 sm:px-6" aria-label="Support LandSurf">
       <div className="mx-auto max-w-5xl text-center text-white">
-        <h2 className="text-base font-semibold text-white">Support SurveyLand</h2>
+        <h2 className="text-base font-semibold text-white">Support LandSurf</h2>
         <p className="mx-auto mt-1 max-w-xl text-sm leading-relaxed text-white/85">
-          If this report was useful, you can support the continued development of SurveyLand.
+          If this report was useful, you can support the continued development of LandSurf.
           Support is voluntary and does not provide extra access or services.
         </p>
         <a

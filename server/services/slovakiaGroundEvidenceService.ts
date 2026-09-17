@@ -47,7 +47,7 @@ async function fetchJson(fetcher: FetchLike, url: string, timeoutMs = 7000): Pro
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetcher(url, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 Slovakia ground evidence' }, signal: controller.signal });
+    const response = await fetcher(url, { headers: { Accept: 'application/json', 'User-Agent': 'LandSurf/1.0 Slovakia ground evidence' }, signal: controller.signal });
     if (!response.ok) return null;
     const data = await response.json();
     return data && typeof data === 'object' && !data.error ? data : null;

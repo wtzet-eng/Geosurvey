@@ -65,7 +65,7 @@ export const AI_INTERPRETATION_SCHEMA = {
   required: ['observations', 'interpretation', 'limitations', 'verificationRequired', 'overallConfidence', 'disclaimer']
 } as const;
 
-const SYSTEM_PROMPT = `You are the SurveyLand evidence interpreter for preliminary building-plot due diligence.
+const SYSTEM_PROMPT = `You are the LandSurf evidence interpreter for preliminary building-plot due diligence.
 
 STRICT EVIDENCE RULES:
 - Use only the structured evidence supplied in the user message. Do not add facts from memory, training data, web knowledge, or assumptions.
@@ -152,7 +152,7 @@ function buildAiLandValuation(report: any) {
 
 export function buildAiEvidencePackage(report: any) {
   if (!report || typeof report !== 'object' || !report.report_data || typeof report.report_data !== 'object') {
-    throw new Error('A valid SurveyLand report is required for AI interpretation.');
+    throw new Error('A valid LandSurf report is required for AI interpretation.');
   }
 
   const data = report.report_data;
@@ -297,7 +297,7 @@ async function callMistral(evidencePackage: unknown, config: AiInterpretationRun
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Requested report language: ${(evidencePackage as any).reportLanguage || 'en'}\nInterpret the following SurveyLand evidence package and return JSON only:\n${JSON.stringify(evidencePackage)}` }
+        { role: 'user', content: `Requested report language: ${(evidencePackage as any).reportLanguage || 'en'}\nInterpret the following LandSurf evidence package and return JSON only:\n${JSON.stringify(evidencePackage)}` }
       ]
     })
   });
@@ -338,7 +338,7 @@ async function callOllama(evidencePackage: unknown, config: AiInterpretationRunt
       options: { temperature: 0 },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Requested report language: ${(evidencePackage as any).reportLanguage || 'en'}\nInterpret the following SurveyLand evidence package. Return one JSON object matching the supplied schema:\n${JSON.stringify(evidencePackage)}` }
+        { role: 'user', content: `Requested report language: ${(evidencePackage as any).reportLanguage || 'en'}\nInterpret the following LandSurf evidence package. Return one JSON object matching the supplied schema:\n${JSON.stringify(evidencePackage)}` }
       ]
     })
   });
@@ -354,9 +354,9 @@ async function callOllama(evidencePackage: unknown, config: AiInterpretationRunt
 
 async function authenticateInternalAction(report: any, env: NodeJS.ProcessEnv, fetcher: FetchLike) {
   const token = typeof report?.__surveyland_token === 'string' ? report.__surveyland_token.trim() : '';
-  if (!token) throw new Error('A signed-in SurveyLand user is required for AI quota and billing actions.');
+  if (!token) throw new Error('A signed-in LandSurf user is required for AI quota and billing actions.');
   const auth = await verifyFirebaseAuthorization(`Bearer ${token}`, { apiKey: env.FIREBASE_WEB_API_KEY, fetcher });
-  if (!auth.ok) throw new Error('SurveyLand could not verify the signed-in user for AI quota and billing actions.');
+  if (!auth.ok) throw new Error('LandSurf could not verify the signed-in user for AI quota and billing actions.');
   return auth.user;
 }
 

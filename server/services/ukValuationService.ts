@@ -173,7 +173,7 @@ export function selectEnglandResidentialLandValue(rows: SheetRows, localAuthorit
 
 async function fetchJson(fetcher: FetchLike, url: string, timeoutMs: number): Promise<any | null> {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try { const response = await fetcher(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 UK land valuation', Accept: 'application/json' }, signal: controller.signal }); return response.ok ? await response.json() : null; }
+  try { const response = await fetcher(url, { headers: { 'User-Agent': 'LandSurf/1.0 UK land valuation', Accept: 'application/json' }, signal: controller.signal }); return response.ok ? await response.json() : null; }
   catch { return null; } finally { clearTimeout(timer); }
 }
 
@@ -192,7 +192,7 @@ async function loadWorkbookRows(fetcher: FetchLike): Promise<SheetRows | null> {
   if (workbookCache && workbookCache.expires > Date.now()) return workbookCache.rows;
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    const response = await fetcher(MHCLG_XLSX, { headers: { 'User-Agent': 'GeoSurvey/1.0 UK land valuation', Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*;q=0.8' }, signal: controller.signal });
+    const response = await fetcher(MHCLG_XLSX, { headers: { 'User-Agent': 'LandSurf/1.0 UK land valuation', Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*;q=0.8' }, signal: controller.signal });
     if (!response.ok) return null;
     const rows = parseMhclgWorkbook(Buffer.from(await response.arrayBuffer()));
     if (!rows.length) return null;

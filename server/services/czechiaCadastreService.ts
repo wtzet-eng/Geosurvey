@@ -58,7 +58,7 @@ async function fetchJson(fetcher: FetchLike, url: string, timeoutMs = 7000): Pro
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetcher(url, {
-      headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 Czechia cadastre evidence' },
+      headers: { Accept: 'application/json', 'User-Agent': 'LandSurf/1.0 Czechia cadastre evidence' },
       signal: controller.signal
     });
     if (!response.ok) return null;

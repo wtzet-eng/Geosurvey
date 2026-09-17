@@ -1,3 +1,4 @@
+import { coverageCopy } from '../i18n/reportFindings';
 import React, { useState } from 'react';
 import { EvidenceQualityScore } from '../types';
 import { ShieldCheck, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
@@ -28,21 +29,11 @@ export const EvidenceScoreCard: React.FC<EvidenceScoreCardProps> = ({ score, lan
 
   if (!score) return null;
 
-  const total = score.totalScore || 75;
-  const isHigh = total >= 75;
-  const isMed = total >= 50 && total < 75;
-
-  const colorClass = isHigh
-    ? 'text-emerald-700 bg-emerald-50 border-emerald-300'
-    : isMed
-    ? 'text-amber-700 bg-amber-50 border-amber-300'
-    : 'text-rose-700 bg-rose-50 border-rose-300';
-
-  const barColor = isHigh ? 'bg-emerald-500' : isMed ? 'bg-amber-500' : 'bg-rose-500';
-
+  const total = Number.isFinite(score.totalScore) ? Math.max(0, Math.min(100, score.totalScore)) : 0;
+  const copy = coverageCopy(language);
+  const barColor = 'bg-indigo-500';
   const b = score.breakdown;
   const t = copies[language] || copies.en;
-  const rating = total >= 75 ? t.robust : total >= 50 ? t.moderate : t.preliminary;
 
   return (
     <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-5">
@@ -53,17 +44,17 @@ export const EvidenceScoreCard: React.FC<EvidenceScoreCardProps> = ({ score, lan
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-slate-900">{t.title}</h3>
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${colorClass}`}>{rating}</span>
+              <h3 className="text-base font-bold text-slate-900">{copy.coverage}</h3>
+
             </div>
-            <p className="text-xs text-slate-500">{t.subtitle}</p>
+            <p className="text-xs text-slate-500">{copy.note}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <div className="text-3xl font-black text-slate-950 font-mono tracking-tight">{total}<span className="text-lg font-bold text-slate-400">/100</span></div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{t.quality}</span>
+            <div className="text-xl font-semibold text-slate-950 font-mono tracking-tight">{total}<span className="text-lg font-bold text-slate-400">/100</span></div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{copy.index}</span>
           </div>
         </div>
       </div>
@@ -73,7 +64,7 @@ export const EvidenceScoreCard: React.FC<EvidenceScoreCardProps> = ({ score, lan
           <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${total}%` }} />
         </div>
         <div className="flex justify-between text-[11px] font-semibold text-slate-400">
-          <span>0 ({t.low})</span><span>50 ({t.regional})</span><span>100 ({t.direct})</span>
+          <span>0</span><span>50</span><span>100</span>
         </div>
       </div>
 
@@ -86,9 +77,9 @@ export const EvidenceScoreCard: React.FC<EvidenceScoreCardProps> = ({ score, lan
           <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
           <div><div className="text-xs font-bold text-amber-950">{score.modelledCount} {t.modelled}</div><div className="text-[10px] text-amber-700">{t.geo}</div></div>
         </div>
-        <div className="p-3 bg-rose-50/70 border border-rose-200/60 rounded-xl flex items-center gap-2.5">
-          <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
-          <div><div className="text-xs font-bold text-rose-950">{score.unverifiedCount} {t.requires}</div><div className="text-[10px] text-rose-700">{t.onsite}</div></div>
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2.5">
+          <AlertTriangle className="h-4 w-4 text-slate-500 shrink-0" />
+          <div><div className="text-xs font-bold text-slate-700">{score.unverifiedCount} {t.requires}</div><div className="text-[10px] text-slate-500">{t.onsite}</div></div>
         </div>
       </div>
 

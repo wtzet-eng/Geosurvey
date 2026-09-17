@@ -19,10 +19,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpen
           </div>
           <div>
             <p className="text-sm font-bold text-slate-900 leading-tight">
-              SurveyLand
+              LandSurf
             </p>
             <p className="text-[11px] text-slate-500 font-medium leading-tight">
-              Land due diligence · Europe
+              Site Due Diligence
             </p>
           </div>
         </div>

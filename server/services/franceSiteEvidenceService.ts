@@ -42,7 +42,7 @@ async function fetchResponse(fetcher: FetchLike, url: string, accept: string, ti
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetcher(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 evidence extraction', Accept: accept }, signal: controller.signal });
+    return await fetcher(url, { headers: { 'User-Agent': 'LandSurf/1.0 evidence extraction', Accept: accept }, signal: controller.signal });
   } catch {
     return null;
   } finally {

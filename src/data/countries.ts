@@ -109,7 +109,7 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
     authorityName: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland / Dataforsyningen / Plandata.dk',
     acronym: 'GEUS / Jupiter / DAWA / Plandata.dk',
     mapViewerUrl: 'https://data.geus.dk/geusmap/',
-    description: 'Danske nationale data for jordarter, boringer, grundvandsobservationer, matrikel og vedtagne lokalplaner. GeoSurvey anvender kun de lag, der er teknisk integreret og valideret i den aktuelle version.',
+    description: 'Danske nationale data for jordarter, boringer, grundvandsobservationer, matrikel og vedtagne lokalplaner. LandSurf anvender kun de lag, der er teknisk integreret og valideret i den aktuelle version.',
     datasets: [
       'GEUS Danmarks Digitale Jordartskort 1:25.000 v7.1 – kortlagt overfladegeologi',
       'GEUS Jupiter – registrerede boringer',
@@ -123,7 +123,7 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
     authorityName: 'Sveriges geologiska undersökning',
     acronym: 'SGU',
     mapViewerUrl: 'https://apps.sgu.se/kartvisare/',
-    description: 'Svenska öppna geologiska och hydrogeologiska data via SGU. GeoSurvey hämtar endast de nationella lager som är tekniskt integrerade och validerade i aktuell version.',
+    description: 'Svenska öppna geologiska och hydrogeologiska data via SGU. LandSurf hämtar endast de nationella lager som är tekniskt integrerade och validerade i aktuell version.',
     datasets: [
       'SGU Jordarter 1:25 000–1:100 000 – detaljerad jordartskartering',
       'SGU Jordarter 1:250 000 – reservkälla för nordligaste Sverige',
@@ -138,7 +138,7 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
     authorityName: 'Norges geologiske undersøkelse / Kartverket / NVE',
     acronym: 'NGU / NADAG / Matrikkelen / NVE',
     mapViewerUrl: 'https://www.ngu.no/geologiske-kart/karttjenester',
-    description: 'Norske offentlige data for grunnforhold, eiendom og naturfare via NGU, Kartverket og NVE. GeoSurvey bruker bare nasjonale lag som er koblet til og kontrollert i den aktuelle versjonen.',
+    description: 'Norske offentlige data for grunnforhold, eiendom og naturfare via NGU, Kartverket og NVE. LandSurf bruker bare nasjonale lag som er koblet til og kontrollert i den aktuelle versjonen.',
     datasets: [
       'NGU Løsmasse detaljert – kartlagte løsmasser og egenskaper',
       'NGU NADAG – geotekniske borehull og grunnundersøkelser',

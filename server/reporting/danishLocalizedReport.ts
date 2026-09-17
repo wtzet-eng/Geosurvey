@@ -27,7 +27,7 @@ function localizedClassification(value: string | null): string {
 }
 
 function supportNotice(): string {
-  return 'For Danmark anvender SurveyLand udvalgte nationale kilder fra Datafordeleren/Matriklen, GEUS Jupiter, Danmarks Digitale Jordartskort og Plandata.dk. Oversvømmelse, radon, råstof-/mineforhold og automatisk jordværdi kræver fortsat særskilt officiel kontrol.';
+  return 'For Danmark anvender LandSurf udvalgte nationale kilder fra Datafordeleren/Matriklen, GEUS Jupiter, Danmarks Digitale Jordartskort og Plandata.dk. Oversvømmelse, radon, råstof-/mineforhold og automatisk jordværdi kræver fortsat særskilt officiel kontrol.';
 }
 
 function denmarkGroundNarrative(canonical: CanonicalReport): string[] {
@@ -87,7 +87,7 @@ function localizedEvidenceRecord(record: any): any {
     category: names[record.id] || (record.id.startsWith('country-support-') ? 'Landets datadækning' : record.category || 'Datagrundlag'),
     claim: isDanish ? `${names[record.id]} indgår som stedrelateret screeningsgrundlag.` : record.id.startsWith('country-support-') ? reason('NOT_SUPPORTED_FOR_COUNTRY') : record.claim,
     spatialRelationship: isDanish ? 'Den rumlige relation til det valgte sted eller søgeområde er registreret i kildeposten.' : record.spatialRelationship,
-    calculationMethod: isDanish ? 'Kildespecifik national dataforespørgsel og normalisering til SurveyLands evidensmodel.' : record.calculationMethod,
+    calculationMethod: isDanish ? 'Kildespecifik national dataforespørgsel og normalisering til LandSurfs evidensmodel.' : record.calculationMethod,
     confidence: confidenceLabel[record.confidence as keyof typeof confidenceLabel] || record.confidence,
     limitation: record.status === 'REQUIRES_VERIFICATION' ? reason(code) : record.limitation || reason('AUTHORITATIVE_DATA_REQUIRED')
   };
@@ -119,7 +119,7 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
   const valuationAvailable = canonical.valuation.min !== null && canonical.valuation.max !== null;
   const valuationText = valuationAvailable
     ? `Indikativ statistisk jordværdi: ${canonical.valuation.min!.toLocaleString('da-DK')}–${canonical.valuation.max!.toLocaleString('da-DK')} ${canonical.valuation.currency}.`
-    : 'Automatisk jordværdi vises ikke, fordi SurveyLand endnu ikke har integreret et tilstrækkeligt dokumenteret dansk datagrundlag, som isolerer selve jordværdien fra bygninger og andre forbedringer.';
+    : 'Automatisk jordværdi vises ikke, fordi LandSurf endnu ikke har integreret et tilstrækkeligt dokumenteret dansk datagrundlag, som isolerer selve jordværdien fra bygninger og andre forbedringer.';
   const planningVerified = canonical.evidenceRecords.some(record => record.id === 'dk-plandata-localplan' && record.status === 'VERIFIED');
   const cadastreVerified = canonical.evidenceRecords.some(record => record.id === 'dk-datafordeler-cadastre' && record.status === 'VERIFIED');
   const planningText = planningVerified

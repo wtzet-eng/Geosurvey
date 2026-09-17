@@ -20,7 +20,7 @@ function canonicalFixture(countryCode: string, countryName: string): any {
     valuation: { min: 80000, max: 120000, median: 100000, currency: 'EUR', status: 'MODELLED', comparableCount: 4, sourceName: 'National land valuation source' },
     evidenceScore: { totalScore: 61 },
     sourceRecords: [{ name: 'ISRIC SoilGrids', url: 'https://soilgrids.org', type: 'Soil model', status: 'MODELLED' }],
-    evidenceRecords: [{ id: `country-support-${countryCode}`, category: 'Country support', claim: 'raw English support', status: 'REQUIRES_VERIFICATION', sourceName: 'GeoSurvey support matrix', sourceUrl: '', datasetDate: '2026-09-13', spatialRelationship: countryCode, calculationMethod: 'support check', confidence: 'High', limitation: 'raw', value: { reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' } }]
+    evidenceRecords: [{ id: `country-support-${countryCode}`, category: 'Country support', claim: 'raw English support', status: 'REQUIRES_VERIFICATION', sourceName: 'LandSurf support matrix', sourceUrl: '', datasetDate: '2026-09-13', spatialRelationship: countryCode, calculationMethod: 'support check', confidence: 'High', limitation: 'raw', value: { reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' } }]
   };
 }
 

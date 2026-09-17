@@ -1,7 +1,7 @@
 /**
  * ISRIC SoilGrids 2.0 integration.
  *
- * GeoSurvey treats SoilGrids as modelled pedological context only. Partial
+ * LandSurf treats SoilGrids as modelled pedological context only. Partial
  * scientific evidence is preserved: a missing pH, SOC, bulk-density, CEC or
  * deeper-depth value must not erase an otherwise usable sand/silt/clay texture.
  */
@@ -181,7 +181,7 @@ async function fetchWithTimeout(url: string, accept: string, timeoutMs: number):
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { headers: { Accept: accept, 'User-Agent': 'GeoSurvey/1.0 scientific soil screening' }, signal: controller.signal });
+    return await fetch(url, { headers: { Accept: accept, 'User-Agent': 'LandSurf/1.0 scientific soil screening' }, signal: controller.signal });
   } catch {
     return null;
   } finally {

@@ -102,7 +102,7 @@ test('Polish modelled valuation exposes benchmark provenance without claiming a 
   assert.equal(canonical.support.capabilities.nationalValuation, false);
   assert.equal(canonical.valuation.status, 'MODELLED');
   assert.equal(canonical.valuation.comparableCount, 0);
-  assert.match(canonical.valuation.sourceName, /SurveyLand/);
+  assert.match(canonical.valuation.sourceName, /LandSurf/);
   assert.match(canonical.valuation.sourceName, /RCN/);
   assert.match(canonical.valuation.sourceName, /Cenatorium/);
   assert.match(canonical.valuation.sourceName, /188 PLN\/m²/);
