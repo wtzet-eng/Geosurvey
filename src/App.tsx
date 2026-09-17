@@ -351,7 +351,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-900 pb-16">
-      {!hideHeaderInEmbed && <Header onOpenSaved={() => setIsSavedModalOpen(true)} onOpenEmbed={() => setIsEmbedModalOpen(true)} onOpenDrive={() => setIsDriveModalOpen(true)} onOpenCompare={() => setIsCompareModalOpen(true)} savedCount={savedReports.length} />}
+      {!hideHeaderInEmbed && <Header onOpenSaved={() => setIsSavedModalOpen(true)} onOpenEmbed={() => setIsEmbedModalOpen(true)} onOpenDrive={() => setIsDriveModalOpen(true)} onOpenCompare={() => setIsCompareModalOpen(true)} savedCount={savedReports.length} language={languageCode} />}
       <main className="mx-auto max-w-6xl px-4 space-y-8 py-6 sm:py-10">
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold"><Sparkles className="h-3.5 w-3.5" /><span>{fp.badge}</span></div>
