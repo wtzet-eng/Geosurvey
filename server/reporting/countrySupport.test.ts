@@ -145,7 +145,12 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.equal(nl.capabilities.nationalCadastre, true);
   assert.equal(nl.capabilities.nationalGeology, false);
   assert.equal(nl.capabilities.nationalMining, false);
-  for (const code of ['IT', 'CH', 'BE', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'LU', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  const lu = getCountrySupport('LU');
+  assert.equal(lu.maturity, 'LIMITED');
+  assert.equal(lu.capabilities.nationalCadastre, true); assert.equal(lu.capabilities.nationalGeology, true); assert.equal(lu.capabilities.nationalBoreholes, true);
+  assert.equal(lu.capabilities.nationalHydrogeology, true); assert.equal(lu.capabilities.nationalFlood, true); assert.equal(lu.capabilities.nationalPlanning, true); assert.equal(lu.capabilities.nationalValuation, true);
+  assert.equal(lu.capabilities.nationalRadon, false); assert.equal(lu.capabilities.nationalMining, false);
+  for (const code of ['IT', 'CH', 'BE', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });

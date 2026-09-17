@@ -5,7 +5,7 @@ type Scope = 'COUNTY' | 'PROVINCE' | 'METRO' | 'NATIONAL';
 type EvidenceKind = 'OFFICIAL_TRANSACTION' | 'OFFICIAL_STATISTICAL_MODEL';
 
 export interface EuropeLandBenchmark {
-  countryCode: 'AT' | 'ES' | 'FI' | 'IE';
+  countryCode: 'AT' | 'ES' | 'FI' | 'IE' | 'LU';
   scope: Scope;
   label: string;
   benchmarkPricePerSqm: number;
@@ -34,6 +34,8 @@ const IRELAND_SOURCE = 'Central Statistics Office Ireland · Residentially Zoned
 const IRELAND_PAGE = 'https://www.cso.ie/en/releasesandpublications/fp/fp-rzlp/residentiallyzonedlandprices2024/';
 const AUSTRIA_SOURCE = 'Statistik Austria · Baugrundstückspreise 2025';
 const AUSTRIA_PAGE = 'https://www.statistik.at/statistiken/volkswirtschaft-und-oeffentliche-finanzen/preise-und-preisindizes/immobilien-durchschnittspreise';
+const LUXEMBOURG_SOURCE = 'Ministère du Logement et de l’Aménagement du territoire — Observatoire de l’Habitat, Rapport d’analyse n°19';
+const LUXEMBOURG_PAGE = 'https://logement.public.lu/fr/actualites/2025/10/10-ra19.html';
 const ACRE_M2 = 4046.8564224;
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -235,7 +237,21 @@ async function queryIreland(county: string, fetcher: FetchLike): Promise<EuropeL
   });
 }
 
-export async function queryEuropeanLandValuationEvidence(countryCode: string, location: { municipality?: string; county?: string; state?: string }, fetcher: FetchLike = fetch): Promise<EuropeLandValuationEvidence | null> {
+function luxembourgBenchmark(municipality: string): EuropeLandBenchmark {
+  const city = /^(luxembourg|luxembourg city|ville de luxembourg)$/i.test(normalize(municipality));
+  return {
+    countryCode: 'LU', scope: city ? 'METRO' : 'NATIONAL',
+    label: city ? 'Luxembourg-Ville residential building-land median (2022–2024)' : 'Grand Duchy of Luxembourg residential building-land median (2022–2024)',
+    benchmarkPricePerSqm: city ? 2728.51 : 935.14,
+    lowFactor: city ? 0.72 : 0.45, highFactor: city ? 1.35 : 3.00,
+    sourceName: LUXEMBOURG_SOURCE, sourceUrl: LUXEMBOURG_PAGE, datasetDate: '2022–2024 (published 2025-10-10)', evidenceKind: 'OFFICIAL_TRANSACTION', comparableCount: 0,
+    limitation: city
+      ? 'Official median of transactions of unbuilt parcels in residential/mixed PAG zones for Luxembourg-Ville. It is not a direct parcel comparable and does not establish planning permission, servicing or site-specific marketability. Buildings and improvements are excluded.'
+      : 'Official national median of transactions of unbuilt parcels in residential/mixed PAG zones. Geographic variation is very large (the official six-zone medians differ strongly), so the national range is deliberately wide. It is not a direct parcel comparable and buildings/improvements are excluded.'
+  };
+}
+
+export async function queryEuropeanLandValuationEvidence(countryCode: string, location: { municipality?: string; county?: string; state?: string; pagCategory?: string }, fetcher: FetchLike = fetch): Promise<EuropeLandValuationEvidence | null> {
   const code = countryCode.toUpperCase();
   if (code === 'AT') return modelled(austriaBenchmark());
   if (code === 'ES') return querySpain(location.county || location.municipality || '', location.state || '', fetcher);
@@ -244,6 +260,12 @@ export async function queryEuropeanLandValuationEvidence(countryCode: string, lo
     return benchmark ? modelled(benchmark) : unavailable('FI', FINLAND_SOURCE, FINLAND_PAGE, 'Statistics Finland plot-price data could not be retrieved or validated; no Finnish land value was inferred.');
   }
   if (code === 'IE') return queryIreland(location.county || '', fetcher);
+  if (code === 'LU') {
+    const pag = String(location.pagCategory || '').trim();
+    if (!pag) return unavailable('LU', LUXEMBOURG_SOURCE, LUXEMBOURG_PAGE, 'Official PAG residential/mixed zoning could not be verified for the selected coordinate; no Luxembourg land value was inferred.');
+    if (!/^(HAB|MIX)/i.test(pag)) return unavailable('LU', LUXEMBOURG_SOURCE, LUXEMBOURG_PAGE, `Official PAG code ${pag} is not identified here as a residential/mixed building-land category; no residential building-land benchmark was applied.`);
+    return modelled(luxembourgBenchmark(location.municipality || ''));
+  }
   return null;
 }
 
