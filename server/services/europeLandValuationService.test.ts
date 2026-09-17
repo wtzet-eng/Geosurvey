@@ -96,6 +96,30 @@ test('Ireland source failure uses the official 2024 national residentially-zoned
   assert.match(evidence?.sourceName || '', /Central Statistics Office/i);
 });
 
+test('Luxembourg residential or mixed PAG zoning gates the official building-land benchmark', async () => {
+  const city = await queryEuropeanLandValuationEvidence('LU', { municipality: 'Luxembourg', pagCategory: 'MIX_u' });
+  assert.ok(city);
+  assert.equal(city?.status, 'MODELLED');
+  assert.equal((city?.value as any)?.benchmarkPricePerSqm, 2728.51);
+  assert.equal((city?.value as any)?.scope, 'METRO');
+  assert.match(city?.sourceName || '', /Observatoire de l.Habitat/i);
+  assert.match(city?.limitation || '', /Buildings and improvements are excluded/i);
+
+  const national = await queryEuropeanLandValuationEvidence('LU', { municipality: 'Esch-sur-Alzette', pagCategory: 'HAB-1' });
+  assert.equal((national?.value as any)?.benchmarkPricePerSqm, 935.14);
+  assert.equal((national?.value as any)?.scope, 'NATIONAL');
+});
+
+test('Luxembourg land value is withheld without verified residential or mixed PAG zoning', async () => {
+  const missing = await queryEuropeanLandValuationEvidence('LU', { municipality: 'Luxembourg' });
+  assert.equal(missing?.status, 'REQUIRES_VERIFICATION');
+  assert.match(missing?.claim || '', /PAG residential\/mixed zoning could not be verified/i);
+
+  const nonResidential = await queryEuropeanLandValuationEvidence('LU', { municipality: 'Luxembourg', pagCategory: 'BE' });
+  assert.equal(nonResidential?.status, 'REQUIRES_VERIFICATION');
+  assert.match(nonResidential?.claim || '', /no residential building-land benchmark was applied/i);
+});
+
 test('uncalibrated country has no European valuation evidence provider', async () => {
   assert.equal(await queryEuropeanLandValuationEvidence('IT', {}), null);
   assert.equal(await queryEuropeanLandValuationEvidence('NL', {}), null);
