@@ -24,6 +24,7 @@ import { ReportView } from './components/ReportView';
 import { SavedReportsModal } from './components/SavedReportsModal';
 import { EmbedModal } from './components/EmbedModal';
 import { GoogleDriveModal } from './components/GoogleDriveModal';
+import { SiteComparisonModal } from './components/SiteComparisonModal';
 
 const REPORT_LANGUAGE_OPTIONS = [
   ...REPORT_LANGUAGES,
@@ -139,6 +140,7 @@ export default function App() {
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
   const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [isEmbeddedView, setIsEmbeddedView] = useState(false);
   const [hideHeaderInEmbed, setHideHeaderInEmbed] = useState(false);
   const [isAutoFitMode, setIsAutoFitMode] = useState(false);
@@ -347,7 +349,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-900 pb-16">
-      {!hideHeaderInEmbed && <Header onOpenSaved={() => setIsSavedModalOpen(true)} onOpenEmbed={() => setIsEmbedModalOpen(true)} onOpenDrive={() => setIsDriveModalOpen(true)} savedCount={savedReports.length} />}
+      {!hideHeaderInEmbed && <Header onOpenSaved={() => setIsSavedModalOpen(true)} onOpenEmbed={() => setIsEmbedModalOpen(true)} onOpenDrive={() => setIsDriveModalOpen(true)} onOpenCompare={() => setIsCompareModalOpen(true)} savedCount={savedReports.length} />}
       <main className="mx-auto max-w-6xl px-4 space-y-8 py-6 sm:py-10">
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold"><Sparkles className="h-3.5 w-3.5" /><span>{fp.badge}</span></div>
@@ -404,6 +406,7 @@ export default function App() {
       </main>
 
       <SavedReportsModal isOpen={isSavedModalOpen} onClose={() => setIsSavedModalOpen(false)} reports={savedReports} onSelectReport={(rep) => { setActiveReport(rep); setIsSavedModalOpen(false); }} onDeleteReport={handleDeleteReport} />
+      <SiteComparisonModal isOpen={isCompareModalOpen} onClose={() => setIsCompareModalOpen(false)} reports={savedReports} />
       <GoogleDriveModal isOpen={isDriveModalOpen} onClose={() => setIsDriveModalOpen(false)} report={activeReport} />
       <EmbedModal isOpen={isEmbedModalOpen} onClose={() => setIsEmbedModalOpen(false)} defaultCountry={countryCode} defaultLanguage={languageCode} />
     </div>

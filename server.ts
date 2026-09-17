@@ -25,6 +25,7 @@ import { getUKVerificationChecklist } from './server/services/ukRecommendationsS
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
 import { getAiInterpretationRuntimeConfig, interpretSurveyLandEvidence } from './server/services/aiInterpretationService';
+import { compareSitesWithAi } from './server/services/aiComparisonService';
 import { verifyFirebaseAuthorization } from './server/services/firebaseAuthService';
 import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
@@ -547,7 +548,7 @@ app.post('/api/ai/interpret', async (req, res) => {
 
   if (!consumeAiRateLimit(rateLimitKey)) return res.status(429).json({ error: 'AI interpretation rate limit reached. Please try again shortly.' });
   const report = req.body?.report;
-  if (!report?.report_data) return res.status(400).json({ error: 'A valid SurveyLand report is required.' });
+  if (!report?.report_data) return res.status(400).json({ error: 'A valid LandSurf report is required.' });
 
   try {
     const interpretation = await interpretSurveyLandEvidence(report);
@@ -555,8 +556,43 @@ app.post('/api/ai/interpret', async (req, res) => {
   } catch (error: any) {
     console.error(`[${diagnosticId}] AI evidence interpretation failed:`, error);
     const message = String(error?.message || '');
-    if (/valid SurveyLand report|too large/i.test(message)) return res.status(400).json({ error: message });
+    if (/valid LandSurf report|too large/i.test(message)) return res.status(400).json({ error: message });
     return res.status(502).json({ error: 'AI interpretation is temporarily unavailable.', diagnostic_id: diagnosticId });
+  }
+});
+
+app.post('/api/ai/compare', async (req, res) => {
+  const diagnosticId = randomUUID();
+  const config = getAiInterpretationRuntimeConfig();
+  if (!config.configured) return res.status(503).json({ error: 'AI comparison is not configured on this deployment.' });
+
+  let rateLimitKey = req.ip || 'anonymous';
+  let userUid: string | undefined;
+  if (!config.allowAnonymous) {
+    const auth = await verifyFirebaseAuthorization(req.headers.authorization);
+    if (!auth.ok) {
+      if (auth.reason === 'AUTH_NOT_CONFIGURED') return res.status(503).json({ error: 'Sign-in is not configured on this deployment.' });
+      if (auth.reason === 'USER_DISABLED') return res.status(403).json({ error: 'This user account cannot access AI comparison.' });
+      return res.status(401).json({ error: 'Please sign in to compare sites with AI.' });
+    }
+    userUid = auth.user.uid;
+    rateLimitKey = auth.user.uid;
+  }
+
+  if (!consumeAiRateLimit(rateLimitKey)) return res.status(429).json({ error: 'AI comparison rate limit reached. Please try again shortly.' });
+  const reports = req.body?.reports;
+  if (!Array.isArray(reports) || reports.length < 2 || reports.length > 4 || reports.some((report: any) => !report?.report_data)) {
+    return res.status(400).json({ error: 'Select between 2 and 4 valid LandSurf reports for comparison.' });
+  }
+
+  try {
+    const comparison = await compareSitesWithAi(reports, req.body?.intendedUse, { userUid });
+    return res.json(comparison);
+  } catch (error: any) {
+    console.error(`[${diagnosticId}] AI site comparison failed:`, error);
+    const message = String(error?.message || '');
+    if (/Select between 2 and 4|unique report IDs|too large|valid LandSurf report/i.test(message)) return res.status(400).json({ error: message });
+    return res.status(502).json({ error: 'AI comparison is temporarily unavailable.', diagnostic_id: diagnosticId });
   }
 });
 

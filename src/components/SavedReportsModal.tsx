@@ -28,7 +28,7 @@ export const SavedReportsModal: React.FC<SavedReportsModalProps> = ({
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white">
               <Building2 className="h-4 w-4" />
             </div>
-            <h2 className="text-base font-bold text-slate-900">Saved Site Valuations</h2>
+            <h2 className="text-base font-bold text-slate-900">Saved Site Reports</h2>
           </div>
           <button
             onClick={onClose}
@@ -45,7 +45,7 @@ export const SavedReportsModal: React.FC<SavedReportsModalProps> = ({
               <Building2 className="mx-auto h-10 w-10 text-slate-300" />
               <p className="text-sm font-medium text-slate-600">No saved reports yet</p>
               <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                Draw a site boundary and generate a valuation to save it here for quick access.
+                Draw a site boundary and generate a due-diligence report to save it here for quick access.
               </p>
             </div>
           ) : (
