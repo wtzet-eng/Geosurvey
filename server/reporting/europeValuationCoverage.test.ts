@@ -4,7 +4,7 @@ import { EUROPEAN_COUNTRIES } from '../../src/data/countries';
 import { getCountrySupport } from '../../src/data/countrySupport';
 import { getCountryProfile } from '../adapters/countries';
 
-const CALIBRATED = new Set(['PL', 'DE', 'FR', 'GB', 'SK', 'AT', 'ES', 'FI', 'IE']);
+const CALIBRATED = new Set(['PL', 'DE', 'FR', 'GB', 'SK', 'AT', 'ES', 'FI', 'IE', 'LU']);
 
 test('every European selector country resolves to its own profile rather than the generic Europe identity', () => {
   for (const country of EUROPEAN_COUNTRIES) {
