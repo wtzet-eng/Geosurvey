@@ -25,7 +25,6 @@ import { Header } from './components/Header';
 import { ReportView } from './components/ReportView';
 import { SavedReportsModal } from './components/SavedReportsModal';
 import { EmbedModal } from './components/EmbedModal';
-import { GoogleDriveModal } from './components/GoogleDriveModal';
 import { SiteComparisonModal } from './components/SiteComparisonModal';
 
 const REPORT_LANGUAGE_OPTIONS = [
@@ -53,29 +52,29 @@ const normalizeReportLanguage = (language: string, countryCode = '') => {
 
 const SLOVAK_FRONT_PAGE = {
   badge: 'Európska platforma pre stavebné pozemky a geologické riziká',
-  heroTitle: 'Ohodnoťte svoj stavebný pozemok: geologické riziká a trhová hodnota',
+  heroTitle: 'Predbežné preverenie stavebného pozemku: geologické riziká a hodnota pozemku',
   heroSub: 'Nakreslite alebo vyberte stavebný pozemok v Európe. Získajte predbežný report založený na dostupných verejných údajoch o podloží, geologických rizikách, územnom plánovaní a hodnote pozemku.',
-  step1: '1. Určte hranice pozemku', searchPh: 'Hľadať adresu alebo obec…', step2: '2. Konfigurácia a parametre', areaLbl: 'Plocha pozemku (m²)', countryLbl: 'Krajina (Európa)', langLbl: 'Jazyk reportu', btnGen: 'Posúdiť kvalitu a hodnotu pozemku', modeCircle: 'Kruh', modeRect: 'Obdĺžnik', modePoly: 'Voľný polygón', finishPoly: 'Dokončiť polygón', clear: 'Vymazať', clickPrompt: 'Kliknutím na mapu určte hranicu.'
+  step1: '1. Určte hranice pozemku', searchPh: 'Hľadať adresu alebo obec…', step2: '2. Konfigurácia a parametre', areaLbl: 'Plocha pozemku (m²)', countryLbl: 'Krajina (Európa)', langLbl: 'Jazyk reportu', btnGen: 'Preveriť pozemok', modeCircle: 'Kruh', modeRect: 'Obdĺžnik', modePoly: 'Voľný polygón', finishPoly: 'Dokončiť polygón', clear: 'Vymazať', clickPrompt: 'Kliknutím na mapu určte hranicu.'
 };
 
 const NATIVE_FRONT_PAGES: Record<string, ReturnType<typeof getFrontPageI18n>> = {
   fr: {
     badge: 'Plateforme européenne de vérification des terrains à bâtir',
-    heroTitle: 'Vérifiez votre terrain à bâtir : risques du sol et valeur foncière',
+    heroTitle: 'Analyse préliminaire du terrain : risques géologiques et valeur foncière',
     heroSub: 'Dessinez ou sélectionnez une parcelle en Europe. Obtenez une évaluation préliminaire fondée sur les données publiques disponibles concernant le sous-sol, les géorisques, l’urbanisme et la valeur du terrain.',
-    step1: '1. Définir les limites du terrain', searchPh: 'Rechercher une adresse ou une commune…', step2: '2. Configuration et paramètres', areaLbl: 'Surface du terrain (m²)', countryLbl: 'Pays (Europe)', langLbl: 'Langue du rapport', btnGen: 'Vérifier la qualité et la valeur du terrain', modeCircle: 'Cercle', modeRect: 'Rectangle', modePoly: 'Polygone libre', finishPoly: 'Terminer le polygone', clear: 'Effacer', clickPrompt: 'Cliquez sur la carte pour définir la limite.'
+    step1: '1. Définir les limites du terrain', searchPh: 'Rechercher une adresse ou une commune…', step2: '2. Configuration et paramètres', areaLbl: 'Surface du terrain (m²)', countryLbl: 'Pays (Europe)', langLbl: 'Langue du rapport', btnGen: 'Analyser le terrain', modeCircle: 'Cercle', modeRect: 'Rectangle', modePoly: 'Polygone libre', finishPoly: 'Terminer le polygone', clear: 'Effacer', clickPrompt: 'Cliquez sur la carte pour définir la limite.'
   },
   es: {
     badge: 'Plataforma europea de verificación de parcelas edificables',
-    heroTitle: 'Compruebe su parcela: riesgos del terreno y valor del suelo',
+    heroTitle: 'Análisis preliminar de la parcela: riesgos geológicos y valor del suelo',
     heroSub: 'Dibuje o seleccione una parcela en Europa. Obtenga una evaluación preliminar basada en los datos públicos disponibles sobre el terreno, riesgos geológicos, planeamiento y valor del suelo.',
-    step1: '1. Definir los límites de la parcela', searchPh: 'Buscar dirección o municipio…', step2: '2. Configuración y parámetros', areaLbl: 'Superficie de la parcela (m²)', countryLbl: 'País (Europa)', langLbl: 'Idioma del informe', btnGen: 'Comprobar calidad y valor de la parcela', modeCircle: 'Círculo', modeRect: 'Rectángulo', modePoly: 'Polígono libre', finishPoly: 'Finalizar polígono', clear: 'Borrar', clickPrompt: 'Haga clic en el mapa para definir el límite.'
+    step1: '1. Definir los límites de la parcela', searchPh: 'Buscar dirección o municipio…', step2: '2. Configuración y parámetros', areaLbl: 'Superficie de la parcela (m²)', countryLbl: 'País (Europa)', langLbl: 'Idioma del informe', btnGen: 'Analizar la parcela', modeCircle: 'Círculo', modeRect: 'Rectángulo', modePoly: 'Polígono libre', finishPoly: 'Finalizar polígono', clear: 'Borrar', clickPrompt: 'Haga clic en el mapa para definir el límite.'
   },
   fi: {
     badge: 'Eurooppalainen rakennustonttien ennakkotarkastus',
-    heroTitle: 'Arvioi rakennustontti: maaperäriskit ja maan arvo',
+    heroTitle: 'Tontin ennakkotarkastus: geologiset riskit ja maan arvo',
     heroSub: 'Piirrä tai valitse rakennustontti Euroopassa. Saat alustavan arvion saatavilla olevien julkisten tietojen perusteella maaperästä, georiskeistä, kaavoituksesta ja maan arvosta.',
-    step1: '1. Määritä tontin rajaus', searchPh: 'Hae osoitetta tai kuntaa…', step2: '2. Asetukset ja parametrit', areaLbl: 'Tontin pinta-ala (m²)', countryLbl: 'Maa (Eurooppa)', langLbl: 'Raportin kieli', btnGen: 'Tarkista tontin laatu ja arvo', modeCircle: 'Ympyrä', modeRect: 'Suorakulmio', modePoly: 'Vapaa monikulmio', finishPoly: 'Viimeistele monikulmio', clear: 'Tyhjennä', clickPrompt: 'Määritä rajaus napsauttamalla karttaa.'
+    step1: '1. Määritä tontin rajaus', searchPh: 'Hae osoitetta tai kuntaa…', step2: '2. Asetukset ja parametrit', areaLbl: 'Tontin pinta-ala (m²)', countryLbl: 'Maa (Eurooppa)', langLbl: 'Raportin kieli', btnGen: 'Tarkista tontti', modeCircle: 'Ympyrä', modeRect: 'Suorakulmio', modePoly: 'Vapaa monikulmio', finishPoly: 'Viimeistele monikulmio', clear: 'Tyhjennä', clickPrompt: 'Määritä rajaus napsauttamalla karttaa.'
   }
 };
 
@@ -138,7 +137,6 @@ export default function App() {
   const [savedReports, setSavedReports] = useState<SiteReport[]>([]);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
-  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [isEmbeddedView, setIsEmbeddedView] = useState(false);
   const [hideHeaderInEmbed, setHideHeaderInEmbed] = useState(false);
@@ -350,7 +348,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-900 pb-16">
-      {!hideHeaderInEmbed && <Header onOpenSaved={() => setIsSavedModalOpen(true)} onOpenEmbed={() => setIsEmbedModalOpen(true)} onOpenDrive={() => setIsDriveModalOpen(true)} onOpenCompare={() => setIsCompareModalOpen(true)} savedCount={savedReports.length} language={languageCode} />}
+      {!hideHeaderInEmbed && <Header onOpenSaved={() => setIsSavedModalOpen(true)} onOpenEmbed={() => setIsEmbedModalOpen(true)} onOpenCompare={() => setIsCompareModalOpen(true)} savedCount={savedReports.length} language={languageCode} />}
       <main className="mx-auto max-w-6xl px-4 space-y-8 py-6 sm:py-10">
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold"><Sparkles className="h-3.5 w-3.5" /><span>{fp.badge}</span></div>
@@ -408,7 +406,6 @@ export default function App() {
 
       <SavedReportsModal isOpen={isSavedModalOpen} onClose={() => setIsSavedModalOpen(false)} reports={savedReports} onSelectReport={(rep) => { setActiveReport(rep); setIsSavedModalOpen(false); }} onDeleteReport={handleDeleteReport} />
       <SiteComparisonModal isOpen={isCompareModalOpen} onClose={() => setIsCompareModalOpen(false)} reports={savedReports} language={languageCode} />
-      <GoogleDriveModal isOpen={isDriveModalOpen} onClose={() => setIsDriveModalOpen(false)} report={activeReport} />
       <EmbedModal isOpen={isEmbedModalOpen} onClose={() => setIsEmbedModalOpen(false)} defaultCountry={countryCode} defaultLanguage={languageCode} />
     </div>
   );
