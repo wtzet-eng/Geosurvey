@@ -38,11 +38,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpen
               type="button"
               onClick={onOpenCompare}
               disabled={savedCount < 2}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100/80 disabled:bg-slate-100 disabled:text-slate-400 text-indigo-700 border border-indigo-200 disabled:border-slate-200 rounded-xl text-xs font-semibold transition"
+              className="flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white border border-indigo-600 disabled:border-slate-200 rounded-xl text-xs font-bold shadow-sm disabled:shadow-none transition"
               title={savedCount < 2 ? t.compareDisabledTitle : t.compareReadyTitle}
             >
               <GitCompareArrows className="h-4 w-4" />
-              <span className="hidden md:inline">{t.compare}</span>
+              <span>{t.compare}</span>
               <Sparkles className="h-3 w-3" />
             </button>
           )}

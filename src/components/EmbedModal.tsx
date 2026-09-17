@@ -1052,6 +1052,21 @@ export function PlotValuationWidget() {
 
         {/* Body Layout */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Professional positioning */}
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-xs">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-emerald-950">Help clients arrive better prepared for professional advice.</p>
+                <p className="mt-1 text-xs leading-relaxed text-emerald-900/80">
+                  <strong>For geotechnical and land professionals:</strong> embed LandSurf on your website to help clients carry out an initial site screening before contacting you. LandSurf highlights available public evidence, uncertainties, and questions that may require professional investigation. It does not replace site-specific geotechnical assessment.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Customization Options Bar */}
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-4">
             <div className="flex items-center justify-between">
