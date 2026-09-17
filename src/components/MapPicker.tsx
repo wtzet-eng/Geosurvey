@@ -15,6 +15,7 @@ import {
   Crosshair
 } from 'lucide-react';
 import { BoundaryShape, BoundaryType } from '../types';
+import { formatMapPickerText, getMapPickerText } from '../utils/mapPickerI18n';
 
 interface MapPickerProps {
   mode: BoundaryType;
@@ -24,6 +25,7 @@ interface MapPickerProps {
   onClear: () => void;
   defaultCenter?: [number, number];
   defaultZoom?: number;
+  language?: string;
 }
 
 export const MapPicker: React.FC<MapPickerProps> = ({
@@ -33,7 +35,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   circleRadius,
   onClear,
   defaultCenter = [51.1657, 10.4515],
-  defaultZoom = 6
+  defaultZoom = 6,
+  language = 'en'
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -45,6 +48,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const [tileType, setTileType] = useState<'osm' | 'satellite' | 'terrain'>('osm');
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
   const [isLocating, setIsLocating] = useState(false);
+  const t = getMapPickerText(language);
 
   // Fix default marker icons in Leaflet
   useEffect(() => {
@@ -169,7 +173,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // Geolocation trigger (pans map to user's location)
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      alert(t.geolocationUnsupported);
       return;
     }
     setIsLocating(true);
@@ -319,7 +323,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
             zIndexOffset: 1000
           }).addTo(group);
 
-          vertexMarker.bindTooltip(`Corner #${idx + 1} (Drag to adjust)`, {
+          vertexMarker.bindTooltip(formatMapPickerText(t.cornerTooltip, idx + 1), {
             direction: 'top',
             className: 'text-[10px] font-semibold'
           });
@@ -353,7 +357,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         }).addTo(group);
 
         if (canClose) {
-          marker.bindTooltip('✨ Click to CLOSE Polygon', {
+          marker.bindTooltip(t.closePolygon, {
             permanent: true,
             direction: 'top',
             className: 'text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 shadow-sm'
@@ -363,7 +367,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
             finishPolygon();
           });
         } else {
-          marker.bindTooltip(`Point ${idx + 1}`, {
+          marker.bindTooltip(formatMapPickerText(t.point, idx + 1), {
             direction: 'top',
             className: 'text-[10px] font-medium'
           });
@@ -392,7 +396,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         }).addTo(group);
       }
     }
-  }, [shape, drawingPoints, circleRadius, finishPolygon, handleVertexDrag]);
+  }, [shape, drawingPoints, circleRadius, finishPolygon, handleVertexDrag, t]);
 
   // Geocoding search
   const handleSearch = async (e: React.FormEvent) => {
@@ -436,7 +440,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search address, municipality, or parcel coordinates..."
+              placeholder={t.searchPlaceholder}
               className="w-full pl-9 pr-20 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
             />
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -446,7 +450,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               disabled={isSearching}
               className="absolute right-1.5 top-1.5 px-3 py-1 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 disabled:opacity-50 transition shadow-2xs"
             >
-              {isSearching ? '...' : 'Search'}
+              {isSearching ? '...' : t.search}
             </button>
 
             {/* Search Dropdown */}
@@ -475,10 +479,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               onClick={handleLocateMe}
               disabled={isLocating}
               className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 transition shadow-2xs"
-              title="Pan map to my GPS location"
+              title={t.locateTitle}
             >
               <Navigation className={`h-3.5 w-3.5 text-indigo-600 ${isLocating ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{isLocating ? 'Locating...' : 'My GPS'}</span>
+              <span className="hidden sm:inline">{isLocating ? t.locating : t.myGps}</span>
             </button>
 
             {/* Base Layer Switcher */}
@@ -489,10 +493,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
                   tileType === 'osm' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="Street Map"
+                title={t.streetTitle}
               >
                 <Layers className="h-3.5 w-3.5 text-indigo-600" />
-                <span className="hidden md:inline">Map</span>
+                <span className="hidden md:inline">{t.map}</span>
               </button>
               <button
                 type="button"
@@ -500,10 +504,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
                   tileType === 'satellite' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="Satellite Imagery"
+                title={t.satelliteTitle}
               >
                 <Globe2 className="h-3.5 w-3.5 text-blue-600" />
-                <span className="hidden md:inline">Sat</span>
+                <span className="hidden md:inline">{t.sat}</span>
               </button>
               <button
                 type="button"
@@ -511,10 +515,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
                   tileType === 'terrain' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="Topography & Relief"
+                title={t.terrainTitle}
               >
                 <Mountain className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="hidden md:inline">Relief</span>
+                <span className="hidden md:inline">{t.relief}</span>
               </button>
             </div>
 
@@ -525,10 +529,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
                 type="button"
                 onClick={handleReset}
                 className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-semibold hover:bg-rose-100 transition shadow-2xs"
-                title="Clear boundary and draw again"
+                title={t.clearTitle}
               >
                 <RotateCcw className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Clear</span>
+                <span className="hidden sm:inline">{t.clear}</span>
               </button>
             )}
           </div>
@@ -550,14 +554,14 @@ export const MapPicker: React.FC<MapPickerProps> = ({
                 <>
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span>
-                    <strong>Polygon boundary selected.</strong> You can drag any corner handle to adjust, or click anywhere to draw a new one.
+                    <strong>{t.polygonSelected}</strong> {t.polygonAdjust}
                   </span>
                 </>
               ) : (
                 <>
                   <MousePointerClick className="h-4 w-4 text-indigo-600 shrink-0 animate-bounce" />
                   <span>
-                    <strong>Click anywhere on the map</strong> to place the 1st corner of your parcel polygon.
+                    <strong>{t.clickMap}</strong> {t.firstCorner}
                   </span>
                 </>
               )
@@ -565,32 +569,32 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               <>
                 <MousePointerClick className="h-4 w-4 text-amber-600 shrink-0" />
                 <span>
-                  <strong>Corner 1 placed.</strong> Click to place Corner 2.
+                  <strong>{t.corner1Placed}</strong> {t.clickCorner2}
                 </span>
               </>
             ) : drawingPoints.length === 2 ? (
               <>
                 <MousePointerClick className="h-4 w-4 text-amber-600 shrink-0" />
                 <span>
-                  <strong>Corner 2 placed.</strong> Click to place Corner 3 to form a closed polygon.
+                  <strong>{t.corner2Placed}</strong> {t.clickCorner3}
                 </span>
               </>
             ) : (
               <>
                 <MousePointerClick className="h-4 w-4 text-amber-600 shrink-0" />
                 <span>
-                  <strong>{drawingPoints.length} corners placed.</strong> Click more corners, or click <strong>Corner #1</strong> / <strong>Finish Polygon</strong> to complete.
+                  <strong>{formatMapPickerText(t.cornersPlaced, drawingPoints.length)}</strong> {t.clickMoreCorners}
                 </span>
               </>
             )
           ) : mode === 'rectangle' ? (
             drawingPoints.length === 0 ? (
-              <span>Click on the map to place the 1st corner of your rectangle parcel.</span>
+              <span>{t.rectangleFirst}</span>
             ) : (
-              <span>Corner 1 set. Click second point for opposite corner.</span>
+              <span>{t.rectangleSecond}</span>
             )
           ) : (
-            <span>Click anywhere on the map to center your circular parcel buffer.</span>
+            <span>{t.circleCenter}</span>
           )}
         </div>
         
@@ -601,10 +605,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               type="button"
               onClick={undoLastPoint}
               className="flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition shadow-2xs"
-              title="Undo last placed corner point"
+              title={t.undoTitle}
             >
               <Undo2 className="h-3 w-3" />
-              <span>Undo</span>
+              <span>{t.undo}</span>
             </button>
           )}
 
@@ -616,7 +620,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               className="flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition shadow-xs cursor-pointer"
             >
               <Check className="h-3.5 w-3.5" />
-              <span>Finish Polygon ({drawingPoints.length} corners)</span>
+              <span>{formatMapPickerText(t.finishPolygon, drawingPoints.length)}</span>
             </button>
           )}
 
@@ -627,7 +631,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               className="flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition shadow-2xs"
             >
               <Pencil className="h-3 w-3 text-indigo-600" />
-              <span>Draw New</span>
+              <span>{t.drawNew}</span>
             </button>
           )}
         </div>
