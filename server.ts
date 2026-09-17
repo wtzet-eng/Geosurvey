@@ -21,6 +21,8 @@ import { applyDenmarkCadastreToReport, queryDenmarkCadastre } from './server/ser
 import { enrichDenmarkGroundEvidence, queryDenmarkGroundEvidence } from './server/services/denmarkGroundEvidenceService';
 import { applyIrelandCadastreToReport, queryIrelandCadastre } from './server/services/irelandCadastreService';
 import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './server/services/irelandNationalEvidenceService';
+import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './server/services/luxembourgCadastreService';
+import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
@@ -103,6 +105,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'NL') return res.json(await queryNetherlandsCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'DK') return res.json(await queryDenmarkCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'IE') return res.json(await queryIrelandCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'LU') return res.json(await queryLuxembourgCadastre(lat, lng));
   return res.json({ success: false, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY', message: `Automated national cadastre acquisition is not implemented for ${profile.countryName}. Verify the parcel with ${profile.cadastreAuthority}.`, cadastreAuthority: profile.cadastreAuthority, portalUrl: profile.cadastrePortalUrl });
 });
 
@@ -179,6 +182,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let netherlandsCadastre: any = null;
     let denmarkCadastre: any = null;
     let irelandCadastre: any = null;
+    let luxembourgCadastre: any = null;
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -241,6 +245,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: irelandCadastre.sourceName, organization: 'Tailte Éireann', url: irelandCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Tailte Éireann cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'LU' && support.capabilities.nationalCadastre) {
+      stage = 'luxembourg-cadastre';
+      try {
+        luxembourgCadastre = await queryLuxembourgCadastre(lat, lng);
+        applyLuxembourgCadastreToReport(evidenceReport, luxembourgCadastre, areaSize);
+        if (luxembourgCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(12, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Luxembourg ACT identifies the mapped cadastral parcel at the selected coordinate. The map is credited as official cadastral screening, not as proof of ownership, title rights or a new legally surveyed boundary.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: luxembourgCadastre.sourceName, organization: 'Administration du cadastre et de la topographie (ACT)', url: luxembourgCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Luxembourg ACT cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'DK' && support.capabilities.nationalCadastre) {
       stage = 'denmark-cadastre';
       try {
@@ -301,6 +319,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let swedenGroundEvidence: any[] = [];
     let denmarkGroundEvidence: any[] = [];
     let irelandNationalEvidence: any[] = [];
+    let luxembourgNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -355,6 +374,29 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
       evidenceReport.dataSourcesCited.push({ name: 'Geological Survey Ireland — Bedrock / Quaternary / Groundwater / Boreholes', organization: 'Geological Survey Ireland', url: 'https://www.gsi.ie/en-ie/data-and-maps/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+    } else if (!countryLocationMismatch && countryCode === 'LU' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology || support.capabilities.nationalFlood || support.capabilities.nationalPlanning)) {
+      stage = 'luxembourg-national-evidence';
+      try { luxembourgNationalEvidence = await queryLuxembourgNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Luxembourg national evidence notice:`, e); }
+      stage = 'luxembourg-report-enrichment';
+      if (luxembourgNationalEvidence.length) evidenceReport.evidenceRegistry.push(...luxembourgNationalEvidence);
+      try { enrichLuxembourgNationalEvidence(evidenceReport, luxembourgNationalEvidence); } catch (e) { console.warn(`[${diagnosticId}] Luxembourg evidence enrichment notice:`, e); }
+      const verifiedGround = luxembourgNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['lu-geo-geology', 'lu-geo-aquifer', 'lu-geo-groundwater-body', 'lu-geo-boreholes'].includes(item.id));
+      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Luxembourg Geoportail returned official national geology, hydrogeology and/or borehole context. These sources are credited as screening evidence without inferring parcel engineering parameters.';
+      }
+      const pagVerified = luxembourgNationalEvidence.some((item: any) => item.id === 'lu-pag-zoning' && item.status === 'VERIFIED');
+      if (pagVerified && evidenceReport.evidenceScore?.breakdown?.planningAndMarket) {
+        evidenceReport.evidenceScore.breakdown.planningAndMarket.score = Math.max(4, Number(evidenceReport.evidenceScore.breakdown.planningAndMarket.score) || 0);
+        evidenceReport.evidenceScore.breakdown.planningAndMarket.rationale = 'The national PAG layer returned the official zoning code at the selected coordinate. Detailed permitted use, density, setbacks and project consent still require commune/PAP verification.';
+      }
+      const floodVerified = luxembourgNationalEvidence.some((item: any) => item.id === 'lu-flood-screen' && item.status === 'VERIFIED');
+      if (floodVerified && evidenceReport.evidenceScore?.breakdown?.environmentalAndFlood) {
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score = Math.max(10, Number(evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score) || 0);
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'Official Luxembourg HQ100 and extreme-flood layers responded for a direct-overlap screen at the selected coordinate; this does not replace full-parcel or hydraulic review.';
+      }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
+      evidenceReport.dataSourcesCited.push({ name: 'Geoportail Luxembourg — geology / groundwater / boreholes / PAG / flood zones', organization: 'Grand Duchy of Luxembourg public geodata authorities', url: 'https://map.geoportail.lu/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'SE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
       stage = 'sweden-ground-evidence';
       try { swedenGroundEvidence = await querySwedenGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden evidence notice:`, e); }
@@ -380,10 +422,13 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       });
     }
 
-    if (!countryLocationMismatch && support.capabilities.nationalValuation && ['AT', 'ES', 'FI', 'IE'].includes(countryCode)) {
+    if (!countryLocationMismatch && support.capabilities.nationalValuation && ['AT', 'ES', 'FI', 'IE', 'LU'].includes(countryCode)) {
       stage = 'europe-land-valuation';
       try {
-        europeValuationEvidence = await queryEuropeanLandValuationEvidence(countryCode, { municipality, county: countyName, state: stateName });
+        const luxembourgPagCategory = countryCode === 'LU'
+          ? String(luxembourgNationalEvidence.find((item: any) => item.id === 'lu-pag-zoning' && item.status === 'VERIFIED')?.value?.categories?.[0] || '')
+          : undefined;
+        europeValuationEvidence = await queryEuropeanLandValuationEvidence(countryCode, { municipality, county: countyName, state: stateName, pagCategory: luxembourgPagCategory });
         if (europeValuationEvidence) evidenceReport.evidenceRegistry.push(europeValuationEvidence);
         enrichEuropeanLandValuation(evidenceReport, europeValuationEvidence);
       } catch (e) {
