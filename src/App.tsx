@@ -73,7 +73,7 @@ const NATIVE_FRONT_PAGES: Record<string, ReturnType<typeof getFrontPageI18n>> = 
     badge: 'Eurooppalainen rakennustonttien ennakkotarkastus',
     heroTitle: 'Arvioi rakennustontti: maaperäriskit ja maan arvo',
     heroSub: 'Piirrä tai valitse rakennustontti Euroopassa. Saat alustavan arvion saatavilla olevien julkisten tietojen perusteella maaperästä, georiskeistä, kaavoituksesta ja maan arvosta.',
-    step1: '1. Määritä tontin rajaus', searchPh: 'Hae osoitetta tai kuntaa…', step2: '2. Asetukset ja parametrit', areaLbl: 'Tontin pinta-ala (m²)', countryLbl: 'Maa (Europe)', langLbl: 'Raportin kieli', btnGen: 'Tarkista tontin laatu ja arvo', modeCircle: 'Ympyrä', modeRect: 'Suorakulmio', modePoly: 'Vapaa monikulmio', finishPoly: 'Viimeistele monikulmio', clear: 'Tyhjennä', clickPrompt: 'Määritä rajaus napsauttamalla karttaa.'
+    step1: '1. Määritä tontin rajaus', searchPh: 'Hae osoitetta tai kuntaa…', step2: '2. Asetukset ja parametrit', areaLbl: 'Tontin pinta-ala (m²)', countryLbl: 'Maa (Eurooppa)', langLbl: 'Raportin kieli', btnGen: 'Tarkista tontin laatu ja arvo', modeCircle: 'Ympyrä', modeRect: 'Suorakulmio', modePoly: 'Vapaa monikulmio', finishPoly: 'Viimeistele monikulmio', clear: 'Tyhjennä', clickPrompt: 'Määritä rajaus napsauttamalla karttaa.'
   }
 };
 
@@ -399,7 +399,7 @@ export default function App() {
               <button type="button" onClick={handleAnalyzeSite} disabled={isAnalyzing || !isBoundaryComplete} className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition">
                 {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{uiText(languageCode, 'Gathering governmental data…', 'Openbare gegevens worden opgehaald…', 'Načítám veřejná data…', 'Hämtar offentliga data…', 'Henter offentlige data…', 'Získavam údaje z verejných zdrojov…')}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
               </button>
-              <p className="text-center text-[11px] text-slate-400">{uiText(languageCode, 'The country provides a default report language; a manual language selection is preserved.', 'Het land bepaalt de standaardtaal van het rapport; een handmatig gekozen taal blijft behouden.', 'Země určuje výchozí jazyk reportu; ručně zvolený jazyk zůstane zachován.', 'Landet anger rapportens standardspråk; ett manuelt språkvalg beholdes.', 'Landet angir standardspråket for rapporten; et manuelt språkvalg beholdes.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.')}</p>
+              <p className="text-center text-[11px] text-slate-400">{uiText(languageCode, 'The country provides a default report language; a manual language selection is preserved.', 'Het land bepaalt de standaardtaal van het rapport; een handmatig gekozen taal blijft behouden.', 'Země určuje výchozí jazyk reportu; ručně zvolený jazyk zůstane zachován.', 'Landet anger rapportens standardspråk; ett manuellt språkval behålls.', 'Landet angir standardspråket for rapporten; et manuelt språkvalg beholdes.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.')}</p>
             </div>
           </div>
         </div>
