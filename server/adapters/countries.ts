@@ -121,6 +121,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     planningInstrumentName: 'ÖREB-Kataster / cantonal and communal zoning', standardSetbackRule: 'Cantonal/communal rules require verification',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  LU: {
+    countryCode: 'LU', countryName: 'Luxembourg', currency: 'EUR', symbol: '€',
+    cadastreAuthority: 'Administration du cadastre et de la topographie (ACT / Geoportail Luxembourg)', cadastrePortalUrl: 'https://map.geoportail.lu/',
+    geologyAuthority: 'Service géologique de l’État / Geoportail Luxembourg', geologyPortalUrl: 'https://map.geoportail.lu/',
+    floodAuthority: 'Administration de la gestion de l’eau / Geoportail Luxembourg', floodPortalUrl: 'https://map.geoportail.lu/',
+    planningInstrumentName: 'Plan d’aménagement général (PAG) / plan d’aménagement particulier (PAP)',
+    standardSetbackRule: 'Determined by the current commune PAG/PAP and project-specific planning/building rules; requires official confirmation',
+    baseValuationPerSqm: 0, valuationDataSource: 'Observatoire de l’Habitat — official residential building-land transactions; PAG-gated national/city benchmark, no generic fallback'
+  },
   NL: {
     countryCode: 'NL', countryName: 'Netherlands', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Kadaster Nederland (Basisregistratie Kadaster BRK / PDOK)', cadastrePortalUrl: 'https://pdok.nl',
