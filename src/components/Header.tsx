@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpen
               LandSurf
             </p>
             <p className="text-[11px] text-slate-500 font-medium leading-tight">
-              Site Due Diligence
+              {t.brandSubtitle}
             </p>
           </div>
         </div>

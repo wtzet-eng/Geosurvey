@@ -19,6 +19,7 @@ import { getCountrySupport } from './data/countrySupport';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
 import { getBrowserLanguage, getFrontPageI18n } from './utils/i18nTitle';
 import { getBoundaryStatusText } from './utils/boundaryStatusI18n';
+import { getActionText } from './utils/actionI18n';
 import { MapPicker } from './components/MapPicker';
 import { Header } from './components/Header';
 import { ReportView } from './components/ReportView';
@@ -89,8 +90,7 @@ const extraUi: Record<string, Record<string, string>> = {
     'Click two opposite corners on the map to draw the rectangle.': 'Cliquez sur deux coins opposés pour dessiner le rectangle.',
     'Click sequential points on the map to draw a custom polygon boundary.': 'Cliquez successivement sur la carte pour dessiner une limite polygonale.',
     '(auto-calculated from boundary)': '(calculé automatiquement à partir de la limite)',
-    'Gathering governmental data…': 'Collecte des données publiques…',
-    'The country provides a default report language; a manual language selection is preserved.': 'Le pays définit une langue de rapport par défaut ; un choix manuel est conservé.'
+    'Gathering governmental data…': 'Collecte des données publiques…'
   },
   es: {
     'Please draw a site boundary on the map first.': 'Dibuje primero el límite de la parcela en el mapa.',
@@ -102,8 +102,7 @@ const extraUi: Record<string, Record<string, string>> = {
     'Click two opposite corners on the map to draw the rectangle.': 'Haga clic en dos esquinas opuestas para dibujar el rectángulo.',
     'Click sequential points on the map to draw a custom polygon boundary.': 'Haga clic en puntos sucesivos para dibujar un límite poligonal.',
     '(auto-calculated from boundary)': '(calculado automáticamente a partir del límite)',
-    'Gathering governmental data…': 'Recopilando datos públicos…',
-    'The country provides a default report language; a manual language selection is preserved.': 'El país establece un idioma de informe predeterminado; se conserva la selección manual.'
+    'Gathering governmental data…': 'Recopilando datos públicos…'
   },
   fi: {
     'Please draw a site boundary on the map first.': 'Piirrä ensin tontin rajaus kartalle.',
@@ -115,8 +114,7 @@ const extraUi: Record<string, Record<string, string>> = {
     'Click two opposite corners on the map to draw the rectangle.': 'Piirrä suorakulmio napsauttamalla kahta vastakkaista kulmaa.',
     'Click sequential points on the map to draw a custom polygon boundary.': 'Piirrä monikulmiorajaus napsauttamalla pisteitä peräkkäin.',
     '(auto-calculated from boundary)': '(laskettu automaattisesti rajauksesta)',
-    'Gathering governmental data…': 'Haetaan julkisia aineistoja…',
-    'The country provides a default report language; a manual language selection is preserved.': 'Maa määrittää raportin oletuskielen; käsin valittu kieli säilytetään.'
+    'Gathering governmental data…': 'Haetaan julkisia aineistoja…'
   }
 };
 
@@ -163,6 +161,7 @@ export default function App() {
   });
   const fp = languageCode === 'sk' ? SLOVAK_FRONT_PAGE : NATIVE_FRONT_PAGES[languageCode] || getFrontPageI18n(languageCode);
   const boundaryText = getBoundaryStatusText(languageCode);
+  const actionText = getActionText(languageCode);
 
   useEffect(() => {
     try {
@@ -401,14 +400,14 @@ export default function App() {
               <button type="button" onClick={handleAnalyzeSite} disabled={isAnalyzing || !isBoundaryComplete} className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition">
                 {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{uiText(languageCode, 'Gathering governmental data…', 'Openbare gegevens worden opgehaald…', 'Načítám veřejná data…', 'Hämtar offentliga data…', 'Henter offentlige data…', 'Získavam údaje z verejných zdrojov…')}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
               </button>
-              <p className="text-center text-[11px] text-slate-400">{uiText(languageCode, 'The country provides a default report language; a manual language selection is preserved.', 'Het land bepaalt de standaardtaal van het rapport; een handmatig gekozen taal blijft behouden.', 'Země určuje výchozí jazyk reportu; ručně zvolený jazyk zůstane zachován.', 'Landet anger rapportens standardspråk; ett manuellt språkval behålls.', 'Landet angir standardspråket for rapporten; et manuelt språkvalg beholdes.', 'Slovenčina je predvoleným jazykom pre Slovensko; ručne zvolený jazyk sa zachová.')}</p>
+              <p className="text-center text-[11px] text-slate-400">{actionText.defaultLanguageNote}</p>
             </div>
           </div>
         </div>
       </main>
 
       <SavedReportsModal isOpen={isSavedModalOpen} onClose={() => setIsSavedModalOpen(false)} reports={savedReports} onSelectReport={(rep) => { setActiveReport(rep); setIsSavedModalOpen(false); }} onDeleteReport={handleDeleteReport} />
-      <SiteComparisonModal isOpen={isCompareModalOpen} onClose={() => setIsCompareModalOpen(false)} reports={savedReports} />
+      <SiteComparisonModal isOpen={isCompareModalOpen} onClose={() => setIsCompareModalOpen(false)} reports={savedReports} language={languageCode} />
       <GoogleDriveModal isOpen={isDriveModalOpen} onClose={() => setIsDriveModalOpen(false)} report={activeReport} />
       <EmbedModal isOpen={isEmbedModalOpen} onClose={() => setIsEmbedModalOpen(false)} defaultCountry={countryCode} defaultLanguage={languageCode} />
     </div>
