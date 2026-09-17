@@ -17,7 +17,7 @@ const StatusDot: React.FC<{ className: string; size: 'sm' | 'md' | 'lg' }> = ({ 
 
 const copies: Record<string, { labels: { verified: string; modelled: string; requires: string }; titles: { verified: string; modelled: string; requires: string } }> = {
   en: {
-    labels: { verified: 'Verified Data', modelled: 'Modelled / Regional', requires: 'Requires Verification' },
+    labels: { verified: 'Verified Data', modelled: 'Modelled / Regional', requires: 'To be confirmed' },
     titles: { verified: 'Directly verified from an authoritative registry', modelled: 'Modelled from regional evidence or statistical estimates', requires: 'Requires on-site or authoritative verification' }
   },
   pl: {
@@ -64,8 +64,8 @@ export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({
 
   if (norm === 'REQUIRES_VERIFICATION') {
     return (
-      <span className={`inline-flex items-center gap-1 font-semibold rounded-md border bg-rose-50 text-rose-800 border-rose-300 ${padding}`} title={titles.requires}>
-        <StatusDot size={size} className="bg-rose-600" />
+      <span className={`inline-flex items-center gap-1 font-normal rounded-md border bg-slate-50 text-slate-600 border-slate-200 ${padding}`} title={titles.requires}>
+        <StatusDot size={size} className="bg-slate-400" />
         {showLabel && <span>{labels.requires}</span>}
       </span>
     );
