@@ -148,7 +148,7 @@ async function fetchJson(fetcher: FetchLike, url: string, timeoutMs: number): Pr
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetcher(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 France land valuation', Accept: 'application/json' }, signal: controller.signal });
+    const response = await fetcher(url, { headers: { 'User-Agent': 'LandSurf/1.0 France land valuation', Accept: 'application/json' }, signal: controller.signal });
     if (!response.ok) return { ok: false, data: null, status: response.status };
     try { return { ok: true, data: await response.json(), status: response.status }; }
     catch { return { ok: false, data: null, status: response.status }; }

@@ -23,7 +23,7 @@ export function schemaFingerprint(endpoint: SourceEndpoint, probe: EndpointProbe
 
   // Fingerprint only layer identities that the integration explicitly depends on.
   // Several public WMS catalogues (including PGI-PIB) can add/reorder unrelated
-  // published layers without changing the schema required by GeoSurvey. Treating
+  // published layers without changing the schema required by LandSurf. Treating
   // that catalogue churn as SCHEMA_CHANGED caused false source outages.
   const expectedLayers = new Set(endpoint.expectedLayers.map(String));
   const relevantLayers = endpoint.expectedLayers.length

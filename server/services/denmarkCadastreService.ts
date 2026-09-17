@@ -179,7 +179,7 @@ async function fetchFeatures(fetcher: FetchLike, requestUrl: string, timeoutMs =
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response: any = await fetcher(requestUrl, { headers: { Accept: 'application/gml+xml, application/xml, text/xml, */*', 'User-Agent': 'SurveyLand/1.0 Denmark cadastral evidence' }, signal: controller.signal });
+    const response: any = await fetcher(requestUrl, { headers: { Accept: 'application/gml+xml, application/xml, text/xml, */*', 'User-Agent': 'LandSurf/1.0 Denmark cadastral evidence' }, signal: controller.signal });
     if (!response.ok) return null;
     if (typeof response.text === 'function') return parseGmlFeatures(await response.text());
     if (typeof response.json === 'function') {

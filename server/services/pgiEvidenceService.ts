@@ -91,7 +91,7 @@ async function getCapabilities(url: string): Promise<{ status: PgiEvidenceStatus
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
     const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0`, {
-      headers: { 'User-Agent': 'GeoSurvey/1.0 evidence discovery' },
+      headers: { 'User-Agent': 'LandSurf/1.0 evidence discovery' },
       signal: controller.signal
     });
     if (!response.ok) return { status: 'ERROR', layers: [] };

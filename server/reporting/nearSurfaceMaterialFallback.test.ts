@@ -57,7 +57,7 @@ function canonicalWithoutMappedGeology(): CanonicalReport {
     infrastructure: { roadName: 'Road', roadType: 'residential', distanceM: 20, directAccess: false, status: 'MODELLED', sourceName: 'OpenStreetMap' },
     utilities: [],
     environment: { protectedAreaName: null, distanceM: null, status: 'MODELLED', sourceName: 'OpenStreetMap' },
-    valuation: { min: 500000, max: 700000, median: 600000, currency: 'PLN', status: 'MODELLED', comparableCount: 0, sourceName: 'GeoSurvey benchmark' },
+    valuation: { min: 500000, max: 700000, median: 600000, currency: 'PLN', status: 'MODELLED', comparableCount: 0, sourceName: 'LandSurf benchmark' },
     evidenceScore: {
       totalScore: 60,
       ratingClass: 'Moderate Evidence (50-74)',

@@ -30,7 +30,7 @@ async function fetchFeatures(fetcher: FetchLike, url: string, timeoutMs = 9000):
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetcher(url, { headers: { Accept: 'application/geo+json, application/json, */*', 'User-Agent': 'GeoSurvey/1.0 Denmark national evidence' }, signal: controller.signal });
+    const response = await fetcher(url, { headers: { Accept: 'application/geo+json, application/json, */*', 'User-Agent': 'LandSurf/1.0 Denmark national evidence' }, signal: controller.signal });
     if (!response.ok) return null;
     const json: any = await response.json();
     return Array.isArray(json?.features) ? json.features : null;

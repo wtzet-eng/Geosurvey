@@ -285,7 +285,7 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
         href="https://ko-fi.com/surveyland"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Support SurveyLand on Ko-fi"
+        aria-label="Support LandSurf on Ko-fi"
         className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#496931] px-3 py-2.5 text-xs font-semibold text-white shadow-md transition hover:bg-[#3d5929] focus:outline-none focus:ring-2 focus:ring-[#496931] focus:ring-offset-2"
       >
         <Heart className="h-3.5 w-3.5" />
@@ -299,9 +299,9 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700"><BrainCircuit className="h-5 w-5" /></div>
             <div>
-              <div className="text-xs font-bold uppercase tracking-widest text-indigo-600">SurveyLand AI interpretation</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-indigo-600">LandSurf AI interpretation</div>
               <h2 className="mt-0.5 text-lg font-black text-slate-950">Interpret the collected evidence</h2>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">The model receives SurveyLand's structured evidence package only. It is not allowed to invent missing parcel facts or turn nearby observations into design values.</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">The model receives LandSurf's structured evidence package only. It is not allowed to invent missing parcel facts or turn nearby observations into design values.</p>
             </div>
           </div>
           <button type="button" onClick={() => setIsOpen(false)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label="Close"><X className="h-5 w-5" /></button>

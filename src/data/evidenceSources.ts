@@ -125,7 +125,7 @@ export const EVIDENCE_SOURCES: Record<string, EvidenceSourceLink[]> = {
       provider: 'GUGiK',
       category: 'planning',
       url: 'https://uldk.gugik.gov.pl/',
-      description: 'Official cadastral parcel identification and geometry service used by GeoSurvey.'
+      description: 'Official cadastral parcel identification and geometry service used by LandSurf.'
     },
     {
       id: 'wody-polskie-isok',
@@ -281,7 +281,7 @@ export const EVIDENCE_SOURCES: Record<string, EvidenceSourceLink[]> = {
       provider: 'EuroGeoSurveys',
       category: 'geology',
       url: 'https://www.europe-geology.eu',
-      description: 'Pan-European geological data discovery and map services for countries without a dedicated GeoSurvey source list.'
+      description: 'Pan-European geological data discovery and map services for countries without a dedicated LandSurf source list.'
     },
     {
       id: 'soilgrids-global',

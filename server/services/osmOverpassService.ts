@@ -28,7 +28,7 @@ export async function queryOverpassSurroundings(lat: number, lng: number, parcel
   try {
     const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 9000); let res: Response | null = null;
     for (const ep of ['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter']) {
-      try { res = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'GeoSurvey/1.0 evidence extraction' }, body: `data=${encodeURIComponent(query)}`, signal: controller.signal }); if (res.ok) break; } catch {}
+      try { res = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'LandSurf/1.0 evidence extraction' }, body: `data=${encodeURIComponent(query)}`, signal: controller.signal }); if (res.ok) break; } catch {}
     }
     clearTimeout(timer); if (!res || !res.ok) return unavailable(); const data: any = await res.json(); if (!Array.isArray(data?.elements)) return unavailable();
     let minRoad=Infinity,minWater=Infinity,minPower=Infinity,minPipe=Infinity,minTelecom=Infinity,minProt=Infinity; let road:any,water:any,power:any,pipe:any,telecom:any,prot:any; const landuses=new Set<string>(); let buildings=0; const amenities:Record<string,AmenityPoint>={};

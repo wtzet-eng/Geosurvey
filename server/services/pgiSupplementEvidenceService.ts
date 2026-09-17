@@ -7,7 +7,7 @@ async function json(url: string, timeoutMs = 7000): Promise<any | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const r = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 evidence extraction' }, signal: controller.signal });
+    const r = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'LandSurf/1.0 evidence extraction' }, signal: controller.signal });
     return r.ok ? await r.json() : null;
   } catch { return null; } finally { clearTimeout(timer); }
 }

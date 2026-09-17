@@ -26,7 +26,7 @@ function canonicalFixture(): any {
     evidenceScore: { totalScore: 43 },
     sourceRecords: [{ name: 'ISRIC SoilGrids', url: 'https://soilgrids.org', type: 'Soil model', status: 'MODELLED' }],
     evidenceRecords: [
-      { id: 'country-support-NL', category: 'Country support', claim: 'raw English support', status: 'REQUIRES_VERIFICATION', sourceName: 'GeoSurvey support matrix', sourceUrl: '', datasetDate: '2026-09-10', spatialRelationship: 'NL', calculationMethod: 'support check', confidence: 'High', limitation: 'raw', value: { reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' } },
+      { id: 'country-support-NL', category: 'Country support', claim: 'raw English support', status: 'REQUIRES_VERIFICATION', sourceName: 'LandSurf support matrix', sourceUrl: '', datasetDate: '2026-09-10', spatialRelationship: 'NL', calculationMethod: 'support check', confidence: 'High', limitation: 'raw', value: { reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' } },
       { id: 'soilgrids-site', category: 'Soil model', claim: 'raw English claim', status: 'MODELLED', sourceName: 'ISRIC SoilGrids', sourceUrl: 'https://soilgrids.org', datasetDate: '2026-09-10', spatialRelationship: 'site', calculationMethod: 'model query', confidence: 'Medium', limitation: 'modelled only', value: {} }
     ]
   };

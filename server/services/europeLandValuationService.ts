@@ -89,7 +89,7 @@ async function fetchText(fetcher: FetchLike, url: string): Promise<string | null
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6500);
   try {
-    const response = await fetcher(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 European land valuation', Accept: 'text/csv,text/plain,*/*' }, signal: controller.signal });
+    const response = await fetcher(url, { headers: { 'User-Agent': 'LandSurf/1.0 European land valuation', Accept: 'text/csv,text/plain,*/*' }, signal: controller.signal });
     return response.ok ? await response.text() : null;
   } catch { return null; }
   finally { clearTimeout(timer); }
@@ -99,7 +99,7 @@ async function fetchJson(fetcher: FetchLike, url: string, init?: RequestInit): P
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6500);
   try {
-    const response = await fetcher(url, { ...(init || {}), headers: { 'User-Agent': 'GeoSurvey/1.0 European land valuation', Accept: 'application/json', ...(init?.headers || {}) }, signal: controller.signal });
+    const response = await fetcher(url, { ...(init || {}), headers: { 'User-Agent': 'LandSurf/1.0 European land valuation', Accept: 'application/json', ...(init?.headers || {}) }, signal: controller.signal });
     return response.ok ? await response.json() : null;
   } catch { return null; }
   finally { clearTimeout(timer); }

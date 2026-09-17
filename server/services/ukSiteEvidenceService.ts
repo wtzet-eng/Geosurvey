@@ -37,7 +37,7 @@ function evidence(id: string, category: string, claim: string, status: UkSiteEvi
 async function fetchJson(url: string, timeoutMs = 8500, fetcher: FetchLike = fetch): Promise<any | null> {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetcher(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 UK evidence', Accept: 'application/json' }, signal: controller.signal });
+    const response = await fetcher(url, { headers: { 'User-Agent': 'LandSurf/1.0 UK evidence', Accept: 'application/json' }, signal: controller.signal });
     if (!response.ok) return null;
     const payload = await response.json();
     return payload && !payload.error ? payload : null;
@@ -47,7 +47,7 @@ async function fetchJson(url: string, timeoutMs = 8500, fetcher: FetchLike = fet
 async function fetchText(url: string, timeoutMs = 8000): Promise<string | null> {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { headers: { 'User-Agent': 'GeoSurvey/1.0 UK evidence', Accept: 'application/xml,text/xml,text/plain' }, signal: controller.signal });
+    const response = await fetch(url, { headers: { 'User-Agent': 'LandSurf/1.0 UK evidence', Accept: 'application/xml,text/xml,text/plain' }, signal: controller.signal });
     return response.ok ? await response.text() : null;
   } catch { return null; } finally { clearTimeout(timer); }
 }

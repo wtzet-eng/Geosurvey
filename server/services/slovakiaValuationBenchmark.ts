@@ -184,7 +184,7 @@ export function resolveSlovakiaValuationBenchmark(
   };
 }
 
-/** Applies the existing GeoSurvey parcel-size, road and terrain screening adjustments. */
+/** Applies the existing LandSurf parcel-size, road and terrain screening adjustments. */
 export function calculateSlovakiaLandValue(input: SlovakiaLandValueInput): SlovakiaLandValueResult {
   const benchmark = resolveSlovakiaValuationBenchmark(input.municipality, input.region);
   const terrainMultiplier = typeof input.slopeDegrees === 'number' && Number.isFinite(input.slopeDegrees) && input.slopeDegrees > 10 ? 0.88 : 1;

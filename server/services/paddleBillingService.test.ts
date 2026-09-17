@@ -28,7 +28,7 @@ test('Paddle billing defaults to sandbox and configurable credit packs', () => {
   assert.equal(config.webhookConfigured, true);
 });
 
-test('credit checkout transaction is created server-side with authenticated SurveyLand user metadata', async () => {
+test('credit checkout transaction is created server-side with authenticated LandSurf user metadata', async () => {
   let calledUrl = '';
   let request: any;
   const fetcher: any = async (url: string, init: any) => {
@@ -66,7 +66,7 @@ test('completed Paddle transaction is accepted only for the authenticated user a
 
   await assert.rejects(
     () => confirmPaddleCreditTransaction('txn_paid123', 'different-user', { fetcher, env }),
-    /not a completed SurveyLand credit purchase/i
+    /not a completed LandSurf credit purchase/i
   );
 
   const wrongPriceFetcher: any = async () => ({
@@ -76,7 +76,7 @@ test('completed Paddle transaction is accepted only for the authenticated user a
   });
   await assert.rejects(
     () => confirmPaddleCreditTransaction('txn_paid123', 'firebase-user-7', { fetcher: wrongPriceFetcher, env }),
-    /not a completed SurveyLand credit purchase/i
+    /not a completed LandSurf credit purchase/i
   );
 });
 

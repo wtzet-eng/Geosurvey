@@ -74,7 +74,7 @@ const firstAttributes = (payload: any): Record<string, unknown> | null => payloa
 const fetchJson = async (fetcher: FetchLike, url: string, diagnostic: { endpoint: string; layerId?: number; layerName?: string }): Promise<any | null> => {
   const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 4500);
   try {
-    const response = await fetcher(url, { headers: { Accept: 'application/json', 'User-Agent': 'GeoSurvey/1.0 (BGS evidence query)' }, signal: controller.signal });
+    const response = await fetcher(url, { headers: { Accept: 'application/json', 'User-Agent': 'LandSurf/1.0 (BGS evidence query)' }, signal: controller.signal });
     const payload = response.ok ? await response.json() : null;
     const features = Array.isArray(payload?.features) ? payload.features : [];
     const attributeKeys = features[0]?.attributes && typeof features[0].attributes === 'object' ? Object.keys(features[0].attributes).slice(0, 60) : [];

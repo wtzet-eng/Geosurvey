@@ -28,7 +28,7 @@ async function fetchFeatures(fetcher: FetchLike, url: string, timeoutMs = 8000):
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetcher(url, {
-      headers: { Accept: 'application/geo+json, application/json', 'User-Agent': 'GeoSurvey/1.0 Norway NGU evidence' },
+      headers: { Accept: 'application/geo+json, application/json', 'User-Agent': 'LandSurf/1.0 Norway NGU evidence' },
       signal: controller.signal
     });
     if (!response.ok) return null;

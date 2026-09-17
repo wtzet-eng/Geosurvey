@@ -35,7 +35,7 @@ function pointQuery(url: string, lat: number, lng: number): string {
 async function queryLayer(url: string, lat: number, lng: number, fetcher: FetchLike): Promise<any[] | null> {
   const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const r = await fetcher(pointQuery(url, lat, lng), { headers: { Accept: 'application/json', 'User-Agent': 'SurveyLand/1.0 Ireland cadastre' }, signal: ctrl.signal });
+    const r = await fetcher(pointQuery(url, lat, lng), { headers: { Accept: 'application/json', 'User-Agent': 'LandSurf/1.0 Ireland cadastre' }, signal: ctrl.signal });
     if (!r.ok) return null;
     const j: any = await r.json();
     return Array.isArray(j?.features) ? j.features : null;

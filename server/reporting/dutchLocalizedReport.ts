@@ -76,7 +76,7 @@ function localizedClassification(value: string | null): string {
 
 function supportNotice(canonical: CanonicalReport): string {
   if (canonical.countryCode === 'NL') {
-    return 'Nederland beschikt over sterke landelijke publieke bronnen, waaronder Kadaster/PDOK, BRO/DINOloket, GeoTOP, REGIS II, DSO en Rijkswaterstaat/LIWO. Alleen bronnen die in deze SurveyLand-versie daadwerkelijk automatisch en locatie-specifiek worden bevraagd, worden als geïntegreerd aangemerkt; overige gegevens moeten in de officiële dienst worden gecontroleerd.';
+    return 'Nederland beschikt over sterke landelijke publieke bronnen, waaronder Kadaster/PDOK, BRO/DINOloket, GeoTOP, REGIS II, DSO en Rijkswaterstaat/LIWO. Alleen bronnen die in deze LandSurf-versie daadwerkelijk automatisch en locatie-specifiek worden bevraagd, worden als geïntegreerd aangemerkt; overige gegevens moeten in de officiële dienst worden gecontroleerd.';
   }
   if (canonical.support.maturity === 'SUPPORTED') {
     return 'Voor geselecteerde onderdelen zijn nationale bronintegraties beschikbaar. Niet-ondersteunde categorieën moeten nog steeds in de officiële bron worden gecontroleerd.';
