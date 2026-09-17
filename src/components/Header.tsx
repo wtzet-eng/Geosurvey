@@ -1,14 +1,15 @@
 import React from 'react';
-import { Building2, FolderKanban, Code2, HardDrive } from 'lucide-react';
+import { Building2, FolderKanban, Code2, HardDrive, GitCompareArrows, Sparkles } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSaved: () => void;
   onOpenEmbed: () => void;
   onOpenDrive?: () => void;
+  onOpenCompare?: () => void;
   savedCount: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpenDrive, savedCount }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpenDrive, onOpenCompare, savedCount }) => {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
@@ -29,6 +30,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSaved, onOpenEmbed, onOpen
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          {onOpenCompare && (
+            <button
+              type="button"
+              onClick={onOpenCompare}
+              disabled={savedCount < 2}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100/80 disabled:bg-slate-100 disabled:text-slate-400 text-indigo-700 border border-indigo-200 disabled:border-slate-200 rounded-xl text-xs font-semibold transition"
+              title={savedCount < 2 ? 'Save at least two site reports to compare them' : 'Compare saved sites with AI'}
+            >
+              <GitCompareArrows className="h-4 w-4" />
+              <span className="hidden md:inline">Compare sites with AI</span>
+              <Sparkles className="h-3 w-3" />
+            </button>
+          )}
+
           {onOpenDrive && (
             <button
               type="button"
