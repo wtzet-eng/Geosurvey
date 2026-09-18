@@ -206,3 +206,5 @@ export function renderSwedishLocalizedReport(canonical: CanonicalReport): any {
     opportunities: ['SGU erbjuder mycket starka öppna nationella källor för inledande mark- och grundscreening.', 'Brunnsarkivet och nätet för observerade grundvattennivåer gör det möjligt att hitta relevant omgivande underlag utan att behandla det som mätningar på själva tomten.']
   };
 }
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
