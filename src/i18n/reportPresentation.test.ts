@@ -172,3 +172,37 @@ test('French Spanish and Finnish unavailable reasons remain distinct and localiz
     assert.notEqual(localizeAvailabilityReason('PARAMETER_NOT_PROVIDED', language), localizeAvailabilityReason('AUTHORITATIVE_DATA_REQUIRED', language));
   }
 });
+
+test('Polish and Spanish evidence-audit presentation localizes common generated claims', () => {
+  assert.equal(localizePresentationValue('Terrain & Topography', 'pl'), 'Teren i topografia');
+  assert.equal(localizePresentationValue('Terrain & Topography', 'es'), 'Terreno y topografía');
+  assert.match(localizePresentationValue('Mean elevation 159 m a.s.l. with slope gradient of 1.1° (Flat (0-2°))', 'pl'), /Średnia wysokość 159 m n\.p\.m\./);
+  assert.match(localizePresentationValue('Mean elevation 656 m a.s.l. with slope gradient of 1.1° (Flat (0-2°))', 'es'), /Altitud media 656 m/);
+  assert.match(localizePresentationValue('Soil Texture: Sandy Loam (Sand 65.4%, Silt 25.7%, Clay 8.9%, Mean Density 1.28 g\/cm³, pH 6.1) [MODELLED]', 'pl'), /Tekstura gleby: glina piaszczysta/);
+  assert.match(localizePresentationValue('Soil Texture: Loam (Sand 31.6%, Silt 46.9%, Clay 21.6%, Mean Density 1.43 g\/cm³, pH 7.7) [MODELLED]', 'es'), /Textura del suelo: franco/);
+  assert.match(localizePresentationValue('Kamień Spatial Planning Authority (MPZP)', 'pl'), /właściwy organ planowania przestrzennego/);
+  assert.match(localizePresentationValue('La Guardia competent local planning authority', 'es'), /autoridad urbanística competente/);
+});
+test('Polish and Spanish localization covers the remaining report phrases seen in production', () => {
+  const steep = localizePresentationValue('Mean elevation 79 m a.s.l. with slope gradient of 13.5° (Steep (10-20°))', 'pl');
+  assert.match(steep, /Stromy/);
+  assert.doesNotMatch(steep, /Steep/);
+
+  assert.equal(localizePresentationValue('Cadastre & identification', 'pl'), 'Kataster i identyfikacja');
+  assert.equal(localizePresentationValue('Belgian regional routing', 'pl'), 'Belgijski kontekst regionalny');
+  assert.equal(localizePresentationValue('Land market valuation', 'es'), 'Mercado y valor del suelo');
+
+  assert.match(localizePresentationValue('Pedological texture only: Silt Loam (not a geological lithology classification)', 'pl'), /Wyłącznie tekstura gleby/);
+  assert.doesNotMatch(localizePresentationValue('Pedological texture only: Silt Loam (not a geological lithology classification)', 'pl'), /Pedological texture only|not a geological lithology/i);
+
+  assert.match(localizePresentationValue('Belgian federal cadastral mapping identifies parcel 25044B0314\/00H000 with registered area approximately 1,558 m².', 'pl'), /Belgijska federalna mapa katastralna/);
+  assert.match(localizePresentationValue('Walloon geological mapping could not be queried.', 'pl'), /walońskiej mapy geologicznej/);
+  assert.match(localizePresentationValue('The selected coordinate was routed to Walloon official geodata services.', 'pl'), /walońskich serwisów geodanych/);
+
+  const market = localizePresentationValue("Market context only: 62–293 EUR/m². The selected area (154,804 m²) exceeds LandSurf's 50,000 m² total-value calibration guard, so the benchmark is not extrapolated to a whole-site total.", 'es');
+  assert.match(market, /Solo contexto de mercado/);
+  assert.doesNotMatch(market, /Market context only|selected area|whole-site total/i);
+
+  assert.equal(localizePresentationValue('Regional and municipal spatial planning / zoning instrument', 'es'), 'Instrumento regional y municipal de planeamiento y zonificación');
+  assert.match(localizePresentationValue('No generic land-price fallback — calibrated country-specific land evidence required', 'pl'), /Brak ogólnego zastępczego modelu cen gruntu/);
+});

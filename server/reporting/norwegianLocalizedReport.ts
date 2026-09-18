@@ -140,8 +140,14 @@ export function renderNorwegianLocalizedReport(canonical: CanonicalReport): any 
   const roadText = `Nærmeste kartlagte vei: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, omtrent ${shown(canonical.infrastructure.distanceM)} m fra stedet.`;
   const environmentText = canonical.environment.protectedAreaName ? `Miljøscreeningen identifiserte ${canonical.environment.protectedAreaName}.` : 'Ingen verneområdefunksjon ble returnert i den åpne miljøscreeningen for søkeområdet.';
 
+  const planningAuthority = String(canonical.planning.authorityName || 'Kommunens planmyndighet')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 – kommunens planmyndighet')
+    .replace(/competent planning \/ building authority/gi, 'kommunens plan- og byggmyndighet');
+  const planningSource = String(canonical.planning.sourceName || planningAuthority)
+    .replace(/^(.+?) Spatial Planning Authority/i, '$1 – kommunens planmyndighet')
+    .replace(/Spatial Planning Authority/gi, 'kommunens planmyndighet');
   const checklist = [
-    ['Arealplan og byggevilkår', 'Kontroller gjeldende kommuneplan/reguleringsplan og bindende byggevilkår hos kommunen.', canonical.planning.authorityName],
+    ['Arealplan og byggevilkår', 'Kontroller gjeldende kommuneplan/reguleringsplan og bindende byggevilkår hos kommunen.', planningAuthority],
     ['Geoteknisk grunnundersøkelse', 'Bestill stedsspesifikk geoteknisk undersøkelse etter Eurokode 7; bruk NADAG som bakgrunn, ikke som erstatning.', canonical.authorities.geology],
     ['Flom- og skredfare', 'Kontroller NVE Atlas og relevante aktsomhets-/farekart; bestill detaljert vurdering når screening eller tiltaksklasse krever det.', canonical.authorities.flood],
     ['Eiendomsgrenser og rettigheter', 'Kontroller Matrikkelen/Grunnboken og få grensene faglig avklart dersom presisjon er viktig for tiltaket.', canonical.authorities.cadastre],
@@ -178,7 +184,7 @@ export function renderNorwegianLocalizedReport(canonical: CanonicalReport): any 
       soil_and_ground: section(soilText, groundDetail, canonical.geology.status === 'VERIFIED' ? 'VERIFIED' : canonical.soil.status, canonical.geology.sourceName, 'Kartlagte løsmasser og nærliggende undersøkelser erstatter ikke geoteknisk undersøkelse på tomten.'),
       geohazard_risk: section(geologyText, `${groundSpecific.find(text => text.includes('marin leire')) || ''} ${groundSpecific.find(text => text.includes('radon')) || ''}`.trim() || reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.geology.status, canonical.geology.sourceName, 'NVE-skredfare og andre bindende farevurderinger må kontrolleres separat.'),
       flooding_risk: section(floodText, 'Kontroller NVE Atlas og gjeldende flomaktsomhets-/farekart før areal- eller byggevedtak.', 'REQUIRES_VERIFICATION', canonical.authorities.flood, reason('AUTHORITATIVE_DATA_REQUIRED')),
-      zoning_and_land_use: section(`Arealplanstatus må bekreftes etter ${canonical.planning.instrumentName}.`, 'Kontroller kommunens digitale planregister, plankart, bestemmelser og eventuelle hensynssoner.', canonical.planning.status, canonical.planning.sourceName, reason(canonical.planning.reasonCode)),
+      zoning_and_land_use: section(`Arealplanstatus må bekreftes etter ${canonical.planning.instrumentName}.`, 'Kontroller kommunens digitale planregister, plankart, bestemmelser og eventuelle hensynssoner.', canonical.planning.status, planningSource, reason(canonical.planning.reasonCode)),
       building_regulations: section(cadastreSpecific[0] || reason('AUTHORITATIVE_DATA_REQUIRED'), parcelDetail, cadastreSpecific.length ? 'VERIFIED' : 'REQUIRES_VERIFICATION', canonical.authorities.cadastre, 'Matrikkeldata dokumenterer registerkontekst, ikke automatisk eierskap, juridisk grense eller byggerett.'),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.environment.status, canonical.environment.sourceName, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : undefined),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.infrastructure.status, canonical.infrastructure.sourceName, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : undefined),

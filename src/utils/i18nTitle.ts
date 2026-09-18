@@ -137,6 +137,26 @@ const FRONT_PAGE_DICTIONARY: Record<string, Partial<FrontPageI18n>> = {
   }
 };
 
+const TAGLINES: Record<string, string> = {
+  en: 'Understand the land. Compare your options. Know what to check next.',
+  de: 'Verstehen Sie das Grundstück. Vergleichen Sie Ihre Optionen. Erfahren Sie, was als Nächstes zu prüfen ist.',
+  pl: 'Poznaj teren. Porównaj możliwości. Dowiedz się, co sprawdzić dalej.',
+  nl: 'Begrijp het perceel. Vergelijk uw opties. Weet wat u vervolgens moet controleren.',
+  cs: 'Poznejte pozemek. Porovnejte možnosti. Zjistěte, co ověřit jako další.',
+  da: 'Forstå grunden. Sammenlign mulighederne. Se, hvad der skal kontrolleres næste gang.',
+  no: 'Forstå tomten. Sammenlign alternativene. Se hva du bør kontrollere videre.',
+  sv: 'Förstå tomten. Jämför alternativen. Se vad du bör kontrollera härnäst.',
+  sk: 'Spoznajte pozemok. Porovnajte možnosti. Zistite, čo treba overiť ďalej.',
+  fr: 'Comprenez le terrain. Comparez vos options. Sachez quoi vérifier ensuite.',
+  es: 'Comprenda la parcela. Compare sus opciones. Sepa qué comprobar a continuación.',
+  fi: 'Ymmärrä tontti. Vertaa vaihtoehtoja. Tiedä, mitä tarkistaa seuraavaksi.'
+};
+
+export function getLocalizedTagline(langCode?: string): string {
+  const code = (langCode || getBrowserLanguage()).toLowerCase().split('-')[0];
+  return TAGLINES[code] || TAGLINES.en;
+}
+
 export function getFrontPageI18n(langCode?: string): FrontPageI18n {
   const code = (langCode || getBrowserLanguage()).toLowerCase().split("-")[0];
   const custom = FRONT_PAGE_DICTIONARY[code] || {};

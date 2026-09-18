@@ -95,14 +95,106 @@ export function localizePresentationValue(value: unknown, language: string): str
   const knownPhrases: Record<PresentationLanguage, Record<string, string>> = {
     en: { 'LOW TO VERY LOW': 'Low to very low', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'SoilGrids texture unavailable', FARMLAND: 'Farmland', RESIDENTIAL: 'Residential', FOREST: 'Forest', MEADOW: 'Meadow', ORCHARD: 'Orchard', INDUSTRIAL: 'Industrial', COMMERCIAL: 'Commercial', CONSTRUCTION: 'Construction site', BROWNFIELD: 'Brownfield', QUARRY: 'Quarry / extraction area', GRASS: 'Grassland', RETAIL: 'Retail', ALLOTMENTS: 'Allotments', VINEYARD: 'Vineyard', FARMYARD: 'Farmyard', RECREATION_GROUND: 'Recreation ground', MILITARY: 'Military area', CEMETERY: 'Cemetery', LANDFILL: 'Landfill', GREENFIELD: 'Greenfield', RAILWAY: 'Railway land' },
     de: { 'LOW TO VERY LOW': 'Gering bis sehr gering', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'SoilGrids-Textur nicht verfügbar', FARMLAND: 'Acker- und Landwirtschaftsfläche', RESIDENTIAL: 'Wohngebiet', FOREST: 'Wald', MEADOW: 'Wiese', ORCHARD: 'Obstanlage', INDUSTRIAL: 'Industriegebiet', COMMERCIAL: 'Gewerbegebiet', CONSTRUCTION: 'Baustelle', BROWNFIELD: 'Brach-/Konversionsfläche', QUARRY: 'Steinbruch / Abbaufläche', GRASS: 'Grünland', RETAIL: 'Einzelhandelsgebiet', ALLOTMENTS: 'Kleingärten', VINEYARD: 'Weinberg', FARMYARD: 'Hof-/Betriebsfläche', RECREATION_GROUND: 'Freizeitfläche', MILITARY: 'Militärgelände', CEMETERY: 'Friedhof', LANDFILL: 'Deponie', GREENFIELD: 'Unbebaute Entwicklungsfläche', RAILWAY: 'Bahnfläche' },
-    pl: { 'LOW TO VERY LOW': 'Niskie do bardzo niskiego', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'Tekstura SoilGrids jest niedostępna', FARMLAND: 'grunty rolne', RESIDENTIAL: 'zabudowa mieszkaniowa', FOREST: 'las', MEADOW: 'łąka', ORCHARD: 'sad', INDUSTRIAL: 'teren przemysłowy', COMMERCIAL: 'teren usługowo-handlowy', CONSTRUCTION: 'teren budowy', BROWNFIELD: 'teren poprzemysłowy / zdegradowany', QUARRY: 'kamieniołom / obszar wydobywczy', GRASS: 'teren trawiasty', RETAIL: 'teren handlowy', ALLOTMENTS: 'ogródki działkowe', VINEYARD: 'winnica', FARMYARD: 'teren gospodarstwa', RECREATION_GROUND: 'teren rekreacyjny', MILITARY: 'teren wojskowy', CEMETERY: 'cmentarz', LANDFILL: 'składowisko odpadów', GREENFIELD: 'niezabudowany teren rozwojowy', RAILWAY: 'teren kolejowy' },
+    pl: { 'LOW TO VERY LOW': 'Niskie do bardzo niskiego', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'Tekstura SoilGrids jest niedostępna', 'SANDY LOAM':'glina piaszczysta', 'LOAM':'glina', 'CLAY LOAM':'glina ilasta', 'TERRAIN & TOPOGRAPHY':'Teren i topografia', 'CROSS-BORDER HYDROLOGY CONTEXT':'Regionalny kontekst hydrologiczny', 'GEOLOGY & SOIL MECHANICS':'Geologia i mechanika gruntów', 'INFRASTRUCTURE & ACCESS':'Infrastruktura i dostęp', 'ENVIRONMENTAL & CONSERVATION':'Środowisko i ochrona przyrody', 'MARKET VALUATION & ECONOMICS':'Rynek i wycena gruntu', 'PEDOLOGICAL SPATIAL CONTEXT':'Przestrzenny kontekst glebowy', 'MAPPED GEOLOGY':'Geologia kartowana', 'HYDROGEOLOGICAL CONTEXT':'Kontekst hydrogeologiczny', 'GROUND HAZARDS':'Zagrożenia geologiczne', 'CADASTRE & IDENTIFICATION':'Kataster i identyfikacja', 'BELGIAN REGIONAL ROUTING':'Belgijski kontekst regionalny', 'LAND MARKET VALUATION':'Rynek i wartość gruntu', FARMLAND: 'grunty rolne', RESIDENTIAL: 'zabudowa mieszkaniowa', FOREST: 'las', MEADOW: 'łąka', ORCHARD: 'sad', INDUSTRIAL: 'teren przemysłowy', COMMERCIAL: 'teren usługowo-handlowy', CONSTRUCTION: 'teren budowy', BROWNFIELD: 'teren poprzemysłowy / zdegradowany', QUARRY: 'kamieniołom / obszar wydobywczy', GRASS: 'teren trawiasty', RETAIL: 'teren handlowy', ALLOTMENTS: 'ogródki działkowe', VINEYARD: 'winnica', FARMYARD: 'teren gospodarstwa', RECREATION_GROUND: 'teren rekreacyjny', MILITARY: 'teren wojskowy', CEMETERY: 'cmentarz', LANDFILL: 'składowisko odpadów', GREENFIELD: 'niezabudowany teren rozwojowy', RAILWAY: 'teren kolejowy' },
     nl: { 'LOW TO VERY LOW': 'Laag tot zeer laag', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'SoilGrids-textuur niet beschikbaar', FARMLAND: 'Landbouwgrond', RESIDENTIAL: 'Woongebied', FOREST: 'Bos', MEADOW: 'Weide', ORCHARD: 'Boomgaard', INDUSTRIAL: 'Industriegebied', COMMERCIAL: 'Bedrijfs-/commercieel gebied', CONSTRUCTION: 'Bouwterrein', BROWNFIELD: 'Braakliggend / herontwikkelingsgebied', QUARRY: 'Groeve / winningsgebied', GRASS: 'Grasland', RETAIL: 'Winkelgebied', ALLOTMENTS: 'Volkstuinen', VINEYARD: 'Wijngaard', FARMYARD: 'Agrarisch erf', RECREATION_GROUND: 'Recreatieterrein', MILITARY: 'Militair terrein', CEMETERY: 'Begraafplaats', LANDFILL: 'Stortplaats', GREENFIELD: 'Onbebouwd ontwikkelingsgebied', RAILWAY: 'Spoorwegterrein' },
     fr: { 'LOW TO VERY LOW': 'Faible à très faible', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'Texture SoilGrids indisponible', FARMLAND: 'Terres agricoles', RESIDENTIAL: 'Zone résidentielle', FOREST: 'Forêt', MEADOW: 'Prairie', ORCHARD: 'Verger', INDUSTRIAL: 'Zone industrielle', COMMERCIAL: 'Zone commerciale', CONSTRUCTION: 'Chantier', BROWNFIELD: 'Friche', QUARRY: 'Carrière / zone d’extraction', GRASS: 'Prairie herbacée', RETAIL: 'Commerce de détail', ALLOTMENTS: 'Jardins familiaux', VINEYARD: 'Vignoble', FARMYARD: 'Cour agricole', RECREATION_GROUND: 'Zone de loisirs', MILITARY: 'Zone militaire', CEMETERY: 'Cimetière', LANDFILL: 'Décharge', GREENFIELD: 'Terrain non bâti', RAILWAY: 'Emprise ferroviaire' },
-    es: { 'LOW TO VERY LOW': 'Bajo a muy bajo', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'Textura SoilGrids no disponible', FARMLAND: 'Suelo agrícola', RESIDENTIAL: 'Zona residencial', FOREST: 'Bosque', MEADOW: 'Pradera', ORCHARD: 'Huerto', INDUSTRIAL: 'Zona industrial', COMMERCIAL: 'Zona comercial', CONSTRUCTION: 'Obra', BROWNFIELD: 'Suelo previamente desarrollado', QUARRY: 'Cantera / zona de extracción', GRASS: 'Pastizal', RETAIL: 'Comercio', ALLOTMENTS: 'Huertos urbanos', VINEYARD: 'Viñedo', FARMYARD: 'Explotación agrícola', RECREATION_GROUND: 'Zona recreativa', MILITARY: 'Zona militar', CEMETERY: 'Cementerio', LANDFILL: 'Vertedero', GREENFIELD: 'Suelo no desarrollado', RAILWAY: 'Suelo ferroviario' },
+    es: { 'LOW TO VERY LOW': 'Bajo a muy bajo', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'Textura SoilGrids no disponible', 'SANDY LOAM':'franco arenoso', 'LOAM':'franco', 'CLAY LOAM':'franco arcilloso', 'TERRAIN & TOPOGRAPHY':'Terreno y topografía', 'CROSS-BORDER HYDROLOGY CONTEXT':'Contexto hidrológico regional', 'GEOLOGY & SOIL MECHANICS':'Geología y mecánica del suelo', 'INFRASTRUCTURE & ACCESS':'Infraestructura y acceso', 'ENVIRONMENTAL & CONSERVATION':'Medio ambiente y conservación', 'MARKET VALUATION & ECONOMICS':'Mercado y valoración del suelo', 'PEDOLOGICAL SPATIAL CONTEXT':'Contexto edafológico espacial', 'MAPPED GEOLOGY':'Geología cartografiada', 'HYDROGEOLOGICAL CONTEXT':'Contexto hidrogeológico', 'GROUND HAZARDS':'Riesgos geológicos', 'CADASTRE & IDENTIFICATION':'Catastro e identificación', 'BELGIAN REGIONAL ROUTING':'Contexto regional belga', 'LAND MARKET VALUATION':'Mercado y valor del suelo', FARMLAND: 'Suelo agrícola', RESIDENTIAL: 'Zona residencial', FOREST: 'Bosque', MEADOW: 'Pradera', ORCHARD: 'Huerto', INDUSTRIAL: 'Zona industrial', COMMERCIAL: 'Zona comercial', CONSTRUCTION: 'Obra', BROWNFIELD: 'Suelo previamente desarrollado', QUARRY: 'Cantera / zona de extracción', GRASS: 'Pastizal', RETAIL: 'Comercio', ALLOTMENTS: 'Huertos urbanos', VINEYARD: 'Viñedo', FARMYARD: 'Explotación agrícola', RECREATION_GROUND: 'Zona recreativa', MILITARY: 'Zona militar', CEMETERY: 'Cementerio', LANDFILL: 'Vertedero', GREENFIELD: 'Suelo no desarrollado', RAILWAY: 'Suelo ferroviario' },
     fi: { 'LOW TO VERY LOW': 'Matala tai erittäin matala', 'ISRIC SOIL TEXTURE NOT AVAILABLE': 'SoilGrids-tekstuuria ei saatavilla', FARMLAND: 'Maatalousmaa', RESIDENTIAL: 'Asuinalue', FOREST: 'Metsä', MEADOW: 'Niitty', ORCHARD: 'Hedelmäviljelmä', INDUSTRIAL: 'Teollisuusalue', COMMERCIAL: 'Liikealue', CONSTRUCTION: 'Rakennustyömaa', BROWNFIELD: 'Aiemmin rakennettu / uudistettava alue', QUARRY: 'Louhos / ottoalue', GRASS: 'Nurmialue', RETAIL: 'Vähittäiskaupan alue', ALLOTMENTS: 'Siirtolapuutarha', VINEYARD: 'Viinitarha', FARMYARD: 'Maatilan piha', RECREATION_GROUND: 'Virkistysalue', MILITARY: 'Sotilasalue', CEMETERY: 'Hautausmaa', LANDFILL: 'Kaatopaikka', GREENFIELD: 'Rakentamaton kehitysalue', RAILWAY: 'Rautatiealue' }
   };
   const known = knownPhrases[locale][text.toUpperCase()];
   if (known) return known;
+
+  const meanElevation = text.match(/^Mean elevation ([\d.,-]+) m a\.s\.l\. with slope gradient of ([\d.,-]+)° \((.+)\)$/i);
+  if (meanElevation && locale === 'pl') return `Średnia wysokość ${meanElevation[1]} m n.p.m. przy nachyleniu ${meanElevation[2]}° (${meanElevation[3].replace(/^Flat/i,'Płaski').replace(/^Gentle/i,'Łagodny').replace(/^Moderate/i,'Umiarkowany').replace(/^Steep/i,'Stromy').replace(/^Very steep/i,'Bardzo stromy')})`;
+  if (meanElevation && locale === 'es') return `Altitud media ${meanElevation[1]} m s. n. m. con una pendiente de ${meanElevation[2]}° (${meanElevation[3].replace(/^Flat/i,'Plano').replace(/^Gentle/i,'Suave').replace(/^Moderate/i,'Moderada').replace(/^Steep/i,'Pronunciada').replace(/^Very steep/i,'Muy pronunciada')})`;
+
+  const soilClaim = text.match(/^Soil Texture: (.+?) \(Sand ([\d.,]+)%, Silt ([\d.,]+)%, Clay ([\d.,]+)%, Mean Density ([\d.,]+) g\/cm³, pH ([\d.,]+)\) \[MODELLED\]$/i);
+  if (soilClaim && locale === 'pl') return `Tekstura gleby: ${localizePresentationValue(soilClaim[1], 'pl')} (piasek ${soilClaim[2]}%, pył ${soilClaim[3]}%, ił ${soilClaim[4]}%, średnia gęstość ${soilClaim[5]} g/cm³, pH ${soilClaim[6]}) [MODELOWANE]`;
+  if (soilClaim && locale === 'es') return `Textura del suelo: ${localizePresentationValue(soilClaim[1], 'es')} (arena ${soilClaim[2]}%, limo ${soilClaim[3]}%, arcilla ${soilClaim[4]}%, densidad media ${soilClaim[5]} g/cm³, pH ${soilClaim[6]}) [MODELADO]`;
+
+  if (/^Hydrology proximity data is not available because the spatial query did not complete/i.test(text)) {
+    if (locale === 'pl') return 'Dane o bliskości elementów hydrologicznych są niedostępne, ponieważ zapytanie przestrzenne nie zostało ukończone. Nie wyprowadzono klasy ryzyka powodziowego.';
+    if (locale === 'es') return 'Los datos de proximidad hidrológica no están disponibles porque la consulta espacial no se completó. No se dedujo ninguna clasificación de riesgo de inundación.';
+  }
+  if (/^Nearest public road corridor unconfirmed in open dataset$/i.test(text)) {
+    if (locale === 'pl') return 'Najbliższy korytarz drogi publicznej nie został potwierdzony w otwartym zbiorze danych.';
+    if (locale === 'es') return 'No se confirmó el corredor viario público más cercano en el conjunto de datos abierto.';
+  }
+  if (/^Environmental spatial query unavailable; no protected-area overlap or distance conclusion was inferred\.?$/i.test(text)) {
+    if (locale === 'pl') return 'Zapytanie przestrzenne dotyczące środowiska było niedostępne; nie wyprowadzono wniosku o przecięciu z obszarem chronionym ani o odległości.';
+    if (locale === 'es') return 'La consulta espacial ambiental no estuvo disponible; no se dedujo ninguna conclusión sobre solapamiento o distancia respecto de áreas protegidas.';
+  }
+  const soilSamples = text.match(/^SoilGrids returned (\d+) usable model samples across the selected geometry and vicinity\.?$/i);
+  if (soilSamples) {
+    if (locale === 'pl') return `SoilGrids zwrócił ${soilSamples[1]} użytecznych próbek modelowych dla wybranej geometrii i jej otoczenia.`;
+    if (locale === 'es') return `SoilGrids devolvió ${soilSamples[1]} muestras de modelo utilizables para la geometría seleccionada y su entorno.`;
+  }
+
+  const pedologicalTexture = text.match(/^Pedological texture only: (.+?) \(not a geological lithology classification\)$/i);
+  if (pedologicalTexture && locale === 'pl') return `Wyłącznie tekstura gleby: ${localizePresentationValue(pedologicalTexture[1], 'pl')} (nie jest to klasyfikacja litologii geologicznej)`;
+  if (pedologicalTexture && locale === 'es') return `Solo textura edafológica: ${localizePresentationValue(pedologicalTexture[1], 'es')} (no es una clasificación litológica geológica)`;
+
+  const belgianCadastre = text.match(/^Belgian federal cadastral mapping identifies parcel (.+?)(?: with registered area approximately (.+?) m²)?\.$/i);
+  if (belgianCadastre && locale === 'pl') return belgianCadastre[2]
+    ? `Belgijska federalna mapa katastralna wskazuje działkę ${belgianCadastre[1]} o zarejestrowanej powierzchni około ${belgianCadastre[2]} m².`
+    : `Belgijska federalna mapa katastralna wskazuje działkę ${belgianCadastre[1]}.`;
+  if (belgianCadastre && locale === 'es') return belgianCadastre[2]
+    ? `La cartografía catastral federal belga identifica la parcela ${belgianCadastre[1]} con una superficie registrada aproximada de ${belgianCadastre[2]} m².`
+    : `La cartografía catastral federal belga identifica la parcela ${belgianCadastre[1]}.`;
+
+  if (/^Walloon geological mapping could not be queried\.?$/i.test(text)) {
+    if (locale === 'pl') return 'Nie udało się pobrać danych z walońskiej mapy geologicznej.';
+    if (locale === 'es') return 'No se pudo consultar la cartografía geológica de Valonia.';
+  }
+  if (/^The selected coordinate was routed to Walloon official geodata services\.?$/i.test(text)) {
+    if (locale === 'pl') return 'Wybraną lokalizację przypisano do oficjalnych walońskich serwisów geodanych.';
+    if (locale === 'es') return 'La ubicación seleccionada se asignó a los servicios oficiales de geodatos de Valonia.';
+  }
+  if (/^The selected coordinate was routed to Flemish official geodata services\.?$/i.test(text)) {
+    if (locale === 'pl') return 'Wybraną lokalizację przypisano do oficjalnych flamandzkich serwisów geodanych.';
+    if (locale === 'es') return 'La ubicación seleccionada se asignó a los servicios oficiales de geodatos de Flandes.';
+  }
+
+  const marketContext = text.match(/^Market\s+context only: (.+?)\. The selected area \((.+?) m²\) exceeds LandSurf's ([\d,]+) m² total-value calibration guard, so the benchmark is not extrapolated to a whole-site total\.$/i);
+  if (marketContext && locale === 'pl') return `Wyłącznie kontekst rynkowy: ${marketContext[1]}. Wybrana powierzchnia (${marketContext[2]} m²) przekracza limit kalibracji LandSurf wynoszący ${marketContext[3].replace(',', ' ')} m², dlatego wskaźnik nie jest ekstrapolowany do łącznej wartości całego terenu.`;
+  if (marketContext && locale === 'es') return `Solo contexto de mercado: ${marketContext[1]}. El área seleccionada (${marketContext[2]} m²) supera el límite de calibración de LandSurf de ${marketContext[3].replace(',', '.')} m², por lo que la referencia no se extrapola al valor total del terreno.`;
+
+  if (text === 'Regional and municipal spatial planning / zoning instrument') {
+    if (locale === 'pl') return 'Regionalny i gminny instrument planowania przestrzennego';
+    if (locale === 'es') return 'Instrumento regional y municipal de planeamiento y zonificación';
+  }
+  if (text === 'No generic land-price fallback — calibrated country-specific land evidence required') {
+    if (locale === 'pl') return 'Brak ogólnego zastępczego modelu cen gruntu — wymagane są skalibrowane dane właściwe dla danego kraju';
+    if (locale === 'es') return 'Sin modelo genérico sustitutivo de precios del suelo — se requieren datos calibrados específicos del país';
+  }
+
+  if (/^Indicative Valuation Benchmark:/i.test(text)) {
+    if (locale === 'pl') return text
+      .replace(/^Indicative Valuation Benchmark:/i, 'Orientacyjny benchmark wartości:')
+      .replace(/\[0 Direct Comparable Deeds Verified\]/gi, '[0 zweryfikowanych bezpośrednich transakcji porównawczych]')
+      .replace(/voivodeship transaction benchmark with parcel-size, road-access and terrain adjustments; no generic municipality uplift/gi, 'benchmark transakcyjny województwa z korektami powierzchni działki, dostępu drogowego i terenu; bez ogólnej korekty gminnej')
+      .replace(/Automated statistical estimate without direct deed verification\./gi, 'Automatyczna estymacja statystyczna bez bezpośredniej weryfikacji aktów transakcyjnych.')
+      .replace(/A land-price benchmark does not establish parcel buildability\./gi, 'Benchmark cen gruntu nie potwierdza możliwości zabudowy działki.')
+      .replace(/A professional appraisal requires current local comparable evidence and a suitably qualified valuer\./gi, 'Profesjonalna wycena wymaga aktualnych lokalnych danych porównawczych i odpowiednio wykwalifikowanego rzeczoznawcy.');
+    if (locale === 'es') return text
+      .replace(/^Indicative Valuation Benchmark:/i, 'Referencia indicativa de valoración:')
+      .replace(/\[0 Direct Comparable Deeds Verified\]/gi, '[0 compraventas comparables directas verificadas]');
+  }
+  if (/^Lithogenetic Map of Poland \(MLP\): approved source route could not be validated\.?$/i.test(text) && locale === 'pl') return 'Mapa Litogenetyczna Polski (MLP): nie udało się zweryfikować zatwierdzonej ścieżki dostępu do źródła.';
+  if (/^SoilGrids 2\.0 — 250 m raster; available mean depth values$/i.test(text)) {
+    if (locale === 'pl') return 'SoilGrids 2.0 — raster 250 m; dostępne średnie wartości dla głębokości';
+    if (locale === 'es') return 'SoilGrids 2.0 — ráster de 250 m; valores medios disponibles por profundidad';
+  }
+
+  let localized = text;
+  if (locale === 'pl') localized = localized
+    .replace(/^(.+?) Spatial Planning Authority/i, '$1 — właściwy organ planowania przestrzennego')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 — właściwy organ planowania przestrzennego');
+  if (locale === 'es') localized = localized
+    .replace(/^(.+?) Spatial Planning Authority/i, '$1 — autoridad de planeamiento')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 — autoridad urbanística competente');
+  if (localized !== text) return localized;
+
   const composite = text.match(/^(.*)\((Low to Very Low|Low|Moderate|High)\)(.*)$/i);
   if (composite) return `${composite[1]}(${knownPhrases[locale][composite[2].toUpperCase()] || enumLabels[locale][composite[2].toUpperCase() as keyof typeof enumLabels.en] || composite[2]})${composite[3]}`;
   return text.replace(/<\/?svg\b[^>]*>/gi, '').replace(/\bsvg\b/gi, '').trim();

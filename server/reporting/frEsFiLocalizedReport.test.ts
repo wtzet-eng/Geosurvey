@@ -53,3 +53,13 @@ test('Spanish report preserves source findings and does not call an unavailable 
   assert.equal(environmentRecord.sourceName, 'OpenStreetMap Overpass');
   assert.match(environmentRecord.claim, /no est[aá] disponible|no se pudo alcanzar/i);
 });
+
+test('Spanish planning source and authority labels are localized', () => {
+  const canonical = canonicalFixture('ES', 'Spain');
+  canonical.planning.authorityName = 'La Guardia competent local planning authority';
+  canonical.planning.sourceName = 'La Guardia Spatial Planning Authority (PGOU)';
+  const report = renderFrEsFiLocalizedReport(canonical, 'es');
+  const text = JSON.stringify({ planning: report.sections.zoning_and_land_use, building: report.sections.building_regulations, checklist: report.verificationChecklist });
+  assert.doesNotMatch(text, /Spatial Planning Authority|competent local planning authority/i);
+  assert.match(text, /autoridad de planeamiento|autoridad urbanística competente/i);
+});

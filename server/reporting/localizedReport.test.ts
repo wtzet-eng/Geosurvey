@@ -174,3 +174,12 @@ test('ground context never turns mapped variability into design parameters', () 
   for (const field of ['bearingCapacity', 'frictionAngle', 'cohesion', 'settlement', 'foundationRecommendation', 'designGroundwater', 'hydraulicConductivity', 'boundaryDistance']) assert.equal(field in rendered, false);
   assert.match(String(rendered.limitation), /screening evidence only/i);
 });
+test('Polish planning source and authority labels do not leak English fallback phrases', () => {
+  const canonical = createCanonicalReport(fixture('PL', 'Niecka Mazowiecka'), getCountryProfile('PL'));
+  canonical.planning.authorityName = 'Kamień competent local planning authority';
+  canonical.planning.sourceName = 'Kamień Spatial Planning Authority (MPZP)';
+  const report = renderLocalizedReport(canonical, 'pl');
+  const text = JSON.stringify({ planning: report.sections.zoning_and_land_use, building: report.sections.building_regulations });
+  assert.doesNotMatch(text, /Spatial Planning Authority|competent local planning authority/i);
+  assert.match(text, /właściwy organ planowania przestrzennego/i);
+});

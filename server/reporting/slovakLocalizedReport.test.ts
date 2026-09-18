@@ -79,3 +79,13 @@ test('Slovak unavailable road and environment do not render false negative findi
   assert.match(report.sections.infrastructure_and_access.summary, /nedostupný|nepodarilo pripojiť/i);
   assert.doesNotMatch(report.sections.environmental_factors.summary, /nebol.*identifikovaný prvok chráneného územia/i);
 });
+
+test('Slovak planning authority labels do not leak English fallback phrases', () => {
+  const fixture = canonicalFixture();
+  fixture.planning.authorityName = 'Strelníky competent local planning authority';
+  fixture.planning.sourceName = 'Strelníky Spatial Planning Authority (ÚPN)';
+  const report = renderSlovakLocalizedReport(fixture);
+  const text = JSON.stringify({ planning: report.sections.zoning_and_land_use, building: report.sections.building_regulations, checklist: report.verificationChecklist });
+  assert.doesNotMatch(text, /Spatial Planning Authority|competent local planning authority/i);
+  assert.match(text, /orgán územného plánovania/i);
+});
