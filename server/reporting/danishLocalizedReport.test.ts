@@ -5,8 +5,8 @@ import { renderDanishLocalizedReport } from './danishLocalizedReport';
 function canonicalFixture(): any {
   return {
     countryCode: 'DK', countryName: 'Denmark',
-    support: { countryCode: 'DK', maturity: 'LIMITED', capabilities: { nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true, nationalFlood: false, nationalPlanning: true, nationalValuation: false, nationalRadon: false, nationalMining: false } },
-    authorities: { cadastre: 'Dataforsyningen / Geodatastyrelsen', geology: 'GEUS', flood: 'Relevant dansk/kommunal myndighed', planning: 'Københavns Kommune', valuation: 'Ingen understøttet automatisk kilde' },
+    support: { countryCode: 'DK', maturity: 'LIMITED', capabilities: { nationalCadastre: true, nationalGeology: false, nationalBoreholes: true, nationalHydrogeology: true, nationalFlood: false, nationalPlanning: true, nationalValuation: false, nationalRadon: false, nationalMining: false } },
+    authorities: { cadastre: 'Klimadatastyrelsen / Datafordeleren — Matriklen2', geology: 'GEUS / Jupiter', flood: 'Relevant dansk/kommunal myndighed', planning: 'Københavns Kommune', valuation: 'Ingen understøttet automatisk kilde' },
     geology: { unitName: null, lithology: null, geologicalAge: null, groundwaterRegime: null, status: 'REQUIRES_VERIFICATION', sourceName: 'GEUS', sourceUrl: 'https://data.geus.dk/geusmap/', reasonCode: 'PARAMETER_NOT_PROVIDED' },
     groundContext: { mapped: null, soilVariability: null, status: 'REQUIRES_VERIFICATION', reasonCode: 'INSUFFICIENT_EVIDENCE' },
     terrain: { elevationM: 12, minElevationM: 10, maxElevationM: 14, localReliefM: 4, slopeDegrees: 1.8, slopePercent: 3.1, aspectCode: 'E', status: 'MODELLED' },
@@ -27,8 +27,7 @@ function canonicalFixture(): any {
     sourceRecords: [{ name: 'GEUS', url: 'https://data.geus.dk/geusmap/', type: 'Geological Survey', status: 'VERIFIED' }],
     evidenceRecords: [
       { id: 'terrain-elevation-slope', category: 'Terrain & Topography', claim: 'raw English terrain claim', status: 'MODELLED', sourceName: 'Copernicus DEM', sourceUrl: 'https://example.test/dem', datasetDate: '2026-09-13', spatialRelationship: 'site', calculationMethod: 'model', confidence: 'Medium', limitation: 'screening only' },
-      { id: 'dk-dawa-cadastre', category: 'Cadastre', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'DAWA', sourceUrl: 'https://api.dataforsyningen.dk/', datasetDate: '2026-09-13', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { parcelId: 'Test By 12a', registeredAreaM2: 845 } },
-      { id: 'dk-geus-surface-geology', category: 'Mapped superficial geology', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'GEUS Jordartskort', sourceUrl: 'https://data.geus.dk/', datasetDate: '2026-02-09', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { deposit: 'moræneler', scale: '1:25.000' } },
+      { id: 'dk-datafordeler-cadastre', category: 'Cadastre', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'Datafordeleren — Matriklen2', sourceUrl: 'https://datafordeler.dk/', datasetDate: '2026-09-13', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { parcelId: '2000176 12a', registeredAreaM2: 845 } },
       { id: 'dk-jupiter-boreholes', category: 'Nearby boreholes', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'GEUS Jupiter', sourceUrl: 'https://data.geus.dk/', datasetDate: '2026-09-13', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { count: 4, nearestDistanceM: 120 } },
       { id: 'dk-jupiter-groundwater', category: 'Groundwater observations', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'GEUS Jupiter', sourceUrl: 'https://data.geus.dk/', datasetDate: '2026-09-13', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { count: 2, nearestDistanceM: 850 } },
       { id: 'dk-plandata-localplan', category: 'Planning', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'Plandata.dk', sourceUrl: 'https://geoserver.plandata.dk/', datasetDate: '2024-06-01', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { count: 1, plans: [{ planNumber: 'LP-42', name: 'Boligområde ved Testvej', municipality: 'København' }] } }
@@ -41,8 +40,9 @@ test('Denmark renders Danish national evidence without English core report leaka
   assert.equal(report.language, 'da');
   assert.equal(report.titles.executive_summary, 'Sammenfatning');
   assert.match(report.summary, /Danmark/);
-  assert.match(report.sections.soil_and_ground.detail, /GEUS Jordartskort/i);
   assert.match(report.sections.soil_and_ground.detail, /Jupiter/i);
+  assert.doesNotMatch(report.sections.soil_and_ground.detail, /GEUS Jordartskort:/i);
+  assert.match(report.countrySupport.notice, /Jordartskort.*ikke automatiseret/i);
   assert.match(report.sections.zoning_and_land_use.summary, /Plandata\.dk/i);
   assert.match(report.sections.market_and_comparables.detail, /Bygninger.*udelukket/i);
   assert.equal(report.utilitiesChecklist[0].utility, 'Vand');
@@ -90,3 +90,5 @@ test('Denmark unavailable road and environment do not render false negative find
   assert.match(report.sections.infrastructure_and_access.summary, /utilgængelig|kunne ikke nås/i);
   assert.doesNotMatch(report.sections.environmental_factors.summary, /ikke identificeret et beskyttet område/i);
 });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
