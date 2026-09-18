@@ -313,5 +313,3 @@ export function applyDenmarkCadastreToReport(report: any, result: DenmarkCadastr
 }
 
 export const DENMARK_CADASTRE_SOURCE = { sourceName: SOURCE_NAME, serviceUrl: BASE, portalUrl: PORTAL };
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
