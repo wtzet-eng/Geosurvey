@@ -182,9 +182,10 @@ export function renderDutchLocalizedReport(canonical: CanonicalReport): any {
   }));
 
   const dataSources = canonical.sourceRecords.map(source => ({ name: source.name, url: source.url, authority: source.name, verification_status: statusLabel[source.status] }));
+  const countryName = canonical.countryCode === 'BE' ? 'België' : canonical.countryName;
   const summaryCore = valuationAvailable
-    ? `Deze evidence-first beoordeling betreft een locatie in ${canonical.countryName}. Geologische eenheid: ${geologyUnit}. ${terrainText} Bodem: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Bewijskwaliteit: ${canonical.evidenceScore.totalScore}/100. De statistische grondwaardebandbreedte is ${canonical.valuation.min!.toLocaleString('nl-NL')}–${canonical.valuation.max!.toLocaleString('nl-NL')} ${canonical.valuation.currency}.`
-    : `Deze evidence-first beoordeling betreft een locatie in ${canonical.countryName}. Geologische eenheid: ${geologyUnit}. ${terrainText} Bodem: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Bewijskwaliteit: ${canonical.evidenceScore.totalScore}/100. Er wordt geen automatische grondwaarde weergegeven omdat onvoldoende ondersteund nationaal waarderingsbewijs beschikbaar is.`;
+    ? `Deze evidence-first beoordeling betreft een locatie in ${countryName}. Geologische eenheid: ${geologyUnit}. ${terrainText} Bodem: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. De statistische grondwaardebandbreedte is ${canonical.valuation.min!.toLocaleString('nl-NL')}–${canonical.valuation.max!.toLocaleString('nl-NL')} ${canonical.valuation.currency}.`
+    : `Deze evidence-first beoordeling betreft een locatie in ${countryName}. Geologische eenheid: ${geologyUnit}. ${terrainText} Bodem: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Er wordt geen automatische grondwaarde weergegeven omdat onvoldoende ondersteund nationaal waarderingsbewijs beschikbaar is.`;
 
   const groundDetail = `Bindende informatie moet door de bevoegde instantie worden bevestigd. ${contextSummary} ${investigationFocus}`;
   const section = (summary: string, detail: string, status: string, source?: string, limitation?: string) => ({ summary, detail, evidence_level: status, source_cited: source, limitation_notice: limitation });

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SiteReport } from '../types';
+import { localizeAspect } from '../i18n/aspectI18n';
 import { MapPreview } from './MapPreview';
 import { EmbedModal } from './EmbedModal';
 import { GoogleDriveModal } from './GoogleDriveModal';
@@ -15,22 +16,32 @@ const status = (value: unknown) => {
 };
 
 const present = (value: unknown, fallback = 'údaj nie je k dispozícii') => value === null || value === undefined || value === '' || Number.isNaN(value) ? fallback : String(value);
+export const localizeSlovakAspect = (value: unknown) => localizeAspect(value, 'sk', 'údaj nie je k dispozícii');
 
-const Section: React.FC<{ number: string; title: string; section?: any; children?: React.ReactNode }> = ({ number, title, section, children }) => (
+const normalized = (value: unknown) => String(value || '').trim().replace(/\s+/g, ' ').replace(/[.]+$/, '').toLowerCase();
+
+const Section: React.FC<{ number: string; title: string; section?: any; children?: React.ReactNode }> = ({ number, title, section, children }) => {
+  const summary = section?.summary?.trim();
+  const detail = section?.detail?.trim();
+  const limitation = section?.limitation_notice?.trim();
+  const showDetail = Boolean(detail && normalized(detail) !== normalized(summary));
+  const showLimitation = Boolean(limitation && normalized(limitation) !== normalized(summary) && normalized(limitation) !== normalized(detail));
+  return (
   <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
     <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
       <div><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Sekcia {number}</div><h2 className="text-base sm:text-lg font-bold text-slate-950">{title}</h2></div>
       <span className="text-[10px] font-bold rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">{status(section?.evidence_level)}</span>
     </div>
     <div className="p-6 space-y-4">
-      {section?.summary && <div className="text-sm leading-relaxed text-slate-700 font-medium">{section.summary}</div>}
-      {section?.detail && <div className="text-xs sm:text-sm leading-relaxed text-slate-600 whitespace-pre-line">{section.detail}</div>}
+      {summary && <div className="text-sm leading-relaxed text-slate-700 font-medium">{summary}</div>}
+      {showDetail && <div className="text-xs sm:text-sm leading-relaxed text-slate-600 whitespace-pre-line">{detail}</div>}
       {children}
-      {section?.limitation_notice && <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"><strong>Obmedzenie:</strong> {section.limitation_notice}</div>}
+      {showLimitation && <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"><strong>Obmedzenie:</strong> {limitation}</div>}
       {section?.source_cited && <div className="text-[11px] text-slate-400 flex items-center gap-1.5"><Database className="h-3.5 w-3.5" />Zdroj použitý v analýze: {section.source_cited}</div>}
     </div>
   </section>
-);
+  );
+};
 
 const Metric: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"><div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">{label}</div><div className="mt-1 text-sm sm:text-base font-bold text-slate-900 break-words">{value}</div></div>;
 
@@ -79,7 +90,7 @@ export const ReportViewSlovak: React.FC<Props> = ({ report, onBack }) => {
         <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Predbežné posúdenie lokality</h1>
         <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{data.summary || 'Posúdenie vychádza z údajov, ktoré sa pre túto lokalitu podarilo získať. Pôvod a obmedzenia údajov sú uvedené v registri dôkazov.'}</p>
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Skóre dôkazov" value={data.evidence_score ? `${data.evidence_score.totalScore}/100` : 'nehodnotené'} />
+          <Metric label="Stav dôkazov" value={data.evidence_score ? `${data.evidence_score.verifiedCount} overené · ${data.evidence_score.modelledCount} modelované · ${data.evidence_score.unverifiedCount} vyžaduje overenie` : 'nehodnotené'} />
           <Metric label="Overené" value={data.evidence_score?.verifiedCount ?? 0} />
           <Metric label="Modelované" value={data.evidence_score?.modelledCount ?? 0} />
           <Metric label="Na overenie" value={data.evidence_score?.unverifiedCount ?? 0} />
@@ -96,7 +107,7 @@ export const ReportViewSlovak: React.FC<Props> = ({ report, onBack }) => {
           <Metric label="Úradná plocha" value={tech.official_area_m2 ? `${tech.official_area_m2} m²` : 'údaj nie je k dispozícii'} />
           <Metric label="Nadmorská výška" value={tech.elevation_amsl !== null && tech.elevation_amsl !== undefined ? `${tech.elevation_amsl} m n. m.` : 'údaj nie je k dispozícii'} />
           <Metric label="Sklon" value={tech.slope_degrees !== null && tech.slope_degrees !== undefined ? `${tech.slope_degrees}° (${present(tech.slope_percent)} %)` : 'údaj nie je k dispozícii'} />
-          <Metric label="Expozícia" value={present(tech.aspect_direction)} />
+          <Metric label="Expozícia" value={localizeSlovakAspect(tech.aspect_direction)} />
         </div>
         <MapPreview lat={report.latitude} lng={report.longitude} areaSize={report.area_size} boundary={report.boundary} />
         <div className="text-[11px] text-slate-500">Geometria parcely je priestorový dôkazový podklad. Vlastníctvo, právny titul, vecné bremená a ťarchy sa musia overiť v katastri nehnuteľností.</div>

@@ -86,6 +86,11 @@ export interface SiteValueEstimate {
   basis: string;
   evidence_level?: EvidenceLevel;
   uncertainty_rating?: 'High' | 'Moderate' | 'Low';
+  mode?: 'PARCEL_TOTAL' | 'MARKET_CONTEXT';
+  context_price_per_sqm_min?: number | null;
+  context_price_per_sqm_max?: number | null;
+  context_price_per_sqm_median?: number | null;
+  calibration_max_area_m2?: number;
 }
 
 export interface SoilStratigraphyLayer {

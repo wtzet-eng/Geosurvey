@@ -32,7 +32,7 @@ function czechFixtureFetch(): typeof fetch {
     ] });
     if (url.includes('/Geohazardy/sesuvna_nachylnost/MapServer/0/query')) return jsonResponse({ features: [{ attributes: { struktura: 'Třída střední náchylnosti k sesouvání' } }] });
     if (url.includes('/Geohazardy/svahove_deformace/MapServer/1/query')) return jsonResponse({ features: [{ attributes: { id_teren: 'SD-42', nazev: 'sesuv', aktivita: 2, skupina: 1, podskupina: 1, nazku_obec: 'Praha', nazku_katastr: 'Test' } }] });
-    if (url.includes('/Geohazardy/radon_komplexni_informace/MapServer/0/query')) return jsonResponse({ features: [{ attributes: { naz_obec: 'Praha', naz_cast: 'Test', hornina50: 'břidlice', radon: 3, iprum: 18, avg_prum_k: 112 } }] });
+    if (url.includes('/Geohazardy/radon50/MapServer/1/query')) return jsonResponse({ features: [{ attributes: { radon_idx: 3, radon_popis: 'vysoký', hornina: 'břidlice', typ_horniny: 'metamorfovaná hornina', geneze: 'metamorfní', eratem: 'paleozoikum', utvar: 'ordovik', mapid: '12-34' } }] });
     if (url.includes('/Dulni_Dila/poddolovana_uzemi/MapServer/1/query')) return jsonResponse({ features: [{ attributes: { id_sur_pod: 999, nazev: 'Test mining area', surovina: 'uhlí', stari: 'historické', projevy: 'možné', presnost: 'ověřeno', dokument: 'archiv', verohodno: 'ano', rok: 1992 } }] });
     return jsonResponse({ error: { message: `unexpected test URL: ${url}` } }, 404);
   }) as typeof fetch;
@@ -76,6 +76,8 @@ test('Czechia acquisition keeps geology, engineering geology, hydrogeology, bore
   assert.equal((hydro?.value as any).transmissivity, 'vysoká');
 
   assert.equal(boreholes?.status, 'VERIFIED');
+  assert.equal((boreholes?.value as any).totalCount, 2);
+  assert.equal((boreholes?.value as any).hydrogeologicalCount, 1);
   assert.equal((boreholes?.value as any).boreholes.length, 2);
   assert.equal((boreholes?.value as any).hydrogeologicalBoreholes.length, 1);
   assert.ok((boreholes?.value as any).nearestDistanceM >= 0);
@@ -85,7 +87,29 @@ test('Czechia acquisition keeps geology, engineering geology, hydrogeology, bore
   assert.equal(deformation?.status, 'VERIFIED');
   assert.equal((deformation?.value as any).count, 1);
   assert.equal((radon?.value as any).classification, 'High');
+  assert.equal((radon?.value as any).descriptor, 'vysoký');
+  assert.equal((radon?.value as any).scale, '1:50,000');
   assert.equal(mining?.status, 'VERIFIED');
+});
+
+
+
+test('Czech engineering geology retries the detailed layer before accepting the regional fallback after a transient failure', async () => {
+  const base = czechFixtureFetch();
+  let detailedCalls = 0;
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes('/Geohazardy/IG_rajony50/MapServer/1/query')) {
+      detailedCalls += 1;
+      if (detailedCalls === 1) return new Response('temporary failure', { status: 503 });
+    }
+    return base(input, init);
+  }) as typeof fetch;
+  const items = await queryCzechiaGroundEvidence(50.0865, 14.4213, fetcher);
+  const engineering = items.find(item => item.id === 'cz-cgs-engineering-geology');
+  assert.equal(detailedCalls, 2);
+  assert.equal((engineering?.value as any).tier, 1);
+  assert.equal((engineering?.value as any).scale, '1:50,000');
 });
 
 test('Czechia enrichment promotes authoritative mapped context but never creates design geotechnical parameters', async () => {

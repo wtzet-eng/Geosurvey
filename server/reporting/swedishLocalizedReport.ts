@@ -21,7 +21,7 @@ const textureLabels: Record<string, string> = {
   'sandy clay loam': 'sandig mellanlera', 'clay loam': 'mellanlera', 'silty clay loam': 'siltig mellanlera', 'sandy clay': 'sandig styv lera', 'silty clay': 'siltig styv lera', clay: 'lera'
 };
 const materialLabels: Record<string, string> = {
-  ALLUVIAL: 'sväm- eller vattendragssediment', ORGANIC_OR_PEAT: 'organiskt material / torv', MADE_GROUND: 'fyllning', GLACIOFLUVIAL: 'isälvssediment',
+  ALLUVIAL: 'sväm- eller vattendragssediment', ORGANIC_OR_PEAT: 'organiskt material / torv', MADE_GROUND: 'opgebracht terrein', GLACIOFLUVIAL: 'isälvssediment',
   TILL: 'morän', COHESIVE: 'kohesivt material', GRANULAR: 'friktionsmaterial', OTHER: 'annat kartlagt material'
 };
 
@@ -149,8 +149,8 @@ export function renderSwedishLocalizedReport(canonical: CanonicalReport): any {
   const dataSources = canonical.sourceRecords.map(source => ({ name: source.name, url: source.url, authority: source.name, verification_status: statusLabel[source.status] }));
   const evidenceRegistry = canonical.evidenceRecords.map(localizedEvidenceRecord);
   const summaryCore = valuationAvailable
-    ? `Denna evidensbaserade bedömning gäller en tomt i Sverige. Kartlagd markkontext: ${geologyUnit}. ${terrainText} Jord: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Evidenspoäng: ${canonical.evidenceScore.totalScore}/100. Indikativt tomtmarknadsvärde är ${canonical.valuation.min!.toLocaleString('sv-SE')}–${canonical.valuation.max!.toLocaleString('sv-SE')} ${canonical.valuation.currency}.`
-    : `Denna evidensbaserade bedömning gäller en tomt i Sverige. Kartlagd markkontext: ${geologyUnit}. ${terrainText} Jord: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Evidenspoäng: ${canonical.evidenceScore.totalScore}/100. Automatiskt tomtmarknadsvärde visas inte eftersom tillräckligt svensk markvärdesunderlag saknas.`;
+    ? `Denna evidensbaserade bedömning gäller en tomt i Sverige. Kartlagd markkontext: ${geologyUnit}. ${terrainText} Jord: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Indikativt tomtmarknadsvärde är ${canonical.valuation.min!.toLocaleString('sv-SE')}–${canonical.valuation.max!.toLocaleString('sv-SE')} ${canonical.valuation.currency}.`
+    : `Denna evidensbaserade bedömning gäller en tomt i Sverige. Kartlagd markkontext: ${geologyUnit}. ${terrainText} Jord: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Automatiskt tomtmarknadsvärde visas inte eftersom tillräckligt svensk markvärdesunderlag saknas.`;
   const section = (summary: string, detail: string, status: string, source?: string, limitation?: string) => ({ summary, detail, evidence_level: status, source_cited: source, limitation_notice: limitation });
   const groundDetail = [`${contextSummary} ${investigationFocus}`, ...groundSpecific].join(' ');
 

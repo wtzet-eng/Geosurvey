@@ -26,6 +26,7 @@ function canonicalFixture(): any {
     evidenceScore: { totalScore: 74 },
     sourceRecords: [{ name: 'GEUS', url: 'https://data.geus.dk/geusmap/', type: 'Geological Survey', status: 'VERIFIED' }],
     evidenceRecords: [
+      { id: 'terrain-elevation-slope', category: 'Terrain & Topography', claim: 'raw English terrain claim', status: 'MODELLED', sourceName: 'Copernicus DEM', sourceUrl: 'https://example.test/dem', datasetDate: '2026-09-13', spatialRelationship: 'site', calculationMethod: 'model', confidence: 'Medium', limitation: 'screening only' },
       { id: 'dk-dawa-cadastre', category: 'Cadastre', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'DAWA', sourceUrl: 'https://api.dataforsyningen.dk/', datasetDate: '2026-09-13', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { parcelId: 'Test By 12a', registeredAreaM2: 845 } },
       { id: 'dk-geus-surface-geology', category: 'Mapped superficial geology', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'GEUS Jordartskort', sourceUrl: 'https://data.geus.dk/', datasetDate: '2026-02-09', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { deposit: 'moræneler', scale: '1:25.000' } },
       { id: 'dk-jupiter-boreholes', category: 'Nearby boreholes', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'GEUS Jupiter', sourceUrl: 'https://data.geus.dk/', datasetDate: '2026-09-13', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { count: 4, nearestDistanceM: 120 } },
@@ -65,4 +66,27 @@ test('Denmark keeps automatic valuation off and explicitly excludes buildings', 
   assert.match(report.summary, /Automatisk jordværdi vises ikke/i);
   assert.match(report.valuationMethodology, /Automatisk jordværdi vises ikke/i);
   assert.ok(report.legalDisclaimers.some((item: string) => /Bygninger.*udelukket/i.test(item)));
+});
+
+
+test('Denmark localizes standard evidence records and routes professional checks correctly', () => {
+  const fixture = canonicalFixture();
+  fixture.planning.authorityName = 'Horsens Kommune Municipal Planning Department (Wydział Architektury / Urbanistyki)';
+  const report = renderDanishLocalizedReport(fixture);
+  const terrain = report.evidenceRegistry.find((item: any) => item.id === 'terrain-elevation-slope');
+  assert.equal(terrain?.category, 'Terræn og topografi');
+  assert.match(terrain?.claim || '', /Terrænmodellen/i);
+  assert.doesNotMatch(JSON.stringify(report.verificationChecklist), /Wydział Architektury|Urbanistyki/i);
+  assert.match(report.verificationChecklist.find((item: any) => /Geoteknisk/i.test(item.topic))?.recommendedAuthorityOrExpert || '', /Geoteknisk rådgiver|ingeniørgeolog/i);
+  assert.match(report.verificationChecklist.find((item: any) => /Forsyning/i.test(item.topic))?.recommendedAuthorityOrExpert || '', /forsyningsselskaber|netejere/i);
+});
+
+test('Denmark unavailable road and environment do not render false negative findings', () => {
+  const fixture = canonicalFixture();
+  fixture.infrastructure = { ...fixture.infrastructure, roadName: null, roadType: null, distanceM: null, status: 'REQUIRES_VERIFICATION', reasonCode: 'SOURCE_UNAVAILABLE' };
+  fixture.environment = { ...fixture.environment, status: 'REQUIRES_VERIFICATION', reasonCode: 'SOURCE_UNAVAILABLE' };
+  const report = renderDanishLocalizedReport(fixture);
+  assert.doesNotMatch(report.sections.infrastructure_and_access.summary, /ikke tilgængelig m/i);
+  assert.match(report.sections.infrastructure_and_access.summary, /utilgængelig|kunne ikke nås/i);
+  assert.doesNotMatch(report.sections.environmental_factors.summary, /ikke identificeret et beskyttet område/i);
 });

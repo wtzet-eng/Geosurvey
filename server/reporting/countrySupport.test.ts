@@ -150,7 +150,11 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.equal(lu.capabilities.nationalCadastre, true); assert.equal(lu.capabilities.nationalGeology, true); assert.equal(lu.capabilities.nationalBoreholes, true);
   assert.equal(lu.capabilities.nationalHydrogeology, true); assert.equal(lu.capabilities.nationalFlood, true); assert.equal(lu.capabilities.nationalPlanning, true); assert.equal(lu.capabilities.nationalValuation, true);
   assert.equal(lu.capabilities.nationalRadon, false); assert.equal(lu.capabilities.nationalMining, false);
-  for (const code of ['IT', 'CH', 'BE', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  const be = getCountrySupport('BE');
+  assert.equal(be.maturity, 'LIMITED');
+  assert.equal(be.capabilities.nationalCadastre, true); assert.equal(be.capabilities.nationalGeology, true); assert.equal(be.capabilities.nationalBoreholes, false);
+  assert.equal(be.capabilities.nationalHydrogeology, false); assert.equal(be.capabilities.nationalFlood, false); assert.equal(be.capabilities.nationalPlanning, false); assert.equal(be.capabilities.nationalValuation, false);
+  for (const code of ['IT', 'CH', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });
@@ -203,4 +207,16 @@ test('supported Poland keeps the existing regional modelled valuation', () => {
   assert.match(canonical.valuation.sourceName, /LandSurf/); assert.match(canonical.valuation.sourceName, /RCN/); assert.match(canonical.valuation.sourceName, /Cenatorium/); assert.match(canonical.valuation.sourceName, /188 PLN\/m²/);
   assert.doesNotMatch(canonical.valuation.sourceName, /420 PLN\/m²/);
   const valuationEvidence = canonical.evidenceRecords.find(record => record.id === 'valuation-indicative-model'); assert.ok(valuationEvidence); assert.equal(valuationEvidence?.sourceName, canonical.valuation.sourceName);
+});
+
+test('placeholder dash is never promoted to a verified geological unit', () => {
+  const report = rawReport('SK');
+  report.geosurvey_context = { geological_unit_name: 'Not available — national geological map not queried', lithology_type: '-', geological_period_era: 'Not established from open data', evidence_level: 'VERIFIED', source_name: 'ŠGÚDŠ' };
+  report.soil.geologicalUnit = '-';
+  report.soil.lithologyType = '-';
+  report.soil.stratigraphicPeriod = '-';
+  const canonical = createCanonicalReport(report, getCountryProfile('SK'));
+  assert.equal(canonical.geology.unitName, null);
+  assert.equal(canonical.geology.lithology, null);
+  assert.equal(canonical.geology.geologicalAge, null);
 });

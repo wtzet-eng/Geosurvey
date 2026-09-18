@@ -67,8 +67,8 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
   CZ: {
     countryCode: 'CZ', countryName: 'Czechia', currency: 'CZK', symbol: 'Kč',
     cadastreAuthority: 'Český úřad zeměměřický a katastrální (ČÚZK / KN / RÚIAN)', cadastrePortalUrl: 'https://cuzk.gov.cz/',
-    geologyAuthority: 'Czech Geological Survey (ČGS)', geologyPortalUrl: 'https://cgs.gov.cz/en/maps-and-data/web-services',
-    floodAuthority: 'Czech Hydrometeorological Institute (ČHMÚ) / competent water authorities', floodPortalUrl: 'https://www.chmi.cz/',
+    geologyAuthority: 'Česká geologická služba (ČGS)', geologyPortalUrl: 'https://cgs.gov.cz/mapy-a-data/webove-sluzby',
+    floodAuthority: 'Digitální povodňový plán ČR (MŽP / DPP ČR)', floodPortalUrl: 'https://webmap.dppcr.cz/dpp_cr/',
     planningInstrumentName: 'Územní plán / územně plánovací dokumentace',
     standardSetbackRule: 'Applicable planning and building-control rules require confirmation by the competent municipal/building authority',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
@@ -129,6 +129,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     planningInstrumentName: 'Plan d’aménagement général (PAG) / plan d’aménagement particulier (PAP)',
     standardSetbackRule: 'Determined by the current commune PAG/PAP and project-specific planning/building rules; requires official confirmation',
     baseValuationPerSqm: 0, valuationDataSource: 'Observatoire de l’Habitat — official residential building-land transactions; PAG-gated national/city benchmark, no generic fallback'
+  },
+  BE: {
+    countryCode: 'BE', countryName: 'Belgium', currency: 'EUR', symbol: '€',
+    cadastreAuthority: 'FPS Finance / General Administration of Patrimonial Documentation (GAPD) — Belgian Cadastre', cadastrePortalUrl: 'https://financien.belgium.be/nl/E-services/cadgis',
+    geologyAuthority: 'Regional geological authorities: Databank Ondergrond Vlaanderen (DOV) / Service géologique de Wallonie / GeoBru-BruGIS', geologyPortalUrl: 'https://www.dov.vlaanderen.be/',
+    floodAuthority: 'Regional water authorities: VMM / SPW Wallonie / Bruxelles Environnement', floodPortalUrl: 'https://www.waterinfo.be/',
+    planningInstrumentName: 'Regional and municipal spatial planning / zoning instrument',
+    standardSetbackRule: 'Regional and municipal planning/building rules require local official confirmation',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
   NL: {
     countryCode: 'NL', countryName: 'Netherlands', currency: 'EUR', symbol: '€',
