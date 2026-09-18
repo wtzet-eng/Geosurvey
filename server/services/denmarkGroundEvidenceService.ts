@@ -143,5 +143,3 @@ export function enrichDenmarkGroundEvidence(report: any, evidence: DenmarkGround
 }
 
 export const DENMARK_GROUND_SOURCES = { geusWfs: GEUS_WFS, geusPortal: GEUS_PORTAL, plandataWfs: PLANDATA_WFS, plandataPortal: PLANDATA_PORTAL };
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
