@@ -58,9 +58,14 @@ export const localizeSlovakEvidenceValue = (value: unknown): string => {
   const samples = text.match(/^SoilGrids returned (\d+) usable model samples across the selected geometry and vicinity\.?$/i);
   if (samples) return `SoilGrids vrátil ${samples[1]} použiteľných modelových vzoriek pre vybranú geometriu a jej okolie.`;
 
-  const valuation = text.match(/^Indicative Slovak land asking-price benchmark: (.+)$/i);
-  if (valuation) return `Orientačný slovenský benchmark ponukových cien pozemkov: ${valuation[1]}`
-    .replace(/based on Trnavský kraj regional residential\/building-plot asking benchmark\.?$/i, 'na základe regionálneho benchmarku ponukových cien rezidenčných/stavebných pozemkov v Trnavskom kraji.');
+  const valuation = text.match(/^Indicative Slovak land asking-price benchmark: approximately (.+?), based on Trnavský kraj regional residential\/building-plot asking benchmark\.?$/i);
+  if (valuation) return `Orientačný slovenský benchmark ponukových cien pozemkov: približne ${valuation[1]}, na základe regionálneho benchmarku ponukových cien rezidenčných/stavebných pozemkov v Trnavskom kraji.`;
+
+  const geology50 = text.match(/^ŠGÚDŠ 1:50,000 geology maps the selected coordinate as (.+)$/i);
+  if (geology50) return `Geologická mapa ŠGÚDŠ 1 : 50 000 zobrazuje vybranú polohu ako ${geology50[1]}`;
+
+  const geology200 = text.match(/^ŠGÚDŠ 1:200,000 descriptive geology maps the site as (.+)$/i);
+  if (geology200) return `Opisná geologická mapa ŠGÚDŠ 1 : 200 000 zobrazuje lokalitu ako ${geology200[1]}`;
 
   return text
     .replace(/^(.+?) Spatial Planning Authority \(/i, '$1 — príslušný orgán územného plánovania (')
@@ -86,7 +91,7 @@ const Section: React.FC<{ number: string; title: string; section?: any; children
       {showDetail && <div className="text-xs sm:text-sm leading-relaxed text-slate-600 whitespace-pre-line">{detail}</div>}
       {children}
       {showLimitation && <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"><strong>Obmedzenie:</strong> {limitation}</div>}
-      {section?.source_cited && <div className="text-[11px] text-slate-400 flex items-center gap-1.5"><Database className="h-3.5 w-3.5" />Zdroj použitý v analýze: {section.source_cited}</div>}
+      {section?.source_cited && <div className="text-[11px] text-slate-400 flex items-center gap-1.5"><Database className="h-3.5 w-3.5" />Zdroj použitý v analýze: {localizeSlovakEvidenceValue(section.source_cited)}</div>}
     </div>
   </section>
   );
