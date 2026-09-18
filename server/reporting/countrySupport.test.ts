@@ -92,6 +92,29 @@ test('Belgium preserves the exact verified regional geology source and withholds
   assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
 });
 
+test('Czech national radon and mining conclusions require verified official evidence', () => {
+  const raw = rawReport('CZ');
+  raw.evidenceRegistry.push(
+    { id: 'cz-cgs-radon-unavailable', category: 'Radon potential', claim: 'Radon service unavailable', status: 'REQUIRES_VERIFICATION', sourceName: 'ČGS', datasetDate: '2026-09-18', spatialRelationship: 'site', calculationMethod: 'official query', confidence: 'Low', limitation: 'verify', value: { reasonCode: 'SOURCE_UNAVAILABLE' } },
+    { id: 'cz-cgs-mining-undermined-no-data', category: 'Undermined areas', claim: 'No verified mining result', status: 'REQUIRES_VERIFICATION', sourceName: 'ČGS', datasetDate: '2026-09-18', spatialRelationship: 'site', calculationMethod: 'official query', confidence: 'Low', limitation: 'verify', value: { reasonCode: 'NO_DATA' } }
+  );
+  const unavailable = createCanonicalReport(raw, getCountryProfile('CZ'));
+  assert.equal(unavailable.hazards.radon.classification, null);
+  assert.equal(unavailable.hazards.radon.status, 'REQUIRES_VERIFICATION');
+  assert.equal(unavailable.hazards.radon.reasonCode, 'SOURCE_UNAVAILABLE');
+  assert.equal(unavailable.hazards.mining.classification, null);
+  assert.equal(unavailable.hazards.mining.status, 'REQUIRES_VERIFICATION');
+  assert.equal(unavailable.hazards.mining.reasonCode, 'NO_DATA');
+
+  raw.terrain.geohazards.radonPotential = { status: 'VERIFIED', classification: 'High', sourceName: 'Česká geologická služba (ČGS)' };
+  raw.terrain.geohazards.miningSubsidence = { status: 'VERIFIED', classification: 'Registered undermined area intersects site', sourceName: 'Česká geologická služba (ČGS)' };
+  const verified = createCanonicalReport(raw, getCountryProfile('CZ'));
+  assert.equal(verified.hazards.radon.classification, 'High');
+  assert.equal(verified.hazards.radon.status, 'VERIFIED');
+  assert.match(verified.hazards.mining.classification || '', /undermined area/i);
+  assert.equal(verified.hazards.mining.status, 'VERIFIED');
+});
+
 function rawReport(countryCode: string): any {
   return {
     countryCode,
