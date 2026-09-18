@@ -35,5 +35,3 @@ export function localizeAspect(value: unknown, language: 'cs' | 'sk' | 'da' | 's
   }
   return raw;
 }
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
