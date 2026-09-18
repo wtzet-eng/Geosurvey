@@ -1,5 +1,3 @@
-[Reading 161 lines from start (total: 161 lines, 0 remaining)]
-
 import React, { useState } from 'react';
 import { SiteReport } from '../types';
 import { localizeAspect } from '../i18n/aspectI18n';
@@ -161,5 +159,3 @@ export const ReportViewCzech: React.FC<Props> = ({ report, onBack }) => {
     </main>
   </div>;
 };
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

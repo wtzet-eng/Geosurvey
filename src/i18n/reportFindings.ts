@@ -1,5 +1,3 @@
-[Reading 87 lines from start (total: 87 lines, 0 remaining)]
-
 // Match explicit classifications only: prose mentioning a hazard is not a risk class.
 export function riskSeverity(value: string): 'high' | 'moderate' | 'other' {
   const label = value.trim().toLocaleLowerCase();
@@ -87,5 +85,3 @@ export function decisionIntroCopy(language:string) {
   };
   return copies[code] || copies.en;
 }
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

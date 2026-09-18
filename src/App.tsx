@@ -1,5 +1,3 @@
-[Reading 425 lines from start (total: 425 lines, 0 remaining)]
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   MapPin,
@@ -425,5 +423,3 @@ export default function App() {
     </div>
   );
 }
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

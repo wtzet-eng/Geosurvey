@@ -1,5 +1,3 @@
-[Reading 380 lines from start (total: 380 lines, 0 remaining)]
-
 import React, { useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { AlertTriangle, BrainCircuit, CheckCircle2, CreditCard, Loader2, LogIn, LogOut, RefreshCw, ShieldCheck, Sparkles, X } from 'lucide-react';
@@ -380,5 +378,3 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
 };
 
 const ResultList: React.FC<{ title: string; items: string[]; emptyText: string }> = ({ title, items, emptyText }) => <section className="rounded-2xl border border-slate-200 p-4"><h3 className="text-sm font-bold text-slate-950">{title}</h3>{items.length ? <ul className="mt-3 space-y-2">{items.map((item, index) => <li key={`${title}-${index}`} className="flex gap-2 text-sm leading-relaxed text-slate-600"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />{item}</li>)}</ul> : <div className="mt-2 text-xs text-slate-400">{emptyText}</div>}</section>;
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

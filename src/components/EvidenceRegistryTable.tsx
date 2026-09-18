@@ -1,5 +1,3 @@
-[Reading 148 lines from start (total: 148 lines, 0 remaining)]
-
 import React, { useState } from 'react';
 import { EvidenceItem } from '../types';
 import { EvidenceBadge } from './EvidenceBadge';
@@ -148,5 +146,3 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
     </section>
   );
 };
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

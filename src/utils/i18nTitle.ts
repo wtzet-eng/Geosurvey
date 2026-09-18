@@ -1,5 +1,3 @@
-[Reading 161 lines from start (total: 161 lines, 0 remaining)]
-
 const TITLES_MAP: Record<string, string> = {
   en: "Screen Your Building Site: Ground Risks and Land Value",
   de: "Prüfen Sie Ihr Baugrundstück: Georisiken und Bodenwert",
@@ -161,5 +159,3 @@ export function getFrontPageI18n(langCode?: string): FrontPageI18n {
     clickPrompt: custom.clickPrompt || "Click the map to place boundary."
   };
 }
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

@@ -1,5 +1,3 @@
-[Reading 222 lines from start (total: 222 lines, 0 remaining)]
-
 import { AvailabilityReason, CanonicalReport, RiskClassification } from './canonicalReport';
 
 const reasonCopy: Record<AvailabilityReason, string> = {
@@ -222,5 +220,3 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
     opportunities: ['Danmark har stærke nationale datakilder til matrikel, Jupiter-boringer, grundvandsobservationer og planforhold; GEUS Jordartskort kan desuden kontrolleres særskilt som officiel kortkilde.', 'Kilderne kan bruges sammen uden at gøre naboboringer, pejlinger eller kortdata til projekteringsværdier for selve grunden.']
   };
 }
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

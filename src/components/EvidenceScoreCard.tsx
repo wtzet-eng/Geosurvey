@@ -1,5 +1,3 @@
-[Reading 42 lines from start (total: 42 lines, 0 remaining)]
-
 import React, { useState } from 'react';
 import { EvidenceQualityScore } from '../types';
 import { ShieldCheck, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
@@ -42,5 +40,3 @@ export const EvidenceScoreCard: React.FC<EvidenceScoreCardProps> = ({ score, lan
     <div><button type="button" onClick={()=>setExpanded(!expanded)} className="w-full flex items-center justify-between py-2 text-xs font-bold text-indigo-700 hover:text-indigo-900"><span>{expanded?t.hide:t.show}</span>{expanded?<ChevronUp className="h-4 w-4"/>:<ChevronDown className="h-4 w-4"/>}</button>{expanded&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-100">{topics.map((item,index)=><div key={t.categories[index]} className="p-3 bg-slate-50 rounded-xl border border-slate-200/60"><div className="text-xs font-bold text-slate-900">{t.categories[index]}</div><p className="mt-1 text-[11px] text-slate-600 leading-normal">{item.rationale}</p></div>)}</div>}</div>
   </section>;
 };
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

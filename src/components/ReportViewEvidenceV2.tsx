@@ -1,5 +1,3 @@
-[Reading 149 lines from start (total: 149 lines, 0 remaining)]
-
 import { buyerSummary, decisionIntroCopy, distinctProse, coverageCopy, findingsCopy, riskSeverity } from '../i18n/reportFindings';
 import React, { useMemo, useState } from 'react';
 import { SiteReport, EvidenceLevel, SectionAnalysis } from '../types';
@@ -149,5 +147,3 @@ export const ReportViewEvidenceV2: React.FC<ReportViewProps> = ({report,onBack})
     </main>
   </div>;
 };
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
