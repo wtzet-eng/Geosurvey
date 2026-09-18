@@ -17,7 +17,7 @@ import { BoundaryShape, BoundaryType, SiteReport } from './types';
 import { EUROPEAN_COUNTRIES, REPORT_LANGUAGES } from './data/countries';
 import { getCountrySupport } from './data/countrySupport';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
-import { getBrowserLanguage, getFrontPageI18n } from './utils/i18nTitle';
+import { getBrowserLanguage, getFrontPageI18n, getLocalizedTagline } from './utils/i18nTitle';
 import { getBoundaryStatusText } from './utils/boundaryStatusI18n';
 import { getActionText } from './utils/actionI18n';
 import { MapPicker } from './components/MapPicker';
@@ -366,7 +366,7 @@ export default function App() {
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold"><Sparkles className="h-3.5 w-3.5" /><span>{fp.badge}</span></div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">{fp.heroTitle}</h1>
-          <p className="text-sm font-medium text-slate-700">{languageCode === 'pl' ? 'Poznaj teren. Porównaj możliwości. Dowiedz się, co sprawdzić dalej.' : languageCode === 'de' ? 'Verstehen Sie das Grundstück. Vergleichen Sie Ihre Optionen. Erfahren Sie, was als Nächstes zu prüfen ist.' : languageCode === 'da' ? 'Forstå grunden. Sammenlign mulighederne. Se, hvad der skal kontrolleres næste gang.' : 'Understand the land. Compare your options. Know what to check next.'}</p>
+          <p className="text-sm font-medium text-slate-700">{getLocalizedTagline(languageCode)}</p>
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">{fp.heroSub}</p>
         </div>
 
