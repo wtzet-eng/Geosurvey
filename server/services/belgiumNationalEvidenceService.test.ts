@@ -28,12 +28,18 @@ test('Flanders returns official geology plus contextual boreholes',async()=>{
   assert.equal((boreholes?.value as any)?.records?.length,1);
 });
 
-test('Wallonia geology uses the regional lithostratigraphic service',async()=>{
-  const fetcher:typeof fetch=async()=>response({features:[{attributes:{SIGLE:'LUX',NOM:'Formation de Luxembourg',DESCRIPTION:'calcaires gréseux et sables',FORM_SYSTEME:'Jurassique',CARTE_EDITION:'2022'}}]});
+test('Wallonia geology uses the current regional lithostratigraphic polygon layer',async()=>{
+  let queriedUrl='';
+  const fetcher:typeof fetch=async(input:any)=>{
+    queriedUrl=String(input);
+    return response({features:[{attributes:{SIGLE:'LUX',NOM:'Formation de Luxembourg',DESCRIPTION:'calcaires gréseux et sables',SYSTEME:'Jurassique',CARTE_EDITION:'2022'}}]});
+  };
   const items=await queryBelgiumNationalEvidence(49.683,5.817,{regionCode:'BE-WAL'},fetcher);
   const geology=items.find(x=>x.id==='be-wa-geology');
+  assert.match(queriedUrl,/\/MapServer\/2\/query\?/);
   assert.equal(geology?.status,'VERIFIED');
   assert.match(geology?.claim||'',/Formation de Luxembourg/);
+  assert.equal((geology?.value as any)?.system,'Jurassique');
 });
 
 test('Brussels stays explicit where regional subsurface automation is not validated',async()=>{
