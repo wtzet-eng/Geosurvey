@@ -172,3 +172,14 @@ test('French Spanish and Finnish unavailable reasons remain distinct and localiz
     assert.notEqual(localizeAvailabilityReason('PARAMETER_NOT_PROVIDED', language), localizeAvailabilityReason('AUTHORITATIVE_DATA_REQUIRED', language));
   }
 });
+
+test('Polish and Spanish evidence-audit presentation localizes common generated claims', () => {
+  assert.equal(localizePresentationValue('Terrain & Topography', 'pl'), 'Teren i topografia');
+  assert.equal(localizePresentationValue('Terrain & Topography', 'es'), 'Terreno y topografía');
+  assert.match(localizePresentationValue('Mean elevation 159 m a.s.l. with slope gradient of 1.1° (Flat (0-2°))', 'pl'), /Średnia wysokość 159 m n\.p\.m\./);
+  assert.match(localizePresentationValue('Mean elevation 656 m a.s.l. with slope gradient of 1.1° (Flat (0-2°))', 'es'), /Altitud media 656 m/);
+  assert.match(localizePresentationValue('Soil Texture: Sandy Loam (Sand 65.4%, Silt 25.7%, Clay 8.9%, Mean Density 1.28 g\/cm³, pH 6.1) [MODELLED]', 'pl'), /Tekstura gleby: glina piaszczysta/);
+  assert.match(localizePresentationValue('Soil Texture: Loam (Sand 31.6%, Silt 46.9%, Clay 21.6%, Mean Density 1.43 g\/cm³, pH 7.7) [MODELLED]', 'es'), /Textura del suelo: franco/);
+  assert.match(localizePresentationValue('Kamień Spatial Planning Authority (MPZP)', 'pl'), /właściwy organ planowania przestrzennego/);
+  assert.match(localizePresentationValue('La Guardia competent local planning authority', 'es'), /autoridad urbanística competente/);
+});
