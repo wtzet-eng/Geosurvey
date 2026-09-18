@@ -345,6 +345,12 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     : rawSourceRecords;
   const scoreSupport = countryLocationMismatch ? getCountrySupport('EU') : support;
   const score = supportAwareEvidenceScore(report, scoreSupport, records, Boolean(hasMappedGeology && geologyStatus === 'VERIFIED'));
+  const radonClassification = scientific(report.terrain.geohazards.radonPotential.classification);
+  const miningClassification = scientific(report.terrain.geohazards.miningSubsidence.classification);
+  const verifiedNationalRadon = c.nationalRadon && nationalEvidenceUsable && report.terrain.geohazards.radonPotential.status === 'VERIFIED' && Boolean(radonClassification);
+  const verifiedNationalMining = c.nationalMining && nationalEvidenceUsable && report.terrain.geohazards.miningSubsidence.status === 'VERIFIED' && Boolean(miningClassification);
+  const radonReason = evidenceReason(report, /radon/i);
+  const miningReason = evidenceReason(report, /mining|undermined/i);
   return {
     countryCode: report.countryCode,
     countryName: profile.countryName,
@@ -383,8 +389,12 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     hazards: {
       landslide: { classification: riskCode(report.terrain.geohazards.landslideSusceptibility.level), status: report.terrain.geohazards.landslideSusceptibility.status, sourceName: report.terrain.geohazards.landslideSusceptibility.sourceName },
       seismic: { classification: scientific(report.terrain.geohazards.seismicRisk.zone), pga: scientific(report.terrain.geohazards.seismicRisk.pgaG), status: report.terrain.geohazards.seismicRisk.status, sourceName: report.terrain.geohazards.seismicRisk.sourceName },
-      radon: c.nationalRadon && nationalEvidenceUsable ? { classification: scientific(report.terrain.geohazards.radonPotential.classification), status: report.terrain.geohazards.radonPotential.status, sourceName: report.terrain.geohazards.radonPotential.sourceName } : { classification: null, status: 'REQUIRES_VERIFICATION', sourceName: countryLocationMismatch ? mismatchSourceName : report.terrain.geohazards.radonPotential.sourceName, reasonCode: countryLocationMismatch ? 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' },
-      mining: c.nationalMining && nationalEvidenceUsable ? { classification: scientific(report.terrain.geohazards.miningSubsidence.classification), status: report.terrain.geohazards.miningSubsidence.status, sourceName: report.terrain.geohazards.miningSubsidence.sourceName } : { classification: null, status: 'REQUIRES_VERIFICATION', sourceName: countryLocationMismatch ? mismatchSourceName : report.terrain.geohazards.miningSubsidence.sourceName, reasonCode: countryLocationMismatch ? 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' }
+      radon: verifiedNationalRadon
+        ? { classification: radonClassification, status: 'VERIFIED', sourceName: report.terrain.geohazards.radonPotential.sourceName }
+        : { classification: null, status: 'REQUIRES_VERIFICATION', sourceName: countryLocationMismatch ? mismatchSourceName : report.terrain.geohazards.radonPotential.sourceName, reasonCode: countryLocationMismatch ? 'AUTHORITATIVE_DATA_REQUIRED' : c.nationalRadon ? radonReason || 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' },
+      mining: verifiedNationalMining
+        ? { classification: miningClassification, status: 'VERIFIED', sourceName: report.terrain.geohazards.miningSubsidence.sourceName }
+        : { classification: null, status: 'REQUIRES_VERIFICATION', sourceName: countryLocationMismatch ? mismatchSourceName : report.terrain.geohazards.miningSubsidence.sourceName, reasonCode: countryLocationMismatch ? 'AUTHORITATIVE_DATA_REQUIRED' : c.nationalMining ? miningReason || 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' }
     },
     flood: countryLocationMismatch
       ? { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: mismatchSourceName, reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' }
