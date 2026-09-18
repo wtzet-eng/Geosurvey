@@ -21,7 +21,7 @@ const textureLabels: Record<string, string> = {
   'sandy clay loam': 'sandig mellanlera', 'clay loam': 'mellanlera', 'silty clay loam': 'siltig mellanlera', 'sandy clay': 'sandig styv lera', 'silty clay': 'siltig styv lera', clay: 'lera'
 };
 const materialLabels: Record<string, string> = {
-  ALLUVIAL: 'sväm- eller vattendragssediment', ORGANIC_OR_PEAT: 'organiskt material / torv', MADE_GROUND: 'opgebracht terrein', GLACIOFLUVIAL: 'isälvssediment',
+  ALLUVIAL: 'sväm- eller vattendragssediment', ORGANIC_OR_PEAT: 'organiskt material / torv', MADE_GROUND: 'fyllnadsmassor / utfylld mark', GLACIOFLUVIAL: 'isälvssediment',
   TILL: 'morän', COHESIVE: 'kohesivt material', GRANULAR: 'friktionsmaterial', OTHER: 'annat kartlagt material'
 };
 
@@ -131,8 +131,17 @@ export function renderSwedishLocalizedReport(canonical: CanonicalReport): any {
   const roadText = `Närmaste kartlagda väg: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, cirka ${shown(canonical.infrastructure.distanceM)} m från platsen.`;
   const environmentText = canonical.environment.protectedAreaName ? `Miljöscreeningen identifierade ${canonical.environment.protectedAreaName}.` : 'Ingen skyddsområdespost returnerades i den öppna miljöscreeningen för sökområdet.';
 
+  const planningAuthority = String(canonical.planning.authorityName || 'Kommunens planmyndighet')
+    .replace(/^(.+?) kommun competent local planning authority$/i, '$1 kommuns planmyndighet')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 planmyndighet')
+    .replace(/competent planning \/ building authority/gi, 'plan- och byggmyndighet')
+    .replace(/Municipal Planning Department \(Wydział Architektury \/ Urbanistyki\)/gi, 'kommunens planmyndighet');
+  const planningSource = String(canonical.planning.sourceName || planningAuthority)
+    .replace(/^(.+?) kommun Spatial Planning Authority/i, '$1 kommuns planmyndighet')
+    .replace(/^(.+?) Spatial Planning Authority/i, '$1 planmyndighet')
+    .replace(/Spatial Planning Authority/gi, 'kommunal planmyndighet');
   const checklist = [
-    ['Detaljplan och byggrätt', 'Kontrollera gällande detaljplan, planbestämmelser, eventuella områdesbestämmelser och bygglovsförutsättningar hos kommunen.', canonical.planning.authorityName],
+    ['Detaljplan och byggrätt', 'Kontrollera gällande detaljplan, planbestämmelser, eventuella områdesbestämmelser och bygglovsförutsättningar hos kommunen.', planningAuthority],
     ['Geoteknisk undersökning', 'Beställ platsspecifik geoteknisk undersökning enligt tillämpliga svenska regler och Eurokod 7; använd SGU-data som bakgrund, inte som ersättning.', canonical.authorities.geology],
     ['Översvämning, ras och skred', 'Kontrollera MSB:s översvämningsunderlag och relevanta SGU/SGI-kommunala riskkartor; beställ detaljutredning där screening eller planförutsättningar kräver det.', canonical.authorities.flood],
     ['Fastighetsgräns och rättigheter', 'Kontrollera fastighetsindelning, lagfart, servitut och andra rättigheter via Lantmäteriet. Kartgränser ska inte behandlas som juridiskt avgjorda utan rätt underlag.', canonical.authorities.cadastre],
@@ -168,7 +177,7 @@ export function renderSwedishLocalizedReport(canonical: CanonicalReport): any {
       soil_and_ground: section(soilText, groundDetail, canonical.geology.status === 'VERIFIED' ? 'VERIFIED' : canonical.soil.status, canonical.geology.sourceName, 'SGU-kartor, närliggande brunnar och grundvattenstationer ersätter inte en geoteknisk undersökning på tomten.'),
       geohazard_risk: section(geologyText, 'Nationell geologisk screening är tillgänglig via SGU, men bindande eller projekteringsrelevant bedömning av ras, skred, erosion och stabilitet måste kontrolleras i relevanta SGU/SGI-, MSB- och kommunala underlag.', canonical.geology.status, canonical.geology.sourceName, reason('AUTHORITATIVE_DATA_REQUIRED')),
       flooding_risk: section(floodText, 'Kontrollera MSB:s Översvämningsportal, kommunens riskunderlag och gällande planeringsförutsättningar före mark- eller byggbeslut.', 'REQUIRES_VERIFICATION', canonical.authorities.flood, reason('AUTHORITATIVE_DATA_REQUIRED')),
-      zoning_and_land_use: section(`Planstatus måste bekräftas enligt ${canonical.planning.instrumentName}.`, 'Kontrollera kommunens plankarta, planbestämmelser, detaljplanens genomförandestatus och eventuella andra bindande markanvändningskrav.', canonical.planning.status, canonical.planning.sourceName, reason(canonical.planning.reasonCode)),
+      zoning_and_land_use: section(`Planstatus måste bekräftas enligt ${canonical.planning.instrumentName}.`, 'Kontrollera kommunens plankarta, planbestämmelser, detaljplanens genomförandestatus och eventuella andra bindande markanvändningskrav.', canonical.planning.status, planningSource, reason(canonical.planning.reasonCode)),
       building_regulations: section('Fastighetsindelning och rättsliga fastighetsuppgifter hämtas inte automatiskt i denna version.', 'Kontrollera fastighetsbeteckning, gränser, lagfart, servitut och andra rättigheter hos Lantmäteriet. LandSurf behandlar inte en ritad användargräns som juridisk fastighetsgräns.', 'REQUIRES_VERIFICATION', canonical.authorities.cadastre, reason('AUTHORITATIVE_DATA_REQUIRED')),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.environment.status, canonical.environment.sourceName, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : undefined),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.infrastructure.status, canonical.infrastructure.sourceName, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : undefined),
@@ -197,3 +206,5 @@ export function renderSwedishLocalizedReport(canonical: CanonicalReport): any {
     opportunities: ['SGU erbjuder mycket starka öppna nationella källor för inledande mark- och grundscreening.', 'Brunnsarkivet och nätet för observerade grundvattennivåer gör det möjligt att hitta relevant omgivande underlag utan att behandla det som mätningar på själva tomten.']
   };
 }
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
