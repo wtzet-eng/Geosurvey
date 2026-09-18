@@ -104,6 +104,22 @@ function authority(canonical: CanonicalReport, kind: 'geology' | 'cadastre' | 'p
   return kind === 'geology' ? canonical.authorities.geology : kind === 'planning' ? canonical.authorities.planning : canonical.authorities.cadastre;
 }
 
+function localizedPlanningLabel(value: string | undefined, language: FrEsFiLanguage): string {
+  const raw = String(value || '');
+  if (language === 'es') return raw
+    .replace(/^(.+?) Spatial Planning Authority/i, '$1 — autoridad de planeamiento')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 — autoridad urbanística competente')
+    .replace(/Spatial Planning Authority/gi, 'autoridad de planeamiento')
+    .replace(/competent local planning authority/gi, 'autoridad urbanística competente');
+  if (language === 'fr') return raw
+    .replace(/^(.+?) Spatial Planning Authority/i, '$1 — autorité compétente en urbanisme')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 — autorité locale compétente en urbanisme');
+  if (language === 'fi') return raw
+    .replace(/^(.+?) Spatial Planning Authority/i, '$1 — kaavoitusviranomainen')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 — toimivaltainen paikallinen kaavoitusviranomainen');
+  return raw;
+}
+
 export function renderFrEsFiLocalizedReport(canonical: CanonicalReport, language: FrEsFiLanguage): any {
   const c = copies[language];
   const support = c.supportNotice;
@@ -172,7 +188,9 @@ export function renderFrEsFiLocalizedReport(canonical: CanonicalReport, language
     };
   });
 
-  const checklist = c.checklist.map(([topic, itemReason, kind], index) => ({ topic, reason: itemReason, recommendedAuthorityOrExpert: authority(canonical, kind), priority: index === 3 ? 'Medium' : 'High' }));
+  const planningAuthority = localizedPlanningLabel(canonical.planning.authorityName, language);
+  const planningSource = localizedPlanningLabel(canonical.planning.sourceName, language);
+  const checklist = c.checklist.map(([topic, itemReason, kind], index) => ({ topic, reason: itemReason, recommendedAuthorityOrExpert: kind === 'planning' ? planningAuthority : authority(canonical, kind), priority: index === 3 ? 'Medium' : 'High' }));
   const utilitiesChecklist = (canonical.utilities || []).map(item => ({
     utility: c.utilityNames[item.utilityCode] || item.utilityCode,
     status: item.mapped ? (item.distanceM === null ? c.utilityMapped : c.utilityDistance(item.distanceM)) : reason(language, item.reasonCode),
@@ -199,8 +217,8 @@ export function renderFrEsFiLocalizedReport(canonical: CanonicalReport, language
       soil_and_ground: section(soilText, `${c.binding} ${contextSummary} ${c.investigationFocus}`, canonical.soil.status, canonical.soil.sourceName, canonical.soil.reasonCode ? reason(language, canonical.soil.reasonCode) : undefined),
       geohazard_risk: section(geologyText, `${geologyText} ${c.mappedGeologyLimitation}`, canonical.geology.status, canonical.geology.sourceName, canonical.geology.reasonCode ? reason(language, canonical.geology.reasonCode) : undefined),
       flooding_risk: section(floodText, canonical.flood.reasonCode ? reason(language, canonical.flood.reasonCode) : c.binding, canonical.flood.status, canonical.flood.sourceName, canonical.flood.reasonCode ? reason(language, canonical.flood.reasonCode) : undefined),
-      zoning_and_land_use: section(c.planningSummary(canonical.planning.instrumentName), reason(language, canonical.planning.reasonCode), canonical.planning.status, canonical.planning.sourceName, reason(language, canonical.planning.reasonCode)),
-      building_regulations: section(reason(language, 'AUTHORITATIVE_DATA_REQUIRED'), c.planningDetail(canonical.planning.instrumentName), canonical.planning.status, canonical.planning.authorityName, reason(language, canonical.planning.reasonCode)),
+      zoning_and_land_use: section(c.planningSummary(canonical.planning.instrumentName), reason(language, canonical.planning.reasonCode), canonical.planning.status, planningSource, reason(language, canonical.planning.reasonCode)),
+      building_regulations: section(reason(language, 'AUTHORITATIVE_DATA_REQUIRED'), c.planningDetail(canonical.planning.instrumentName), canonical.planning.status, planningAuthority, reason(language, canonical.planning.reasonCode)),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? reason(language, canonical.environment.reasonCode) : c.binding, canonical.environment.status, canonical.environment.sourceName, canonical.environment.reasonCode ? reason(language, canonical.environment.reasonCode) : undefined),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? reason(language, canonical.infrastructure.reasonCode) : c.binding, canonical.infrastructure.status, canonical.infrastructure.sourceName, canonical.infrastructure.reasonCode ? reason(language, canonical.infrastructure.reasonCode) : undefined),
       market_and_comparables: section(valuationText, canonical.valuation.reasonCode ? reason(language, canonical.valuation.reasonCode) : c.landOnly, canonical.valuation.status, canonical.valuation.sourceName, canonical.valuation.reasonCode ? reason(language, canonical.valuation.reasonCode) : undefined),
