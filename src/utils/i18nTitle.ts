@@ -1,3 +1,5 @@
+[Reading 161 lines from start (total: 161 lines, 0 remaining)]
+
 const TITLES_MAP: Record<string, string> = {
   en: "Screen Your Building Site: Ground Risks and Land Value",
   de: "Prüfen Sie Ihr Baugrundstück: Georisiken und Bodenwert",
@@ -101,6 +103,23 @@ const FRONT_PAGE_DICTIONARY: Record<string, Partial<FrontPageI18n>> = {
     btnGen: "Förhandsgranska tomt",
     modeCircle: "Cirkel", modeRect: "Rektangel", modePoly: "Fri polygon", finishPoly: "Slutför polygon", clear: "Rensa", clickPrompt: "Klicka på kartan för att ange gränsen."
   },
+  da: {
+    badge: "Europæisk platform for byggegrunde og georisici",
+    heroSub: "Vi samler de tilgængelige oplysninger om grunden ét sted. Vælg et sted for at se dokumentation om jordbund, risici, planforhold og jordværdi, med datamangler tydeligt markeret.",
+    step1: "1. Angiv grundens afgrænsning",
+    searchPh: "Søg efter adresse eller by (f.eks. København, Aarhus, Odense)...",
+    step2: "2. Indstillinger og parametre",
+    areaLbl: "Grundareal (m²)",
+    countryLbl: "Land (Europa)",
+    langLbl: "Rapportsprog",
+    btnGen: "Undersøg grunden",
+    modeCircle: "Cirkel",
+    modeRect: "Rektangel",
+    modePoly: "Fri polygon",
+    finishPoly: "Afslut polygon",
+    clear: "Ryd",
+    clickPrompt: "Klik på kortet for at angive grænsen."
+  },
   no: {
     badge: "Europeisk plattform for byggegrunn og geofarer",
     heroSub: "Tegn eller velg en byggetomt i Europa. Få en foreløpig rapport basert på tilgjengelige offentlige data om grunnforhold, geologiske farer, arealplanlegging og tomteverdi.",
@@ -142,3 +161,5 @@ export function getFrontPageI18n(langCode?: string): FrontPageI18n {
     clickPrompt: custom.clickPrompt || "Click the map to place boundary."
   };
 }
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

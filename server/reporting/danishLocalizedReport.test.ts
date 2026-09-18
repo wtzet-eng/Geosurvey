@@ -1,3 +1,5 @@
+[Reading 93 lines from start (total: 93 lines, 0 remaining)]
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderDanishLocalizedReport } from './danishLocalizedReport';
@@ -71,12 +73,13 @@ test('Denmark keeps automatic valuation off and explicitly excludes buildings', 
 
 test('Denmark localizes standard evidence records and routes professional checks correctly', () => {
   const fixture = canonicalFixture();
-  fixture.planning.authorityName = 'Horsens Kommune Municipal Planning Department (Wydział Architektury / Urbanistyki)';
+  fixture.planning.authorityName = 'Horsens Kommune competent local planning authority';
   const report = renderDanishLocalizedReport(fixture);
   const terrain = report.evidenceRegistry.find((item: any) => item.id === 'terrain-elevation-slope');
   assert.equal(terrain?.category, 'Terræn og topografi');
   assert.match(terrain?.claim || '', /Terrænmodellen/i);
-  assert.doesNotMatch(JSON.stringify(report.verificationChecklist), /Wydział Architektury|Urbanistyki/i);
+  assert.doesNotMatch(JSON.stringify(report.verificationChecklist), /competent local planning authority|Wydział Architektury|Urbanistyki/i);
+  assert.match(report.verificationChecklist[0].recommendedAuthorityOrExpert, /Horsens Kommune kommunale planmyndighed/i);
   assert.match(report.verificationChecklist.find((item: any) => /Geoteknisk/i.test(item.topic))?.recommendedAuthorityOrExpert || '', /Geoteknisk rådgiver|ingeniørgeolog/i);
   assert.match(report.verificationChecklist.find((item: any) => /Forsyning/i.test(item.topic))?.recommendedAuthorityOrExpert || '', /forsyningsselskaber|netejere/i);
 });
@@ -90,3 +93,5 @@ test('Denmark unavailable road and environment do not render false negative find
   assert.match(report.sections.infrastructure_and_access.summary, /utilgængelig|kunne ikke nås/i);
   assert.doesNotMatch(report.sections.environmental_factors.summary, /ikke identificeret et beskyttet område/i);
 });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]

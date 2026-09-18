@@ -1,3 +1,5 @@
+[Reading 688 lines from start (total: 688 lines, 0 remaining)]
+
 import express from 'express';
 import { createBillingRouter } from './server/services/billingRoutes';
 import path from 'path';
@@ -110,7 +112,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const cProfile = countryCode === 'DK' ? {
       ...baseProfile,
       countryCode: 'DK', countryName: 'Denmark', currency: 'DKK', symbol: 'kr',
-      cadastreAuthority: 'Geodatastyrelsen / Dataforsyningen (Matrikelkortet / DAWA)', cadastrePortalUrl: 'https://dawadocs.dataforsyningen.dk/dok/matrikelkortet',
+      cadastreAuthority: 'Klimadatastyrelsen / Datafordeleren — Matriklen2', cadastrePortalUrl: 'https://datafordeler.dk/dataoversigt/matriklen-mat/matriklen2-gaeldende-og-foreloebig-wfs/',
       geologyAuthority: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland (GEUS / Jupiter)', geologyPortalUrl: 'https://data.geus.dk/geusmap/',
       floodAuthority: 'Relevante nationale og kommunale danske risikomyndigheder', floodPortalUrl: 'https://www.klimatilpasning.dk/',
       planningInstrumentName: 'Lokalplan / kommuneplanramme',
@@ -686,3 +688,5 @@ async function startServer() {
 }
 
 startServer().catch(err => { console.error('Failed to start server:', err); process.exit(1); });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
