@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SiteReport } from '../types';
 import { localizeAspect } from '../i18n/aspectI18n';
+import { buyerSummary, decisionIntroCopy, findingsCopy } from '../i18n/reportFindings';
 import { MapPreview } from './MapPreview';
 import { EmbedModal } from './EmbedModal';
 import { GoogleDriveModal } from './GoogleDriveModal';
@@ -56,6 +57,14 @@ export const ReportViewDanish: React.FC<Props> = ({ report, onBack }) => {
   const sources = data.data_sources || [];
   const legal = data.legal_disclaimers || [];
   const utilities = data.utilities_checklist || [];
+  const planningConfirmed=data.zoning_and_land_use?.evidence_level==='VERIFIED';
+  const floodConfirmed=data.flooding_risk?.evidence_level==='VERIFIED';
+  const buyer=buyerSummary({slope:tech.slope_degrees, risks, planningConfirmed, floodConfirmed},'da');
+  const opening=decisionIntroCopy('da');
+  const findings=findingsCopy('da');
+  const hasParcel=Boolean(tech.cadastral_parcel_id && present(tech.cadastral_parcel_id)!=='ikke tilgængelig');
+  const highlights=[typeof tech.slope_degrees==='number'?`${findings.terrain}: ${tech.slope_degrees}°`:null,hasParcel?`${findings.parcel}: ${tech.cadastral_parcel_id}`:null].filter(Boolean) as string[];
+  const plainSummary=`${opening.first} ${hasParcel?opening.evidence:opening.limited} ${planningConfirmed&&floodConfirmed?opening.clear:opening.next}`;
   const copyLink = async () => { try { await navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch {} };
 
   return <div className="min-h-screen bg-slate-100/70 text-slate-900 pb-20">
@@ -80,15 +89,16 @@ export const ReportViewDanish: React.FC<Props> = ({ report, onBack }) => {
     <main className="mx-auto max-w-5xl px-4 pt-6 space-y-6">
       <section className="rounded-3xl bg-slate-950 text-white p-6 sm:p-8 shadow-lg">
         <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-widest"><FileText className="h-4 w-4" />1. Sammenfatning</div>
-        <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Foreløbig vurdering af byggegrund</h1>
-        <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{data.summary || 'Vurderingen bygger på de kilder, der kunne hentes for stedet. Kilder og begrænsninger fremgår af evidensregistret.'}</p>
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Evidensstatus" value={data.evidence_score ? `${data.evidence_score.verifiedCount} verificeret · ${data.evidence_score.modelledCount} modelleret · ${data.evidence_score.unverifiedCount} kræver verifikation` : 'ikke vurderet'} />
-          <Metric label="Verificeret" value={data.evidence_score?.verifiedCount ?? 0} />
-          <Metric label="Modelleret" value={data.evidence_score?.modelledCount ?? 0} />
-          <Metric label="Skal verificeres" value={data.evidence_score?.unverifiedCount ?? 0} />
+        <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">{planningConfirmed&&floodConfirmed?opening.complete:opening.verdict}</h1>
+        <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{plainSummary}</p>
+        <div className="mt-6 grid md:grid-cols-2 gap-5">
+          <div><h2 className="text-sm font-semibold text-white">{buyer.copy.positive}</h2><p className="mt-2 text-xs text-slate-400">{buyer.copy.suitabilityNote}</p>{buyer.positives.length?<ul className="mt-2 space-y-2 text-sm text-slate-300">{buyer.positives.map((text,index)=><li key={index}>{text}</li>)}</ul>:<p className="mt-2 text-sm text-slate-300">{buyer.copy.noPositive}</p>}</div>
+          <div><h2 className="text-sm font-semibold text-white">{buyer.copy.concerns}</h2>{buyer.concerns.length?<ul className="mt-2 space-y-2 text-sm text-amber-200">{buyer.concerns.map((text,index)=><li key={index}>{text}</li>)}</ul>:<p className="mt-2 text-sm text-slate-300">{buyer.copy.noConcern}</p>}</div>
+          <div className="md:col-span-2 border-t border-white/10 pt-4"><h2 className="text-sm font-semibold text-white">{buyer.copy.checks}</h2><ul className="mt-2 space-y-1 text-sm text-slate-300">{buyer.checks.map((text,index)=><li key={index}>{text}</li>)}</ul></div>
         </div>
       </section>
+      {highlights.length>0&&<section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold">{findings.findings}</h2><ul className="mt-3 space-y-2 text-sm">{highlights.map((item,index)=><li key={index}>{item}</li>)}</ul><p className="mt-3 text-xs text-slate-600">{findings.limits}</p></section>}
+      {checklist.length>0&&<section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold">{opening.nextTitle}</h2><p className="mt-1 text-sm text-slate-600">{opening.nextLead}</p><ol className="mt-4 space-y-4 list-decimal pl-5">{checklist.slice(0,3).map((item:any,index:number)=><li key={index} className="pl-1 text-sm"><h3 className="font-semibold">{item.topic}</h3><p className="mt-1 text-slate-600 leading-relaxed">{item.reason}</p>{item.recommendedAuthorityOrExpert&&<p className="mt-1 text-xs text-slate-500">Myndighed / fagperson: {item.recommendedAuthorityOrExpert}</p>}</li>)}</ol></section>}
 
       <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-5">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-4"><div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center"><MapPin className="h-5 w-5" /></div><div><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">2. Sted og grund</div><h2 className="text-lg font-bold">Placering og matrikel</h2></div></div>

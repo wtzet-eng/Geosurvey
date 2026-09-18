@@ -155,6 +155,7 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
   const section = (summary: string, detail: string, status: string, source?: string, limitation?: string) => ({ summary, detail, evidence_level: status, source_cited: source, limitation_notice: limitation });
 
   const planningAuthority = String(canonical.planning.authorityName || 'Relevant kommune / planmyndighed')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 kommunale planmyndighed')
     .replace(/competent planning \/ building authority/gi, 'plan- og byggemyndighed')
     .replace(/Municipal Planning Department \(Wydział Architektury \/ Urbanistyki\)/gi, 'plan- og byggemyndighed');
   const checklist = [

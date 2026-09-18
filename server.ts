@@ -110,7 +110,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const cProfile = countryCode === 'DK' ? {
       ...baseProfile,
       countryCode: 'DK', countryName: 'Denmark', currency: 'DKK', symbol: 'kr',
-      cadastreAuthority: 'Geodatastyrelsen / Dataforsyningen (Matrikelkortet / DAWA)', cadastrePortalUrl: 'https://dawadocs.dataforsyningen.dk/dok/matrikelkortet',
+      cadastreAuthority: 'Klimadatastyrelsen / Datafordeleren — Matriklen2', cadastrePortalUrl: 'https://datafordeler.dk/dataoversigt/matriklen-mat/matriklen2-gaeldende-og-foreloebig-wfs/',
       geologyAuthority: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland (GEUS / Jupiter)', geologyPortalUrl: 'https://data.geus.dk/geusmap/',
       floodAuthority: 'Relevante nationale og kommunale danske risikomyndigheder', floodPortalUrl: 'https://www.klimatilpasning.dk/',
       planningInstrumentName: 'Lokalplan / kommuneplanramme',

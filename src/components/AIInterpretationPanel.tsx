@@ -89,7 +89,13 @@ const initializePaddle = async (token: string, environment: 'sandbox' | 'product
   paddleInitializedToken = token;
 };
 
-const priorityLabel = (priority: string) => priority === 'high' ? 'High' : priority === 'medium' ? 'Medium' : 'Standard';
+const aiPanelCopy = (language: string) => language.toLowerCase().startsWith('da') ? {
+  brand:'LandSurf AI-fortolkning', title:'Fortolk det indsamlede evidensgrundlag', description:'Modellen modtager kun LandSurfs strukturerede evidenspakke. Den må ikke opfinde manglende oplysninger om grunden eller gøre nærliggende observationer til projekteringsværdier.', close:'Luk', serverKey:'Modelnøgle på serversiden', notEvidence:'AI-fortolkning ≠ ny evidens', signedIn:'Logget ind', authenticatedUser:'Godkendt bruger', signOut:'Log ud', signInTitle:'Log ind for at bruge modellen', publicEvidence:'Det offentlige evidensgrundlag er fortsat tilgængeligt uden en konto.', signingIn:'Logger ind…', signInGoogle:'Log ind med Google', noCredits:'Ingen AI-kreditter tilbage', credits:'AI-kreditter til fortolkning', creditExplain:'Evidensrapporten er fortsat tilgængelig. Der bruges én kredit pr. vellykket AI-fortolkning. Kreditpakker er engangskøb; den fulde pris og eventuelle skatter vises ved betaling.', buy:'Se pris og køb', paidNotConfigured:'Betalte kreditpakker er endnu ikke konfigureret.', refresh:'Opdatér kreditter', sandbox:'Paddle-sandkassetilstand — der trækkes ingen rigtige penge.', whatAi:'Det gør AI-fortolkningen', whatAiText:'Opsummerer direkte observationer, forklarer hvad de kan betyde for den indledende due diligence, fremhæver begrænsninger og laver en prioriteret liste over næste verifikationer. Den kan ikke certificere byggeret, juridisk ejerskab, grænser, grundvandsdybde, bæreevne eller en funderingsløsning.', interpreting:'Fortolker evidensen…', interpret:'Fortolk evidensen', completed:'Fortolkning gennemført', confidence:'Sikkerhed', observations:'Direkte observationer', interpretation:'Fortolkning', limitations:'Begrænsninger', verifyNext:'Det skal verificeres næste gang', runAgain:'Kør igen', none:'Ingen oplysninger.', free:'gratis', purchased:'købte AI-kreditter tilbage', creditUnit:'AI-kreditter', high:'Høj', medium:'Mellem', standard:'Standard', low:'Lav'
+} : {
+  brand:'LandSurf AI interpretation', title:'Interpret the collected evidence', description:"The model receives LandSurf's structured evidence package only. It is not allowed to invent missing parcel facts or turn nearby observations into design values.", close:'Close', serverKey:'Server-side model key', notEvidence:'AI interpretation ≠ new evidence', signedIn:'Signed in', authenticatedUser:'Authenticated user', signOut:'Sign out', signInTitle:'Sign in to use the model', publicEvidence:'The public evidence remains available without an account.', signingIn:'Signing in…', signInGoogle:'Sign in with Google', noCredits:'No AI credits remaining', credits:'AI interpretation credits', creditExplain:'The evidence report remains available. One credit is used per successful AI interpretation. Credit packs are a one-time purchase; the full price and taxes are shown in checkout.', buy:'View price & buy', paidNotConfigured:'Paid credit packs are not configured yet.', refresh:'Refresh credits', sandbox:'Paddle sandbox mode — no real money is charged.', whatAi:'What the AI will do', whatAiText:'Summarize direct observations, explain what they may mean for preliminary due diligence, identify limitations, and produce a prioritized verification list. It cannot certify buildability, legal title, boundaries, groundwater depth, bearing capacity, or a foundation solution.', interpreting:'Interpreting evidence…', interpret:'Interpret this evidence', completed:'Interpretation completed', confidence:'Confidence', observations:'Direct observations', interpretation:'Interpretation', limitations:'Limitations', verifyNext:'What to verify next', runAgain:'Run again', none:'None reported.', free:'free', purchased:'purchased AI credits remaining', creditUnit:'AI credits', high:'High', medium:'Medium', standard:'Standard', low:'Low'
+};
+const priorityLabel = (priority: string, copy: ReturnType<typeof aiPanelCopy>) => priority === 'high' ? copy.high : priority === 'medium' ? copy.medium : copy.standard;
+const confidenceLabel = (confidence: string, copy: ReturnType<typeof aiPanelCopy>) => confidence === 'high' ? copy.high : confidence === 'medium' ? copy.medium : copy.low;
 const PENDING_TRANSACTION_KEY = 'surveyland_pending_paddle_transaction';
 
 export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
@@ -266,9 +272,10 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
   };
 
   const actionText = getActionText(report.language);
+  const ui=aiPanelCopy(report.language);
   const canRun = status.available && (!status.authRequired || Boolean(user)) && !(entitlement?.enabled && entitlement.paywallRequired);
   const allowanceLabel = entitlement?.enabled
-    ? `${entitlement.freeRemaining} free + ${entitlement.purchasedCredits} purchased AI credits remaining`
+    ? `${entitlement.freeRemaining} ${ui.free} + ${entitlement.purchasedCredits} ${ui.purchased}`
     : null;
 
   const launcher = (className: string) => (
@@ -299,19 +306,19 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700"><BrainCircuit className="h-5 w-5" /></div>
             <div>
-              <div className="text-xs font-bold uppercase tracking-widest text-indigo-600">LandSurf AI interpretation</div>
-              <h2 className="mt-0.5 text-lg font-black text-slate-950">Interpret the collected evidence</h2>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">The model receives LandSurf's structured evidence package only. It is not allowed to invent missing parcel facts or turn nearby observations into design values.</p>
+              <div className="text-xs font-bold uppercase tracking-widest text-indigo-600">{ui.brand}</div>
+              <h2 className="mt-0.5 text-lg font-black text-slate-950">{ui.title}</h2>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">{ui.description}</p>
             </div>
           </div>
-          <button type="button" onClick={() => setIsOpen(false)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label="Close"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={() => setIsOpen(false)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label={ui.close}><X className="h-5 w-5" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6 space-y-5">
           <div className="flex flex-wrap items-center gap-2 text-[11px]">
             <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{status.provider} · {status.model}</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />Server-side model key</span>
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">AI interpretation ≠ new evidence</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />{ui.serverKey}</span>
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">{ui.notEvidence}</span>
             {allowanceLabel && <span className="rounded-full bg-indigo-50 px-2.5 py-1 font-semibold text-indigo-700">{allowanceLabel}</span>}
           </div>
 
@@ -320,11 +327,11 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
 
           {status.authRequired && status.authConfigured && isFirebaseAuthConfigured && <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             {user ? <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><div className="text-xs font-bold text-slate-900">Signed in</div><div className="text-xs text-slate-500">{user.email || user.displayName || 'Authenticated user'}</div></div>
-              <button type="button" onClick={() => signOutCurrentUser()} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"><LogOut className="h-3.5 w-3.5" />Sign out</button>
+              <div><div className="text-xs font-bold text-slate-900">{ui.signedIn}</div><div className="text-xs text-slate-500">{user.email || user.displayName || ui.authenticatedUser}</div></div>
+              <button type="button" onClick={() => signOutCurrentUser()} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"><LogOut className="h-3.5 w-3.5" />{ui.signOut}</button>
             </div> : <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><div className="text-xs font-bold text-slate-900">Sign in to use the model</div><div className="text-xs text-slate-500">The public evidence remains available without an account.</div></div>
-              <button type="button" onClick={signIn} disabled={isSigningIn} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{isSigningIn ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogIn className="h-3.5 w-3.5" />}{isSigningIn ? 'Signing in…' : 'Sign in with Google'}</button>
+              <div><div className="text-xs font-bold text-slate-900">{ui.signInTitle}</div><div className="text-xs text-slate-500">{ui.publicEvidence}</div></div>
+              <button type="button" onClick={signIn} disabled={isSigningIn} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{isSigningIn ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogIn className="h-3.5 w-3.5" />}{isSigningIn ? ui.signingIn : ui.signInGoogle}</button>
             </div>}
           </div>}
 
@@ -332,23 +339,23 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-violet-700"><CreditCard className="h-5 w-5" /></div>
               <div className="flex-1">
-                <h3 className="text-sm font-black text-slate-950">{entitlement.paywallRequired ? 'No AI credits remaining' : 'AI interpretation credits'}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">The evidence report remains available. One credit is used per successful AI interpretation. Credit packs are a one-time purchase; the full price and taxes are shown in checkout.</p>
+                <h3 className="text-sm font-black text-slate-950">{entitlement.paywallRequired ? ui.noCredits : ui.credits}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">{ui.creditExplain}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {billing?.configured ? <button type="button" onClick={buyCredits} disabled={isBilling} className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{isBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}View price & buy {billing.creditPackSize} AI credits</button> : <span className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-violet-800">Paid credit packs are not configured yet.</span>}
-                  <button type="button" onClick={refreshEntitlement} disabled={isBilling} className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-800"><RefreshCw className="h-3.5 w-3.5" />Refresh credits</button>
+                  {billing?.configured ? <button type="button" onClick={buyCredits} disabled={isBilling} className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{isBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}{ui.buy} {billing.creditPackSize} {ui.creditUnit}</button> : <span className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-violet-800">{ui.paidNotConfigured}</span>}
+                  <button type="button" onClick={refreshEntitlement} disabled={isBilling} className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-800"><RefreshCw className="h-3.5 w-3.5" />{ui.refresh}</button>
                 </div>
-                {billing?.environment === 'sandbox' && <p className="mt-3 text-[11px] font-semibold text-violet-700">Paddle sandbox mode — no real money is charged.</p>}
+                {billing?.environment === 'sandbox' && <p className="mt-3 text-[11px] font-semibold text-violet-700">{ui.sandbox}</p>}
               </div>
             </div>
           </div>}
 
           {!result && !(entitlement?.enabled && entitlement.paywallRequired) && <div className="rounded-3xl border border-indigo-100 bg-indigo-50/60 p-5">
-            <h3 className="text-sm font-bold text-slate-950">What the AI will do</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">Summarize direct observations, explain what they may mean for preliminary due diligence, identify limitations, and produce a prioritized verification list. It cannot certify buildability, legal title, boundaries, groundwater depth, bearing capacity, or a foundation solution.</p>
+            <h3 className="text-sm font-bold text-slate-950">{ui.whatAi}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">{ui.whatAiText}</p>
             <button type="button" onClick={runInterpretation} disabled={!canRun || isRunning} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
               {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {isRunning ? 'Interpreting evidence…' : 'Interpret this evidence'}
+              {isRunning ? ui.interpreting : ui.interpret}
             </button>
           </div>}
 
@@ -356,13 +363,13 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
           {error && <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
 
           {result && <div className="space-y-4">
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><div className="flex items-center gap-2 text-sm font-bold text-emerald-900"><CheckCircle2 className="h-4 w-4" />Interpretation completed</div><div className="mt-1 text-xs text-emerald-800">Confidence: {result.overallConfidence} · {result.provider} / {result.model}</div></div>
-            <ResultList title="Direct observations" items={result.observations} />
-            <ResultList title="Interpretation" items={result.interpretation} />
-            <ResultList title="Limitations" items={result.limitations} />
-            <section className="rounded-2xl border border-slate-200 p-4"><h3 className="text-sm font-bold text-slate-950">What to verify next</h3><div className="mt-3 space-y-2">{result.verificationRequired.map((item, index) => <div key={`${item.topic}-${index}`} className="rounded-xl bg-slate-50 p-3"><div className="flex items-center justify-between gap-2"><div className="text-sm font-semibold text-slate-900">{item.topic}</div><span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">{priorityLabel(item.priority)}</span></div><div className="mt-1 text-xs leading-relaxed text-slate-600">{item.reason}</div></div>)}</div></section>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><div className="flex items-center gap-2 text-sm font-bold text-emerald-900"><CheckCircle2 className="h-4 w-4" />{ui.completed}</div><div className="mt-1 text-xs text-emerald-800">{ui.confidence}: {confidenceLabel(result.overallConfidence,ui)} · {result.provider} / {result.model}</div></div>
+            <ResultList title={ui.observations} items={result.observations} emptyText={ui.none} />
+            <ResultList title={ui.interpretation} items={result.interpretation} emptyText={ui.none} />
+            <ResultList title={ui.limitations} items={result.limitations} emptyText={ui.none} />
+            <section className="rounded-2xl border border-slate-200 p-4"><h3 className="text-sm font-bold text-slate-950">{ui.verifyNext}</h3><div className="mt-3 space-y-2">{result.verificationRequired.map((item, index) => <div key={`${item.topic}-${index}`} className="rounded-xl bg-slate-50 p-3"><div className="flex items-center justify-between gap-2"><div className="text-sm font-semibold text-slate-900">{item.topic}</div><span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">{priorityLabel(item.priority,ui)}</span></div><div className="mt-1 text-xs leading-relaxed text-slate-600">{item.reason}</div></div>)}</div></section>
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">{result.disclaimer}</div>
-            <button type="button" onClick={runInterpretation} disabled={isRunning || Boolean(entitlement?.paywallRequired)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">{isRunning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Run again</button>
+            <button type="button" onClick={runInterpretation} disabled={isRunning || Boolean(entitlement?.paywallRequired)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">{isRunning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{ui.runAgain}</button>
           </div>}
         </div>
       </div>
@@ -370,4 +377,4 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
   </>;
 };
 
-const ResultList: React.FC<{ title: string; items: string[] }> = ({ title, items }) => <section className="rounded-2xl border border-slate-200 p-4"><h3 className="text-sm font-bold text-slate-950">{title}</h3>{items.length ? <ul className="mt-3 space-y-2">{items.map((item, index) => <li key={`${title}-${index}`} className="flex gap-2 text-sm leading-relaxed text-slate-600"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />{item}</li>)}</ul> : <div className="mt-2 text-xs text-slate-400">None reported.</div>}</section>;
+const ResultList: React.FC<{ title: string; items: string[]; emptyText: string }> = ({ title, items, emptyText }) => <section className="rounded-2xl border border-slate-200 p-4"><h3 className="text-sm font-bold text-slate-950">{title}</h3>{items.length ? <ul className="mt-3 space-y-2">{items.map((item, index) => <li key={`${title}-${index}`} className="flex gap-2 text-sm leading-relaxed text-slate-600"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />{item}</li>)}</ul> : <div className="mt-2 text-xs text-slate-400">{emptyText}</div>}</section>;

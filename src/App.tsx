@@ -103,6 +103,19 @@ const extraUi: Record<string, Record<string, string>> = {
     '(auto-calculated from boundary)': '(calculado automáticamente a partir del límite)',
     'Gathering governmental data…': 'Recopilando datos públicos…'
   },
+  da: {
+    'Please draw a site boundary on the map first.': 'Tegn først grundens afgrænsning på kortet.',
+    'Failed to analyze site. Please try again.': 'Analysen af grunden kunne ikke gennemføres. Prøv igen.',
+    'An error occurred while generating the report.': 'Der opstod en fejl under oprettelsen af rapporten.',
+    'Boundary set · approx': 'Grænse angivet · ca.',
+    '(adjust area input to resize)': '(juster arealet for at ændre størrelsen)',
+    'Click the map to place the circle center.': 'Klik på kortet for at placere cirklens centrum.',
+    'Click two opposite corners on the map to draw the rectangle.': 'Klik på to modsatte hjørner på kortet for at tegne rektanglet.',
+    'Click sequential points on the map to draw a custom polygon boundary.': 'Klik på punkter i rækkefølge på kortet for at tegne en fri polygongrænse.',
+    '(auto-calculated from boundary)': '(beregnet automatisk ud fra grænsen)',
+    'Gathering governmental data…': 'Henter offentlige data…',
+    'The country provides a default report language; a manual language selection is preserved.': 'Landet angiver et standardsprog for rapporten; et manuelt sprogvalg bevares.'
+  },
   fi: {
     'Please draw a site boundary on the map first.': 'Piirrä ensin tontin rajaus kartalle.',
     'Failed to analyze site. Please try again.': 'Tontin analysointi epäonnistui. Yritä uudelleen.',
@@ -118,7 +131,7 @@ const extraUi: Record<string, Record<string, string>> = {
 };
 
 const uiText = (language: string, en: string, nl: string, cs: string, sv: string, no: string, sk: string) => {
-  if (language === 'fr' || language === 'es' || language === 'fi') return extraUi[language]?.[en] || en;
+  if (language === 'fr' || language === 'es' || language === 'fi' || language === 'da') return extraUi[language]?.[en] || en;
   return language === 'nl' ? nl : language === 'cs' ? cs : language === 'sv' ? sv : language === 'no' ? no : language === 'sk' ? sk : en;
 };
 
@@ -353,7 +366,7 @@ export default function App() {
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold"><Sparkles className="h-3.5 w-3.5" /><span>{fp.badge}</span></div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">{fp.heroTitle}</h1>
-          <p className="text-sm font-medium text-slate-700">{languageCode === 'pl' ? 'Poznaj teren. Porównaj możliwości. Dowiedz się, co sprawdzić dalej.' : languageCode === 'de' ? 'Verstehen Sie das Grundstück. Vergleichen Sie Ihre Optionen. Erfahren Sie, was als Nächstes zu prüfen ist.' : 'Understand the land. Compare your options. Know what to check next.'}</p>
+          <p className="text-sm font-medium text-slate-700">{languageCode === 'pl' ? 'Poznaj teren. Porównaj możliwości. Dowiedz się, co sprawdzić dalej.' : languageCode === 'de' ? 'Verstehen Sie das Grundstück. Vergleichen Sie Ihre Optionen. Erfahren Sie, was als Nächstes zu prüfen ist.' : languageCode === 'da' ? 'Forstå grunden. Sammenlign mulighederne. Se, hvad der skal kontrolleres næste gang.' : 'Understand the land. Compare your options. Know what to check next.'}</p>
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">{fp.heroSub}</p>
         </div>
 

@@ -29,7 +29,7 @@ test('public evidence card shows evidence states without a numeric quality score
   assert.doesNotMatch(html, /0\/100|Calculated Quality|Robust Evidence/);
 });
 
-import { buyerSummary } from './reportFindings';
+import { buyerSummary, decisionIntroCopy, findingsCopy } from './reportFindings';
 test('buyer summary does not turn missing evidence into a purchase advantage', () => {
  const result=buyerSummary({risks:[{category:'Landslide',level:'Low',evidence_level:'REQUIRES_VERIFICATION'}],planningConfirmed:false,floodConfirmed:false},'en');
  assert.equal(result.positives.length,0);
@@ -41,4 +41,28 @@ test('buyer summary explains supported findings and prioritises high concerns', 
  assert.match(result.positives[0],/1.7°/);
  assert.match(result.concerns[0],/Landslide: High/);
  assert.equal(result.checks.length,1);
+});
+
+test('decision-first opening is localized for shared and dedicated country languages', () => {
+  const cases = [
+    ['de', /Erster Überblick/i],
+    ['nl', /eerste controle/i],
+    ['fi', /ensitarkistus/i],
+    ['fr', /première vérification/i],
+    ['da', /første vurdering/i],
+    ['cs', /první kontrola/i],
+  ] as const;
+  for (const [language, expected] of cases) {
+    const opening = decisionIntroCopy(language);
+    const buyer = buyerSummary({ slope: 1.2, risks: [], planningConfirmed: false, floodConfirmed: false }, language);
+    assert.match(opening.verdict, expected);
+    assert.doesNotMatch([opening.verdict, opening.nextTitle, buyer.copy.positive, buyer.copy.checks, findingsCopy(language).findings].join('\n'), /A useful first check|Suitability for development|What still needs checking|Key findings at a glance|Your next checks/i, language);
+  }
+});
+
+test('Danish and Czech risk labels are understood by the decision summary', () => {
+  assert.equal(riskSeverity('Høj'), 'high');
+  assert.equal(riskSeverity('Moderat'), 'moderate');
+  const da = buyerSummary({ risks: [{ category: 'Radon', level: 'Lav', evidence_level: 'VERIFIED' }], planningConfirmed: true, floodConfirmed: true }, 'da');
+  assert.equal(da.positives.length, 1);
 });
