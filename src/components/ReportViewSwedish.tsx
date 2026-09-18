@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { SiteReport } from '../types';
+import { buyerSummary, decisionIntroCopy, findingsCopy } from '../i18n/reportFindings';
+import { localizeAspect } from '../i18n/aspectI18n';
 import { MapPreview } from './MapPreview';
 import { EmbedModal } from './EmbedModal';
 import { GoogleDriveModal } from './GoogleDriveModal';
@@ -15,11 +17,7 @@ const status = (value: unknown) => {
 };
 
 const present = (value: unknown, fallback = 'inte tillgängligt') => value === null || value === undefined || value === '' || Number.isNaN(value) ? fallback : String(value);
-const aspect = (value: unknown) => {
-  const raw = present(value);
-  const directions: Record<string, string> = { N: 'Norr', NE: 'Nordost', E: 'Öster', SE: 'Sydost', S: 'Söder', SW: 'Sydväst', W: 'Väster', NW: 'Nordväst' };
-  return directions[raw] || raw;
-};
+export const localizeSwedishAspect = (value: unknown) => localizeAspect(value, 'sv', 'inte tillgängligt');
 
 const Section: React.FC<{ number: string; title: string; section?: any; children?: React.ReactNode }> = ({ number, title, section, children }) => (
   <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -51,6 +49,16 @@ export const ReportViewSwedish: React.FC<Props> = ({ report, onBack }) => {
   const sources = data.data_sources || [];
   const legal = data.legal_disclaimers || [];
   const utilities = data.utilities_checklist || [];
+  const planningConfirmed=data.zoning_and_land_use?.evidence_level==='VERIFIED';
+  const floodConfirmed=data.flooding_risk?.evidence_level==='VERIFIED';
+  const buyer=buyerSummary({slope:tech.slope_degrees, risks, planningConfirmed, floodConfirmed},'sv');
+  const opening=decisionIntroCopy('sv');
+  const findings=findingsCopy('sv');
+  const hasParcel=Boolean(tech.cadastral_parcel_id && present(tech.cadastral_parcel_id)!=='inte tillgängligt');
+  const geologyName=data.geosurvey_context?.geological_unit_name;
+  const hasMappedEvidence=Boolean(hasParcel || geologyName);
+  const highlights=[geologyName?`${findings.mapped}: ${geologyName}`:null,typeof tech.slope_degrees==='number'?`${findings.terrain}: ${tech.slope_degrees}°`:null,hasParcel?`${findings.parcel}: ${tech.cadastral_parcel_id}`:null].filter(Boolean) as string[];
+  const plainSummary=`${opening.first} ${hasMappedEvidence?opening.evidence:opening.limited} ${planningConfirmed&&floodConfirmed?opening.clear:opening.next}`;
 
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch {}
@@ -78,15 +86,16 @@ export const ReportViewSwedish: React.FC<Props> = ({ report, onBack }) => {
     <main className="mx-auto max-w-5xl px-4 pt-6 space-y-6">
       <section className="rounded-3xl bg-slate-950 text-white p-6 sm:p-8 shadow-lg">
         <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-widest"><FileText className="h-4 w-4" />1. Sammanfattning</div>
-        <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Preliminär tomtbedömning</h1>
-        <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{data.summary || 'Bedömningen bygger på de källor som kunde hämtas för platsen. Källor och begränsningar redovisas i evidensregistret.'}</p>
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Evidensstatus" value={data.evidence_score ? `${data.evidence_score.verifiedCount} verifierade · ${data.evidence_score.modelledCount} modellerade · ${data.evidence_score.unverifiedCount} kräver verifiering` : 'inte bedömt'} />
-          <Metric label="Verifierat" value={data.evidence_score?.verifiedCount ?? 0} />
-          <Metric label="Modellerat" value={data.evidence_score?.modelledCount ?? 0} />
-          <Metric label="Behöver verifieras" value={data.evidence_score?.unverifiedCount ?? 0} />
+        <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">{planningConfirmed&&floodConfirmed?opening.complete:opening.verdict}</h1>
+        <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{plainSummary}</p>
+        <div className="mt-6 grid md:grid-cols-2 gap-5">
+          <div><h2 className="text-sm font-semibold text-white">{buyer.copy.positive}</h2><p className="mt-2 text-xs text-slate-400">{buyer.copy.suitabilityNote}</p>{buyer.positives.length?<ul className="mt-2 space-y-2 text-sm text-slate-300">{buyer.positives.map((text,index)=><li key={index}>{text}</li>)}</ul>:<p className="mt-2 text-sm text-slate-300">{buyer.copy.noPositive}</p>}</div>
+          <div><h2 className="text-sm font-semibold text-white">{buyer.copy.concerns}</h2>{buyer.concerns.length?<ul className="mt-2 space-y-2 text-sm text-amber-200">{buyer.concerns.map((text,index)=><li key={index}>{text}</li>)}</ul>:<p className="mt-2 text-sm text-slate-300">{buyer.copy.noConcern}</p>}</div>
+          <div className="md:col-span-2 border-t border-white/10 pt-4"><h2 className="text-sm font-semibold text-white">{buyer.copy.checks}</h2><ul className="mt-2 space-y-1 text-sm text-slate-300">{buyer.checks.map((text,index)=><li key={index}>{text}</li>)}</ul></div>
         </div>
       </section>
+      {highlights.length>0&&<section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold">{findings.findings}</h2><ul className="mt-3 space-y-2 text-sm">{highlights.map((item,index)=><li key={index}>{item}</li>)}</ul><p className="mt-3 text-xs text-slate-600">{findings.limits}</p></section>}
+      {checklist.length>0&&<section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold">{opening.nextTitle}</h2><p className="mt-1 text-sm text-slate-600">{opening.nextLead}</p><ol className="mt-4 space-y-4 list-decimal pl-5">{checklist.slice(0,3).map((item:any,index:number)=><li key={index} className="pl-1 text-sm"><h3 className="font-semibold">{item.topic}</h3><p className="mt-1 text-slate-600 leading-relaxed">{item.reason}</p>{item.recommendedAuthorityOrExpert&&<p className="mt-1 text-xs text-slate-500">Aktuell myndighet / sakkunnig: {item.recommendedAuthorityOrExpert}</p>}</li>)}</ol></section>}
 
       <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-5">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-4"><div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center"><MapPin className="h-5 w-5" /></div><div><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">2. Plats och tomt</div><h2 className="text-lg font-bold">Plats och tomtgräns</h2></div></div>
@@ -97,7 +106,7 @@ export const ReportViewSwedish: React.FC<Props> = ({ report, onBack }) => {
           <Metric label="Fastighetsbeteckning" value={present(tech.cadastral_parcel_id)} />
           <Metric label="Höjd" value={tech.elevation_amsl !== null && tech.elevation_amsl !== undefined ? `${tech.elevation_amsl} m ö.h.` : 'inte tillgängligt'} />
           <Metric label="Lutning" value={tech.slope_degrees !== null && tech.slope_degrees !== undefined ? `${tech.slope_degrees}° (${present(tech.slope_percent)} %)` : 'inte tillgängligt'} />
-          <Metric label="Sluttningsriktning" value={aspect(tech.aspect_direction)} />
+          <Metric label="Sluttningsriktning" value={localizeSwedishAspect(tech.aspect_direction)} />
         </div>
         <MapPreview lat={report.latitude} lng={report.longitude} areaSize={report.area_size} boundary={report.boundary} />
         <div className="text-[11px] text-slate-500">Den ritade gränsen är användarens analysgeometri och ska inte tolkas som juridiskt fastställd fastighetsgräns. Fastighetsindelning och rättigheter behöver verifieras hos Lantmäteriet.</div>
@@ -134,3 +143,5 @@ export const ReportViewSwedish: React.FC<Props> = ({ report, onBack }) => {
     </main>
   </div>;
 };
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
