@@ -7,7 +7,7 @@ import { ReportViewSwedish } from './ReportViewSwedish';
 import { ReportViewDanish } from './ReportViewDanish';
 import { AIInterpretationPanel } from './AIInterpretationPanel';
 import { SiteReport } from '../types';
-import { SupportLandSurf } from './SupportLandSurf';
+import { FloatingSupportLandSurf, SupportLandSurf } from './SupportLandSurf';
 
 interface ReportViewProps {
   report: SiteReport;
@@ -34,6 +34,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
 
   return <>
     <AIInterpretationPanel report={report} />
+    <FloatingSupportLandSurf />
     {reportView}
     <SupportLandSurf />
   </>;
