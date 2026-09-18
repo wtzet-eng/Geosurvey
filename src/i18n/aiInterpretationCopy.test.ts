@@ -11,3 +11,5 @@ test('Swedish AI interpretation shell is localized', () => {
   assert.match(copy.verifyNext, /verifieras härnäst/);
   assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next/i);
 });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
