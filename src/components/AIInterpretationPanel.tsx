@@ -4,6 +4,7 @@ import { AlertTriangle, BrainCircuit, CheckCircle2, CreditCard, Loader2, LogIn, 
 import { SiteReport } from '../types';
 import { getCurrentFirebaseIdToken, isFirebaseAuthConfigured, signInWithGoogle, signOutCurrentUser, subscribeToAuthState } from '../lib/firebaseAuth';
 import { getActionText } from '../utils/actionI18n';
+import { FloatingSupportLandSurf } from './SupportLandSurf';
 
 interface Props {
   report: SiteReport;
@@ -292,12 +293,14 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
 
   return <>
     <div className="mx-auto w-full max-w-5xl px-4 pt-4 2xl:hidden print:hidden">
-      <div className="flex justify-end">
-        {launcher('inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-950/10 hover:bg-indigo-700')}
+      <div className="ml-auto flex w-52 flex-col gap-2">
+        {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-950/10 hover:bg-indigo-700')}
+        <FloatingSupportLandSurf />
       </div>
     </div>
     <div className="fixed bottom-5 right-5 z-40 hidden w-52 flex-col gap-2 2xl:flex print:hidden">
       {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-xl shadow-indigo-950/20 hover:bg-indigo-700')}
+      <FloatingSupportLandSurf />
     </div>
 
     {isOpen && <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm p-3 sm:p-6 print:hidden" role="dialog" aria-modal="true">
@@ -378,3 +381,5 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
 };
 
 const ResultList: React.FC<{ title: string; items: string[]; emptyText: string }> = ({ title, items, emptyText }) => <section className="rounded-2xl border border-slate-200 p-4"><h3 className="text-sm font-bold text-slate-950">{title}</h3>{items.length ? <ul className="mt-3 space-y-2">{items.map((item, index) => <li key={`${title}-${index}`} className="flex gap-2 text-sm leading-relaxed text-slate-600"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />{item}</li>)}</ul> : <div className="mt-2 text-xs text-slate-400">{emptyText}</div>}</section>;
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
