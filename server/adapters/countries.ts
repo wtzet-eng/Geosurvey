@@ -204,5 +204,3 @@ export function getCountryProfile(countryCode: string): CountryAdapterProfile {
     baseValuationPerSqm: 0
   };
 }
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
