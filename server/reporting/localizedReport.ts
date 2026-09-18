@@ -186,6 +186,18 @@ function siteContextRecordPresentation(record: CanonicalReport['evidenceRecords'
 /** Renders reader-facing prose from canonical evidence without mutating scientific facts. */
 export function renderLocalizedReport(canonical: CanonicalReport, requestedLanguage: string) {
   const language = normalizeReportLanguage(requestedLanguage);
+  const localizePlanningLabel = (input: string | undefined) => {
+    const raw = String(input || '');
+    if (language === 'pl') return raw
+      .replace(/^(.+?) Spatial Planning Authority/i, '$1 — właściwy organ planowania przestrzennego')
+      .replace(/^(.+?) competent local planning authority$/i, '$1 — właściwy organ planowania przestrzennego')
+      .replace(/Spatial Planning Authority/gi, 'właściwy organ planowania przestrzennego')
+      .replace(/competent local planning authority/gi, 'właściwy organ planowania przestrzennego');
+    if (language === 'de') return raw
+      .replace(/^(.+?) Spatial Planning Authority/i, '$1 — zuständige Planungsbehörde')
+      .replace(/^(.+?) competent local planning authority$/i, '$1 — zuständige örtliche Planungsbehörde');
+    return raw;
+  };
   const t = copy[language];
   const unavailable = t.unavailable as string;
   const countryNames: Record<ReportLanguage, Record<string, string>> = { en: { PL: 'Poland', GB: 'United Kingdom', DE: 'Germany' }, de: { PL: 'Polen', GB: 'Vereinigtes Königreich', DE: 'Deutschland' }, pl: { PL: 'Polska', GB: 'Wielka Brytania', DE: 'Niemcy' } };
@@ -287,7 +299,8 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
       : 'MyPlan generalised zoning and nearby planning applications are contextual evidence only; they do not replace the statutory development plan or confirmation by the competent planning authority.';
   const planningSummary = hasIrelandPlanningContext ? irelandPlanningSummary : interpolate(t.planning as string, { instrument: canonical.planning.instrumentName });
   const planningDetail = hasIrelandPlanningContext ? irelandPlanningDetail : localizeAvailabilityReason(canonical.planning.reasonCode, language);
-  const planningSource = hasIrelandPlanningContext ? 'Department of Housing — MyPlan / National Planning Application Database (context only)' : canonical.planning.sourceName;
+  const planningSource = hasIrelandPlanningContext ? 'Department of Housing — MyPlan / National Planning Application Database (context only)' : localizePlanningLabel(canonical.planning.sourceName);
+  const planningAuthority = localizePlanningLabel(canonical.planning.authorityName);
   const valuationAvailable = canonical.valuation.min !== null && canonical.valuation.max !== null;
   const valuationText = valuationAvailable
     ? interpolate(t.valuation as string, { min: canonical.valuation.min!.toLocaleString(language), max: canonical.valuation.max!.toLocaleString(language), currency: canonical.valuation.currency })
@@ -365,7 +378,7 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
       geohazard_risk: section(geologyText, geologyDetail, canonical.geology.status, geologySource, unavailableNotice(canonical.geology.reasonCode)),
       flooding_risk: section(floodText, unavailableNotice(canonical.flood.reasonCode) || t.authoritative as string, canonical.flood.status, canonical.flood.sourceName, unavailableNotice(canonical.flood.reasonCode)),
       zoning_and_land_use: section(planningSummary, planningDetail, canonical.planning.status, planningSource, unavailableNotice(canonical.planning.reasonCode)),
-      building_regulations: section(t.authoritative as string, interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), canonical.planning.status, canonical.planning.authorityName, unavailableNotice(canonical.planning.reasonCode)),
+      building_regulations: section(t.authoritative as string, interpolate(t.planning as string, { instrument: canonical.planning.instrumentName }), canonical.planning.status, planningAuthority, unavailableNotice(canonical.planning.reasonCode)),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? t.sourceUnavailable as string : t.authoritative as string, canonical.environment.status, canonical.environment.sourceName, unavailableNotice(canonical.environment.reasonCode)),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? t.sourceUnavailable as string : t.authoritative as string, canonical.infrastructure.status, canonical.infrastructure.sourceName, unavailableNotice(canonical.infrastructure.reasonCode)),
       market_and_comparables: section(valuationText, unavailableNotice(canonical.valuation.reasonCode) || t.authoritative as string, canonical.valuation.status, canonical.valuation.sourceName, unavailableNotice(canonical.valuation.reasonCode)),
