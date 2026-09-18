@@ -19,6 +19,54 @@ const status = (value: unknown) => {
 const present = (value: unknown, fallback = 'údaj nie je k dispozícii') => value === null || value === undefined || value === '' || Number.isNaN(value) ? fallback : String(value);
 export const localizeSlovakAspect = (value: unknown) => localizeAspect(value, 'sk', 'údaj nie je k dispozícii');
 
+export const localizeSlovakEvidenceValue = (value: unknown): string => {
+  const text = String(value ?? '').trim();
+  const exact: Record<string,string> = {
+    'Terrain & Topography':'Terén a topografia',
+    'Cross-border hydrology context':'Regionálny hydrologický kontext',
+    'Soil model':'Model pôdy',
+    'Infrastructure & Access':'Infraštruktúra a prístup',
+    'Environmental & Conservation':'Životné prostredie a ochrana prírody',
+    'Market Valuation & Economics':'Trh a oceňovanie pozemku',
+    'Pedological spatial context':'Priestorový pedologický kontext',
+    'Mapped geology':'Mapovaná geológia',
+    'Hydrogeological context':'Hydrogeologický kontext',
+    'Ground hazards':'Geologické riziká',
+    'Country support scope':'Rozsah podpory krajiny',
+    'Nearest public road corridor unconfirmed in open dataset':'Najbližší koridor verejnej cesty nebol potvrdený v otvorenom dátovom zdroji.',
+    'SoilGrids query unavailable; no soil texture or engineering properties inferred.':'Dotaz SoilGrids nebol dostupný; nebola odvodená textúra pôdy ani inžinierske vlastnosti.',
+    'Environmental spatial query unavailable; no protected-area overlap or distance conclusion was inferred.':'Environmentálny priestorový dotaz nebol dostupný; nebol odvodený záver o prekrytí s chráneným územím ani o vzdialenosti.',
+    'The official slope-deformation susceptibility layer did not return a usable site feature.':'Oficiálna vrstva náchylnosti na svahové deformácie nevrátila použiteľný prvok pre túto lokalitu.'
+  };
+  if (exact[text]) return exact[text];
+
+  const elevation = text.match(/^Mean elevation ([\d.,-]+) m a\.s\.l\. with slope gradient of ([\d.,-]+)° \((.+)\)$/i);
+  if (elevation) {
+    const slopeClass = elevation[3]
+      .replace(/^Flat/i,'Rovinatý')
+      .replace(/^Gentle/i,'Mierny')
+      .replace(/^Moderate/i,'Stredný')
+      .replace(/^Steep/i,'Strmý')
+      .replace(/^Very steep/i,'Veľmi strmý');
+    return `Priemerná nadmorská výška ${elevation[1]} m n. m. so sklonom ${elevation[2]}° (${slopeClass})`;
+  }
+
+  if (/^Hydrology proximity data is not available because the spatial query did not complete/i.test(text)) {
+    return 'Údaje o blízkosti hydrologických prvkov nie sú dostupné, pretože priestorový dotaz sa nedokončil. Nebola odvodená žiadna klasifikácia povodňového rizika.';
+  }
+
+  const samples = text.match(/^SoilGrids returned (\d+) usable model samples across the selected geometry and vicinity\.?$/i);
+  if (samples) return `SoilGrids vrátil ${samples[1]} použiteľných modelových vzoriek pre vybranú geometriu a jej okolie.`;
+
+  const valuation = text.match(/^Indicative Slovak land asking-price benchmark: (.+)$/i);
+  if (valuation) return `Orientačný slovenský benchmark ponukových cien pozemkov: ${valuation[1]}`
+    .replace(/based on Trnavský kraj regional residential\/building-plot asking benchmark\.?$/i, 'na základe regionálneho benchmarku ponukových cien rezidenčných/stavebných pozemkov v Trnavskom kraji.');
+
+  return text
+    .replace(/^(.+?) Spatial Planning Authority \(/i, '$1 — príslušný orgán územného plánovania (')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 — príslušný miestny orgán územného plánovania');
+};
+
 const normalized = (value: unknown) => String(value || '').trim().replace(/\s+/g, ' ').replace(/[.]+$/, '').toLowerCase();
 
 const Section: React.FC<{ number: string; title: string; section?: any; children?: React.ReactNode }> = ({ number, title, section, children }) => {
@@ -107,7 +155,7 @@ export const ReportViewSlovak: React.FC<Props> = ({ report, onBack }) => {
         </div>
       </section>
       {highlights.length>0&&<section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold">{findings.findings}</h2><ul className="mt-3 space-y-2 text-sm">{highlights.map((item,index)=><li key={index}>{item}</li>)}</ul><p className="mt-3 text-xs text-slate-600">{findings.limits}</p></section>}
-      {checklist.length>0&&<section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold">{opening.nextTitle}</h2><p className="mt-1 text-sm text-slate-600">{opening.nextLead}</p><ol className="mt-4 space-y-4 list-decimal pl-5">{checklist.slice(0,3).map((item:any,index:number)=><li key={index} className="pl-1 text-sm"><h3 className="font-semibold">{item.topic}</h3><p className="mt-1 text-slate-600 leading-relaxed">{item.reason}</p>{item.recommendedAuthorityOrExpert&&<p className="mt-1 text-xs text-slate-500">Odporúčaný orgán / odborník: {item.recommendedAuthorityOrExpert}</p>}</li>)}</ol></section>}
+      {checklist.length>0&&<section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold">{opening.nextTitle}</h2><p className="mt-1 text-sm text-slate-600">{opening.nextLead}</p><ol className="mt-4 space-y-4 list-decimal pl-5">{checklist.slice(0,3).map((item:any,index:number)=><li key={index} className="pl-1 text-sm"><h3 className="font-semibold">{item.topic}</h3><p className="mt-1 text-slate-600 leading-relaxed">{item.reason}</p>{item.recommendedAuthorityOrExpert&&<p className="mt-1 text-xs text-slate-500">Odporúčaný orgán / odborník: {localizeSlovakEvidenceValue(item.recommendedAuthorityOrExpert)}</p>}</li>)}</ol></section>}
 
       <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-5">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-4"><div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center"><MapPin className="h-5 w-5" /></div><div><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">2. Lokalita a parcela</div><h2 className="text-lg font-bold">Lokalita a parcela</h2></div></div>
@@ -143,8 +191,8 @@ export const ReportViewSlovak: React.FC<Props> = ({ report, onBack }) => {
 
       <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-4">
         <div className="flex items-center gap-3"><Database className="h-5 w-5 text-indigo-600" /><div><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">12. Register dôkazov</div><h2 className="text-lg font-bold">Register dôkazov a zdrojov</h2></div></div>
-        {evidence.map((item: any, index: number) => <details key={`${item.id}-${index}`} className="rounded-2xl border border-slate-200 p-4"><summary className="cursor-pointer list-none"><div className="flex items-start justify-between gap-3"><div><div className="font-bold text-sm">{item.category}</div><div className="text-xs text-slate-500 mt-1">{item.claim}</div></div><span className="text-[10px] font-bold text-slate-500 shrink-0">{status(item.status)}</span></div></summary><div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-2"><div><strong>Zdroj:</strong> {item.sourceName}</div>{item.spatialRelationship && <div><strong>Priestorový vzťah:</strong> {item.spatialRelationship}</div>}{item.calculationMethod && <div><strong>Metóda:</strong> {item.calculationMethod}</div>}{item.limitation && <div><strong>Obmedzenie:</strong> {item.limitation}</div>}</div></details>)}
-        {sources.length > 0 && <div className="pt-3 border-t border-slate-100"><div className="font-bold text-sm mb-2">Zdroje v reporte</div><div className="space-y-2">{sources.map((source: any, index: number) => <div key={`${source.name}-${index}`} className="text-xs text-slate-600"><strong>{source.name}</strong>{source.verification_status ? ` · ${source.verification_status}` : ''}</div>)}</div></div>}
+        {evidence.map((item: any, index: number) => <details key={`${item.id}-${index}`} className="rounded-2xl border border-slate-200 p-4"><summary className="cursor-pointer list-none"><div className="flex items-start justify-between gap-3"><div><div className="font-bold text-sm">{localizeSlovakEvidenceValue(item.category)}</div><div className="text-xs text-slate-500 mt-1">{localizeSlovakEvidenceValue(item.claim)}</div></div><span className="text-[10px] font-bold text-slate-500 shrink-0">{status(item.status)}</span></div></summary><div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-2"><div><strong>Zdroj:</strong> {item.sourceName}</div>{item.spatialRelationship && <div><strong>Priestorový vzťah:</strong> {localizeSlovakEvidenceValue(item.spatialRelationship)}</div>}{item.calculationMethod && <div><strong>Metóda:</strong> {localizeSlovakEvidenceValue(item.calculationMethod)}</div>}{item.limitation && <div><strong>Obmedzenie:</strong> {localizeSlovakEvidenceValue(item.limitation)}</div>}</div></details>)}
+        {sources.length > 0 && <div className="pt-3 border-t border-slate-100"><div className="font-bold text-sm mb-2">Zdroje v reporte</div><div className="space-y-2">{sources.map((source: any, index: number) => <div key={`${source.name}-${index}`} className="text-xs text-slate-600"><strong>{source.name}</strong>{source.verification_status ? ` · ${status(source.verification_status)}` : ''}</div>)}</div></div>}
       </section>
 
       <section className="rounded-3xl bg-amber-50 border border-amber-200 p-6 sm:p-8">
