@@ -144,5 +144,3 @@ export function getCountrySupportNotice(countryCode: string, language = 'en'): s
   if (support.maturity === 'LIMITED' && Object.values(support.capabilities).some(Boolean)) return notices[lang].PARTIAL;
   return notices[lang][support.maturity];
 }
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
