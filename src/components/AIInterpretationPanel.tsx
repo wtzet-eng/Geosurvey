@@ -4,6 +4,7 @@ import { AlertTriangle, BrainCircuit, CheckCircle2, CreditCard, Loader2, LogIn, 
 import { SiteReport } from '../types';
 import { getCurrentFirebaseIdToken, isFirebaseAuthConfigured, signInWithGoogle, signOutCurrentUser, subscribeToAuthState } from '../lib/firebaseAuth';
 import { getActionText } from '../utils/actionI18n';
+import { FloatingSupportLandSurf } from './SupportLandSurf';
 
 interface Props {
   report: SiteReport;
@@ -289,8 +290,9 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
         {launcher('inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-950/10 hover:bg-indigo-700')}
       </div>
     </div>
-    <div className="fixed bottom-5 right-5 z-40 hidden w-52 2xl:block print:hidden">
+    <div className="fixed bottom-5 right-5 z-40 hidden w-52 flex-col gap-2 2xl:flex print:hidden">
       {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-xl shadow-indigo-950/20 hover:bg-indigo-700')}
+      <FloatingSupportLandSurf />
     </div>
 
     {isOpen && <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm p-3 sm:p-6 print:hidden" role="dialog" aria-modal="true">
