@@ -20,11 +20,14 @@ test('Czech Slovak and Danish views localize cardinal words while preserving deg
 });
 
 
-test('floating Ko-fi shortcut stays available in the report corner at all screen widths', () => {
+test('Ko-fi shortcut is stackable below the AI action at the same width', () => {
   const html = renderToStaticMarkup(React.createElement(FloatingSupportLandSurf));
   assert.match(html, /Support LandSurf/);
   assert.match(html, /https:\/\/ko-fi\.com\/surveyland/);
   assert.match(html, /#496931/i);
-  assert.match(html, /fixed bottom-4 left-4/);
+  assert.match(html, /w-full/);
+  assert.doesNotMatch(html, /fixed bottom-4 left-4/);
   assert.match(html, /print:hidden/);
 });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
