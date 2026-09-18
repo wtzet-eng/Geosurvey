@@ -90,5 +90,3 @@ test('Denmark unavailable road and environment do not render false negative find
   assert.match(report.sections.infrastructure_and_access.summary, /utilgængelig|kunne ikke nås/i);
   assert.doesNotMatch(report.sections.environmental_factors.summary, /ikke identificeret et beskyttet område/i);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
