@@ -392,6 +392,9 @@ export function enrichCzechiaGroundEvidence(report: any, items: CzechiaGroundEvi
       genetic_origin: text(g.genesis) || report.geosurvey_context?.genetic_origin || null,
       groundwater_regime: text(h.transmissivity) || text(h.description) || text(h.name) || report.geosurvey_context?.groundwater_regime || null,
       evidence_level: geology ? 'VERIFIED' : report.geosurvey_context?.evidence_level || 'REQUIRES_VERIFICATION',
+      source_name: geology?.sourceName || engineering?.sourceName || hydro?.sourceName || boreholes?.sourceName || report.geosurvey_context?.source_name || null,
+      source_url: geology?.sourceUrl || engineering?.sourceUrl || hydro?.sourceUrl || boreholes?.sourceUrl || report.geosurvey_context?.source_url || null,
+      source_scale: text(g.scale) || text(e.scale) || report.geosurvey_context?.source_scale || null,
       cgs_engineering_zone: text(e.name) || text(e.code) || null,
       cgs_engineering_characterization: text(e.characterization) || null,
       cgs_borehole_count: numeric(b.totalCount) ?? (Array.isArray(b.boreholes) ? b.boreholes.length : 0),
@@ -409,17 +412,33 @@ export function enrichCzechiaGroundEvidence(report: any, items: CzechiaGroundEvi
 
   if (deformation && report.terrain?.geohazards?.landslideSusceptibility) {
     report.terrain.geohazards.landslideSusceptibility = { ...report.terrain.geohazards.landslideSusceptibility, status: 'VERIFIED', level: 'High', sourceName: CGS, description: `${deformation.claim} ${report.terrain.geohazards.landslideSusceptibility.description || ''}`.trim() };
+  } else if (!susceptibility && report.terrain?.geohazards?.landslideSusceptibility) {
+    report.terrain.geohazards.landslideSusceptibility = {
+      ...report.terrain.geohazards.landslideSusceptibility,
+      status: 'REQUIRES_VERIFICATION',
+      level: 'Not available',
+      sourceName: CGS,
+      description: 'Czech national landslide-susceptibility and mapped slope-deformation evidence did not produce a verified site classification.'
+    };
   }
 
-  if (radon && report.terrain?.geohazards?.radonPotential) {
-    const classification = text((radon.value as any)?.classification);
-    if (classification) report.terrain.geohazards.radonPotential = { ...report.terrain.geohazards.radonPotential, status: 'VERIFIED', classification, sourceName: radon.sourceName };
+  if (report.terrain?.geohazards?.radonPotential) {
+    if (radon) {
+      const classification = text((radon.value as any)?.classification);
+      if (classification) report.terrain.geohazards.radonPotential = { ...report.terrain.geohazards.radonPotential, status: 'VERIFIED', classification, sourceName: radon.sourceName };
+    } else {
+      report.terrain.geohazards.radonPotential = { ...report.terrain.geohazards.radonPotential, status: 'REQUIRES_VERIFICATION', classification: 'Not available — Czech national radon evidence was not verified', sourceName: CGS };
+    }
   }
 
-  if (mining && report.terrain?.geohazards?.miningSubsidence) {
-    const firstRecord = Array.isArray((mining.value as any)?.records) ? (mining.value as any).records[0] : null;
-    const name = text(firstRecord?.name);
-    report.terrain.geohazards.miningSubsidence = { ...report.terrain.geohazards.miningSubsidence, status: 'VERIFIED', classification: name ? `Registered undermined area: ${name}` : 'Registered undermined area intersects site', sourceName: CGS };
+  if (report.terrain?.geohazards?.miningSubsidence) {
+    if (mining) {
+      const firstRecord = Array.isArray((mining.value as any)?.records) ? (mining.value as any).records[0] : null;
+      const name = text(firstRecord?.name);
+      report.terrain.geohazards.miningSubsidence = { ...report.terrain.geohazards.miningSubsidence, status: 'VERIFIED', classification: name ? `Registered undermined area: ${name}` : 'Registered undermined area intersects site', sourceName: CGS };
+    } else {
+      report.terrain.geohazards.miningSubsidence = { ...report.terrain.geohazards.miningSubsidence, status: 'REQUIRES_VERIFICATION', classification: 'Not available — Czech undermined-area evidence was not verified', sourceName: CGS };
+    }
   }
 
   // Deliberately do not populate estimatedBearingCapacityKpa, effectiveFrictionAngleDeg,
