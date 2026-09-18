@@ -80,7 +80,7 @@ export interface CanonicalReport {
   infrastructure: { roadName: string | null; roadType: string | null; distanceM: number | null; directAccess: boolean; status: EvidenceLevel; sourceName: string; reasonCode?: AvailabilityReason };
   utilities?: Array<{ utilityCode: 'ELECTRICITY' | 'WATER' | 'SEWER' | 'GAS' | 'TELECOM' | 'OTHER'; mapped: boolean; distanceM: number | null; status: EvidenceLevel; sourceName: string; reasonCode?: AvailabilityReason }>;
   environment: { protectedAreaName: string | null; distanceM: number | null; status: EvidenceLevel; sourceName: string; reasonCode?: AvailabilityReason };
-  valuation: { min: number | null; max: number | null; median: number | null; currency: string; status: EvidenceLevel; comparableCount: number; sourceName: string; reasonCode?: AvailabilityReason };
+  valuation: { min: number | null; max: number | null; median: number | null; currency: string; status: EvidenceLevel; comparableCount: number; sourceName: string; reasonCode?: AvailabilityReason; mode?: 'PARCEL_TOTAL' | 'MARKET_CONTEXT'; unitMin?: number | null; unitMax?: number | null; unitMedian?: number | null; calibrationMaxAreaM2?: number };
   evidenceScore: CanonicalEvidenceScore;
   sourceRecords: VerifiedSiteReport['dataSourcesCited'];
   evidenceRecords: VerifiedSiteReport['evidenceRegistry'];
@@ -88,8 +88,10 @@ export interface CanonicalReport {
 
 const finite = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
 const scientific = (value: unknown): string | null => {
-  if (typeof value !== 'string' || !value.trim() || /^(not available|not established|no mapped|unclassified)/i.test(value)) return null;
-  return value;
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  if (!cleaned || /^(?:-|n\/?a|none|null|unknown|not available\b|not established\b|no mapped\b|no data\b|unclassified\b)/i.test(cleaned)) return null;
+  return cleaned;
 };
 const riskCode = (value: unknown): RiskClassification => {
   const normalized = String(value || '').toUpperCase();

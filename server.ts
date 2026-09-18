@@ -23,6 +23,9 @@ import { applyIrelandCadastreToReport, queryIrelandCadastre } from './server/ser
 import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './server/services/irelandNationalEvidenceService';
 import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './server/services/luxembourgCadastreService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
+import { applyBelgiumCadastreToReport, queryBelgiumCadastre } from './server/services/belgiumCadastreService';
+import { enrichBelgiumNationalEvidence, queryBelgiumNationalEvidence } from './server/services/belgiumNationalEvidenceService';
+import { getCenterFromShape, resolveSiteLocation } from './server/services/locationResolutionService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
@@ -43,6 +46,7 @@ import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGro
 import { renderCzechiaGroundPresentation } from './server/reporting/czechiaGroundPresentation';
 import { renderCzechiaCadastrePresentation } from './server/reporting/czechiaCadastrePresentation';
 import { applySiteSpecificCountryEvidence, buildEvidenceDisplayRecords, enrichValuationPresentation } from './server/reporting/evidenceDisplay';
+import { applyValuationAreaGuard } from './server/reporting/valuationAreaGuard';
 import { getCountrySupport } from './src/data/countrySupport';
 
 const app = express();
@@ -74,25 +78,6 @@ function consumeAiRateLimit(key: string) {
   return true;
 }
 
-function getCenterFromShape(shape: any, reqBody?: any): [number, number] {
-  if (reqBody?.latitude !== undefined && reqBody?.longitude !== undefined) return [Number(reqBody.latitude), Number(reqBody.longitude)];
-  if (!shape) return [52.2297, 21.0122];
-  if (shape.type === 'circle' && shape.center) return shape.center;
-  if (shape.type === 'rectangle' && shape.corners?.length >= 2) {
-    const lats = shape.corners.map((c: any) => (Array.isArray(c) ? c[0] : c.lat));
-    const lngs = shape.corners.map((c: any) => (Array.isArray(c) ? c[1] : c.lng));
-    return [(lats[0] + lats[1]) / 2, (lngs[0] + lngs[1]) / 2];
-  }
-  if ((shape.type === 'polygon' || shape.coordinates) && (shape.points?.length > 0 || shape.coordinates?.length > 0)) {
-    const pts = shape.points || shape.coordinates;
-    const lats = pts.map((p: any) => (Array.isArray(p) ? p[0] : p.lat));
-    const lngs = pts.map((p: any) => (Array.isArray(p) ? p[1] : p.lng));
-    return [lats.reduce((a: number, b: number) => a + b, 0) / lats.length, lngs.reduce((a: number, b: number) => a + b, 0) / lngs.length];
-  }
-  if (shape.center && Array.isArray(shape.center)) return [shape.center[0], shape.center[1]];
-  return [52.2297, 21.0122];
-}
-
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 app.get('/api/cadastre/query', async (req, res) => {
   const lat = Number(req.query.lat); const lng = Number(req.query.lng); const country = String(req.query.country || 'PL').toUpperCase();
@@ -106,6 +91,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'DK') return res.json(await queryDenmarkCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'IE') return res.json(await queryIrelandCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'LU') return res.json(await queryLuxembourgCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'BE') return res.json(await queryBelgiumCadastre(lat, lng));
   return res.json({ success: false, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY', message: `Automated national cadastre acquisition is not implemented for ${profile.countryName}. Verify the parcel with ${profile.cadastreAuthority}.`, cadastreAuthority: profile.cadastreAuthority, portalUrl: profile.cadastrePortalUrl });
 });
 
@@ -145,30 +131,22 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
               ? (countryCode === 'NO' ? 'no' : 'en')
               : ['en', 'de', 'pl', 'nl', 'fr', 'es', 'fi'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
     stage = 'site-centre';
-    const [lat, lng] = getCenterFromShape(shape, req.body);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return res.status(400).json({ error: 'Valid latitude and longitude are required.' });
-    let locationName = `${lat.toFixed(5)}, ${lng.toFixed(5)} (${country})`;
-    let municipality = '', countyName = '', stateName = '', roadName = '';
-    let resolvedCountryCode = '';
+    const center = getCenterFromShape(shape, req.body);
+    if (!center) return res.status(400).json({ error: 'Select a site on the map to continue.', code: 'SITE_LOCATION_REQUIRED' });
+    const [lat, lng] = center;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({ error: 'Select a valid site on the map to continue.', code: 'SITE_LOCATION_INVALID' });
+    }
 
     stage = 'reverse-geocoding';
-    try {
-      const ctrl = new AbortController(); const id = setTimeout(() => ctrl.abort(), 3500);
-      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, { headers: { 'User-Agent': 'GeoSurveyEvidenceApp/4.0' }, signal: ctrl.signal });
-      clearTimeout(id);
-      if (r.ok) {
-        const d: any = await r.json();
-        if (d?.display_name) locationName = d.display_name;
-        if (d?.address) {
-          const a = d.address;
-          municipality = a.city || a.town || a.village || a.municipality || a.suburb || '';
-          countyName = a.county || '';
-          stateName = a.state || a.province || a.region || '';
-          roadName = a.road || '';
-          resolvedCountryCode = String(a.country_code || '').toUpperCase();
-        }
-      }
-    } catch (e) { console.warn(`[${diagnosticId}] Geocoding notice:`, e); }
+    const resolvedLocation = await resolveSiteLocation(lat, lng, country);
+    let locationName = resolvedLocation.locationName;
+    let municipality = resolvedLocation.municipality;
+    let countyName = resolvedLocation.county;
+    let stateName = resolvedLocation.state;
+    let roadName = resolvedLocation.road;
+    let resolvedCountryCode = resolvedLocation.countryCode;
+    const resolvedRegionCode = resolvedLocation.regionCode;
 
     const countryLocationMismatch = Boolean(resolvedCountryCode && resolvedCountryCode !== countryCode && !(countryCode === 'GB' && resolvedCountryCode === 'UK'));
     const acquisitionCountryCode = countryLocationMismatch ? 'EU' : countryCode;
@@ -183,6 +161,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let denmarkCadastre: any = null;
     let irelandCadastre: any = null;
     let luxembourgCadastre: any = null;
+    let belgiumCadastre: any = null;
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -202,7 +181,21 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.evidenceRegistry.push(...czechiaCadastre.evidence);
         }
       } catch (e) { console.warn(`[${diagnosticId}] ČÚZK Czechia cadastre notice:`, e); }
-    } else if (!countryLocationMismatch && countryCode === 'NL' && support.capabilities.nationalCadastre) {
+    } else if (!countryLocationMismatch && countryCode === 'BE' && support.capabilities.nationalCadastre) {
+      stage = 'belgium-cadastre';
+      try {
+        belgiumCadastre = await queryBelgiumCadastre(lat, lng);
+        applyBelgiumCadastreToReport(evidenceReport, belgiumCadastre, areaSize);
+        if (belgiumCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(12, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'FPS Finance/GAPD identifies the federal cadastral parcel and registered area at the selected coordinate. The open map is screening evidence and is not treated as a surveyed legal boundary or title record.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: belgiumCadastre.sourceName, organization: 'FPS Finance / General Administration of Patrimonial Documentation (GAPD)', url: belgiumCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Belgium federal cadastre notice:`, e); }
+ else if (!countryLocationMismatch && countryCode === 'NL' && support.capabilities.nationalCadastre) {
       stage = 'netherlands-cadastre';
       try {
         netherlandsCadastre = await queryNetherlandsCadastre(lat, lng);
@@ -320,6 +313,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let denmarkGroundEvidence: any[] = [];
     let irelandNationalEvidence: any[] = [];
     let luxembourgNationalEvidence: any[] = [];
+    let belgiumNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -397,7 +391,21 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
       evidenceReport.dataSourcesCited.push({ name: 'Geoportail Luxembourg — geology / groundwater / boreholes / PAG / flood zones', organization: 'Grand Duchy of Luxembourg public geodata authorities', url: 'https://map.geoportail.lu/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
-    } else if (!countryLocationMismatch && countryCode === 'SE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
+    } else if (!countryLocationMismatch && countryCode === 'BE' && support.capabilities.nationalGeology) {
+      stage = 'belgium-national-evidence';
+      try { belgiumNationalEvidence = await queryBelgiumNationalEvidence(lat, lng, { regionCode: resolvedRegionCode, state: stateName, county: countyName }); } catch (e) { console.warn(`[${diagnosticId}] Belgium regional evidence notice:`, e); }
+      stage = 'belgium-report-enrichment';
+      if (belgiumNationalEvidence.length) evidenceReport.evidenceRegistry.push(...belgiumNationalEvidence);
+      try { enrichBelgiumNationalEvidence(evidenceReport, belgiumNationalEvidence); } catch (e) { console.warn(`[${diagnosticId}] Belgium evidence enrichment notice:`, e); }
+      const verifiedGround = belgiumNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['be-fl-geology', 'be-wa-geology'].includes(item.id));
+      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(16, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'The competent Belgian regional geological service returned official mapped geology at the selected coordinate. It is credited as screening evidence without inferring parcel engineering parameters.';
+      }
+      const regionalSource = belgiumNationalEvidence.find((item: any) => item.status === 'VERIFIED' && ['be-fl-geology', 'be-wa-geology'].includes(item.id));
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
+      evidenceReport.dataSourcesCited.push({ name: regionalSource?.sourceName || 'Belgian regional geological authority', organization: regionalSource?.sourceName || 'Belgian regional geological authority', url: regionalSource?.sourceUrl || cProfile.geologyPortalUrl, type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+ else if (!countryLocationMismatch && countryCode === 'SE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
       stage = 'sweden-ground-evidence';
       try { swedenGroundEvidence = await querySwedenGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden evidence notice:`, e); }
       stage = 'sweden-report-enrichment';
@@ -443,7 +451,13 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
 
     stage = 'report-assembly';
     const baseCanonicalReport = createCanonicalReport(evidenceReport, cProfile);
-    const canonicalReport = applySiteSpecificCountryEvidence(baseCanonicalReport, evidenceReport);
+    const siteSpecificCanonicalReport = applySiteSpecificCountryEvidence(baseCanonicalReport, evidenceReport);
+    const valuationGuardAreaM2 = typeof evidenceReport.parcel?.officialAreaM2 === 'number' && Number.isFinite(evidenceReport.parcel.officialAreaM2) && evidenceReport.parcel.officialAreaM2 > 0
+      ? evidenceReport.parcel.officialAreaM2
+      : typeof evidenceReport.parcel?.areaCalculatedM2 === 'number' && Number.isFinite(evidenceReport.parcel.areaCalculatedM2) && evidenceReport.parcel.areaCalculatedM2 > 0
+        ? evidenceReport.parcel.areaCalculatedM2
+        : areaSize;
+    const canonicalReport = applyValuationAreaGuard(siteSpecificCanonicalReport, valuationGuardAreaM2);
     const isSlovakPresentation = countryCode === 'SK' && language === 'sk';
     const isCzechPresentation = countryCode === 'CZ' && language === 'cs';
     const isDanishPresentation = countryCode === 'DK' && language === 'da';
@@ -499,11 +513,11 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       : areaSize;
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && valuationAreaM2 !== null && valuationAreaM2 > 0 ? value / valuationAreaM2 : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
-    const registeredAreaM2 = hasOfficialParcel || (countryCode === 'NL' && netherlandsCadastre?.success)
+    const registeredAreaM2 = hasOfficialParcel || (countryCode === 'NL' && netherlandsCadastre?.success) || (countryCode === 'BE' && belgiumCadastre?.success)
       ? evidenceReport.parcel?.officialAreaM2 ?? null : null;
 
     const reportData = {
-      site_value_estimate: { min: canonicalReport.valuation.min, max: canonicalReport.valuation.max, median: canonicalReport.valuation.median, currency: canonicalReport.valuation.currency, basis: presentation.valuationMethodology, evidence_level: canonicalReport.valuation.status, uncertainty_rating: canonicalReport.valuation.min === null ? undefined : evidenceReport.valuation?.uncertaintyRating },
+      site_value_estimate: { min: canonicalReport.valuation.min, max: canonicalReport.valuation.max, median: canonicalReport.valuation.median, currency: canonicalReport.valuation.currency, basis: presentation.valuationMethodology, evidence_level: canonicalReport.valuation.status, uncertainty_rating: canonicalReport.valuation.mode === 'MARKET_CONTEXT' ? 'High' : canonicalReport.valuation.min === null ? undefined : evidenceReport.valuation?.uncertaintyRating, mode: canonicalReport.valuation.mode || 'PARCEL_TOTAL', context_price_per_sqm_min: canonicalReport.valuation.unitMin ?? safePerSqm(canonicalReport.valuation.min), context_price_per_sqm_max: canonicalReport.valuation.unitMax ?? safePerSqm(canonicalReport.valuation.max), context_price_per_sqm_median: canonicalReport.valuation.unitMedian ?? safePerSqm(canonicalReport.valuation.median), calibration_max_area_m2: canonicalReport.valuation.calibrationMaxAreaM2 },
       confidence_level: presentation.confidenceLabel,
       evidence_score: canonicalReport.evidenceScore,
       country_support: presentation.countrySupport,
@@ -511,6 +525,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       czechia_cadastre: czechiaCadastre?.success ? { ...evidenceReport.czechia_cadastre, presentation: czechiaCadastrePresentation } : null,
       norway_cadastre: norwayCadastre?.success ? evidenceReport.norway_cadastre : null,
       denmark_cadastre: denmarkCadastre?.success ? evidenceReport.denmark_cadastre : null,
+      belgium_cadastre: belgiumCadastre?.success ? evidenceReport.belgium_cadastre : null,
+      belgium_region: evidenceReport.belgium_region || null,
       canonical_evidence: canonicalReport,
       evidence_registry: evidenceDisplayRecords,
       verification_checklist: presentation.verificationChecklist,
@@ -545,6 +561,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       denmark_ground_evidence_count: denmarkGroundEvidence.length,
       norway_cadastre_evidence_count: Array.isArray(norwayCadastre?.evidence) ? norwayCadastre.evidence.length : 0,
       denmark_cadastre_evidence_count: Array.isArray(denmarkCadastre?.evidence) ? denmarkCadastre.evidence.length : 0,
+      belgium_cadastre_evidence_count: Array.isArray(belgiumCadastre?.evidence) ? belgiumCadastre.evidence.length : 0,
+      belgium_national_evidence_count: belgiumNationalEvidence.length,
       europe_valuation_evidence: europeValuationEvidence ? { id: europeValuationEvidence.id, status: europeValuationEvidence.status, source: europeValuationEvidence.sourceName } : null,
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };

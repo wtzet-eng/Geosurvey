@@ -19,7 +19,7 @@ export interface CzechiaGroundEvidence {
 type FetchLike = typeof fetch;
 type Attributes = Record<string, unknown>;
 
-const CGS = 'Czech Geological Survey (ČGS)';
+const CGS = 'Česká geologická služba (ČGS)';
 const GEO50 = 'https://mapy.geology.cz/arcgis/rest/services/Geologie/geologicka_mapa50/MapServer';
 const IG50 = 'https://mapy.geology.cz/arcgis/rest/services/Geohazardy/IG_rajony50/MapServer';
 const HG50 = 'https://mapy.geology.cz/arcgis/rest/services/HydroGeologie/HG50_mapa/MapServer';
@@ -27,16 +27,16 @@ const HG_ZONES = 'https://mapy.geology.cz/arcgis/rest/services/HydroGeologie/HG_
 const BOREHOLES = 'https://mapy.geology.cz/arcgis/rest/services/Prozkoumanost/Vrtna_prozkoumanost/MapServer';
 const LANDSLIDE_SUSCEPTIBILITY = 'https://mapy.geology.cz/arcgis/rest/services/Geohazardy/sesuvna_nachylnost/MapServer';
 const SLOPE_DEFORMATIONS = 'https://mapy.geology.cz/arcgis/rest/services/Geohazardy/svahove_deformace/MapServer';
-const RADON = 'https://mapy.geology.cz/arcgis/rest/services/Geohazardy/radon_komplexni_informace/MapServer';
+const RADON = 'https://mapy.geology.cz/arcgis/rest/services/Geohazardy/radon50/MapServer';
 const UNDERMINED = 'https://mapy.geology.cz/arcgis/rest/services/Dulni_Dila/poddolovana_uzemi/MapServer';
-const PORTAL = 'https://cgs.gov.cz/en/maps-and-data/web-services';
+const PORTAL = 'https://cgs.gov.cz/mapy-a-data/webove-sluzby';
 const today = () => new Date().toISOString().slice(0, 10);
 
 const text = (value: unknown): string | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   if (typeof value !== 'string') return null;
   const cleaned = value.trim().replace(/\s+/g, ' ');
-  return cleaned && !/^(null|none|unknown|n\/a|neuvedeno|bez udaje|bez údaje)$/i.test(cleaned) ? cleaned : null;
+  return cleaned && !/^(?:-|null|none|unknown|n\/a|neuvedeno|bez udaje|bez údaje|not available\b.*|not established\b.*)$/i.test(cleaned) ? cleaned : null;
 };
 
 const numeric = (value: unknown): number | null => {
@@ -132,7 +132,7 @@ function boreholeRows(features: any[], lat: number, lng: number) {
       year: numeric(attrs.rok_obj),
       distanceM: x !== null && y !== null ? Math.round(haversineM(lat, lng, y, x)) : null
     };
-  }).sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)).slice(0, 12);
+  }).sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
 }
 
 export function mapCzechLandslideSusceptibility(value: unknown): 'Low' | 'Moderate' | 'High' | 'Not available' {
@@ -152,10 +152,9 @@ export function mapCzechRadonIndex(value: unknown): 'Low' | 'Moderate' | 'High' 
 }
 
 async function queryEngineeringGeology(lat: number, lng: number, fetcher: FetchLike): Promise<CzechiaGroundEvidence> {
-  const [detailed, regional] = await Promise.all([
-    queryFeatures(fetcher, IG50, 1, lat, lng, { resultRecordCount: 2 }),
-    queryFeatures(fetcher, IG50, 0, lat, lng, { resultRecordCount: 2 })
-  ]);
+  let detailed = await queryFeatures(fetcher, IG50, 1, lat, lng, { resultRecordCount: 2 });
+  if (detailed === null) detailed = await queryFeatures(fetcher, IG50, 1, lat, lng, { resultRecordCount: 2 });
+  const regional = detailed?.[0] ? [] : await queryFeatures(fetcher, IG50, 0, lat, lng, { resultRecordCount: 2 });
   const feature = detailed?.[0] || regional?.[0];
   if (!feature) {
     const reason = detailed === null && regional === null ? 'SOURCE_UNAVAILABLE' : 'NO_DATA';
@@ -249,7 +248,7 @@ async function queryBoreholes(lat: number, lng: number, fetcher: FetchLike): Pro
     status: 'VERIFIED', sourceName: CGS, sourceUrl: BOREHOLES, datasetDate: today(),
     spatialRelationship: `Registered investigation objects within 5 km; nearest returned record approximately ${combined[0].distanceM ?? 'unknown'} m from the selected coordinate`,
     calculationMethod: 'ArcGIS REST 5 km radius queries of general boreholes and hydrogeological-data subset, with WGS84 distance calculation and duplicate suppression', confidence: 'Medium',
-    value: { searchRadiusM: 5000, boreholes: combined.slice(0, 12), hydrogeologicalBoreholes: hydroRows.slice(0, 12), nearestDistanceM: combined[0].distanceM ?? null },
+    value: { searchRadiusM: 5000, totalCount: combined.length, hydrogeologicalCount: hydroRows.length, boreholes: combined.slice(0, 12), hydrogeologicalBoreholes: hydroRows.slice(0, 12), nearestDistanceM: combined[0].distanceM ?? null },
     limitation: 'Nearby registered boreholes are contextual observations only. They do not establish the strata, groundwater level or geotechnical properties beneath the selected parcel; original logs/reports and site-specific investigation must be reviewed.'
   };
 }
@@ -297,23 +296,25 @@ async function querySlopeDeformations(lat: number, lng: number, fetcher: FetchLi
 }
 
 async function queryRadon(lat: number, lng: number, fetcher: FetchLike): Promise<CzechiaGroundEvidence> {
-  const features = await queryFeatures(fetcher, RADON, 0, lat, lng, { resultRecordCount: 2 });
-  if (!features) return unavailable('cz-cgs-radon-unavailable', 'Radon potential', RADON, 'The ČGS complex radon-information service could not be queried.');
-  if (!features.length) return unavailable('cz-cgs-radon-no-data', 'Radon potential', RADON, 'No radon-information administrative unit was returned at the selected coordinate.', 'NO_DATA');
+  const features = await queryFeatures(fetcher, RADON, 1, lat, lng, { resultRecordCount: 2 });
+  if (!features) return unavailable('cz-cgs-radon-unavailable', 'Radon potential', RADON, 'The ČGS geological radon map could not be queried.');
+  if (!features.length) return unavailable('cz-cgs-radon-no-data', 'Radon potential', RADON, 'No geological radon polygon was returned at the selected coordinate.', 'NO_DATA');
   const attrs = cleanAttributes(features[0]);
-  const index = numeric(attrs.radon);
+  const index = numeric(attrs.radon_idx);
+  const descriptor = first(attrs, ['radon_popis']);
   const classification = mapCzechRadonIndex(index);
   if (classification === 'Not available') return unavailable('cz-cgs-radon-malformed', 'Radon potential', RADON, 'The radon source responded but no valid geological radon index (1–3) could be read.', 'NO_DATA');
+  const age = [first(attrs, ['eratem']), first(attrs, ['utvar'])].filter(Boolean).join(' / ') || null;
   return {
     id: 'cz-cgs-radon', category: 'Radon potential',
-    claim: `ČGS / State Office for Nuclear Safety radon information classifies the geological radon index as ${classification} (index ${index}) for the mapped administrative unit.`,
-    status: 'VERIFIED', sourceName: `${CGS} / State Office for Nuclear Safety`, sourceUrl: `${RADON}/0`, datasetDate: today(),
-    spatialRelationship: 'Administrative-unit radon information containing the selected coordinate', calculationMethod: 'ArcGIS point query of the national complex radon-information layer; official index 1/2/3 mapped to Low/Moderate/High', confidence: 'High',
-    value: { classification, index, municipality: first(attrs, ['naz_obec']), districtPart: first(attrs, ['naz_cast']), geologicalRock50: first(attrs, ['hornina50']), measuredBuildings: numeric(attrs.iprum), meanIndoorRadonBqM3: numeric(attrs.avg_prum_k), attributes: attrs },
-    limitation: 'This is area-level radon screening combining geological and building-measurement information. It is not a radon measurement for the selected building or parcel and does not replace statutory radon assessment where required.'
+    claim: `ČGS geological radon mapping classifies the selected coordinate as ${classification} (index ${index})${descriptor ? ` — ${descriptor}` : ''}.`,
+    status: 'VERIFIED', sourceName: CGS, sourceUrl: `${RADON}/1`, datasetDate: today(),
+    spatialRelationship: '1:50,000 geological radon polygon containing the selected site coordinate',
+    calculationMethod: 'ArcGIS point-in-polygon query of ČGS radon50; official index 1/2/3 mapped to Low/Moderate/High', confidence: 'High',
+    value: { classification, index, descriptor, rock: first(attrs, ['hornina']), rockType: first(attrs, ['typ_horniny']), genesis: first(attrs, ['geneze']), age, mapSheet: first(attrs, ['mapid']), attributes: attrs, scale: '1:50,000' },
+    limitation: 'This is mapped geological radon potential, not a radon measurement for the selected parcel or building. Building-specific assessment and statutory mitigation requirements must be verified separately.'
   };
 }
-
 async function queryMining(lat: number, lng: number, fetcher: FetchLike): Promise<CzechiaGroundEvidence> {
   const features = await queryFeatures(fetcher, UNDERMINED, 1, lat, lng, { resultRecordCount: 10 });
   if (!features) return unavailable('cz-cgs-mining-unavailable', 'Undermined areas', UNDERMINED, 'The ČGS undermined-area service could not be queried.');
@@ -393,7 +394,8 @@ export function enrichCzechiaGroundEvidence(report: any, items: CzechiaGroundEvi
       evidence_level: geology ? 'VERIFIED' : report.geosurvey_context?.evidence_level || 'REQUIRES_VERIFICATION',
       cgs_engineering_zone: text(e.name) || text(e.code) || null,
       cgs_engineering_characterization: text(e.characterization) || null,
-      cgs_borehole_count: Array.isArray(b.boreholes) ? b.boreholes.length : 0,
+      cgs_borehole_count: numeric(b.totalCount) ?? (Array.isArray(b.boreholes) ? b.boreholes.length : 0),
+      cgs_hydrogeological_borehole_count: numeric(b.hydrogeologicalCount) ?? (Array.isArray(b.hydrogeologicalBoreholes) ? b.hydrogeologicalBoreholes.length : 0),
       cgs_nearest_borehole_distance_m: numeric(b.nearestDistanceM),
       official_portal_url: PORTAL
     };

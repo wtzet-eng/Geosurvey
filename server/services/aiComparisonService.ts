@@ -62,6 +62,7 @@ RULES:
 - Do not certify buildability, planning permission, legal title, contamination status, groundwater depth, bearing capacity, foundations, access rights, utilities, or market value.
 - Nearby observations and regional/modelled data remain contextual and must retain their limitations.
 - Land valuation is land-only. Do not compare different currencies as though their totals were directly equivalent. Prefer same-currency unit evidence when present and explain limitations.
+- If landValuation.valuationMode is MARKET_CONTEXT, treat the retained €/m² or local-currency/m² values as context only. Never multiply them by the selected area, invent a whole-site total, or imply the benchmark applies uniformly to the entire selection.
 - If one site appears more compatible with the intended use, say exactly which supplied evidence supports that view and which unresolved checks could reverse it. If evidence is insufficient, say there is no defensible preference yet.
 - Do not create a numeric score or synthetic ranking.
 - Keep report IDs exactly as supplied so the UI can match results back to sites.
