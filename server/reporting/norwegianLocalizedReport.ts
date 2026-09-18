@@ -213,3 +213,5 @@ export function renderNorwegianLocalizedReport(canonical: CanonicalReport): any 
     opportunities: ['Kartverket og NGU gir Norge uvanlig gode åpne kilder for innledende tomtescreening.', 'NADAG gjør det mulig å se om relevante geotekniske undersøkelser finnes i nærheten uten å late som de gjelder hele tomten.']
   };
 }
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
