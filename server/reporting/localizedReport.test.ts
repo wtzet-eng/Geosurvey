@@ -183,5 +183,3 @@ test('Polish planning source and authority labels do not leak English fallback p
   assert.doesNotMatch(text, /Spatial Planning Authority|competent local planning authority/i);
   assert.match(text, /właściwy organ planowania przestrzennego/i);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
