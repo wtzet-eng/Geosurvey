@@ -47,6 +47,7 @@ test('Matriklen2 parcel query preserves registered area and official registry ge
   assert.equal(result.parcel?.bfeNumber, 7494309);
   assert.equal(result.parcel?.registryGeometryPoints?.length, 5);
   assert.doesNotMatch(result.sourceUrl, /test-key/);
+  assert.match(result.sourceUrl, /datafordeler\.dk\/dataoversigt\/matriklen/i);
   assert.match(result.sourceName, /Matriklen2/);
 
   const report: any = { evidenceRegistry: [], parcel: {}, evidenceScore: { breakdown: { cadastreAndGeometry: { score: 0 } } } };
@@ -82,3 +83,5 @@ test('entity-style response without parcel geometry fails closed instead of clai
   assert.equal(result.reasonCode, 'MALFORMED_DATA');
   assert.equal(result.evidence[0].status, 'REQUIRES_VERIFICATION');
 });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
