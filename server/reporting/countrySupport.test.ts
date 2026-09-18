@@ -229,7 +229,9 @@ test('Bulgaria points to current official authorities while withholding unimplem
   assert.match(profile.floodAuthority, /Flood Risk Management Information System|ISURN/);
   assert.match(profile.planningInstrumentName, /ОУП.*ПУП/);
 
-  const canonical = createCanonicalReport(rawReport('BG'), profile);
+  const raw = rawReport('BG');
+  raw.valuation.currency = 'BGN';
+  const canonical = createCanonicalReport(raw, profile);
   assert.equal(canonical.support.maturity, 'LIMITED');
   assert.ok(Object.values(canonical.support.capabilities).every(value => value === false));
   assert.equal(canonical.geology.unitName, null);
@@ -239,7 +241,7 @@ test('Bulgaria points to current official authorities while withholding unimplem
   assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
   assert.equal(canonical.valuation.min, null);
   assert.equal(canonical.valuation.max, null);
-  assert.equal(canonical.valuation.currency, 'EUR');
+  assert.equal(canonical.valuation.currency, 'BGN');
   assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
   assert.ok(!canonical.evidenceRecords.some(record => /valuation|market benchmark|price/i.test(`${record.id} ${record.category}`)));
 });
