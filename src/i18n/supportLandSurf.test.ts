@@ -52,3 +52,14 @@ test('Spanish support widget copy is fully localized', () => {
   const html = renderToStaticMarkup(React.createElement(SupportLandSurf, { language: 'es' }));
   assert.doesNotMatch(html, /Support LandSurf|If this report was useful|Thank you for support|Every supporter receives/i);
 });
+
+
+test('Slovak support widget copy is fully localized', () => {
+  const copy = supportLandSurfCopy('sk');
+  assert.equal(copy.heading, 'Podporte LandSurf');
+  assert.equal(copy.button, 'Ďakujem za podporu');
+  assert.match(copy.body, /Ak bol report užitočný/);
+  assert.match(copy.thanks, /osobné poďakovanie/);
+  const html = renderToStaticMarkup(React.createElement(SupportLandSurf, { language: 'sk' }));
+  assert.doesNotMatch(html, /Support LandSurf|If this report was useful|Thank you for support|Every supporter receives/i);
+});
