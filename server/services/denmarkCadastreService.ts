@@ -211,8 +211,7 @@ function wfsUrl(apiKey: string, bbox: string): string {
 }
 
 function publicSourceUrl(): string {
-  const params = new URLSearchParams({ service: 'WFS', request: 'GetCapabilities', version: '2.0.0' });
-  return `${BASE}?${params}`;
+  return PORTAL;
 }
 
 function unavailable(reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA', claim: string): DenmarkCadastreResult {
@@ -314,3 +313,5 @@ export function applyDenmarkCadastreToReport(report: any, result: DenmarkCadastr
 }
 
 export const DENMARK_CADASTRE_SOURCE = { sourceName: SOURCE_NAME, serviceUrl: BASE, portalUrl: PORTAL };
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
