@@ -410,3 +410,5 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     opportunities: language === 'pl' ? ['Kanoniczny model zachowuje pochodzenie i status dowodów.', 'Dane terenowe, glebowe i źródłowe są prezentowane we wspólnym widoku.'] : language === 'de' ? ['Das kanonische Modell bewahrt Herkunft und Status der Evidenz.', 'Gelände-, Boden- und Quelldaten werden gemeinsam dargestellt.'] : ['The canonical model preserves evidence provenance and status.', 'Terrain, soil and source evidence are presented in one view.']
   };
 }
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
