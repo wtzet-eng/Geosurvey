@@ -49,7 +49,10 @@ test('decision-first opening is localized for shared and dedicated country langu
     ['nl', /eerste controle/i],
     ['fi', /ensitarkistus/i],
     ['fr', /première vérification/i],
+    ['es', /primera comprobación/i],
     ['sv', /första kontroll/i],
+    ['no', /første kontroll/i],
+    ['sk', /prvá kontrola/i],
     ['da', /første vurdering/i],
     ['cs', /první kontrola/i],
   ] as const;
@@ -66,10 +69,11 @@ test('Danish and Czech risk labels are understood by the decision summary', () =
   assert.equal(riskSeverity('Moderat'), 'moderate');
   assert.equal(riskSeverity('Hög'), 'high');
   assert.equal(riskSeverity('Måttlig'), 'moderate');
+  assert.equal(riskSeverity('Høy'), 'high');
+  assert.equal(riskSeverity('Vysoké'), 'high');
+  assert.equal(riskSeverity('Stredné'), 'moderate');
   const sv = buyerSummary({ risks: [{ category: 'Ras och skred', level: 'Försumbar', evidence_level: 'MODELLED' }], planningConfirmed: false, floodConfirmed: false }, 'sv');
   assert.equal(sv.positives.length, 1);
   const da = buyerSummary({ risks: [{ category: 'Radon', level: 'Lav', evidence_level: 'VERIFIED' }], planningConfirmed: true, floodConfirmed: true }, 'da');
   assert.equal(da.positives.length, 1);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
