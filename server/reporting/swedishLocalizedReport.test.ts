@@ -68,5 +68,3 @@ test('Swedish renderer keeps core reader-facing labels Swedish', () => {
   assert.match(report.verificationChecklist[0].recommendedAuthorityOrExpert, /Årjängs kommuns planmyndighet/);
   assert.match(report.sections.zoning_and_land_use.source_cited, /Årjängs kommuns planmyndighet/);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
