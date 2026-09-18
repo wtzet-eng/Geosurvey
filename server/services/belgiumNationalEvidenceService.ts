@@ -9,7 +9,7 @@ const DOV_WMS = 'https://www.dov.vlaanderen.be/geoserver/wms';
 const DOV_WFS = 'https://www.dov.vlaanderen.be/geoserver/wfs';
 const FL_GEO_LAYER = 'neo_paleo:tertiair_50k';
 const FL_BOREHOLES = 'dov-pub:Boringen';
-const WA_GEO = 'https://geoservices.wallonie.be/arcgis/rest/services/SOL_SOUS_SOL/CARTE_GEOLOGIQUE_SIMPLE/MapServer/13';
+const WA_GEO = 'https://geoservices.wallonie.be/arcgis/rest/services/SOL_SOUS_SOL/CARTE_GEOLOGIQUE_SIMPLE/MapServer/2';
 const BRUSSELS_PORTAL = 'https://geobru.irisnet.be/';
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -94,7 +94,7 @@ async function walloniaGeology(lat:number,lng:number,fetcher:FetchLike):Promise<
   if(!j)return unavailable('be-wa-geology-unavailable','Mapped geology','Service géologique de Wallonie',WA_GEO,'Walloon geological mapping could not be queried.','SOURCE_UNAVAILABLE');
   const f=Array.isArray(j.features)?j.features[0]:null;
   if(!f)return unavailable('be-wa-geology-no-data','Mapped geology','Service géologique de Wallonie',WA_GEO,'The detailed Walloon geological vector layer returned no formation at the selected coordinate; consult the current geological map directly.');
-  const a=f.attributes||{},unit=text(a.NOM),code=text(a.SIGLE),desc=text(a.DESCRIPTION),system=text(a.FORM_SYSTEME),series=text(a.FORM_SERIE),stage=text(a.FORM_ETAGE),sheet=text(a.CARTE_NOM),edition=text(a.CARTE_EDITION),link=text(a.LIEN);
+  const a=f.attributes||{},unit=text(a.NOM),code=text(a.SIGLE),desc=text(a.DESCRIPTION),system=text(a.FORM_SYSTEME)||text(a.SYSTEME),series=text(a.FORM_SERIE)||text(a.SERIE),stage=text(a.FORM_ETAGE)||text(a.ETAGE),sheet=text(a.CARTE_NOM),edition=text(a.CARTE_EDITION),link=text(a.LIEN);
   if(!unit&&!desc)return unavailable('be-wa-geology-malformed','Mapped geology','Service géologique de Wallonie',WA_GEO,'The Walloon geological service returned a feature without a readable formation or description.','MALFORMED_DATA');
   return {id:'be-wa-geology',category:'Mapped geology',claim:`The Walloon geological map identifies ${unit||'a mapped formation'}${desc?`: ${desc}`:''}.`,status:'VERIFIED',sourceName:'Service géologique de Wallonie — Carte géologique de Wallonie',sourceUrl:link||WA_GEO,datasetDate:edition||today(),
     spatialRelationship:'Official Walloon lithostratigraphic polygon containing the selected coordinate',calculationMethod:'SPW ArcGIS REST point-in-polygon query of lithostratigraphic units',confidence:'High',

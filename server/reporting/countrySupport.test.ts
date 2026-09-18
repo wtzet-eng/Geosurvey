@@ -70,6 +70,28 @@ test('country mismatch does not expose selected Austrian authority labels', () =
   assert.match(canonical.planning.authorityName, /resolved site location/i);
 });
 
+test('Belgium preserves the exact verified regional geology source and withholds unsupported valuation', () => {
+  const raw = rawReport('BE');
+  raw.geosurvey_context = {
+    geological_unit_name: 'Formatie van Lillo',
+    lithology_type: 'fijn zand',
+    geological_period_era: 'Neogeen',
+    evidence_level: 'VERIFIED',
+    source_name: 'Databank Ondergrond Vlaanderen (DOV) — Tertiair geologische kaart 1:50.000',
+    source_url: 'https://www.dov.vlaanderen.be/'
+  };
+  const canonical = createCanonicalReport(raw, getCountryProfile('BE'));
+  assert.equal(canonical.geology.unitName, 'Formatie van Lillo');
+  assert.equal(canonical.geology.lithology, 'fijn zand');
+  assert.match(canonical.geology.sourceName, /Databank Ondergrond Vlaanderen/);
+  assert.equal(canonical.geology.sourceUrl, 'https://www.dov.vlaanderen.be/');
+  assert.equal(canonical.valuation.min, null);
+  assert.equal(canonical.valuation.max, null);
+  assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.flood.classification, null);
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+});
+
 function rawReport(countryCode: string): any {
   return {
     countryCode,
