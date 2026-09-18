@@ -9,7 +9,12 @@ test('Swedish AI interpretation shell is localized', () => {
   assert.match(copy.title, /Tolka det insamlade underlaget/);
   assert.match(copy.completed, /Tolkningen är klar/);
   assert.match(copy.verifyNext, /verifieras härnäst/);
-  assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next/i);
+  assert.equal(copy.runAgain, 'Kör igen');
+  assert.equal(copy.confidence, 'Konfidens');
+  assert.equal(copy.high, 'Hög');
+  assert.equal(copy.medium, 'Medel');
+  assert.equal(copy.low, 'Låg');
+  assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
 });
 
 test('Spanish AI interpretation shell is localized', () => {
