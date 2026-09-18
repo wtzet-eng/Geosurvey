@@ -135,6 +135,9 @@ test('Czechia enrichment promotes authoritative mapped context but never creates
   assert.equal(report.geosurvey_context.lithology_type, 'písek, štěrk');
   assert.match(report.geosurvey_context.geological_period_era, /kvartér/i);
   assert.equal(report.geosurvey_context.genetic_origin, 'fluviální');
+  assert.equal(report.geosurvey_context.source_name, 'Česká geologická služba (ČGS)');
+  assert.match(report.geosurvey_context.source_url, /geologicka_mapa50\/MapServer\/2/);
+  assert.equal(report.geosurvey_context.source_scale, '1:50,000');
   assert.match(report.soil.groundwaterRegime, /vysoká/i);
   assert.equal(report.soil.estimatedWaterTableDepthM, 'Not available');
   assert.equal(report.soil.estimatedBearingCapacityKpa, undefined);
@@ -154,4 +157,21 @@ test('Czechia source failures remain explicit and do not manufacture geology, ha
   assert.ok(items.every(item => item.status === 'REQUIRES_VERIFICATION'));
   assert.ok(!items.some(item => item.id === 'cz-cgs-geology-50k' && item.status === 'VERIFIED'));
   assert.ok(!items.some(item => item.id === 'cz-cgs-landslide-susceptibility' && item.status === 'VERIFIED'));
+
+  const report:any = {
+    geosurvey_context: {},
+    soil: { groundwaterRegime: 'Not available' },
+    terrain: { geohazards: {
+      landslideSusceptibility: { status: 'MODELLED', level: 'Low', sourceName: 'Terrain model', description: 'generic terrain inference' },
+      radonPotential: { status: 'REQUIRES_VERIFICATION', classification: 'Not available', sourceName: 'Generic' },
+      miningSubsidence: { status: 'REQUIRES_VERIFICATION', classification: 'Not available', sourceName: 'Generic' }
+    } }
+  };
+  enrichCzechiaGroundEvidence(report, items);
+  assert.equal(report.terrain.geohazards.landslideSusceptibility.status, 'REQUIRES_VERIFICATION');
+  assert.equal(report.terrain.geohazards.landslideSusceptibility.level, 'Not available');
+  assert.equal(report.terrain.geohazards.radonPotential.status, 'REQUIRES_VERIFICATION');
+  assert.match(report.terrain.geohazards.radonPotential.classification, /Not available/);
+  assert.equal(report.terrain.geohazards.miningSubsidence.status, 'REQUIRES_VERIFICATION');
+  assert.match(report.terrain.geohazards.miningSubsidence.classification, /Not available/);
 });
