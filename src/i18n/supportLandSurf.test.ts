@@ -13,10 +13,11 @@ test('support CTA remains visible with the configured Ko-fi destination', () => 
   assert.match(html, /#496931/i);
 });
 
-test('Czech Slovak and Danish views localize cardinal words while preserving degrees', () => {
+test('Czech Slovak Danish and Swedish views localize cardinal words while preserving degrees', () => {
   assert.equal(localizeAspect('West (270°)', 'cs', 'údaj není k dispozici'), 'Západ (270°)');
   assert.equal(localizeAspect('North (0°)', 'sk', 'údaj nie je k dispozícii'), 'Sever (0°)');
   assert.equal(localizeAspect('East (83°)', 'da', 'ikke tilgængelig'), 'Øst (83°)');
+  assert.equal(localizeAspect('West (281°)', 'sv', 'inte tillgängligt'), 'Väster (281°)');
 });
 
 
@@ -28,3 +29,5 @@ test('floating Ko-fi shortcut stays available in the report corner at all screen
   assert.match(html, /fixed bottom-4 left-4/);
   assert.match(html, /print:hidden/);
 });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
