@@ -18,7 +18,7 @@ function canonicalFixture(): any {
     },
     flood: { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: 420, sourceName: 'MSB', reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     soil: { texture: 'Sandy loam', bearingCapacity: null, sandPct: 58, siltPct: 27, clayPct: 15, ph: 6.4, status: 'MODELLED', sourceName: 'ISRIC SoilGrids', sourceUrl: 'https://soilgrids.org', reasonCode: undefined },
-    planning: { status: 'REQUIRES_VERIFICATION', instrumentName: 'Detaljplan / översiktsplan enligt plan- och bygglagen', authorityName: 'Kommunen', sourceName: 'Kommunal planering', reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
+    planning: { status: 'REQUIRES_VERIFICATION', instrumentName: 'Detaljplan / översiktsplan enligt plan- och bygglagen', authorityName: 'Årjängs kommun competent local planning authority', sourceName: 'Årjängs kommun Spatial Planning Authority (Detaljplan / översiktsplan enligt plan- och bygglagen)', reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     infrastructure: { roadName: 'Testvägen', roadType: 'residential', distanceM: 18, directAccess: false, status: 'MODELLED', sourceName: 'OpenStreetMap' },
     utilities: [{ utilityCode: 'WATER', mapped: true, distanceM: 30, status: 'MODELLED', sourceName: 'OpenStreetMap' }],
     environment: { protectedAreaName: null, distanceM: null, status: 'MODELLED', sourceName: 'OpenStreetMap' },
@@ -64,5 +64,9 @@ test('Swedish renderer keeps core reader-facing labels Swedish', () => {
   assert.equal(report.riskMatrix[0].category, 'Ras och skred');
   assert.match(report.riskMatrix[1].level, /låg/i);
   const serialized = JSON.stringify({ summary: report.summary, titles: report.titles, unavailableReasons: report.unavailableReasons, sections: report.sections, riskMatrix: report.riskMatrix, verificationChecklist: report.verificationChecklist, legalDisclaimers: report.legalDisclaimers });
-  assert.doesNotMatch(serialized, /Executive Summary|Requires verification|Recommended Investigations|Mining subsidence|Indicative statistical value|Country coverage|Nearby wells are context only/);
+  assert.doesNotMatch(serialized, /Executive Summary|Requires verification|Recommended Investigations|Mining subsidence|Indicative statistical value|Country coverage|Nearby wells are context only|competent local planning authority|Spatial Planning Authority/);
+  assert.match(report.verificationChecklist[0].recommendedAuthorityOrExpert, /Årjängs kommuns planmyndighet/);
+  assert.match(report.sections.zoning_and_land_use.source_cited, /Årjängs kommuns planmyndighet/);
 });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
