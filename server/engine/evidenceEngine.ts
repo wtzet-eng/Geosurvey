@@ -183,7 +183,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
         status: 'REQUIRES_VERIFICATION',
         zone: 'Not available — no location-specific seismic hazard query was completed',
         pgaG: 'Not available — no location-specific peak-ground-acceleration value was queried',
-        sourceName: 'European Seismic Hazard Model (ESHM20) / competent national seismic authority'
+        sourceName: 'No location-specific seismic hazard source queried'
       },
       radonPotential: {
         status: 'REQUIRES_VERIFICATION',
@@ -220,7 +220,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     claim: terrainAnalysis.floodInundationRisk.description,
     status: terrainAnalysis.floodInundationRisk.status,
     sourceName: osmAvailable ? 'OpenStreetMap hydrology' : cProfile.floodAuthority,
-    sourceUrl: cProfile.floodPortalUrl,
+    sourceUrl: osmAvailable ? 'https://www.openstreetmap.org/' : cProfile.floodPortalUrl,
     datasetDate: todayStr,
     spatialRelationship: watercourseDist !== undefined
       ? `Proximity vector to nearest mapped open watercourse: ${watercourseDist} m`
