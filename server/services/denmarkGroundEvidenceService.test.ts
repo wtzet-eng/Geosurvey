@@ -67,5 +67,3 @@ test('Denmark source failures fail closed and do not create parcel design values
   assert.equal(report.soil.estimatedBearingCapacityKpa, null);
   assert.equal(report.soil.estimatedWaterTableDepthM, null);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
