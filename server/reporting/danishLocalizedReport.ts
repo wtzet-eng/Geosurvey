@@ -27,7 +27,7 @@ function localizedClassification(value: string | null): string {
 }
 
 function supportNotice(): string {
-  return 'For Danmark anvender LandSurf udvalgte nationale kilder fra Datafordeleren/Matriklen, GEUS Jupiter, Danmarks Digitale Jordartskort og Plandata.dk. Oversvømmelse, radon, råstof-/mineforhold og automatisk jordværdi kræver fortsat særskilt officiel kontrol.';
+  return 'For Danmark anvender LandSurf udvalgte nationale kilder fra Datafordeleren/Matriklen, GEUS Jupiter og Plandata.dk. Danmarks Digitale Jordartskort findes som officielt GEUS-datasæt, men er ikke automatiseret i denne version. Oversvømmelse, radon, råstof-/mineforhold og automatisk jordværdi kræver fortsat særskilt officiel kontrol.';
 }
 
 function denmarkGroundNarrative(canonical: CanonicalReport): string[] {
@@ -186,8 +186,8 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
     confidenceLabel: canonical.evidenceScore.totalScore >= 75 ? 'Høj datakvalitet' : canonical.evidenceScore.totalScore >= 50 ? 'Middel datakvalitet' : 'Foreløbigt datagrundlag',
     unavailableReasons: { geology: reason(canonical.geology.reasonCode), soilTexture: reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED'), engineeringParameter: reason('INSUFFICIENT_EVIDENCE'), groundwater: reason('AUTHORITATIVE_DATA_REQUIRED'), planning: reason(canonical.planning.reasonCode), valuation: reason(canonical.valuation.reasonCode), sourceUnavailable: reason('SOURCE_UNAVAILABLE'), noFeature: reason('NO_DATA') },
     sections: {
-      soil_and_ground: section(soilText, groundDetail, groundSpecific.length ? 'VERIFIED' : canonical.soil.status, 'GEUS / Jupiter / SoilGrids', 'GEUS-kort, Jupiter-boringer og pejlinger erstatter ikke en geoteknisk undersøgelse på grunden.'),
-      geohazard_risk: section('Geologisk screening er foreløbig.', 'GEUS-data giver jordarts- og borehulskontekst. Stabilitet, erosion, skråningsforhold og andre projektrelevante georisici skal vurderes særskilt, når terræn eller projekt kræver det.', 'REQUIRES_VERIFICATION', canonical.authorities.geology, reason('AUTHORITATIVE_DATA_REQUIRED')),
+      soil_and_ground: section(soilText, groundDetail, groundSpecific.length ? 'VERIFIED' : canonical.soil.status, 'GEUS Jupiter / SoilGrids', 'Jupiter-boringer og pejlinger er observationskontekst og erstatter ikke en geoteknisk undersøgelse på grunden. Danmarks Digitale Jordartskort skal i denne version kontrolleres særskilt i GEUS-kilden.'),
+      geohazard_risk: section('Geologisk screening er foreløbig.', 'GEUS Jupiter giver borehuls- og grundvandsobservationskontekst. Danmarks Digitale Jordartskort og projektrelevante stabilitets-, erosions- og skråningsforhold kræver særskilt kontrol.', 'REQUIRES_VERIFICATION', canonical.authorities.geology, reason('AUTHORITATIVE_DATA_REQUIRED')),
       flooding_risk: section(floodText, 'Kontrollér relevante nationale og kommunale oversvømmelsesdata samt planbestemmelser før køb eller projektering.', 'REQUIRES_VERIFICATION', canonical.authorities.flood, reason('AUTHORITATIVE_DATA_REQUIRED')),
       zoning_and_land_use: section(planningText, 'Plandata.dk viser registreret planoverlap. Byggefelter, anvendelse, bebyggelsesprocent, højde, afstande, dispensationer og øvrige bindende bestemmelser skal verificeres i plandokumentet og hos kommunen.', planningVerified ? 'VERIFIED' : 'REQUIRES_VERIFICATION', 'Plandata.dk', reason('AUTHORITATIVE_DATA_REQUIRED')),
       building_regulations: section(cadastreVerified ? 'Datafordelerens Matriklen-WFS identificerer jordstykket og kan levere registreret areal/registergeometri; kortgrænsen er ikke i sig selv en ny juridisk grænseafsætning.' : 'Automatisk matrikelopslag blev ikke verificeret for denne kørsel. Kontrollér Matriklen/Datafordeleren eller matriklen.dk.', 'Kontrollér ejendomsidentitet, grænsens retlige status, ejerskab, servitutter og hæftelser i de originale danske registre. Ved grænsetvivl anvendes landinspektør.', cadastreVerified ? 'VERIFIED' : 'REQUIRES_VERIFICATION', canonical.authorities.cadastre, reason('AUTHORITATIVE_DATA_REQUIRED')),
@@ -200,7 +200,7 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
     legalDisclaimers: [
       support,
       'Den automatiserede rapport er kun en indledende screening og er ikke en myndighedsafgørelse, juridisk rådgivning, geoteknisk undersøgelse eller vurderingsrapport.',
-      'Danmarks Digitale Jordartskort beskriver kortlagt overfladegeologi omkring kortlægningsdybden og dokumenterer ikke den konkrete lagfølge under grunden.',
+      'Danmarks Digitale Jordartskort er ikke automatisk forespurgt i denne version; ved manuel brug beskriver kortet overfladegeologi omkring kortlægningsdybden og dokumenterer ikke den konkrete lagfølge under grunden.',
       'Nærliggende Jupiter-boringer og grundvandspejlinger beskriver deres egne observationspunkter og dokumenterer ikke grundvand eller jordlag under hele den valgte grund.',
       'Datafordelerens/Matriklens registrerede geometri og areal skal ikke forveksles med en ny juridisk grænseafsætning; rettigheder og grænsetvivl kræver original registerkontrol og eventuelt landinspektør.',
       'Plandata.dk-overlap erstatter ikke læsning af den gældende lokalplan og kommunal bekræftelse af den konkrete byggeret.',
@@ -216,6 +216,6 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
       { category: 'Råstof- og mineforhold', level: localizedClassification(canonical.hazards.mining.classification), evidence_level: canonical.hazards.mining.status, detail: canonical.hazards.mining.classification ? `Screening: ${localizedClassification(canonical.hazards.mining.classification)}.` : reason(canonical.hazards.mining.reasonCode) }
     ],
     keyRisks: checklist.slice(0, 4).map(item => item.reason),
-    opportunities: ['Danmark har stærke åbne nationale datakilder til en indledende vurdering af matrikel, jordart, boringer, grundvandsobservationer og planforhold.', 'Kilderne kan bruges sammen uden at gøre naboboringer eller kortdata til projekteringsværdier for selve grunden.']
+    opportunities: ['Danmark har stærke nationale datakilder til matrikel, Jupiter-boringer, grundvandsobservationer og planforhold; GEUS Jordartskort kan desuden kontrolleres særskilt som officiel kortkilde.', 'Kilderne kan bruges sammen uden at gøre naboboringer, pejlinger eller kortdata til projekteringsværdier for selve grunden.']
   };
 }

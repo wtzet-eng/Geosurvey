@@ -211,8 +211,7 @@ function wfsUrl(apiKey: string, bbox: string): string {
 }
 
 function publicSourceUrl(): string {
-  const params = new URLSearchParams({ service: 'WFS', request: 'GetCapabilities', version: '2.0.0' });
-  return `${BASE}?${params}`;
+  return PORTAL;
 }
 
 function unavailable(reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA', claim: string): DenmarkCadastreResult {

@@ -106,15 +106,15 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
     ]
   },
   DK: {
-    authorityName: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland / Dataforsyningen / Plandata.dk',
-    acronym: 'GEUS / Jupiter / DAWA / Plandata.dk',
+    authorityName: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland / Klimadatastyrelsen / Datafordeleren / Plandata.dk',
+    acronym: 'GEUS / Jupiter / Datafordeleren / Plandata.dk',
     mapViewerUrl: 'https://data.geus.dk/geusmap/',
     description: 'Danske nationale data for jordarter, boringer, grundvandsobservationer, matrikel og vedtagne lokalplaner. LandSurf anvender kun de lag, der er teknisk integreret og valideret i den aktuelle version.',
     datasets: [
       'GEUS Danmarks Digitale Jordartskort 1:25.000 v7.1 – kortlagt overfladegeologi',
       'GEUS Jupiter – registrerede boringer',
       'GEUS Jupiter – seneste registrerede grundvandspejlinger',
-      'Dataforsyningen / DAWA Matrikelkort – jordstykkeidentitet, registreret areal og registergeometri',
+      'Klimadatastyrelsen / Datafordeleren — Matriklen2 – jordstykkeidentitet, registreret areal og registergeometri',
       'Plandata.dk WFS – vedtagne lokalplaner',
       'Oversvømmelse, radon og råstof-/mineforhold – officiel kontrol, endnu ikke automatiseret'
     ]

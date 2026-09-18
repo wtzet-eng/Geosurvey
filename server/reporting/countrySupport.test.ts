@@ -211,8 +211,11 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.equal(no.capabilities.nationalHydrogeology, false); assert.equal(no.capabilities.nationalFlood, false); assert.equal(no.capabilities.nationalPlanning, false); assert.equal(no.capabilities.nationalValuation, false); assert.equal(no.capabilities.nationalMining, false);
   const dk = getCountrySupport('DK');
   assert.equal(dk.maturity, 'LIMITED');
-  assert.equal(dk.capabilities.nationalCadastre, true); assert.equal(dk.capabilities.nationalGeology, true); assert.equal(dk.capabilities.nationalBoreholes, true); assert.equal(dk.capabilities.nationalHydrogeology, true); assert.equal(dk.capabilities.nationalPlanning, true);
+  assert.equal(dk.capabilities.nationalCadastre, true); assert.equal(dk.capabilities.nationalGeology, false); assert.equal(dk.capabilities.nationalBoreholes, true); assert.equal(dk.capabilities.nationalHydrogeology, true); assert.equal(dk.capabilities.nationalPlanning, true);
   assert.equal(dk.capabilities.nationalFlood, false); assert.equal(dk.capabilities.nationalValuation, false); assert.equal(dk.capabilities.nationalRadon, false); assert.equal(dk.capabilities.nationalMining, false);
+  const dkProfile = getCountryProfile('DK');
+  assert.match(dkProfile.cadastreAuthority, /Datafordeleren|Matriklen2/i); assert.match(dkProfile.geologyAuthority, /GEUS|Jupiter/i); assert.match(dkProfile.planningInstrumentName, /Lokalplan|Plandata/i);
+  assert.doesNotMatch(dkProfile.cadastreAuthority, /INSPIRE/i); assert.doesNotMatch(dkProfile.geologyAuthority, /EuroGeoSurveys/i);
   const nl = getCountrySupport('NL');
   assert.equal(nl.maturity, 'LIMITED');
   assert.equal(nl.capabilities.nationalCadastre, true);

@@ -267,12 +267,12 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           municipality = denmarkCadastre.parcel?.municipalityName || municipality;
           if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
             evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = 18;
-            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'DAWA returned the registered Danish cadastral parcel, registered area and registry geometry. The geometry is official register context but is not treated as a new legally surveyed boundary determination.';
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Datafordeleren Matriklen2 returned the registered Danish cadastral parcel, registered area and registry geometry. The geometry is official register context but is not treated as a new legally surveyed boundary determination.';
           }
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
-          evidenceReport.dataSourcesCited.push({ name: denmarkCadastre.sourceName, organization: 'Geodatastyrelsen / Dataforsyningen', url: denmarkCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+          evidenceReport.dataSourcesCited.push({ name: denmarkCadastre.sourceName, organization: 'Datafordeleren / Matriklen', url: denmarkCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
-      } catch (e) { console.warn(`[${diagnosticId}] DAWA Denmark cadastre notice:`, e); }
+      } catch (e) { console.warn(`[${diagnosticId}] Datafordeleren Denmark cadastre notice:`, e); }
     }
 
     const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
@@ -354,13 +354,13 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'denmark-report-enrichment';
       if (denmarkGroundEvidence.length) evidenceReport.evidenceRegistry.push(...denmarkGroundEvidence);
       try { enrichDenmarkGroundEvidence(evidenceReport, denmarkGroundEvidence); } catch (e) { console.warn(`[${diagnosticId}] Denmark evidence enrichment notice:`, e); }
-      const verifiedGround = denmarkGroundEvidence.some((item: any) => item.status === 'VERIFIED' && ['dk-geus-surface-geology', 'dk-jupiter-boreholes', 'dk-jupiter-groundwater'].includes(item.id));
+      const verifiedGround = denmarkGroundEvidence.some((item: any) => item.status === 'VERIFIED' && ['dk-jupiter-boreholes', 'dk-jupiter-groundwater'].includes(item.id));
       if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
-        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
-        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'GEUS/Jupiter returned verified national surface-geology and/or nearby borehole/groundwater context. These sources are credited as screening evidence without inferring parcel design parameters.';
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(14, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'GEUS/Jupiter returned verified nearby borehole and/or groundwater-observation context. These observations are credited as screening evidence without treating them as parcel geology, parcel groundwater or design parameters.';
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
-      evidenceReport.dataSourcesCited.push({ name: 'GEUS — Jordartskort 1:25.000 / Jupiter', organization: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland (GEUS)', url: 'https://data.geus.dk/geusmap/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+      evidenceReport.dataSourcesCited.push({ name: 'GEUS — Jupiter boreholes / groundwater observations', organization: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland (GEUS)', url: 'https://data.geus.dk/geusmap/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'IE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology || support.capabilities.nationalRadon)) {
       stage = 'ireland-national-evidence';
       try { irelandNationalEvidence = await queryIrelandNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Ireland national evidence notice:`, e); }
