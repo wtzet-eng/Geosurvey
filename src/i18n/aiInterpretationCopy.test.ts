@@ -9,5 +9,39 @@ test('Swedish AI interpretation shell is localized', () => {
   assert.match(copy.title, /Tolka det insamlade underlaget/);
   assert.match(copy.completed, /Tolkningen är klar/);
   assert.match(copy.verifyNext, /verifieras härnäst/);
+  assert.equal(copy.runAgain, 'Kör igen');
+  assert.equal(copy.confidence, 'Konfidens');
+  assert.equal(copy.high, 'Hög');
+  assert.equal(copy.medium, 'Medel');
+  assert.equal(copy.low, 'Låg');
+  assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
+});
+
+test('Spanish AI interpretation shell is localized', () => {
+  const copy = aiPanelCopy('es');
+  const text = Object.values(copy).join('\n');
+  assert.match(copy.brand, /Interpretación de IA de LandSurf/);
+  assert.match(copy.title, /Interpretar la evidencia recopilada/);
+  assert.match(copy.completed, /Interpretación completada/);
+  assert.match(copy.verifyNext, /Qué verificar a continuación/);
+  assert.match(copy.confidence, /Confianza/);
   assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next/i);
+});
+
+
+test('Slovak AI interpretation shell is localized', () => {
+  const copy = aiPanelCopy('sk');
+  const text = Object.values(copy).join('\n');
+  assert.equal(copy.brand, 'Interpretácia AI LandSurf');
+  assert.equal(copy.title, 'Interpretovať zhromaždené dôkazy');
+  assert.equal(copy.observations, 'Priame pozorovania');
+  assert.equal(copy.interpretation, 'Interpretácia');
+  assert.equal(copy.limitations, 'Obmedzenia');
+  assert.equal(copy.verifyNext, 'Čo treba overiť ďalej');
+  assert.equal(copy.runAgain, 'Spustiť znova');
+  assert.equal(copy.confidence, 'Miera istoty');
+  assert.equal(copy.high, 'Vysoká');
+  assert.equal(copy.medium, 'Stredná');
+  assert.equal(copy.low, 'Nízka');
+  assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
 });

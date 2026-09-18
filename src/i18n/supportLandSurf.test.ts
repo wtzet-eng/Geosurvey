@@ -42,3 +42,24 @@ test('Ko-fi shortcut is stackable below the AI action at the same width', () => 
   assert.doesNotMatch(html, /fixed bottom-4 left-4/);
   assert.match(html, /print:hidden/);
 });
+
+test('Spanish support widget copy is fully localized', () => {
+  const copy = supportLandSurfCopy('es');
+  assert.equal(copy.heading, 'Apoyar LandSurf');
+  assert.equal(copy.button, 'Gracias por su apoyo');
+  assert.match(copy.body, /Si este informe le resultó útil/);
+  assert.match(copy.thanks, /agradecimiento personal/);
+  const html = renderToStaticMarkup(React.createElement(SupportLandSurf, { language: 'es' }));
+  assert.doesNotMatch(html, /Support LandSurf|If this report was useful|Thank you for support|Every supporter receives/i);
+});
+
+
+test('Slovak support widget copy is fully localized', () => {
+  const copy = supportLandSurfCopy('sk');
+  assert.equal(copy.heading, 'Podporte LandSurf');
+  assert.equal(copy.button, 'Ďakujem za podporu');
+  assert.match(copy.body, /Ak bol report užitočný/);
+  assert.match(copy.thanks, /osobné poďakovanie/);
+  const html = renderToStaticMarkup(React.createElement(SupportLandSurf, { language: 'sk' }));
+  assert.doesNotMatch(html, /Support LandSurf|If this report was useful|Thank you for support|Every supporter receives/i);
+});

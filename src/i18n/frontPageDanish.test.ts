@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { getFrontPageI18n, getLocalizedTagline } from '../utils/i18nTitle';
 
 test('Danish front page does not fall back to English core copy', () => {
@@ -18,4 +19,10 @@ test('homepage decision tagline is localized for every non-English report langua
   }
   assert.match(getLocalizedTagline('es'), /Comprenda la parcela/i);
   assert.match(getLocalizedTagline('no'), /Forstå tomten/i);
+});
+
+test('homepage tagline follows the selected country language rather than a preserved report language', () => {
+  const appSource = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+  assert.match(appSource, /getLocalizedTagline\(currentCountry\.language\)/);
+  assert.doesNotMatch(appSource, /getLocalizedTagline\(languageCode\)/);
 });
