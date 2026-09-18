@@ -274,6 +274,13 @@ export const EVIDENCE_SOURCES: Record<string, EvidenceSourceLink[]> = {
       description: 'Open planning and development-control datasets for England where available from local planning authorities.'
     }
   ],
+  BE: [
+    { id: 'be-gapd-cadastre', title: 'Belgian INSPIRE Cadastral Parcels', provider: 'FPS Finance / General Administration of Patrimonial Documentation (GAPD)', category: 'planning', url: 'https://financien.belgium.be/nl/E-services/cadgis', description: 'Federal cadastral parcel identification and registered-area context used for preliminary screening; not legal boundary or title proof.' },
+    { id: 'be-dov-geology', title: 'DOV Geological Map of Flanders', provider: 'Databank Ondergrond Vlaanderen (DOV)', category: 'geology', scale: '1:50,000', url: 'https://www.dov.vlaanderen.be/', description: 'Official Flemish geological mapping used for site-centre geological context.' },
+    { id: 'be-dov-boreholes', title: 'DOV Boreholes', provider: 'Databank Ondergrond Vlaanderen (DOV)', category: 'boreholes', url: 'https://www.dov.vlaanderen.be/data/boring', description: 'Official Flemish borehole records used only as nearby contextual observations, not as parcel-specific ground conditions.' },
+    { id: 'be-wallonia-geology', title: 'Carte géologique de Wallonie', provider: 'Service géologique de Wallonie', category: 'geology', url: 'https://geologie.wallonie.be/', description: 'Official Walloon lithostratigraphic mapping used where the detailed vector layer returns a formation at the selected coordinate.' },
+    { id: 'be-geobru', title: 'GeoBru / BruGIS', provider: 'Brussels-Capital Region', category: 'geology', url: 'https://geobru.irisnet.be/', description: 'Official Brussels regional geodata portal. Geological and subsurface automation remains explicitly verification-required until the relevant endpoints are validated.' }
+  ],
   EU: [
     {
       id: 'egdi-europe-geology',

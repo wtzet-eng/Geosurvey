@@ -20,13 +20,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { EvidenceScoreCard } from '../components/EvidenceScoreCard';
 import type { EvidenceQualityScore } from '../types';
 
-test('zero coverage remains zero and is explicitly separated from risk', () => {
+test('public evidence card shows evidence states without a numeric quality score', () => {
   const score = { totalScore: 0, verifiedCount: 0, modelledCount: 0, unverifiedCount: 6 } as EvidenceQualityScore;
   const html = renderToStaticMarkup(React.createElement(EvidenceScoreCard, {score}));
-  assert.match(html, /Data coverage/);
-  assert.match(html, /not site quality or risk/);
-  assert.match(html, /width:0%/);
-  assert.doesNotMatch(html, /Direct On-Site Evidence|Calculated Quality|Robust Evidence/);
+  assert.match(html, /Evidence available for this site/);
+  assert.match(html, /not whether the site is good or bad/);
+  assert.match(html, /Needs verification/);
+  assert.doesNotMatch(html, /0\/100|Calculated Quality|Robust Evidence/);
 });
 
 import { buyerSummary } from './reportFindings';

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SiteReport } from '../types';
+import { localizeAspect } from '../i18n/aspectI18n';
 import { MapPreview } from './MapPreview';
 import { EmbedModal } from './EmbedModal';
 import { GoogleDriveModal } from './GoogleDriveModal';
@@ -16,30 +17,31 @@ const status = (value: unknown) => {
 
 const present = (value: unknown, fallback = 'údaj není k dispozici') => value === null || value === undefined || value === '' || Number.isNaN(value) ? fallback : String(value);
 
-const aspect = (value: unknown) => {
-  const raw = present(value);
-  const directions: Record<string, string> = {
-    N: 'Sever', NE: 'Severovýchod', E: 'Východ', SE: 'Jihovýchod',
-    S: 'Jih', SW: 'Jihozápad', W: 'Západ', NW: 'Severozápad'
-  };
-  return directions[raw] || raw;
-};
+export const localizeCzechAspect = (value: unknown) => localizeAspect(value, 'cs', 'údaj není k dispozici');
 
-const Section: React.FC<{ number: string; title: string; section?: any; children?: React.ReactNode }> = ({ number, title, section, children }) => (
+const normalized = (value: unknown) => String(value || '').trim().replace(/\s+/g, ' ').replace(/[.]+$/, '').toLowerCase();
+const Section: React.FC<{ number: string; title: string; section?: any; children?: React.ReactNode }> = ({ number, title, section, children }) => {
+  const summary = section?.summary?.trim();
+  const detail = section?.detail?.trim();
+  const limitation = section?.limitation_notice?.trim();
+  const showDetail = Boolean(detail && normalized(detail) !== normalized(summary));
+  const showLimitation = Boolean(limitation && normalized(limitation) !== normalized(summary) && normalized(limitation) !== normalized(detail));
+  return (
   <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
     <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
       <div><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Část {number}</div><h2 className="text-base sm:text-lg font-bold text-slate-950">{title}</h2></div>
       <span className="text-[10px] font-bold rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">{status(section?.evidence_level)}</span>
     </div>
     <div className="p-6 space-y-4">
-      {section?.summary && <div className="text-sm leading-relaxed text-slate-700 font-medium">{section.summary}</div>}
-      {section?.detail && <div className="text-xs sm:text-sm leading-relaxed text-slate-600 whitespace-pre-line">{section.detail}</div>}
+      {summary && <div className="text-sm leading-relaxed text-slate-700 font-medium">{summary}</div>}
+      {showDetail && <div className="text-xs sm:text-sm leading-relaxed text-slate-600 whitespace-pre-line">{detail}</div>}
       {children}
-      {section?.limitation_notice && <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"><strong>Omezení:</strong> {section.limitation_notice}</div>}
+      {showLimitation && <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"><strong>Omezení:</strong> {limitation}</div>}
       {section?.source_cited && <div className="text-[11px] text-slate-400 flex items-center gap-1.5"><Database className="h-3.5 w-3.5" />Zdroj použitý v analýze: {section.source_cited}</div>}
     </div>
   </section>
-);
+  );
+};
 
 const Metric: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"><div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">{label}</div><div className="mt-1 text-sm sm:text-base font-bold text-slate-900 break-words">{value}</div></div>;
 
@@ -89,7 +91,7 @@ export const ReportViewCzech: React.FC<Props> = ({ report, onBack }) => {
         <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Předběžné posouzení lokality</h1>
         <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{data.summary || 'Posouzení vychází z údajů, které se pro tuto lokalitu podařilo získat. Původ a omezení údajů jsou uvedeny v registru důkazů.'}</p>
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Skóre důkazů" value={data.evidence_score ? `${data.evidence_score.totalScore}/100` : 'nehodnoceno'} />
+          <Metric label="Stav důkazů" value={data.evidence_score ? `${data.evidence_score.verifiedCount} ověřeno · ${data.evidence_score.modelledCount} modelováno · ${data.evidence_score.unverifiedCount} vyžaduje ověření` : 'nehodnoceno'} />
           <Metric label="Ověřeno" value={data.evidence_score?.verifiedCount ?? 0} />
           <Metric label="Modelováno" value={data.evidence_score?.modelledCount ?? 0} />
           <Metric label="K ověření" value={data.evidence_score?.unverifiedCount ?? 0} />
@@ -106,7 +108,7 @@ export const ReportViewCzech: React.FC<Props> = ({ report, onBack }) => {
           <Metric label="Úřední výměra" value={tech.official_area_m2 ? `${tech.official_area_m2} m²` : 'údaj není k dispozici'} />
           <Metric label="Nadmořská výška" value={tech.elevation_amsl !== null && tech.elevation_amsl !== undefined ? `${tech.elevation_amsl} m n. m.` : 'údaj není k dispozici'} />
           <Metric label="Sklon" value={tech.slope_degrees !== null && tech.slope_degrees !== undefined ? `${tech.slope_degrees}° (${present(tech.slope_percent)} %)` : 'údaj není k dispozici'} />
-          <Metric label="Orientace svahu" value={aspect(tech.aspect_direction)} />
+          <Metric label="Orientace svahu" value={localizeCzechAspect(tech.aspect_direction)} />
         </div>
         <MapPreview lat={report.latitude} lng={report.longitude} areaSize={report.area_size} boundary={report.boundary} />
         <div className="text-[11px] text-slate-500">Geometrie parcely je prostorový podklad. Vlastnictví, právní titul, věcná břemena a další zatížení je nutné ověřit v příslušných registrech.</div>
@@ -114,7 +116,7 @@ export const ReportViewCzech: React.FC<Props> = ({ report, onBack }) => {
 
       <Section number="3" title="Podloží a základové podmínky" section={data.soil_and_ground} />
       <Section number="4" title="Geologická rizika" section={data.geohazard_risk}>
-        {risks.length > 0 && <div className="grid sm:grid-cols-2 gap-3">{risks.map((item: any, index: number) => <div key={`${item.category}-${index}`} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div className="font-bold text-sm">{item.category}</div><span className="text-[10px] font-bold text-slate-500">{status(item.evidence_level)}</span></div><div className="mt-1 text-sm text-slate-700">{present(item.level)}</div>{item.detail && <div className="mt-2 text-xs text-slate-500">{item.detail}</div>}</div>)}</div>}
+        {risks.length > 0 && <div className="grid sm:grid-cols-2 gap-3">{risks.map((item: any, index: number) => <div key={`${item.category}-${index}`} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div className="font-bold text-sm">{item.category}</div><span className="text-[10px] font-bold text-slate-500 shrink-0">{status(item.evidence_level)}</span></div><div className="mt-1 text-sm text-slate-700">{present(item.level)}</div>{item.detail && <div className="mt-2 text-xs text-slate-500">{item.detail}</div>}</div>)}</div>}
       </Section>
       <Section number="5" title="Povodně a hydrologie" section={data.flooding_risk} />
       <Section number="6" title="Územní plánování a využití území" section={data.zoning_and_land_use} />

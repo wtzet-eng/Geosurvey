@@ -169,30 +169,49 @@ export function renderSlovakLocalizedReport(canonical: CanonicalReport): any {
     ? `Orientačná štatistická hodnota pozemku: ${canonical.valuation.min!.toLocaleString('sk-SK')}–${canonical.valuation.max!.toLocaleString('sk-SK')} ${canonical.valuation.currency}.`
     : reason(canonical.valuation.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED');
   const floodText = canonical.flood.classification ? `Klasifikácia predbežného povodňového rizika: ${risk(canonical.flood.classification)}.` : reason(canonical.flood.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED');
-  const roadText = `Najbližšia mapovaná cesta: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, približne ${shown(canonical.infrastructure.distanceM)} m od lokality.`;
-  const environmentText = canonical.environment.protectedAreaName ? `Environmentálne preverenie identifikovalo ${canonical.environment.protectedAreaName}.` : 'V preverovanom území nebol v použitom otvorenom zdroji identifikovaný prvok chráneného územia.';
+  const roadText = canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : `Najbližšia mapovaná cesta: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, približne ${shown(canonical.infrastructure.distanceM)} m od lokality.`;
+  const environmentText = canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : canonical.environment.protectedAreaName ? `Environmentálne preverenie identifikovalo ${canonical.environment.protectedAreaName}.` : 'V preverovanom území nebol v použitom otvorenom zdroji identifikovaný prvok chráneného územia.';
 
-  const localizedCategory = 'Vedecké dôkazy';
   const supportCategory = 'Rozsah podpory krajiny';
+  const categories: Record<string, string> = {
+    'sk-sguds-engineering-geology-50k': 'Inžinierskogeologické rajónovanie',
+    'sk-sguds-hydrogeology': 'Hydrogeologický kontext',
+    'sk-sguds-borehole-context': 'Vrty a geologická preskúmanosť',
+    'terrain-elevation-slope': 'Terén a topografia',
+    'soilgrids-isric-mechanics': 'Model pôdy'
+  };
   const evidenceRegistry = canonical.evidenceRecords.map(record => {
     const code = (record.value as { reasonCode?: AvailabilityReason } | null)?.reasonCode;
     const isSupport = record.id.startsWith('country-support-');
+    const category = isSupport ? supportCategory : categories[record.id] || record.category || 'Dôkazový podklad';
+    const claim = isSupport
+      ? reason('NOT_SUPPORTED_FOR_COUNTRY')
+      : record.id === 'sk-sguds-engineering-geology-50k'
+        ? 'Inžinierskogeologické rajónovanie ŠGÚDŠ poskytuje mapový kontext pre vybranú lokalitu.'
+        : record.id === 'sk-sguds-hydrogeology'
+          ? 'ŠGÚDŠ poskytuje hydrogeologický mapový kontext pre vybranú lokalitu.'
+          : record.id === 'sk-sguds-borehole-context'
+            ? 'Register vrtov ŠGÚDŠ poskytuje okolité prieskumné záznamy; nejde o merania pod vybranou parcelou.'
+            : record.claim;
     return {
       ...record,
-      category: isSupport ? supportCategory : localizedCategory,
-      claim: isSupport ? reason('NOT_SUPPORTED_FOR_COUNTRY') : `Dôkazový záznam pre kategóriu ${localizedCategory}.`,
-      spatialRelationship: isSupport ? support : 'Priestorový vzťah bol zaznamenaný pre vybranú lokalitu.',
-      calculationMethod: isSupport ? 'Kontrola dostupnosti národnej integrácie' : 'Prevzatie zo zdroja a normalizácia do kanonického dôkazového modelu.',
+      category,
+      claim,
+      spatialRelationship: isSupport ? support : record.spatialRelationship || 'Priestorový vzťah bol zaznamenaný pre vybranú lokalitu.',
+      calculationMethod: isSupport ? 'Kontrola dostupnosti národnej integrácie' : record.calculationMethod || 'Prevzatie zo zdroja a normalizácia do kanonického dôkazového modelu.',
       confidence: confidenceLabel[record.confidence] || record.confidence,
-      limitation: record.status === 'REQUIRES_VERIFICATION' ? reason(code) : 'Záväzné alebo projektové závery musia byť potvrdené príslušným autoritatívnym zdrojom alebo terénnym prieskumom.'
+      limitation: record.status === 'REQUIRES_VERIFICATION' ? reason(code) : record.limitation || 'Záväzné alebo projektové závery musia byť potvrdené príslušným autoritatívnym zdrojom alebo terénnym prieskumom.'
     };
   });
 
+  const planningAuthority = String(canonical.planning.authorityName || 'Príslušný obecný / stavebný úrad')
+    .replace(/Municipal Planning Department \(Wydział Architektury \/ Urbanistyki\)/gi, 'príslušný obecný / stavebný úrad')
+    .replace(/Wydział Architektury \/ Urbanistyki/gi, 'príslušný obecný / stavebný úrad');
   const checklist = [
-    ['Úradné potvrdenie územného plánovania', 'Získať aktuálnu záväznú územnoplánovaciu informáciu alebo stanovisko.', canonical.planning.authorityName],
-    ['Geotechnický prieskum', 'Objednať geotechnický prieskum lokality podľa Eurokódu 7.', canonical.authorities.geology],
+    ['Úradné potvrdenie územného plánovania', 'Získať aktuálnu záväznú územnoplánovaciu informáciu alebo stanovisko.', planningAuthority],
+    ['Geotechnický prieskum', 'Objednať geotechnický prieskum lokality podľa Eurokódu 7.', 'Geotechnik / inžiniersky geológ'],
     ['Geodetické zameranie', 'Objednať autorizované polohopisné a výškopisné zameranie.', canonical.authorities.cadastre],
-    ['Podmienky pripojenia sietí', 'Získať formálne podmienky pripojenia od prevádzkovateľov sietí.', canonical.authorities.cadastre],
+    ['Podmienky pripojenia sietí', 'Získať formálne podmienky pripojenia od prevádzkovateľov sietí.', 'Príslušní prevádzkovatelia distribučných sietí'],
     ['Vlastníctvo a kataster', 'Overiť vlastníctvo, hranice, vecné bremená a ťarchy v katastri nehnuteľností.', canonical.authorities.cadastre]
   ].map(([topic, itemReason, authority], index) => ({ topic, reason: itemReason, recommendedAuthorityOrExpert: authority, priority: index === 3 ? 'Medium' : 'High' }));
 
@@ -208,8 +227,8 @@ export function renderSlovakLocalizedReport(canonical: CanonicalReport): any {
 
   const dataSources = canonical.sourceRecords.map(source => ({ name: source.name, url: source.url, authority: source.name, verification_status: statusLabel[source.status] }));
   const summaryCore = valuationAvailable
-    ? `Toto posúdenie založené na dôkazoch sa týka lokality na Slovensku. Geologická jednotka: ${geologyUnit}. Terén: ${terrainText} Pôda: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Skóre kvality dôkazov: ${canonical.evidenceScore.totalScore}/100. Štatistické rozpätie hodnoty pozemku je ${canonical.valuation.min!.toLocaleString('sk-SK')}–${canonical.valuation.max!.toLocaleString('sk-SK')} ${canonical.valuation.currency}.`
-    : `Toto posúdenie založené na dôkazoch sa týka lokality na Slovensku. Geologická jednotka: ${geologyUnit}. Terén: ${terrainText} Pôda: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Skóre kvality dôkazov: ${canonical.evidenceScore.totalScore}/100. Automatická hodnota pozemku sa neuvádza, pretože nie je k dispozícii dostatočný podporovaný oceňovací podklad.`;
+    ? `Toto posúdenie založené na dôkazoch sa týka lokality na Slovensku. Geologická jednotka: ${geologyUnit}. Terén: ${terrainText} Pôda: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Štatistické rozpätie hodnoty pozemku je ${canonical.valuation.min!.toLocaleString('sk-SK')}–${canonical.valuation.max!.toLocaleString('sk-SK')} ${canonical.valuation.currency}.`
+    : `Toto posúdenie založené na dôkazoch sa týka lokality na Slovensku. Geologická jednotka: ${geologyUnit}. Terén: ${terrainText} Pôda: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Automatická hodnota pozemku sa neuvádza, pretože nie je k dispozícii dostatočný podporovaný oceňovací podklad.`;
 
   const groundDetail = [`Záväzné informácie vyžadujú potvrdenie príslušným orgánom. ${contextSummary} ${investigationFocus}`, ...groundSpecific].join(' ');
   const section = (summary: string, detail: string, status: string, source?: string, limitation?: string) => ({ summary, detail, evidence_level: status, source_cited: source, limitation_notice: limitation });

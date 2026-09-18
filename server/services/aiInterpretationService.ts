@@ -128,14 +128,16 @@ function buildAiLandValuation(report: any) {
   for (const key of ['min', 'max', 'median'] as const) {
     const total = totals[key];
     const derived = total !== null && valuationAreaM2 !== null ? total / valuationAreaM2 : null;
-    pricePerSqm[key] = derived;
     const supplied = number(metrics[`price_per_sqm_${key}`]);
+    pricePerSqm[key] = derived ?? supplied;
     if (supplied !== null && derived !== null && Math.abs(supplied - derived) > 0.51) {
       consistencyWarnings.push(`Reported ${key} unit price does not match total divided by valuation area; use the derived unit price only after verifying the report.`);
     }
   }
   if (totals.min !== null && totals.max !== null && totals.min > totals.max) consistencyWarnings.push('Valuation minimum exceeds maximum; do not quote this range.');
   if (totals.median !== null && ((totals.min !== null && totals.median < totals.min) || (totals.max !== null && totals.median > totals.max))) consistencyWarnings.push('Valuation median lies outside the range; verify before quoting.');
+  const marketContextOnly = raw.mode === 'MARKET_CONTEXT';
+  if (marketContextOnly) consistencyWarnings.push('Market context only: do not multiply the retained unit benchmark by the selected area or quote a whole-site value.');
   return {
     ...(sanitizeUnknown(raw) as Record<string, unknown>),
     ...totals,
@@ -143,6 +145,7 @@ function buildAiLandValuation(report: any) {
     pricePerSqm,
     consistencyWarnings,
     scope: 'LAND_ONLY',
+    valuationMode: marketContextOnly ? 'MARKET_CONTEXT' : 'PARCEL_TOTAL',
     ...(report.country_code === 'DE' ? {
       classification: 'MODELLED_BUILDING_LAND_BENCHMARK_NOT_OFFICIAL_BODENRICHTWERT',
       applicability: 'Building-land scenario only. Actual land use, buildability, servicing and local market value are not verified.'

@@ -81,7 +81,7 @@ export const ReportViewSwedish: React.FC<Props> = ({ report, onBack }) => {
         <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Preliminär tomtbedömning</h1>
         <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{data.summary || 'Bedömningen bygger på de källor som kunde hämtas för platsen. Källor och begränsningar redovisas i evidensregistret.'}</p>
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Evidenspoäng" value={data.evidence_score ? `${data.evidence_score.totalScore}/100` : 'inte bedömt'} />
+          <Metric label="Evidensstatus" value={data.evidence_score ? `${data.evidence_score.verifiedCount} verifierade · ${data.evidence_score.modelledCount} modellerade · ${data.evidence_score.unverifiedCount} kräver verifiering` : 'inte bedömt'} />
           <Metric label="Verifierat" value={data.evidence_score?.verifiedCount ?? 0} />
           <Metric label="Modellerat" value={data.evidence_score?.modelledCount ?? 0} />
           <Metric label="Behöver verifieras" value={data.evidence_score?.unverifiedCount ?? 0} />

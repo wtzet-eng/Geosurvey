@@ -56,3 +56,26 @@ test('Slovak renderer localizes risk and availability language rather than falli
   const serialized = JSON.stringify({ summary: report.summary, titles: report.titles, unavailableReasons: report.unavailableReasons, sections: report.sections, riskMatrix: report.riskMatrix, verificationChecklist: report.verificationChecklist, legalDisclaimers: report.legalDisclaimers });
   assert.doesNotMatch(serialized, /Executive summary|Requires verification|What to investigate|Mining subsidence|Indicative statistical value|Country coverage/);
 });
+
+
+test('Slovak evidence register preserves useful categories and routes professional checks correctly', () => {
+  const fixture = canonicalFixture();
+  fixture.planning.authorityName = 'Detva Municipal Planning Department (Wydział Architektury / Urbanistyki)';
+  const report = renderSlovakLocalizedReport(fixture);
+  assert.ok(report.evidenceRegistry.some((item: any) => /Inžinierskogeologické rajónovanie/i.test(item.category)));
+  assert.ok(report.evidenceRegistry.some((item: any) => /Vrty a geologická preskúmanosť/i.test(item.category)));
+  assert.ok(!report.evidenceRegistry.some((item: any) => item.category === 'Vedecké dôkazy'));
+  assert.doesNotMatch(JSON.stringify(report.verificationChecklist), /Wydział Architektury|Urbanistyki/i);
+  assert.match(report.verificationChecklist.find((item: any) => /Geotechnický/i.test(item.topic))?.recommendedAuthorityOrExpert || '', /geotechnik|inžiniersky geológ/i);
+  assert.match(report.verificationChecklist.find((item: any) => /pripojenia sietí/i.test(item.topic))?.recommendedAuthorityOrExpert || '', /distribučných sietí/i);
+});
+
+test('Slovak unavailable road and environment do not render false negative findings', () => {
+  const fixture = canonicalFixture();
+  fixture.infrastructure = { ...fixture.infrastructure, roadName: null, roadType: null, distanceM: null, status: 'REQUIRES_VERIFICATION', reasonCode: 'SOURCE_UNAVAILABLE' };
+  fixture.environment = { ...fixture.environment, status: 'REQUIRES_VERIFICATION', reasonCode: 'SOURCE_UNAVAILABLE' };
+  const report = renderSlovakLocalizedReport(fixture);
+  assert.doesNotMatch(report.sections.infrastructure_and_access.summary, /údaj nie je k dispozícii m/i);
+  assert.match(report.sections.infrastructure_and_access.summary, /nedostupný|nepodarilo pripojiť/i);
+  assert.doesNotMatch(report.sections.environmental_factors.summary, /nebol.*identifikovaný prvok chráneného územia/i);
+});

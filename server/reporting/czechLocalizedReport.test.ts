@@ -28,7 +28,7 @@ function canonicalFixture(): any {
     evidenceRecords: [
       { id: 'cz-cgs-engineering-geology', category: 'Engineering-geological zoning', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'Česká geologická služba (ČGS)', sourceUrl: 'https://cgs.gov.cz/', datasetDate: '2026-09-10', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { code: 'F', name: 'rajón fluviálních sedimentů', characterization: 'proměnlivé zrnitostní složení', typicalRocks: 'štěrky, písky a hlíny', scale: '1:50,000' } },
       { id: 'cz-cgs-hydrogeology', category: 'Hydrogeological context', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'Česká geologická služba (ČGS)', sourceUrl: 'https://cgs.gov.cz/', datasetDate: '2026-09-10', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { unit: 'kvartérní fluviální sedimenty', rock: 'štěrky a písky', transmissivity: 'vysoká', description: 'průlinový kolektor', scale: '1:50,000' } },
-      { id: 'cz-cgs-borehole-context', category: 'Nearby boreholes', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'Česká geologická služba (ČGS)', sourceUrl: 'https://cgs.gov.cz/', datasetDate: '2026-09-10', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'Medium', limitation: 'raw', value: { searchRadiusM: 5000, nearestDistanceM: 280, boreholes: [{ id: 'A' }], hydrogeologicalBoreholes: [{ id: 'A' }] } },
+      { id: 'cz-cgs-borehole-context', category: 'Nearby boreholes', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'Česká geologická služba (ČGS)', sourceUrl: 'https://cgs.gov.cz/', datasetDate: '2026-09-10', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'Medium', limitation: 'raw', value: { searchRadiusM: 5000, totalCount: 21, hydrogeologicalCount: 12, nearestDistanceM: 280, boreholes: [{ id: 'A' }], hydrogeologicalBoreholes: [{ id: 'A' }] } },
       { id: 'cz-cuzk-ruian-parcel', category: 'Cadastre & identification', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'ČÚZK — RÚIAN', sourceUrl: 'https://cuzk.gov.cz/', datasetDate: '2026-09-10', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { parcelNumber: '123/4', areaM2: 987, landType: 'zastavěná plocha a nádvoří', landUse: 'jiná plocha', cadastralAreaName: 'Staré Město' } },
       { id: 'cz-cuzk-ruian-buildings', category: 'Registered buildings', claim: 'raw English claim', status: 'VERIFIED', sourceName: 'ČÚZK — RÚIAN', sourceUrl: 'https://cuzk.gov.cz/', datasetDate: '2026-09-10', spatialRelationship: 'raw', calculationMethod: 'raw', confidence: 'High', limitation: 'raw', value: { buildingCount: 1, buildings: [{ use: 'objekt k bydlení', floorCount: 2, floorAreaM2: 180, builtUpAreaM2: 105 }] } }
     ]
@@ -57,4 +57,31 @@ test('Czech renderer does not fall back to English reader-facing labels', () => 
   assert.match(report.unavailableReasons.planning, /vybranou zemi|oficiálním zdroji/i);
   const serialized = JSON.stringify({ summary: report.summary, titles: report.titles, unavailableReasons: report.unavailableReasons, sections: report.sections, riskMatrix: report.riskMatrix, verificationChecklist: report.verificationChecklist, legalDisclaimers: report.legalDisclaimers });
   assert.doesNotMatch(serialized, /Executive Summary|Requires verification|Recommended Investigations|Mining subsidence|Indicative statistical value|Country coverage/);
+});
+
+
+test('Czech reader keeps specific evidence semantics and correct verification authorities', () => {
+  const report = renderCzechLocalizedReport(canonicalFixture());
+  const engineering = report.evidenceRegistry.find((item: any) => item.id === 'cz-cgs-engineering-geology');
+  assert.ok(engineering);
+  assert.equal(engineering.category, 'Inženýrskogeologické rajonování');
+  assert.match(engineering.claim, /Inženýrskogeologické rajonování ČGS/i);
+  assert.doesNotMatch(JSON.stringify(report.evidenceRegistry), /Důkazní záznam pro kategorii Vědecké důkazy/);
+  assert.match(report.sections.soil_and_ground.detail, /21 okolních záznamů/);
+  assert.match(report.sections.soil_and_ground.detail, /12 s hydrogeologickými údaji/);
+  const utilities = report.verificationChecklist.find((item: any) => item.topic === 'Podmínky připojení sítí');
+  const geotech = report.verificationChecklist.find((item: any) => item.topic === 'Geotechnický průzkum');
+  assert.match(utilities?.recommendedAuthorityOrExpert || '', /provozovatelé distribučních sítí/i);
+  assert.match(geotech?.recommendedAuthorityOrExpert || '', /geotechnik|inženýrský geolog/i);
+  assert.doesNotMatch(JSON.stringify(report.verificationChecklist), /Wydział|MPZP|WZ/);
+});
+
+test('Czech unavailable environment and infrastructure never render a false clear finding or unavailable metres', () => {
+  const fixture = canonicalFixture();
+  fixture.environment = { protectedAreaName: null, distanceM: null, status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap', reasonCode: 'SOURCE_UNAVAILABLE' };
+  fixture.infrastructure = { roadName: null, roadType: null, distanceM: null, directAccess: false, status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap', reasonCode: 'SOURCE_UNAVAILABLE' };
+  const report = renderCzechLocalizedReport(fixture);
+  assert.match(report.sections.environmental_factors.summary, /dočasně nedostupný|nepodařilo připojit/i);
+  assert.doesNotMatch(report.sections.environmental_factors.summary, /nebyl.*identifikován/i);
+  assert.doesNotMatch(report.sections.infrastructure_and_access.summary, /údaj není k dispozici m/i);
 });

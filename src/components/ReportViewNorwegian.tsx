@@ -82,7 +82,7 @@ export const ReportViewNorwegian: React.FC<Props> = ({ report, onBack }) => {
         <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Foreløpig tomtevurdering</h1>
         <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{data.summary || 'Vurderingen bygger på data som kunne hentes for dette stedet. Kilder og begrensninger fremgår av dokumentasjonsregisteret.'}</p>
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Dokumentasjonsscore" value={data.evidence_score ? `${data.evidence_score.totalScore}/100` : 'ikke vurdert'} />
+          <Metric label="Dokumentasjonsstatus" value={data.evidence_score ? `${data.evidence_score.verifiedCount} verifisert · ${data.evidence_score.modelledCount} modellert · ${data.evidence_score.unverifiedCount} krever verifisering` : 'ikke vurdert'} />
           <Metric label="Verifisert" value={data.evidence_score?.verifiedCount ?? 0} />
           <Metric label="Modellert" value={data.evidence_score?.modelledCount ?? 0} />
           <Metric label="Må verifiseres" value={data.evidence_score?.unverifiedCount ?? 0} />

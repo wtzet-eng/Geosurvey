@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SiteReport } from '../types';
+import { localizeAspect } from '../i18n/aspectI18n';
 import { MapPreview } from './MapPreview';
 import { EmbedModal } from './EmbedModal';
 import { GoogleDriveModal } from './GoogleDriveModal';
@@ -14,27 +15,32 @@ const status = (value: unknown) => {
   return 'Skal verificeres';
 };
 const present = (value: unknown, fallback = 'ikke tilgængelig') => value === null || value === undefined || value === '' || Number.isNaN(value) ? fallback : String(value);
-const aspect = (value: unknown) => {
-  const raw = present(value);
-  const directions: Record<string, string> = { N: 'Nord', NE: 'Nordøst', E: 'Øst', SE: 'Sydøst', S: 'Syd', SW: 'Sydvest', W: 'Vest', NW: 'Nordvest' };
-  return directions[raw] || raw;
-};
+export const localizeDanishAspect = (value: unknown) => localizeAspect(value, 'da', 'ikke tilgængelig');
 
-const Section: React.FC<{ number: string; title: string; section?: any; children?: React.ReactNode }> = ({ number, title, section, children }) => (
+const normalized = (value: unknown) => String(value || '').trim().replace(/\s+/g, ' ').replace(/[.]+$/, '').toLowerCase();
+
+const Section: React.FC<{ number: string; title: string; section?: any; children?: React.ReactNode }> = ({ number, title, section, children }) => {
+  const summary = section?.summary?.trim();
+  const detail = section?.detail?.trim();
+  const limitation = section?.limitation_notice?.trim();
+  const showDetail = Boolean(detail && normalized(detail) !== normalized(summary));
+  const showLimitation = Boolean(limitation && normalized(limitation) !== normalized(summary) && normalized(limitation) !== normalized(detail));
+  return (
   <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
     <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
       <div><div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Afsnit {number}</div><h2 className="text-base sm:text-lg font-bold text-slate-950">{title}</h2></div>
       <span className="text-[10px] font-bold rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">{status(section?.evidence_level)}</span>
     </div>
     <div className="p-6 space-y-4">
-      {section?.summary && <div className="text-sm leading-relaxed text-slate-700 font-medium">{section.summary}</div>}
-      {section?.detail && <div className="text-xs sm:text-sm leading-relaxed text-slate-600 whitespace-pre-line">{section.detail}</div>}
+      {summary && <div className="text-sm leading-relaxed text-slate-700 font-medium">{summary}</div>}
+      {showDetail && <div className="text-xs sm:text-sm leading-relaxed text-slate-600 whitespace-pre-line">{detail}</div>}
       {children}
-      {section?.limitation_notice && <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"><strong>Begrænsning:</strong> {section.limitation_notice}</div>}
+      {showLimitation && <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"><strong>Begrænsning:</strong> {limitation}</div>}
       {section?.source_cited && <div className="text-[11px] text-slate-400 flex items-center gap-1.5"><Database className="h-3.5 w-3.5" />Kilde i analysen: {section.source_cited}</div>}
     </div>
   </section>
-);
+  );
+};
 
 const Metric: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"><div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">{label}</div><div className="mt-1 text-sm sm:text-base font-bold text-slate-900 break-words">{value}</div></div>;
 
@@ -77,7 +83,7 @@ export const ReportViewDanish: React.FC<Props> = ({ report, onBack }) => {
         <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Foreløbig vurdering af byggegrund</h1>
         <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">{data.summary || 'Vurderingen bygger på de kilder, der kunne hentes for stedet. Kilder og begrænsninger fremgår af evidensregistret.'}</p>
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Evidensscore" value={data.evidence_score ? `${data.evidence_score.totalScore}/100` : 'ikke vurderet'} />
+          <Metric label="Evidensstatus" value={data.evidence_score ? `${data.evidence_score.verifiedCount} verificeret · ${data.evidence_score.modelledCount} modelleret · ${data.evidence_score.unverifiedCount} kræver verifikation` : 'ikke vurderet'} />
           <Metric label="Verificeret" value={data.evidence_score?.verifiedCount ?? 0} />
           <Metric label="Modelleret" value={data.evidence_score?.modelledCount ?? 0} />
           <Metric label="Skal verificeres" value={data.evidence_score?.unverifiedCount ?? 0} />
@@ -94,7 +100,7 @@ export const ReportViewDanish: React.FC<Props> = ({ report, onBack }) => {
           <Metric label="Registreret areal" value={tech.official_area_m2 ? `${Number(tech.official_area_m2).toLocaleString('da-DK')} m²` : 'ikke tilgængelig'} />
           <Metric label="Kote" value={tech.elevation_amsl !== null && tech.elevation_amsl !== undefined ? `${tech.elevation_amsl} m` : 'ikke tilgængelig'} />
           <Metric label="Hældning" value={tech.slope_degrees !== null && tech.slope_degrees !== undefined ? `${tech.slope_degrees}° (${present(tech.slope_percent)} %)` : 'ikke tilgængelig'} />
-          <Metric label="Hældningsretning" value={aspect(tech.aspect_direction)} />
+          <Metric label="Hældningsretning" value={localizeDanishAspect(tech.aspect_direction)} />
         </div>
         <MapPreview lat={report.latitude} lng={report.longitude} areaSize={report.area_size} boundary={report.boundary} />
         <div className="text-[11px] text-slate-500">Registergeometri og den tegnede analysegrænse skal ikke fortolkes som en ny juridisk grænseafsætning. Ved grænsetvivl kræves original registerkontrol og eventuelt landinspektør.</div>

@@ -82,11 +82,29 @@ function localizedEvidenceRecord(record: any): any {
     'dk-plandata-localplan-no-data': 'Plandata.dk — vedtaget lokalplan'
   };
   const isDanish = Boolean(names[record.id]);
+  const categoryLabels: Record<string, string> = {
+    'Terrain & Topography': 'Terræn og topografi',
+    'Cross-border hydrology context': 'Hydrologisk kontekst',
+    'Geology & Soil Mechanics': 'Geologi og jordmodel',
+    'Planning & Legal Constraints': 'Planlægning og juridiske forhold',
+    'Infrastructure & Access': 'Infrastruktur og adgang',
+    'Environmental & Conservation': 'Miljø og naturbeskyttelse',
+    'Pedological spatial context': 'Pedologisk rumlig kontekst'
+  };
+  const standardClaims: Record<string, string> = {
+    'terrain-elevation-slope': 'Terrænmodellen giver kote, hældning og hældningsretning for den valgte lokalitet.',
+    'flood-proximity-check': 'Hydrologisk nærhed er kun screeningskontekst; uden national farekortlægning udledes ingen bindende oversvømmelsesklassifikation.',
+    'soilgrids-isric-mechanics': 'SoilGrids giver en modelleret jordprofil og må ikke læses som geotekniske projekteringsparametre.',
+    'infrastructure-road-access': 'Åbne kortdata giver kun en foreløbig indikation af vejadgang; juridisk eller garanteret adgang skal verificeres.',
+    'environmental-natura2000': 'Åbne kortdata giver kun en foreløbig miljøscreening; autoritative registre har forrang.',
+    'planning-zoning-status': 'Planforhold og byggeret skal verificeres i den gældende lokalplan/kommuneplanramme og hos kommunen.',
+    'soilgrids-spatial-variability': 'SoilGrids giver modelleret rumlig jordkontekst på tværs af den valgte geometri og dens nærmeste omgivelser.'
+  };
   return {
     ...record,
-    category: names[record.id] || (record.id.startsWith('country-support-') ? 'Landets datadækning' : record.category || 'Datagrundlag'),
-    claim: isDanish ? `${names[record.id]} indgår som stedrelateret screeningsgrundlag.` : record.id.startsWith('country-support-') ? reason('NOT_SUPPORTED_FOR_COUNTRY') : record.claim,
-    spatialRelationship: isDanish ? 'Den rumlige relation til det valgte sted eller søgeområde er registreret i kildeposten.' : record.spatialRelationship,
+    category: names[record.id] || (record.id.startsWith('country-support-') ? 'Landets datadækning' : categoryLabels[record.category] || record.category || 'Datagrundlag'),
+    claim: record.id.startsWith('country-support-') ? reason('NOT_SUPPORTED_FOR_COUNTRY') : isDanish && record.status === 'REQUIRES_VERIFICATION' && code ? reason(code) : isDanish ? `${names[record.id]} indgår som stedrelateret screeningsgrundlag.` : standardClaims[record.id] || record.claim,
+    spatialRelationship: isDanish && record.status !== 'REQUIRES_VERIFICATION' ? 'Den rumlige relation til det valgte sted eller søgeområde er registreret i kildeposten.' : record.spatialRelationship,
     calculationMethod: isDanish ? 'Kildespecifik national dataforespørgsel og normalisering til LandSurfs evidensmodel.' : record.calculationMethod,
     confidence: confidenceLabel[record.confidence as keyof typeof confidenceLabel] || record.confidence,
     limitation: record.status === 'REQUIRES_VERIFICATION' ? reason(code) : record.limitation || reason('AUTHORITATIVE_DATA_REQUIRED')
@@ -126,16 +144,25 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
     ? `Plandata.dk har returneret en vedtaget lokalplan ved stedet. Det dokumenterer planens registrerede overlap, men den konkrete byggeret og alle bestemmelser skal læses i originalplanen og verificeres hos kommunen.`
     : `Planforhold skal verificeres efter ${canonical.planning.instrumentName}.`;
   const floodText = canonical.flood.classification ? `Indledende oversvømmelsesscreening: ${risk(canonical.flood.classification)}.` : 'National dansk oversvømmelsesfare er ikke automatiseret i denne version. Kontrollér de relevante officielle og kommunale risikokort.';
-  const roadText = `Nærmeste kortlagte vej: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, ca. ${shown(canonical.infrastructure.distanceM)} m fra stedet.`;
-  const environmentText = canonical.environment.protectedAreaName ? `Miljøscreeningen identificerede ${canonical.environment.protectedAreaName}.` : 'Der blev ikke returneret et beskyttet område i den åbne miljøscreening for søgeområdet.';
+  const roadText = canonical.infrastructure.reasonCode
+    ? reason(canonical.infrastructure.reasonCode)
+    : `Nærmeste kortlagte vej: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, ca. ${shown(canonical.infrastructure.distanceM)} m fra stedet.`;
+  const environmentText = canonical.environment.reasonCode
+    ? reason(canonical.environment.reasonCode)
+    : canonical.environment.protectedAreaName
+      ? `Miljøscreeningen identificerede ${canonical.environment.protectedAreaName}.`
+      : 'Der blev ikke identificeret et beskyttet område i den anvendte åbne kortkilde; det erstatter ikke kontrol i autoritative registre.';
   const section = (summary: string, detail: string, status: string, source?: string, limitation?: string) => ({ summary, detail, evidence_level: status, source_cited: source, limitation_notice: limitation });
 
+  const planningAuthority = String(canonical.planning.authorityName || 'Relevant kommune / planmyndighed')
+    .replace(/competent planning \/ building authority/gi, 'plan- og byggemyndighed')
+    .replace(/Municipal Planning Department \(Wydział Architektury \/ Urbanistyki\)/gi, 'plan- og byggemyndighed');
   const checklist = [
-    ['Lokalplan og byggeret', 'Læs den gældende lokalplan, kommuneplanramme og alle relevante bestemmelser; bekræft projektets konkrete byggeret hos kommunen.', canonical.planning.authorityName],
-    ['Geoteknisk undersøgelse', 'Bestil en stedsspecifik geoteknisk undersøgelse; brug GEUS/Jupiter som baggrund, ikke som erstatning for boringer eller sonderinger på grunden.', canonical.authorities.geology],
-    ['Matrikelgrænse og rettigheder', 'Kontrollér matrikelgrænsens retlige status, ejerskab, servitutter og hæftelser i de relevante officielle ejendomsregistre og ved behov hos en landinspektør.', canonical.authorities.cadastre],
+    ['Lokalplan og byggeret', 'Læs den gældende lokalplan, kommuneplanramme og alle relevante bestemmelser; bekræft projektets konkrete byggeret hos kommunen.', planningAuthority],
+    ['Geoteknisk undersøgelse', 'Bestil en stedsspecifik geoteknisk undersøgelse; brug GEUS/Jupiter som baggrund, ikke som erstatning for boringer eller sonderinger på grunden.', 'Geoteknisk rådgiver / ingeniørgeolog'],
+    ['Matrikelgrænse og rettigheder', 'Kontrollér matrikelgrænsens retlige status, ejerskab, servitutter og hæftelser i de relevante officielle ejendomsregistre og ved behov hos en landinspektør.', 'Matriklen / Tinglysning; ved grænsetvivl praktiserende landinspektør'],
     ['Oversvømmelse og terrænrisiko', 'Kontrollér de relevante officielle og kommunale oversvømmelses- og terrænrisikokort for stedet.', canonical.authorities.flood],
-    ['Forsyning', 'Indhent formelle tilslutningsvilkår fra de relevante forsyningsselskaber.', 'Kommune / forsyningsselskaber']
+    ['Forsyning', 'Indhent formelle tilslutningsvilkår fra de relevante forsyningsselskaber.', 'Relevante forsyningsselskaber / netejere']
   ].map(([topic, itemReason, authority], index) => ({ topic, reason: itemReason, recommendedAuthorityOrExpert: authority, priority: index < 4 ? 'High' : 'Medium' }));
 
   const utilitiesChecklist = (canonical.utilities || []).map(item => ({
@@ -146,8 +173,8 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
   }));
 
   const evidenceRegistry = canonical.evidenceRecords.map(localizedEvidenceRecord);
-  const dataSources = canonical.sourceRecords.map(source => ({ name: source.name, url: source.url, authority: source.name, verification_status: statusLabel[source.status] }));
-  const summaryCore = `Denne evidensbaserede screening gælder en grund i Danmark. ${terrainText} Jordmodel: ${canonical.soil.texture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Evidensscore: ${canonical.evidenceScore.totalScore}/100. ${valuationAvailable ? `Indikativ jordværdi: ${canonical.valuation.min!.toLocaleString('da-DK')}–${canonical.valuation.max!.toLocaleString('da-DK')} ${canonical.valuation.currency}.` : 'Automatisk jordværdi vises ikke, fordi et tilstrækkeligt dansk land-only datagrundlag ikke er integreret.'}`;
+  const dataSources = canonical.sourceRecords.map(source => { const name = /National cadastral authority \/ INSPIRE cadastral parcels/i.test(source.name) ? 'National matrikelmyndighed / INSPIRE-matrikelparceller' : source.name; return { name, url: source.url, authority: name, verification_status: statusLabel[source.status] }; });
+  const summaryCore = `Denne evidensbaserede screening gælder en grund i Danmark. ${terrainText} Jordmodel: ${canonical.soil.texture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. ${valuationAvailable ? `Indikativ jordværdi: ${canonical.valuation.min!.toLocaleString('da-DK')}–${canonical.valuation.max!.toLocaleString('da-DK')} ${canonical.valuation.currency}.` : 'Automatisk jordværdi vises ikke, fordi et tilstrækkeligt dansk land-only datagrundlag ikke er integreret.'}`;
   const groundDetail = groundSpecific.join(' ');
 
   return {
@@ -166,7 +193,7 @@ export function renderDanishLocalizedReport(canonical: CanonicalReport): any {
       building_regulations: section(cadastreVerified ? 'Datafordelerens Matriklen-WFS identificerer jordstykket og kan levere registreret areal/registergeometri; kortgrænsen er ikke i sig selv en ny juridisk grænseafsætning.' : 'Automatisk matrikelopslag blev ikke verificeret for denne kørsel. Kontrollér Matriklen/Datafordeleren eller matriklen.dk.', 'Kontrollér ejendomsidentitet, grænsens retlige status, ejerskab, servitutter og hæftelser i de originale danske registre. Ved grænsetvivl anvendes landinspektør.', cadastreVerified ? 'VERIFIED' : 'REQUIRES_VERIFICATION', canonical.authorities.cadastre, reason('AUTHORITATIVE_DATA_REQUIRED')),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.environment.status, canonical.environment.sourceName, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : undefined),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.infrastructure.status, canonical.infrastructure.sourceName, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : undefined),
-      market_and_comparables: section(valuationText, 'Værdiomfanget er strengt jord/grund. Bygninger, konstruktioner og andre forbedringer er udtrykkeligt udelukket.', canonical.valuation.status, canonical.valuation.sourceName, canonical.valuation.reasonCode ? reason(canonical.valuation.reasonCode) : undefined),
+      market_and_comparables: section(valuationText, 'Værdiomfanget er strengt jord/grund. Bygninger, konstruktioner og andre forbedringer er udtrykkeligt udelukket.', canonical.valuation.status, canonical.valuation.reasonCode === 'NOT_SUPPORTED_FOR_COUNTRY' ? 'Intet generisk prisfallback — kræver kalibreret dansk jordværdidokumentation' : canonical.valuation.sourceName, canonical.valuation.reasonCode ? reason(canonical.valuation.reasonCode) : undefined),
       development_cost_outlook: section(reason('AUTHORITATIVE_DATA_REQUIRED'), checklist.map(item => item.reason).join(' '), 'REQUIRES_VERIFICATION')
     },
     evidenceRegistry, verificationChecklist: checklist, utilitiesChecklist, dataSources,

@@ -114,9 +114,11 @@ function czechGroundNarrative(canonical: CanonicalReport): string[] {
     const raw = (boreholes.value || {}) as Record<string, unknown>;
     const rows = Array.isArray(raw.boreholes) ? raw.boreholes : [];
     const hydroRows = Array.isArray(raw.hydrogeologicalBoreholes) ? raw.hydrogeologicalBoreholes : [];
+    const totalCount = numberOrNull(raw.totalCount) ?? rows.length;
+    const hydroCount = numberOrNull(raw.hydrogeologicalCount) ?? hydroRows.length;
     const nearest = numberOrNull(raw.nearestDistanceM);
     const radius = numberOrNull(raw.searchRadiusM);
-    parts.push(`Registr vrtů ČGS: ${rows.length} okolních záznamů${radius ? ` v okruhu ${(radius / 1000).toFixed(0)} km` : ''}, z toho ${hydroRows.length} s hydrogeologickými údaji${nearest === null ? '' : `; nejbližší záznam přibližně ${nearest} m od lokality`}.`);
+    parts.push(`Registr vrtů ČGS: ${totalCount} okolních záznamů${radius ? ` v okruhu ${(radius / 1000).toFixed(0)} km` : ''}, z toho ${hydroCount} s hydrogeologickými údaji${nearest === null ? '' : `; nejbližší záznam přibližně ${nearest} m od lokality`}.`);
   }
   if (deformation) {
     const raw = (deformation.value || {}) as Record<string, unknown>;
@@ -220,30 +222,60 @@ export function renderCzechLocalizedReport(canonical: CanonicalReport): any {
     ? `Orientační statistická hodnota pozemku: ${canonical.valuation.min!.toLocaleString('cs-CZ')}–${canonical.valuation.max!.toLocaleString('cs-CZ')} ${canonical.valuation.currency}.`
     : reason(canonical.valuation.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED');
   const floodText = canonical.flood.classification ? `Klasifikace předběžného povodňového rizika: ${risk(canonical.flood.classification)}.` : reason(canonical.flood.reasonCode || 'AUTHORITATIVE_DATA_REQUIRED');
-  const roadText = `Nejbližší mapovaná komunikace: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, přibližně ${shown(canonical.infrastructure.distanceM)} m od lokality.`;
-  const environmentText = canonical.environment.protectedAreaName ? `Environmentální screening identifikoval ${canonical.environment.protectedAreaName}.` : 'V prověřovaném území nebyl v použitém otevřeném zdroji identifikován prvek chráněného území.';
+  const roadText = canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : `Nejbližší mapovaná komunikace: ${shown(canonical.infrastructure.roadName || canonical.infrastructure.roadType)}, přibližně ${shown(canonical.infrastructure.distanceM)} m od lokality.`;
+  const environmentText = canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : canonical.environment.protectedAreaName ? `Environmentální screening identifikoval ${canonical.environment.protectedAreaName}.` : 'V prověřovaném území nebyl v použitém otevřeném zdroji identifikován prvek chráněného území.';
 
-  const localizedCategory = 'Vědecké důkazy';
   const supportCategory = 'Rozsah podpory země';
+  const categories: Record<string, string> = {
+    'cz-cgs-engineering-geology': 'Inženýrskogeologické rajonování',
+    'cz-cgs-hydrogeology': 'Hydrogeologický kontext',
+    'cz-cgs-borehole-context': 'Vrty a geologická prozkoumanost',
+    'cz-cgs-geology-50k': 'Geologická mapa 1:50 000',
+    'cz-cgs-landslide-susceptibility': 'Náchylnost k sesuvům',
+    'cz-cgs-slope-deformation-site': 'Mapované svahové deformace',
+    'cz-cgs-radon': 'Radonový potenciál',
+    'cz-cgs-mining-undermined-site': 'Poddolovaná území',
+    'cz-cuzk-ruian-parcel': 'Katastr a identifikace parcely',
+    'cz-cuzk-ruian-buildings': 'Evidované stavební objekty',
+    'terrain-elevation-slope': 'Terén a topografie',
+    'soilgrids-isric-mechanics': 'Model půdy'
+  };
   const evidenceRegistry = canonical.evidenceRecords.map(record => {
     const code = (record.value as { reasonCode?: AvailabilityReason } | null)?.reasonCode;
     const isSupport = record.id.startsWith('country-support-');
+    const category = isSupport ? supportCategory : categories[record.id] || record.category || 'Důkazní podklad';
+    const claim = isSupport
+      ? reason('NOT_SUPPORTED_FOR_COUNTRY')
+      : record.id === 'cz-cgs-engineering-geology'
+        ? `Inženýrskogeologické rajonování ČGS poskytuje mapový kontext pro vybranou lokalitu; podrobnosti jsou uvedeny v hodnotách záznamu.`
+        : record.id === 'cz-cgs-hydrogeology'
+          ? 'ČGS poskytuje hydrogeologický mapový kontext pro vybranou lokalitu.'
+          : record.id === 'cz-cgs-borehole-context'
+            ? 'Registr vrtů ČGS poskytuje okolní průzkumné záznamy; nejde o měření pod vybranou parcelou.'
+            : record.id === 'cz-cuzk-ruian-parcel'
+              ? 'ČÚZK RÚIAN poskytuje identifikaci a registrační údaje parcely pro prostorový screening.'
+              : record.id === 'cz-cuzk-ruian-buildings'
+                ? 'ČÚZK RÚIAN poskytuje registrační údaje o stavebních objektech; budovy nejsou součástí ocenění pozemku.'
+                : record.claim;
     return {
       ...record,
-      category: isSupport ? supportCategory : localizedCategory,
-      claim: isSupport ? reason('NOT_SUPPORTED_FOR_COUNTRY') : `Důkazní záznam pro kategorii ${localizedCategory}.`,
-      spatialRelationship: isSupport ? support : 'Prostorový vztah byl zaznamenán pro vybranou lokalitu.',
-      calculationMethod: isSupport ? 'Kontrola dostupnosti národní integrace' : 'Převzetí ze zdroje a normalizace do kanonického důkazního modelu.',
+      category,
+      claim,
+      spatialRelationship: isSupport ? support : record.spatialRelationship || 'Prostorový vztah byl zaznamenán pro vybranou lokalitu.',
+      calculationMethod: isSupport ? 'Kontrola dostupnosti národní integrace' : record.calculationMethod || 'Převzetí ze zdroje a normalizace do kanonického důkazního modelu.',
       confidence: confidenceLabel[record.confidence] || record.confidence,
-      limitation: record.status === 'REQUIRES_VERIFICATION' ? reason(code) : 'Závazné nebo projektové závěry musí být potvrzeny příslušným autoritativním zdrojem nebo průzkumem konkrétní lokality.'
+      limitation: record.status === 'REQUIRES_VERIFICATION' ? reason(code) : record.limitation || 'Závazné nebo projektové závěry musí být potvrzeny příslušným autoritativním zdrojem nebo průzkumem konkrétní lokality.'
     };
   });
 
+  const planningAuthority = String(canonical.planning.authorityName || 'Příslušný obecní / stavební úřad')
+    .replace(/Municipal Planning Department \(Wydział Architektury \/ Urbanistyki\)/gi, 'příslušný obecní / stavební úřad')
+    .replace(/Wydział Architektury \/ Urbanistyki/gi, 'příslušný obecní / stavební úřad');
   const checklist = [
-    ['Úřední potvrzení územního plánování', 'Ověřte aktuální územně plánovací dokumentaci a závazné podmínky u příslušného stavebního nebo obecního úřadu.', canonical.planning.authorityName],
-    ['Geotechnický průzkum', 'Objednejte geotechnický průzkum konkrétní lokality podle Eurokódu 7.', canonical.authorities.geology],
+    ['Úřední potvrzení územního plánování', 'Ověřte aktuální územně plánovací dokumentaci a závazné podmínky u příslušného stavebního nebo obecního úřadu.', planningAuthority],
+    ['Geotechnický průzkum', 'Objednejte geotechnický průzkum konkrétní lokality podle Eurokódu 7.', 'Geotechnik / inženýrský geolog'],
     ['Geodetické a katastrální ověření', 'V případě potřeby nechte odborně ověřit hranice, výměru a polohopis; zobrazená geometrie nenahrazuje právní určení hranice.', canonical.authorities.cadastre],
-    ['Podmínky připojení sítí', 'Získejte formální podmínky připojení od příslušných provozovatelů sítí.', canonical.authorities.cadastre],
+    ['Podmínky připojení sítí', 'Získejte formální podmínky připojení od příslušných provozovatelů sítí.', 'Příslušní provozovatelé distribučních sítí'],
     ['Vlastnictví a právní omezení', 'Ověřte vlastnictví, věcná břemena, zástavní práva a další omezení v příslušných registrech.', canonical.authorities.cadastre]
   ].map(([topic, itemReason, authority], index) => ({ topic, reason: itemReason, recommendedAuthorityOrExpert: authority, priority: index === 3 ? 'Medium' : 'High' }));
 
@@ -259,8 +291,8 @@ export function renderCzechLocalizedReport(canonical: CanonicalReport): any {
 
   const dataSources = canonical.sourceRecords.map(source => ({ name: source.name, url: source.url, authority: source.name, verification_status: statusLabel[source.status] }));
   const summaryCore = valuationAvailable
-    ? `Toto posouzení založené na důkazech se týká lokality v Česku. Geologická jednotka: ${geologyUnit}. ${terrainText} Půda: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Skóre kvality důkazů: ${canonical.evidenceScore.totalScore}/100. Statistické rozpětí hodnoty pozemku je ${canonical.valuation.min!.toLocaleString('cs-CZ')}–${canonical.valuation.max!.toLocaleString('cs-CZ')} ${canonical.valuation.currency}.`
-    : `Toto posouzení založené na důkazech se týká lokality v Česku. Geologická jednotka: ${geologyUnit}. ${terrainText} Půda: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Skóre kvality důkazů: ${canonical.evidenceScore.totalScore}/100. Automatická hodnota pozemku se neuvádí, protože není k dispozici dostatečný podporovaný zdroj pro ocenění.`;
+    ? `Toto posouzení založené na důkazech se týká lokality v Česku. Geologická jednotka: ${geologyUnit}. ${terrainText} Půda: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Statistické rozpětí hodnoty pozemku je ${canonical.valuation.min!.toLocaleString('cs-CZ')}–${canonical.valuation.max!.toLocaleString('cs-CZ')} ${canonical.valuation.currency}.`
+    : `Toto posouzení založené na důkazech se týká lokality v Česku. Geologická jednotka: ${geologyUnit}. ${terrainText} Půda: ${soilTexture || reason(canonical.soil.reasonCode || 'PARAMETER_NOT_PROVIDED')}. Automatická hodnota pozemku se neuvádí, protože není k dispozici dostatečný podporovaný zdroj pro ocenění.`;
 
   const groundDetail = [`Závazné informace musí potvrdit příslušný orgán. ${contextSummary} ${investigationFocus}`, ...groundSpecific].join(' ');
   const buildingDetail = [reason(canonical.planning.reasonCode), ...cadastreSpecific].join(' ');
