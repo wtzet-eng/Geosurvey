@@ -19,5 +19,3 @@ test('homepage decision tagline is localized for every non-English report langua
   assert.match(getLocalizedTagline('es'), /Comprenda la parcela/i);
   assert.match(getLocalizedTagline('no'), /Forstå tomten/i);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
