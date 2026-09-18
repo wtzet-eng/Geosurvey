@@ -73,6 +73,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'Applicable planning and building-control rules require confirmation by the competent municipal/building authority',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  DK: {
+    countryCode: 'DK', countryName: 'Denmark', currency: 'DKK', symbol: 'kr',
+    cadastreAuthority: 'Klimadatastyrelsen / Datafordeleren — Matriklen2', cadastrePortalUrl: 'https://datafordeler.dk/dataoversigt/matriklen-mat/matriklen2-gaeldende-og-foreloebig-wfs/',
+    geologyAuthority: 'De Nationale Geologiske Undersøgelser for Danmark og Grønland (GEUS / Jupiter)', geologyPortalUrl: 'https://data.geus.dk/geusmap/',
+    floodAuthority: 'Relevant dansk national eller kommunal oversvømmelsesmyndighed', floodPortalUrl: 'https://www.klimatilpasning.dk/',
+    planningInstrumentName: 'Lokalplan / kommuneplanramme (Plandata.dk)',
+    standardSetbackRule: 'Fastlægges i gældende plan- og byggeregler; kræver kommunal verifikation',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   ES: {
     countryCode: 'ES', countryName: 'Spain', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Sede Electrónica del Catastro (Dirección General del Catastro)', cadastrePortalUrl: 'https://sedecatastro.gob.es',
@@ -195,3 +204,5 @@ export function getCountryProfile(countryCode: string): CountryAdapterProfile {
     baseValuationPerSqm: 0
   };
 }
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
