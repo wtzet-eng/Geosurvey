@@ -42,5 +42,3 @@ test('Ko-fi shortcut is stackable below the AI action at the same width', () => 
   assert.doesNotMatch(html, /fixed bottom-4 left-4/);
   assert.match(html, /print:hidden/);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
