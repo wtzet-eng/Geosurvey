@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { localizeSlovakEvidenceValue } from '../components/ReportViewSlovak';
+import { localizeSlovakEvidenceValue } from './slovakPresentation';
 
 test('Slovak report uses the decision-first introduction', () => {
   const source = readFileSync(new URL('../components/ReportViewSlovak.tsx', import.meta.url), 'utf8');
