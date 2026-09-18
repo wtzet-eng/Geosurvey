@@ -241,5 +241,3 @@ export function renderFrEsFiLocalizedReport(canonical: CanonicalReport, language
     opportunities: c.opportunities
   };
 }
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
