@@ -27,3 +27,21 @@ test('Spanish AI interpretation shell is localized', () => {
   assert.match(copy.confidence, /Confianza/);
   assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next/i);
 });
+
+
+test('Slovak AI interpretation shell is localized', () => {
+  const copy = aiPanelCopy('sk');
+  const text = Object.values(copy).join('\n');
+  assert.equal(copy.brand, 'Interpretácia AI LandSurf');
+  assert.equal(copy.title, 'Interpretovať zhromaždené dôkazy');
+  assert.equal(copy.observations, 'Priame pozorovania');
+  assert.equal(copy.interpretation, 'Interpretácia');
+  assert.equal(copy.limitations, 'Obmedzenia');
+  assert.equal(copy.verifyNext, 'Čo treba overiť ďalej');
+  assert.equal(copy.runAgain, 'Spustiť znova');
+  assert.equal(copy.confidence, 'Miera istoty');
+  assert.equal(copy.high, 'Vysoká');
+  assert.equal(copy.medium, 'Stredná');
+  assert.equal(copy.low, 'Nízka');
+  assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
+});
