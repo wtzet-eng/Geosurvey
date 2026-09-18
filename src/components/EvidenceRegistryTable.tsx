@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { EvidenceItem } from '../types';
 import { EvidenceBadge } from './EvidenceBadge';
 import { Database, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { localizePresentationValue } from '../i18n/reportPresentation';
 
 interface EvidenceRegistryTableProps {
   items?: EvidenceItem[];
@@ -86,10 +87,10 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : item.id)}>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{item.category}</span>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{localizePresentationValue(item.category, language)}</span>
                     <EvidenceBadge level={item.status} size="sm" language={language} />
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900 leading-snug">{item.claim}</h4>
+                  <h4 className="text-sm font-bold text-slate-900 leading-snug">{localizePresentationValue(item.claim, language)}</h4>
                 </div>
 
                 <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
@@ -117,18 +118,18 @@ export const EvidenceRegistryTable: React.FC<EvidenceRegistryTableProps> = ({ it
 
                   <div className="space-y-1 bg-white p-3 rounded-xl border border-slate-200/60">
                     <span className="font-bold text-slate-700 block">{text.spatial}</span>
-                    <p className="text-slate-600">{item.spatialRelationship}</p>
+                    <p className="text-slate-600">{localizePresentationValue(item.spatialRelationship, language)}</p>
                   </div>
 
                   <div className="space-y-1 bg-white p-3 rounded-xl border border-slate-200/60">
                     <span className="font-bold text-slate-700 block">{text.method}</span>
-                    <p className="text-slate-600">{item.calculationMethod}</p>
-                    <span className="text-[11px] text-slate-400">{text.confidence}: <strong className="text-slate-700">{item.confidence}</strong></span>
+                    <p className="text-slate-600">{localizePresentationValue(item.calculationMethod, language)}</p>
+                    <span className="text-[11px] text-slate-400">{text.confidence}: <strong className="text-slate-700">{localizePresentationValue(item.confidence, language)}</strong></span>
                   </div>
 
                   <div className="space-y-1 bg-rose-50/60 p-3 rounded-xl border border-rose-200/60">
                     <span className="font-bold text-rose-900 block">{text.limitation}</span>
-                    <p className="text-rose-800 font-medium">{item.limitation}</p>
+                    <p className="text-rose-800 font-medium">{localizePresentationValue(item.limitation, language)}</p>
                   </div>
 
                   {returnedData !== undefined && returnedData !== null && (
