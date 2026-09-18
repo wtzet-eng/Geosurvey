@@ -159,14 +159,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       distanceToWaterwayM: watercourseDist,
       waterwayName: osmFeatures.nearestWatercourse.name,
       waterwayType: osmFeatures.nearestWatercourse.type,
-      statutoryZoneStatus: 'Unconfirmed from open data (Requires ISOK Hydroportal / Wody Polskie check)',
+      statutoryZoneStatus: 'Unconfirmed from open data; verify the competent statutory flood-hazard authority',
       description: !osmAvailable
         ? 'Hydrology proximity data is not available because the spatial query did not complete. No flood-risk classification has been inferred.'
         : watercourseDist !== undefined
         ? `Nearest mapped open water feature (${osmFeatures.nearestWatercourse.name || osmFeatures.nearestWatercourse.type}) located approximately ${watercourseDist} m from parcel. Spatial proximity indicator only.`
         : 'No open surface watercourses mapped within the 450 m analysis buffer.',
-      sourceName: `${cProfile.floodAuthority} (ISOK Hydroportal) & OpenStreetMap Hydrology`,
-      limitation: 'Spatial proximity to open water is an indicator and DOES NOT replace statutory 100-year (Q100) or 500-year (Q500) flood hazard maps published by Wody Polskie (ISOK).'
+      sourceName: `OpenStreetMap hydrology; statutory verification: ${cProfile.floodAuthority}`,
+      limitation: 'Spatial proximity to open water is a screening indicator only and does not replace the competent national or regional statutory flood-hazard maps.'
     },
     geohazards: {
       landslideSusceptibility: {
@@ -176,14 +176,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
           ? 'Terrain elevation data is not available; landslide susceptibility has not been inferred.'
           : terrainGrid.slopeDegrees < 5
           ? `Terrain slope is gentle (${terrainGrid.slopeDegrees}° / ${terrainGrid.slopePercent}%), indicating very low natural slope instability.`
-          : `Terrain slope gradient is ${terrainGrid.slopeDegrees}° (${terrainGrid.slopePercent}%). Slopes above 8° require geotechnical verification for mass movement susceptibility (SOPO registry).`,
-        sourceName: `${cProfile.geologyAuthority} (SOPO Geohazard Register)`
+          : `Terrain slope gradient is ${terrainGrid.slopeDegrees}° (${terrainGrid.slopePercent}%). Slopes above 8° warrant location-specific geotechnical and landslide-hazard verification.`,
+        sourceName: 'Terrain-derived screening; verify the competent national or regional landslide inventory'
       },
       seismicRisk: {
-        status: 'MODELLED',
-        zone: countryCode === 'IT' ? 'Zone 2–3 (Moderate)' : countryCode === 'GR' ? 'Zone 2 (Moderate-High)' : 'Eurocode 8 Zone 0–1 (Low to Very Low)',
-        pgaG: countryCode === 'IT' ? '0.10 – 0.20g' : '< 0.05g (Aseismic baseline)',
-        sourceName: 'European-Mediterranean Seismological Centre (EMSC) / Eurocode 8 ESHM20'
+        status: 'REQUIRES_VERIFICATION',
+        zone: 'Not available — no location-specific seismic hazard query was completed',
+        pgaG: 'Not available — no location-specific peak-ground-acceleration value was queried',
+        sourceName: 'No location-specific seismic hazard source queried'
       },
       radonPotential: {
         status: 'REQUIRES_VERIFICATION',
@@ -219,15 +219,15 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     category: 'Hydrology & Flooding',
     claim: terrainAnalysis.floodInundationRisk.description,
     status: terrainAnalysis.floodInundationRisk.status,
-    sourceName: `${cProfile.floodAuthority} (ISOK Hydroportal)`,
-    sourceUrl: cProfile.floodPortalUrl,
+    sourceName: osmAvailable ? 'OpenStreetMap hydrology' : cProfile.floodAuthority,
+    sourceUrl: osmAvailable ? 'https://www.openstreetmap.org/' : cProfile.floodPortalUrl,
     datasetDate: todayStr,
     spatialRelationship: watercourseDist !== undefined
       ? `Proximity vector to nearest mapped open watercourse: ${watercourseDist} m`
       : '450 m spatial query buffer around parcel',
     calculationMethod: 'Spatial distance transform to nearest mapped hydrology vectors',
     confidence: watercourseDist !== undefined && watercourseDist > 200 ? 'High' : 'Medium',
-    limitation: 'Does not replace official statutory flood hazard maps (Q100/Q500) from Wody Polskie (ISOK) or local stormwater drainage modeling.'
+    limitation: 'Does not replace official statutory flood-hazard mapping or project-specific stormwater and drainage assessment.'
   });
 
   // =========================================================================
@@ -339,13 +339,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     hasLocalPlan: 'Unknown / Requires Municipal Confirmation',
     planDesignation: `Subject to local municipal master plan (${cProfile.planningInstrumentName})`,
     permittedUseCategory: 'Not established from open data — Subject to municipal planning certificate',
-    maxFar: 'Not established from open data — Requires Wypis i Wyrys z MPZP or Decyzja WZ',
+    maxFar: 'Not established — requires official local planning documentation',
     maxCoveragePct: 'Not established — Requires municipal planning certificate',
-    minBiologicallyActivePct: 'Not established — Subject to MPZP / WZ',
-    maxBuildingHeightM: 'Not established — Subject to MPZP / WZ',
+    minBiologicallyActivePct: 'Not established — requires official local planning documentation',
+    maxBuildingHeightM: 'Not established — requires official local planning documentation',
     setbackRules: cProfile.standardSetbackRule,
-    authorityName: `${municipality || cProfile.countryName} Municipal Planning Department (Wydział Architektury / Urbanistyki)`,
-    documentRequired: countryCode === 'PL' ? 'Wypis i Wyrys z Miejscowego Planu Zagospodarowania Przestrzennego (MPZP) lub Decyzja o Warunkach Zabudowy (WZ)' : 'Official Municipal Planning Certificate / B-Plan Extract',
+    authorityName: `${municipality || cProfile.countryName} competent local planning authority`,
+    documentRequired: 'Official local planning instrument extract / planning certificate',
     sourceName: `${municipality || cProfile.countryName} Spatial Planning Authority (${cProfile.planningInstrumentName})`,
     limitation: `Legally binding building rights, exact FAR, building lines, maximum height, and permitted functions CANNOT be established remotely and MUST be verified by obtaining an Official Planning Certificate (${cProfile.planningInstrumentName}) from the local municipality.`
   };
@@ -358,9 +358,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     sourceName: `${municipality || 'Municipal'} Spatial Planning Authority`,
     datasetDate: todayStr,
     spatialRelationship: `Territory of ${municipality || state || cProfile.countryName}`,
-    calculationMethod: 'National statutory planning law synthesis (Art. 61 UoZPiZP / BauGB)',
+    calculationMethod: 'Country-profile planning screening; no binding parcel-level planning determination',
     confidence: 'Medium',
-    limitation: 'Only an official municipal planning certificate (Wypis/Wyrys z MPZP, B-Plan, Certificat d\'Urbanisme) provides legally binding development rights.'
+    limitation: 'Only the competent authority and applicable official local planning instrument can establish legally binding development rights.'
   });
 
   // =========================================================================
@@ -394,14 +394,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
         distanceM: osmFeatures.powerInfrastructure.distanceM,
         mappedInDataset: osmFeatures.powerInfrastructure.found,
         sourceName: 'OpenStreetMap Spatial Layer & Regional Distribution System Operator (DSO)',
-        limitation: 'Connection capacity, transformer reserve, and connection fee require formal Technical Connection Conditions (Warunki Przyłączenia) from the power DSO.'
+        limitation: 'Connection capacity, transformer reserve and connection fees require formal connection terms from the competent electricity distribution operator.'
       },
       {
         utility: 'Potable Water Supply',
         status: osmFeatures.waterInfrastructure.found ? 'MODELLED' : 'REQUIRES_VERIFICATION',
         availability: osmFeatures.waterInfrastructure.found
           ? `Water pipeline mapped in OpenStreetMap (~${osmFeatures.waterInfrastructure.distanceM} m). Pressure and connection terms require water utility confirmation.`
-          : 'No municipal water pipeline mapped in open vector dataset. Requires inquiry to municipal waterworks (PWiK) or on-site water well.',
+          : 'No municipal water pipeline was mapped in the open vector dataset. Verify supply and connection options with the competent water utility; an alternative private supply may require separate approval.',
         distanceM: osmFeatures.waterInfrastructure.distanceM,
         mappedInDataset: osmFeatures.waterInfrastructure.found,
         sourceName: 'Municipal Waterworks / OpenStreetMap Vector Data',
@@ -414,7 +414,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
         distanceM: undefined,
         mappedInDataset: false,
         sourceName: 'Municipal Environmental Protection & Waterworks',
-        limitation: 'If municipal sewer is unavailable, local environmental regulations dictate whether a sealed holding tank (szambo) or home wastewater treatment plant (przydomowa oczyszczalnia) is legally permissible.'
+        limitation: 'If public sewerage is unavailable, the competent local authority must confirm which private wastewater solution, if any, is legally permissible.'
       },
       {
         utility: 'Natural Gas Grid',
@@ -422,7 +422,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
         availability: 'No gas pipeline mapped in immediate vector buffer. Connection subject to regional gas network distribution radius.',
         distanceM: undefined,
         mappedInDataset: false,
-        sourceName: 'National Gas Distribution Operator (PSG)',
+        sourceName: 'Competent gas distribution operator',
         limitation: 'Connection feasibility depends on regional gas distribution pipeline capacity.'
       },
       {
@@ -454,7 +454,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     spatialRelationship: Number.isFinite(roadDist) ? `Distance vector from parcel centroid to nearest road axis: ${roadDist} m` : 'Road proximity query unavailable',
     calculationMethod: 'Haversine distance calculation to nearest mapped highway polyline in OSM',
     confidence: roadDist > 0 ? 'High' : 'Low',
-    limitation: 'Legal right-of-way (służebność drogowa / zjazd z drogi publicznej) must be confirmed in the land register and municipal road department.'
+    limitation: 'Legal access, easements and permission for any road connection must be confirmed in the relevant land/title register and with the competent road authority.'
   });
 
   // =========================================================================
@@ -545,7 +545,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       { factor: 'Parcel Area Scale', impact: areaSizeM2 > 2000 ? '-10% (Economy of Scale)' : 'Standard', weight: 'Low' }
     ],
     uncertaintyRating: 'High',
-    disclaimer: 'INDICATIVE AUTOMATED ESTIMATE ONLY: This calculation is generated purely for preliminary comparative due diligence. It DOES NOT constitute an official property appraisal (Operat Szacunkowy / Gutachten) pursuant to the Act on Real Estate Management (Ustawa o gospodarce nieruchomościami).'
+    disclaimer: 'INDICATIVE AUTOMATED ESTIMATE ONLY: This calculation is for preliminary comparative due diligence. It is not a licensed or statutory property appraisal and must not be treated as one.'
   };
 
   evidenceRegistry.push({
@@ -563,7 +563,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       ? `${polishBenchmark.tier} transaction benchmark with parcel-size, road-access and terrain adjustments; no generic municipality uplift`
       : 'Multi-factor hedonic statistical adjustment model based on location tier, road proximity, slope, and size',
     confidence: 'Low',
-    limitation: 'Automated statistical estimate without direct deed verification. Polish building-land benchmarks do not confirm MPZP/WZ buildability for the parcel. A legally binding appraisal requires current local comparable evidence and a Certified Property Valuer (Rzeczoznawca Majątkowy).'
+    limitation: 'Automated statistical estimate without direct deed verification. A land-price benchmark does not establish parcel buildability. A professional appraisal requires current local comparable evidence and a suitably qualified valuer.'
   });
 
   // =========================================================================
@@ -591,7 +591,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   let cappingApplied: string | undefined = undefined;
   if (!parcelInfo.isOfficialGeometry && rawTotalScore > 65) {
     rawTotalScore = 65;
-    cappingApplied = 'Total score capped at 65/100 because official cadastral polygon geometry could not be vector-streamed from GUGiK.';
+    cappingApplied = 'Total score capped at 65/100 because official cadastral polygon geometry was not available to the automated analysis.';
   }
 
   const totalScore = Math.min(100, Math.max(0, rawTotalScore));
@@ -615,9 +615,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
         score: cadScore,
         max: 20,
         rationale: parcelInfo.isOfficialGeometry
-          ? 'Official cadastral parcel polygon vector boundary retrieved directly from GUGiK ULDK.'
+          ? 'Official cadastral parcel polygon geometry was retrieved from the configured national cadastral source.'
           : parcelInfo.status === 'VERIFIED'
-          ? 'Official parcel ID & TERYT verified in GUGiK ULDK; geometry represented via user-drawn boundary proxy.'
+          ? 'Cadastral parcel identity was verified, while geometry remains a user-drawn or non-authoritative boundary proxy.'
           : 'Administrative centroid resolved; cadastral parcel identifier and boundary unconfirmed.'
       },
       terrainAndElevation: {
@@ -643,13 +643,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       planningAndMarket: {
         score: planScore,
         max: 10,
-        rationale: 'Indicative econometric model without direct deed verification. Binding MPZP development rights require formal municipal extract.'
+        rationale: 'Indicative econometric model without direct deed verification. Binding development rights require official local planning evidence.'
       }
     },
     verifiedCount,
     modelledCount,
     unverifiedCount,
-    summaryExplanation: `The Evidence Quality Score of ${totalScore}/100 reflects ${verifiedCount} directly verified datasets (Cadastre & DEM Topography), ${modelledCount} scientific models & spatial layers (ISRIC SoilGrids 2.0, OSM Overpass), and ${unverifiedCount} critical parameters requiring mandatory professional on-site confirmation (MPZP Planning, Eurocode 7 Geotechnical Boreholes, DSO Utility Connection Terms).`
+    summaryExplanation: `The Evidence Quality Score of ${totalScore}/100 reflects ${verifiedCount} directly verified datasets, ${modelledCount} scientific models and spatial layers, and ${unverifiedCount} critical parameters requiring authoritative or on-site confirmation, including planning, geotechnical conditions and utility connection terms.`
   };
 
   // =========================================================================
@@ -657,33 +657,33 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   const verificationChecklist: VerificationRequirement[] = [
     {
-      topic: 'Official Planning Certificate (Wypis i Wyrys z MPZP lub Decyzja WZ)',
-      reason: 'Binding building height, maximum building coverage ratio, floor area ratio (FAR), and allowed roof geometries must be legally verified before architectural commission.',
-      recommendedAuthorityOrExpert: `${municipality || 'Municipal'} Spatial Planning & Architecture Department (Wydział Architektury / Urbanistyki)`,
+      topic: 'Official local planning extract / planning certificate',
+      reason: 'Binding permitted use, development intensity, building height, coverage, building lines and other project parameters must be confirmed before design decisions.',
+      recommendedAuthorityOrExpert: `${municipality || cProfile.countryName} competent local planning authority`,
       priority: 'High'
     },
     {
-      topic: 'Geotechnical Site Investigation (Badania Geotechniczne / Baugrunduntersuchung)',
-      reason: `ISRIC SoilGrids data indicates ${soilGridsData.usdaTextureClass} subsoil. Pursuant to Eurocode 7 (EN 1997-1), exact allowable bearing capacity (kPa), layer boundaries, and seasonal water table depth must be determined through on-site boreholes, dynamic probing, and licensed geotechnical opinion.`,
-      recommendedAuthorityOrExpert: 'Licensed Geotechnical Engineer / Geologist (Uprawniony Geolog / Geotechnik)',
+      topic: 'Geotechnical site investigation',
+      reason: `SoilGrids provides regional pedological model context only. Site-specific bearing capacity, stratigraphy, settlement behaviour and groundwater conditions require an appropriate geotechnical investigation under the locally applicable design framework.`,
+      recommendedAuthorityOrExpert: 'Suitably qualified geotechnical engineer / engineering geologist',
       priority: 'High'
     },
     {
-      topic: 'Topographical Survey for Design (Mapa do Celów Projektowych - MDCP)',
-      reason: 'Mandatory for official building permit application; defines exact boundary markers, underground utilities, and ground level contours certified by County Documentation Center (PODGiK).',
-      recommendedAuthorityOrExpert: 'Licensed Land Surveyor (Uprawniony Geodeta)',
+      topic: 'Topographical and cadastral survey for design',
+      reason: 'Confirm legal or authoritative boundary information, levels and relevant mapped services to the accuracy required for design and permitting.',
+      recommendedAuthorityOrExpert: 'Suitably qualified land surveyor / cadastral professional',
       priority: 'High'
     },
     {
-      topic: 'Utility Connection Terms (Warunki Przyłączeniowe Gestorów Sieci)',
-      reason: 'Formal confirmation of grid capacity, hookup locations, and technical connection requirements for electricity, water, sewage, and gas.',
-      recommendedAuthorityOrExpert: 'Regional Utility DSOs (Power, Waterworks, Gas Operators)',
+      topic: 'Utility connection terms',
+      reason: 'Confirm network capacity, connection points, technical requirements and fees directly with the competent electricity, water, wastewater, gas and telecommunications operators.',
+      recommendedAuthorityOrExpert: 'Competent utility network operators',
       priority: 'Medium'
     },
     {
-      topic: 'Land and Mortgage Register Verification (Księga Wieczysta)',
-      reason: 'Verification of legal ownership, easements, transmission rights (służebność przesyłu), mortgages, and third-party rights.',
-      recommendedAuthorityOrExpert: 'District Court Land Registry (Wydział Ksiąg Wieczystych) / Notary Public',
+      topic: 'Land title and encumbrance verification',
+      reason: 'Confirm ownership, easements, mortgages, access rights, transmission rights and other third-party interests in the competent legal register.',
+      recommendedAuthorityOrExpert: 'Competent land/title registry and, where appropriate, a qualified legal professional',
       priority: 'High'
     }
   ];
@@ -710,7 +710,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const dataSourcesCited = [
     {
       name: cProfile.cadastreAuthority,
-      organization: 'National Cadastral and Geodetic Service (GUGiK ULDK / EGiB)',
+      organization: cProfile.cadastreAuthority,
       url: cProfile.cadastrePortalUrl,
       type: 'Official National Cadastre' as const,
       status: parcelInfo.status
@@ -731,14 +731,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     },
     {
       name: bgsEvidence?.geology.sourceName || cProfile.geologyAuthority,
-      organization: countryCode === 'GB' ? 'British Geological Survey' : 'National Geological Survey Institute (PIG-PIB)',
+      organization: countryCode === 'GB' ? 'British Geological Survey' : cProfile.geologyAuthority,
       url: bgsEvidence?.geology.sourceUrl || cProfile.geologyPortalUrl,
       type: 'Geological Survey' as const,
       status: soilInfo.status
     },
     {
       name: cProfile.floodAuthority,
-      organization: 'State Water Management Authority (PGW Wody Polskie / ISOK)',
+      organization: cProfile.floodAuthority,
       url: cProfile.floodPortalUrl,
       type: 'Hydrological Registry' as const,
       status: terrainAnalysis.floodInundationRisk.status
@@ -752,7 +752,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     },
     {
       name: polishBenchmark?.sourceName || cProfile.valuationDataSource,
-      organization: countryCode === 'PL' ? 'RCN / GUGiK-derived transaction data and Cenatorium market reporting' : 'National Statistical and Real Estate Price Monitoring Registry (RCiWN Benchmark)',
+      organization: countryCode === 'PL' ? 'RCN / GUGiK-derived transaction data and Cenatorium market reporting' : cProfile.valuationDataSource,
       url: polishBenchmark?.sourceUrl || cProfile.cadastrePortalUrl,
       type: 'Statistical Market Benchmark' as const,
       status: 'MODELLED' as const
@@ -763,27 +763,29 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const isDe = language === 'de';
 
   const statutoryDisclaimers = isPl ? [
-    'KLAUZULA INFORMACYJNA I STATUS DANYCH PRZESTRZENNYCH (Dyrektywa 2007/2/WE INSPIRE & Ustawa o Infrastrukturze Informacji Przestrzennej): Niniejsze opracowanie ma charakter wyłącznie wstępny, poglądowy i screeningowy. Zostało wygenerowane automatycznie w oparciu o otwarte zbiory danych przestrzennych (GUGiK, PIG-PIB, ISRIC SoilGrids 2.0, Copernicus DEM, OpenStreetMap). Żadna informacja zawarta w niniejszym raporcie nie stanowi oficjalnego zaświadczenia administracyjnego ani dokumentu urzędowego w rozumieniu Kodeksu postępowania administracyjnego (KPA).',
-    'BRAK MOCY PRAWNEJ OPERATU SZACUNKOWEGO (Ustawa o gospodarce nieruchomościami z dn. 21 sierpnia 1997 r., Dz.U. 2023 poz. 344): Prezentowane wartości liczbowe stanowią orientacyjny model statystyczny oparty na zagregowanych danych transakcyjnych (0 bezpośrednich transakcji porównawczych). Niniejszy raport NIE JEST operatem szacunkowym sporządzonym przez uprawnionego rzeczoznawcę majątkowego i nie może być podstawą zabezpieczenia wierzytelności bankowych, wyceny podatkowej, postępowań sądowych ani wiążących transakcji kupna/sprzedaży nieruchomości.',
-    'ZASTRZEŻENIE GEOTECHNICZNE (Eurokod 7 / PN-EN 1997-1 oraz Rozporządzenie MTBiGM z dn. 25 kwietnia 2012 r. w sprawie ustalania geotechnicznych warunków posadowienia obiektów budowlanych): Właściwości pedologiczne i wskaźniki uziarnienia (frakcje piasku, pyłu i iłu) pochodzą z globalnego modelu przestrzennego ISRIC i nie stanowią parametrów geotechnicznych. Nie wyznaczono nośności, kąta tarcia, spójności, osiadania ani projektowego poziomu wód gruntowych. Przed projektowaniem wymagane są terenowe badania podłoża wykonane przez osoby posiadające odpowiednie uprawnienia.',
-    'WARUNKI PLANISTYCZNE I PRZEPISY BUDOWLANE (Ustawa o planowaniu i zagospodarowaniu przestrzennym oraz Prawo Budowlane): Wiążące parametry inwestycyjne (maksymalna intensywność zabudowy, wysokość, powierzchnia biologicznie czynna, linia zabudowy) wynikają wyłącznie z aktualnego Miejscowego Planu Zagospodarowania Przestrzennego (Wypis i Wyrys z MPZP) lub ostatecznej Decyzji o Warunkach Zabudowy (Decyzja WZ) wydanej przez właściwy Urząd Gminy/Miasta.',
-    'GRANICE EWIDENCYJNE I STAN PRAWNY (EGiB / Księgi Wieczyste): Prezentowana geometria i identyfikatory działek pochodzą z publicznych rejestrów GUGiK ULDK. Przebieg granic ewidencyjnych oraz stan prawny nieruchomości (służebności, hipoteki, roszczenia osób trzecich) podlegają weryfikacji w Państwowym Zasobie Geodezyjnym i Kartograficznym (PODGiK) oraz we właściwym Wydziale Ksiąg Wieczystych Sądu Rejonowego.',
-    'DOSTĘPNOŚĆ MEDIÓW I INFRASTRUKTURY TECHNICZNEJ: Wyniki analizy sieci w korytarzu drogowym opierają się na danych wektorowych i nie gwarantują możliwości przyłączenia. Rzeczywiste warunki, rezerwy mocy i koszty budowy przyłączy wymagają uzyskania pisemnych Technicznych Warunków Przyłączenia (TWP) od poszczególnych gestorów sieci dystrybucyjnych.',
-    'OGRANICZENIE ODPOWIEDZIALNOŚCI PRAWNEJ I FINANSOWEJ: Twórcy platformy, operatorzy algorytmów oraz dostawcy danych przestrzennych NIE PONOSZĄ ODPOWIEDZIALNOŚCI za jakiekolwiek bezpośrednie, pośrednie lub wynikowe szkody, straty finansowe lub koszty budowlane powstałe w wyniku posłużenia się informacjami zawartymi w niniejszym raporcie.'
+    'STATUS I ZAKRES RAPORTU: To automatyczne opracowanie służy wyłącznie wstępnej analizie due diligence. Łączy otwarte dane przestrzenne i nie jest urzędowym zaświadczeniem ani dokumentem administracyjnym.',
+    'NIE JEST TO OPERAT ANI URZĘDOWA WYCENA: Pokazane wartości, jeżeli są dostępne, mają charakter orientacyjny i statystyczny. Nie zastępują wyceny wykonanej przez uprawnionego rzeczoznawcę zgodnie z prawem właściwym dla lokalizacji nieruchomości.',
+    'WARUNKI GRUNTOWE: Dane SoilGrids i modele wysokościowe są danymi przesiewowymi. Nie określają nośności, osiadania ani projektowego poziomu wód gruntowych. Do decyzji projektowych wymagane są badania odpowiednie dla lokalizacji i inwestycji.',
+    'PLANOWANIE I MOŻLIWOŚĆ ZABUDOWY: Wiążące przeznaczenie terenu, parametry zabudowy i procedury pozwoleń wynikają z prawa oraz dokumentów właściwych dla lokalizacji działki i muszą być potwierdzone przez właściwy organ.',
+    'GRANICE I STAN PRAWNY: Dane mapowe nie zastępują potwierdzenia granic, tytułu prawnego, służebności, obciążeń ani praw osób trzecich we właściwych rejestrach.',
+    'MEDIA I INFRASTRUKTURA: Obecność obiektu sieciowego na mapie nie potwierdza możliwości ani kosztu przyłączenia. Warunki należy uzyskać bezpośrednio od właściwych operatorów.',
+    'OGRANICZENIE ODPOWIEDZIALNOŚCI: Raport jest narzędziem informacyjnym do analizy wstępnej. Decyzje inwestycyjne powinny opierać się na aktualnych dokumentach urzędowych i odpowiednich opiniach zawodowych.'
   ] : isDe ? [
-    'GESETZLICHE INFORMATIONSPFLICHT & STATUS (EU-Richtlinie 2007/2/EG INSPIRE): Diese automatisierte Standort- und Baugrundanalyse basiert auf öffentlich zugänglichen Geodaten und dient ausschließlich der vorläufigen Sondierung und Due-Diligence-Prüfung.',
-    'KEIN VERKEHRSWERTGUTACHTEN GEMÄSS § 194 BauGB: Die ermittelten Richtwerte basieren auf statistischen Vergleichsmodellen (0 geprüfte Vergleichskaufverträge). Dieser Bericht ersetzt kein amtliches Verkehrswertgutachten.',
-    'GEOTECHNISCHER HAFTUNGSAUSSCHLUSS GEMÄSS EUROCODE 7 (DIN EN 1997-1): Die bodenmechanischen Schätzungen sind großräumige Modellwerte. Objektbezogene Baugrundaufschlüsse (Bohrungen) und ein Baugrundgutachten sind gesetzlich vorgeschrieben.',
-    'PLANUNGSRECHTLICHER VORBEHALT (BauGB): Bebaubarkeit, Geschossflächenzahl (GFZ) und Abstandsflächen bedürfen der Überprüfung durch amtlichen Auszug aus dem Bebauungsplan (B-Plan) beim Bauordnungsamt.',
-    'VOLLSTÄNDIGER HAFTUNGSAUSSCHLUSS: Keine Haftung für Investitionsentscheidungen oder Baukostensteigerungen.'
+    'STATUS UND UMFANG: Diese automatisierte Standortanalyse dient ausschließlich der vorläufigen Due-Diligence-Prüfung. Sie fasst offene Geodaten zusammen und ist keine behördliche Bescheinigung.',
+    'KEIN AMTLICHES ODER LIZENZIERTES WERTGUTACHTEN: Angezeigte Werte sind, soweit vorhanden, indikative statistische Orientierungswerte. Sie ersetzen keine Bewertung durch eine nach dem am Standort geltenden Recht qualifizierte Fachperson.',
+    'BAUGRUND: SoilGrids- und Geländemodelle sind Screening-Daten. Sie bestimmen weder Tragfähigkeit noch Setzungen oder den Bemessungsgrundwasserstand. Für Planungsentscheidungen sind standort- und projektbezogene Untersuchungen erforderlich.',
+    'PLANUNGSRECHT UND BEBAUBARKEIT: Verbindliche Nutzung, Bauparameter und Genehmigungsanforderungen ergeben sich aus dem am Standort geltenden Recht und den dort maßgeblichen Planungsunterlagen und müssen bei der zuständigen Behörde bestätigt werden.',
+    'GRENZEN UND RECHTSSTATUS: Karteninformationen ersetzen nicht die Prüfung von Grenzen, Eigentum, Dienstbarkeiten, Belastungen oder Rechten Dritter in den zuständigen Registern.',
+    'VERSORGUNGSNETZE: Ein kartiertes Netzobjekt bestätigt weder Anschlussmöglichkeit noch Kapazität oder Kosten. Verbindliche Bedingungen sind direkt bei den zuständigen Netzbetreibern einzuholen.',
+    'HAFTUNGSHINWEIS: Der Bericht ist ein Informationswerkzeug für die Vorprüfung. Investitionsentscheidungen sollten auf aktuellen amtlichen Unterlagen und geeigneter fachlicher Beratung beruhen.'
   ] : [
-    'LEGAL NOTICE & STATUTORY DUE DILIGENCE SCOPE (EU Directive 2007/2/EC INSPIRE): This automated preliminary land assessment synthesizes multi-source open spatial data (Copernicus DEM, ISRIC SoilGrids 2.0, OpenStreetMap, Cadastral registers). It is generated exclusively for preliminary screening purposes and does not constitute an official administrative certificate.',
-    'NOT A LICENSED PROPERTY APPRAISAL / VALUATION: The estimated valuation range represents an automated econometric benchmark (0 direct comparable deeds verified). It DOES NOT constitute a Certified Property Appraisal and CANNOT be utilized for mortgage lending or bank collateral underwriting.',
-    'GEOTECHNICAL ENGINEERING & EUROCODE 7 (EN 1997-1) STATUTORY DISCLAIMER: Soil particle distributions and bearing capacity estimates represent global pedometric modeling (MODELLED). Groundwater table depth is not directly measured. Physical on-site boreholes and a licensed Geotechnical Report are strictly required.',
-    'STATUTORY PLANNING & ZONING (MPZP / B-PLAN / PLU) NOTICE: Legally binding building entitlements require an official certified extract from the municipal spatial development plan or planning certificate issued by the competent municipal planning authority.',
-    'CADASTRAL BOUNDARIES & TITLE VERIFICATION: Parcel boundary vectors reflect digital indexes. Exact parcel boundary demarcations and legal encumbrances must be confirmed via a certified cadastral map and official Land and Mortgage Registry.',
-    'UTILITY NETWORKS & CAPACITY CONDITIONS: Technical connection feasibility, grid capacity, and connection fees require formal Technical Connection Conditions (TWP) issued directly by regional utility operators (DSOs).',
-    'TOTAL LIMITATION OF LEGAL & FINANCIAL LIABILITY: Neither the platform operators nor spatial data providers accept any legal or financial liability for investment decisions or construction costs arising from reliance upon this automated dossier.'
+    'STATUS & SCOPE: This automated site assessment is for preliminary due diligence only. It synthesizes open spatial data and is not an official administrative certificate.',
+    'NOT A LICENSED OR STATUTORY PROPERTY APPRAISAL: Any displayed value is an indicative statistical screening estimate. It does not replace an appraisal by a suitably qualified professional under the law applicable to the site.',
+    'GROUND CONDITIONS: SoilGrids and terrain models are screening evidence. They do not establish bearing capacity, settlement behaviour or design groundwater level. Project decisions require appropriate site-specific investigation.',
+    'PLANNING & BUILDABILITY: Binding land use, development parameters and permitting requirements arise from the law and official planning instruments applicable at the site and must be confirmed with the competent authority.',
+    'BOUNDARIES & LEGAL TITLE: Map vectors do not replace confirmation of boundaries, ownership, easements, encumbrances or third-party rights in the competent registers.',
+    'UTILITIES & INFRASTRUCTURE: A mapped network feature does not establish connection feasibility, capacity or cost. Binding terms must be obtained directly from the competent utility operators.',
+    'RELIANCE: This report is an information tool for preliminary screening. Investment decisions should rely on current official records and appropriate professional advice.'
   ];
 
   const report: VerifiedSiteReport & { geosurvey_context?: Record<string, unknown> } = {

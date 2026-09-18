@@ -42,6 +42,34 @@ test('country mismatch suppresses national valuation', () => {
   assert.equal(canonical.evidenceRecords.some(item => item.id === 'valuation-indicative-model'), false);
 });
 
+test('unresolved coordinate country suppresses Austrian national valuation', () => {
+  const raw = rawReport('AT');
+  raw.countryLocationUnresolved = true;
+  const canonical = createCanonicalReport(raw, getCountryProfile('AT'));
+  assert.equal(canonical.valuation.min, null);
+  assert.equal(canonical.valuation.max, null);
+  assert.equal(canonical.valuation.status, 'REQUIRES_VERIFICATION');
+  assert.equal(canonical.valuation.reasonCode, 'SOURCE_UNAVAILABLE');
+  assert.equal(canonical.evidenceRecords.some(item => /valuation|market benchmark|price/i.test(`${item.id} ${item.category}`)), false);
+  assert.equal(canonical.sourceRecords.some(item => item.type === 'Statistical Market Benchmark'), false);
+});
+
+test('country mismatch does not expose selected Austrian authority labels', () => {
+  const raw = rawReport('AT');
+  raw.countryLocationMismatch = true;
+  const canonical = createCanonicalReport(raw, getCountryProfile('AT'));
+  const selectedCountryLabels = JSON.stringify({
+    authorities: canonical.authorities,
+    geology: canonical.geology,
+    flood: canonical.flood,
+    planning: canonical.planning,
+    valuation: canonical.valuation
+  });
+  assert.doesNotMatch(selectedCountryLabels, /GeoSphere Austria|HORA|Flächenwidmungsplan|Statistik Austria/i);
+  assert.match(canonical.authorities.geology, /not queried/i);
+  assert.match(canonical.planning.authorityName, /resolved site location/i);
+});
+
 function rawReport(countryCode: string): any {
   return {
     countryCode,

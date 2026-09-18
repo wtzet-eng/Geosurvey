@@ -251,7 +251,12 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     ground_context?: GroundContextSummary;
     soil_variability?: PedologicalVariabilitySummary;
     countryLocationMismatch?: boolean;
+    countryLocationUnresolved?: boolean;
   };
+  const countryLocationMismatch = Boolean(extended.countryLocationMismatch);
+  const countryLocationUnresolved = Boolean(extended.countryLocationUnresolved);
+  const locationCountryConfirmed = !countryLocationMismatch && !countryLocationUnresolved;
+  const mismatchSourceName = 'Selected-country national source not queried because the site coordinates resolve to a different country';
   const context = extended.geosurvey_context || {};
   const mappedContext = extended.ground_context?.sampleCount ? extended.ground_context : null;
   const soilVariability = extended.soil_variability?.validSampleCount ? extended.soil_variability : null;
@@ -262,16 +267,19 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
   const rawLithology = scientific(context.lithology_type) || scientific(report.soil.lithologyType);
   const rawGeologicalAge = scientific(context.geological_period_era) || scientific(report.soil.stratigraphicPeriod);
   const rawGeneticOrigin = scientific(context.genetic_origin);
-  const geologyUnit = c.nationalGeology ? rawGeologyUnit : null;
-  const geologyLithology = c.nationalGeology ? rawLithology : null;
-  const geologyAge = c.nationalGeology ? rawGeologicalAge : null;
-  const geologyGenesis = c.nationalGeology ? rawGeneticOrigin : null;
+  const nationalEvidenceUsable = !countryLocationMismatch;
+  const geologyUnit = c.nationalGeology && nationalEvidenceUsable ? rawGeologyUnit : null;
+  const geologyLithology = c.nationalGeology && nationalEvidenceUsable ? rawLithology : null;
+  const geologyAge = c.nationalGeology && nationalEvidenceUsable ? rawGeologicalAge : null;
+  const geologyGenesis = c.nationalGeology && nationalEvidenceUsable ? rawGeneticOrigin : null;
   const hasMappedGeology = Boolean(geologyUnit || geologyLithology || geologyAge || geologyGenesis);
-  const geologyStatus: EvidenceLevel = c.nationalGeology ? ((context.evidence_level as EvidenceLevel) || report.soil.status) : 'REQUIRES_VERIFICATION';
-  const geologyReason: AvailabilityReason | undefined = c.nationalGeology ? (hasMappedGeology ? undefined : evidenceReason(report, /pgi-(?:smgp|mgp|mlp|engineering)|bgs|brgm|geolog/i) || 'SOURCE_UNAVAILABLE') : 'NOT_SUPPORTED_FOR_COUNTRY';
+  const geologyStatus: EvidenceLevel = c.nationalGeology && nationalEvidenceUsable ? ((context.evidence_level as EvidenceLevel) || report.soil.status) : 'REQUIRES_VERIFICATION';
+  const geologyReason: AvailabilityReason | undefined = countryLocationMismatch
+    ? 'AUTHORITATIVE_DATA_REQUIRED'
+    : c.nationalGeology ? (hasMappedGeology ? undefined : evidenceReason(report, /pgi-(?:smgp|mgp|mlp|engineering)|bgs|brgm|geolog/i) || 'SOURCE_UNAVAILABLE') : 'NOT_SUPPORTED_FOR_COUNTRY';
   const soilTexture = scientific(report.soil.usdaTextureClass);
   const areaM2 = finite(report.parcel.officialAreaM2) ?? finite(report.parcel.areaCalculatedM2);
-  const germanyValuation = !extended.countryLocationMismatch && report.countryCode === 'DE' && areaM2 && areaM2 > 0
+  const germanyValuation = locationCountryConfirmed && report.countryCode === 'DE' && areaM2 && areaM2 > 0
     ? calculateGermanyLandValue({
         areaM2,
         slopeDegrees: finite(report.terrain.averageSlopeDegrees),
@@ -281,7 +289,7 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
         state: report.parcel.voivodeship
       })
     : null;
-  const slovakiaValuation = !extended.countryLocationMismatch && report.countryCode === 'SK' && areaM2 && areaM2 > 0
+  const slovakiaValuation = locationCountryConfirmed && report.countryCode === 'SK' && areaM2 && areaM2 > 0
     ? calculateSlovakiaLandValue({
         areaM2,
         slopeDegrees: finite(report.terrain.averageSlopeDegrees),
@@ -291,7 +299,8 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
         region: report.parcel.voivodeship
       })
     : null;
-  const rawRecords = visibleEvidenceRecords(report, profile, support).filter(record => !extended.countryLocationMismatch || !/valuation|market benchmark|price/i.test(`${record.id} ${record.category}`));
+  const baseEvidenceRecords = countryLocationMismatch ? report.evidenceRegistry : visibleEvidenceRecords(report, profile, support);
+  const rawRecords = baseEvidenceRecords.filter(record => locationCountryConfirmed || !/valuation|market benchmark|price/i.test(`${record.id} ${record.category}`));
   const records = germanyValuation
     ? rawRecords.map(record => record.id === 'valuation-indicative-model'
       ? {
@@ -321,7 +330,8 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
         }
       : record)
     : rawRecords;
-  const rawSourceRecords = visibleSourceRecords(report, support).filter(source => !extended.countryLocationMismatch || source.type !== 'Statistical Market Benchmark');
+  const baseSourceRecords = countryLocationMismatch ? report.dataSourcesCited : visibleSourceRecords(report, support);
+  const rawSourceRecords = baseSourceRecords.filter(source => locationCountryConfirmed || source.type !== 'Statistical Market Benchmark');
   const sourceRecords = germanyValuation
     ? rawSourceRecords.map(source => source.type === 'Statistical Market Benchmark'
       ? { ...source, name: germanyValuation.benchmark.sourceName, organization: 'Statistische Ämter des Bundes und der Länder', url: germanyValuation.benchmark.sourceUrl, status: 'MODELLED' as const }
@@ -331,21 +341,24 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
       ? { ...source, name: slovakiaValuation.benchmark.sourceName, organization: 'ZRKS / Slovak residential-plot listing-market sources', url: slovakiaValuation.benchmark.sourceUrl, status: 'MODELLED' as const }
       : source)
     : rawSourceRecords;
-  const score = supportAwareEvidenceScore(report, support, records, Boolean(hasMappedGeology && geologyStatus === 'VERIFIED'));
+  const scoreSupport = countryLocationMismatch ? getCountrySupport('EU') : support;
+  const score = supportAwareEvidenceScore(report, scoreSupport, records, Boolean(hasMappedGeology && geologyStatus === 'VERIFIED'));
   return {
     countryCode: report.countryCode,
     countryName: profile.countryName,
     support,
-    authorities: { cadastre: profile.cadastreAuthority, geology: profile.geologyAuthority, flood: profile.floodAuthority, planning: profile.planningInstrumentName, valuation: profile.valuationDataSource },
+    authorities: countryLocationMismatch
+      ? { cadastre: mismatchSourceName, geology: mismatchSourceName, flood: mismatchSourceName, planning: 'Official planning instrument for the resolved site location', valuation: mismatchSourceName }
+      : { cadastre: profile.cadastreAuthority, geology: profile.geologyAuthority, flood: profile.floodAuthority, planning: profile.planningInstrumentName, valuation: profile.valuationDataSource },
     geology: {
       unitName: geologyUnit,
       lithology: geologyLithology,
       geologicalAge: geologyAge,
       geneticOrigin: geologyGenesis,
-      groundwaterRegime: c.nationalHydrogeology ? scientific(report.soil.groundwaterRegime) : null,
+      groundwaterRegime: c.nationalHydrogeology && nationalEvidenceUsable ? scientific(report.soil.groundwaterRegime) : null,
       status: geologyStatus,
-      sourceName: profile.geologyAuthority,
-      sourceUrl: profile.geologyPortalUrl,
+      sourceName: countryLocationMismatch ? mismatchSourceName : profile.geologyAuthority,
+      sourceUrl: countryLocationMismatch ? '' : profile.geologyPortalUrl,
       reasonCode: geologyReason
     },
     groundContext: mappedContext || soilVariability ? {
@@ -368,16 +381,20 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     hazards: {
       landslide: { classification: riskCode(report.terrain.geohazards.landslideSusceptibility.level), status: report.terrain.geohazards.landslideSusceptibility.status, sourceName: report.terrain.geohazards.landslideSusceptibility.sourceName },
       seismic: { classification: scientific(report.terrain.geohazards.seismicRisk.zone), pga: scientific(report.terrain.geohazards.seismicRisk.pgaG), status: report.terrain.geohazards.seismicRisk.status, sourceName: report.terrain.geohazards.seismicRisk.sourceName },
-      radon: c.nationalRadon ? { classification: scientific(report.terrain.geohazards.radonPotential.classification), status: report.terrain.geohazards.radonPotential.status, sourceName: report.terrain.geohazards.radonPotential.sourceName } : { classification: null, status: 'REQUIRES_VERIFICATION', sourceName: report.terrain.geohazards.radonPotential.sourceName, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
-      mining: c.nationalMining ? { classification: scientific(report.terrain.geohazards.miningSubsidence.classification), status: report.terrain.geohazards.miningSubsidence.status, sourceName: report.terrain.geohazards.miningSubsidence.sourceName } : { classification: null, status: 'REQUIRES_VERIFICATION', sourceName: report.terrain.geohazards.miningSubsidence.sourceName, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' }
+      radon: c.nationalRadon && nationalEvidenceUsable ? { classification: scientific(report.terrain.geohazards.radonPotential.classification), status: report.terrain.geohazards.radonPotential.status, sourceName: report.terrain.geohazards.radonPotential.sourceName } : { classification: null, status: 'REQUIRES_VERIFICATION', sourceName: countryLocationMismatch ? mismatchSourceName : report.terrain.geohazards.radonPotential.sourceName, reasonCode: countryLocationMismatch ? 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' },
+      mining: c.nationalMining && nationalEvidenceUsable ? { classification: scientific(report.terrain.geohazards.miningSubsidence.classification), status: report.terrain.geohazards.miningSubsidence.status, sourceName: report.terrain.geohazards.miningSubsidence.sourceName } : { classification: null, status: 'REQUIRES_VERIFICATION', sourceName: countryLocationMismatch ? mismatchSourceName : report.terrain.geohazards.miningSubsidence.sourceName, reasonCode: countryLocationMismatch ? 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' }
     },
-    flood: c.nationalFlood
+    flood: countryLocationMismatch
+      ? { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: mismatchSourceName, reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' }
+      : c.nationalFlood
       ? riskCode(report.terrain.floodInundationRisk.level)
         ? { classification: riskCode(report.terrain.floodInundationRisk.level), status: report.terrain.floodInundationRisk.status, distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: report.terrain.floodInundationRisk.sourceName, reasonCode: undefined }
         : { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: report.terrain.floodInundationRisk.sourceName, reasonCode: evidenceReason(report, /flood/i) || 'AUTHORITATIVE_DATA_REQUIRED' }
       : { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: profile.floodAuthority, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     soil: { texture: soilTexture, bearingCapacity: null, sandPct: finite(report.soil.topsoilSandPct), siltPct: finite(report.soil.topsoilSiltPct), clayPct: finite(report.soil.topsoilClayPct), ph: finite(report.soil.meanPhH2O), status: report.soil.status, sourceName: report.soil.sourceName, sourceUrl: report.soil.sourceUrl || null, reasonCode: soilAvailable ? undefined : evidenceReason(report, /soilgrids|soil/i) || 'SOURCE_UNAVAILABLE' },
-    planning: { status: 'REQUIRES_VERIFICATION', instrumentName: profile.planningInstrumentName, authorityName: report.planning.authorityName, sourceName: report.planning.sourceName, reasonCode: c.nationalPlanning ? 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' },
+    planning: countryLocationMismatch
+      ? { status: 'REQUIRES_VERIFICATION', instrumentName: 'Official planning instrument for the resolved site location', authorityName: 'Competent local planning authority for the resolved site location', sourceName: mismatchSourceName, reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' }
+      : { status: 'REQUIRES_VERIFICATION', instrumentName: profile.planningInstrumentName, authorityName: report.planning.authorityName, sourceName: report.planning.sourceName, reasonCode: c.nationalPlanning ? 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' },
     infrastructure: { roadName: scientific(report.infrastructure.roadAccess.nearestRoadName), roadType: scientific(report.infrastructure.roadAccess.nearestRoadType), distanceM: finite(report.infrastructure.roadAccess.estimatedDistanceM), directAccess: report.infrastructure.roadAccess.directAccessVerified, status: report.infrastructure.roadAccess.status, sourceName: report.infrastructure.roadAccess.sourceName, reasonCode: finite(report.infrastructure.roadAccess.estimatedDistanceM) === null ? 'SOURCE_UNAVAILABLE' : undefined },
     utilities: report.infrastructure.utilities.map(item => ({
       utilityCode: /electric|power/i.test(item.utility) ? 'ELECTRICITY' : /water/i.test(item.utility) ? 'WATER' : /sewer/i.test(item.utility) ? 'SEWER' : /gas/i.test(item.utility) ? 'GAS' : /telecom|broadband/i.test(item.utility) ? 'TELECOM' : 'OTHER',
@@ -388,15 +405,15 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
       reasonCode: item.mappedInDataset ? undefined : 'AUTHORITATIVE_DATA_REQUIRED'
     })),
     environment: { protectedAreaName: scientific(report.environment.nearestProtectedAreaName), distanceM: finite(report.environment.distanceToNatura2000M), status: report.environment.status, sourceName: report.environment.sourceName, reasonCode: report.environment.status === 'REQUIRES_VERIFICATION' ? 'SOURCE_UNAVAILABLE' : undefined },
-    valuation: !extended.countryLocationMismatch && germanyValuation
+    valuation: locationCountryConfirmed && germanyValuation
       ? { min: germanyValuation.totalMin, max: germanyValuation.totalMax, median: germanyValuation.totalMedian, currency: 'EUR', status: 'MODELLED', comparableCount: 0, sourceName: germanyValuation.benchmark.sourceName }
       : slovakiaValuation
       ? { min: slovakiaValuation.totalMin, max: slovakiaValuation.totalMax, median: slovakiaValuation.totalMedian, currency: 'EUR', status: 'MODELLED', comparableCount: 0, sourceName: slovakiaValuation.benchmark.sourceName }
-      : c.nationalValuation && !extended.countryLocationMismatch
+      : c.nationalValuation && locationCountryConfirmed
       ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency, status: report.valuation.status, comparableCount: report.valuation.comparableEvidenceCount, sourceName: profile.valuationDataSource }
-      : modelledValuationAvailable && !extended.countryLocationMismatch
+      : modelledValuationAvailable && locationCountryConfirmed
       ? { min: finite(report.valuation.indicativeMinPrice), max: finite(report.valuation.indicativeMaxPrice), median: finite(report.valuation.indicativeMedianPrice), currency: report.valuation.currency || profile.currency, status: 'MODELLED', comparableCount: report.valuation.comparableEvidenceCount, sourceName: modelledValuationSource(profile, report) }
-      : { min: null, max: null, median: null, currency: report.valuation.currency || profile.currency, status: 'REQUIRES_VERIFICATION', comparableCount: 0, sourceName: profile.valuationDataSource, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
+      : { min: null, max: null, median: null, currency: report.valuation.currency || profile.currency, status: 'REQUIRES_VERIFICATION', comparableCount: 0, sourceName: countryLocationMismatch ? mismatchSourceName : profile.valuationDataSource, reasonCode: countryLocationUnresolved ? 'SOURCE_UNAVAILABLE' : countryLocationMismatch ? 'AUTHORITATIVE_DATA_REQUIRED' : 'NOT_SUPPORTED_FOR_COUNTRY' },
     evidenceScore: score,
     sourceRecords,
     evidenceRecords: records
