@@ -77,5 +77,3 @@ test('Danish and Czech risk labels are understood by the decision summary', () =
   const da = buyerSummary({ risks: [{ category: 'Radon', level: 'Lav', evidence_level: 'VERIFIED' }], planningConfirmed: true, floodConfirmed: true }, 'da');
   assert.equal(da.positives.length, 1);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
