@@ -267,6 +267,8 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
   const rawLithology = scientific(context.lithology_type) || scientific(report.soil.lithologyType);
   const rawGeologicalAge = scientific(context.geological_period_era) || scientific(report.soil.stratigraphicPeriod);
   const rawGeneticOrigin = scientific(context.genetic_origin);
+  const mappedGeologySourceName = scientific(context.source_name);
+  const mappedGeologySourceUrl = scientific(context.source_url);
   const nationalEvidenceUsable = !countryLocationMismatch;
   const geologyUnit = c.nationalGeology && nationalEvidenceUsable ? rawGeologyUnit : null;
   const geologyLithology = c.nationalGeology && nationalEvidenceUsable ? rawLithology : null;
@@ -357,8 +359,8 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
       geneticOrigin: geologyGenesis,
       groundwaterRegime: c.nationalHydrogeology && nationalEvidenceUsable ? scientific(report.soil.groundwaterRegime) : null,
       status: geologyStatus,
-      sourceName: countryLocationMismatch ? mismatchSourceName : profile.geologyAuthority,
-      sourceUrl: countryLocationMismatch ? '' : profile.geologyPortalUrl,
+      sourceName: countryLocationMismatch ? mismatchSourceName : hasMappedGeology && mappedGeologySourceName ? mappedGeologySourceName : profile.geologyAuthority,
+      sourceUrl: countryLocationMismatch ? '' : hasMappedGeology && mappedGeologySourceUrl ? mappedGeologySourceUrl : profile.geologyPortalUrl,
       reasonCode: geologyReason
     },
     groundContext: mappedContext || soilVariability ? {
