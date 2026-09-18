@@ -221,6 +221,29 @@ test('unsupported limited country still withholds national conclusions and valua
   assert.ok(!canonical.sourceRecords.some(source => source.type === 'Statistical Market Benchmark'));
 });
 
+test('Bulgaria points to current official authorities while withholding unimplemented national conclusions', () => {
+  const profile = getCountryProfile('BG');
+  assert.match(profile.cadastreAuthority, /Agency for Geodesy, Cartography and Cadastre|АГКК/);
+  assert.match(profile.cadastrePortalUrl, /kais\.cadastre\.bg/);
+  assert.match(profile.geologyAuthority, /National Geological Fund|Национален геоложки фонд/);
+  assert.match(profile.floodAuthority, /Flood Risk Management Information System|ISURN/);
+  assert.match(profile.planningInstrumentName, /ОУП.*ПУП/);
+
+  const canonical = createCanonicalReport(rawReport('BG'), profile);
+  assert.equal(canonical.support.maturity, 'LIMITED');
+  assert.ok(Object.values(canonical.support.capabilities).every(value => value === false));
+  assert.equal(canonical.geology.unitName, null);
+  assert.equal(canonical.geology.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.flood.classification, null);
+  assert.equal(canonical.flood.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.valuation.min, null);
+  assert.equal(canonical.valuation.max, null);
+  assert.equal(canonical.valuation.currency, 'EUR');
+  assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.ok(!canonical.evidenceRecords.some(record => /valuation|market benchmark|price/i.test(`${record.id} ${record.category}`)));
+});
+
 test('Germany replaces the old generic valuation with the 2025 state benchmark hierarchy', () => {
   const report = rawReport('DE'); report.parcel.commune = 'Potsdam'; report.parcel.voivodeship = 'Brandenburg';
   const canonical = createCanonicalReport(report, getCountryProfile('DE'));
