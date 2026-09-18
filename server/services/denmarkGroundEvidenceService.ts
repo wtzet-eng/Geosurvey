@@ -72,40 +72,44 @@ function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): num
   return 2 * r * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const SURFACE_LABELS: Record<string, string> = {
-  FG: 'ferskvandsgrus', FS: 'ferskvandssand', FI: 'ferskvandssilt', FL: 'ferskvandsler', FT: 'ferskvandstørv', HG: 'saltvandsgrus', HS: 'saltvandssand', HI: 'saltvandssilt', HL: 'saltvandsler', HT: 'saltvandstørv', EK: 'klitsand', ES: 'flyvesand', TG: 'smeltevandsgrus', TS: 'smeltevandssand', TI: 'smeltevandssilt', TL: 'smeltevandsler', MG: 'morænegrus', MS: 'morænesand', MI: 'morænesilt', ML: 'moræneler', O: 'fyld', LSL: 'jordskred', K: 'kalk, kridt og kalksten', LL: 'eocæn ler / plastisk ler'
-};
-
 function unavailable(id: string, category: string, sourceName: string, sourceUrl: string, claim: string, reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA' = 'NO_DATA'): DenmarkGroundEvidence {
   return { id, category, claim, status: 'REQUIRES_VERIFICATION', sourceName, sourceUrl, datasetDate: today(), spatialRelationship: 'Valgt sted / søgeområde', calculationMethod: 'National rumlig forespørgsel mod den angivne officielle webservice', confidence: 'Low', limitation: 'Et tomt eller mislykket opslag er ikke dokumentation for fravær af forholdet. Kontrollér den officielle korttjeneste og originale registreringer, og udfør stedsspecifik undersøgelse når resultatet har betydning for køb eller projektering.', value: { reasonCode } };
 }
 
-async function querySurfaceGeology(lat: number, lng: number, fetcher: FetchLike): Promise<DenmarkGroundEvidence> {
-  const url = geusUrl('jordartskort_25000', lat, lng, 15, 5);
-  const features = await fetchFeatures(fetcher, url);
-  if (features === null) return unavailable('dk-geus-surface-geology-unavailable', 'Kortlagt overfladegeologi', `${GEUS} — Danmarks Digitale Jordartskort 1:25.000`, url, 'GEUS Jordartskort kunne ikke forespørges.', 'SOURCE_UNAVAILABLE');
-  if (!features.length) return unavailable('dk-geus-surface-geology-no-data', 'Kortlagt overfladegeologi', `${GEUS} — Danmarks Digitale Jordartskort 1:25.000`, url, 'GEUS returnerede ingen klassificeret jordart ved det valgte punkt.');
-  const p = props(features[0]); const code = text(pick(p, 'TSYM', 'JSYM', 'JSYM1', 'KODE')); const explicit = text(pick(p, 'JORDART', 'JORDARTSTEKST', 'BESKRIVELSE', 'TEKST')); const deposit = explicit || (code ? SURFACE_LABELS[code.toUpperCase()] : null);
-  if (!deposit && !code) return unavailable('dk-geus-surface-geology-malformed', 'Kortlagt overfladegeologi', `${GEUS} — Danmarks Digitale Jordartskort 1:25.000`, url, 'GEUS returnerede en polygon uden en læsbar jordartsklasse.', 'MALFORMED_DATA');
-  return { id: 'dk-geus-surface-geology', category: 'Kortlagt overfladegeologi', claim: `GEUS Jordartskort 1:25.000 klassificerer materialet omkring kortlægningsdybden som ${deposit || code}.`, status: 'VERIFIED', sourceName: `${GEUS} — Danmarks Digitale Jordartskort 1:25.000 v7.1`, sourceUrl: url, datasetDate: '2026-02-09', spatialRelationship: 'Kortpolygon som rammer det valgte koordinat', calculationMethod: 'GEUS WFS-forespørgsel af jordartskort_25000 i ETRS89 geografiske koordinater (EPSG:4258)', confidence: 'High', limitation: 'Jordartskortet beskriver overfladegeologien omkring ca. 1 m dybde og er baseret på systematisk feltkortlægning med prøvepunkter typisk 100–200 m fra hinanden. Det er ikke en boreprofil for grunden og fastlægger ikke lagtykkelser, fyld, grundvand eller geotekniske designparametre.', value: { code, deposit, scale: '1:25.000', mappingDepthM: 1, version: '7.1' } };
-}
-
 async function queryBoreholes(lat: number, lng: number, fetcher: FetchLike): Promise<DenmarkGroundEvidence> {
-  const radiusM = 1000; const url = geusUrl('jupiter_boringer_ws', lat, lng, radiusM, 40); const features = await fetchFeatures(fetcher, url);
+  const radiiM = [250, 500, 750, 1000]; const maxFeatures = 40;
+  let radiusM = radiiM[radiiM.length - 1]; let url = geusUrl('jupiter_boringer_ws', lat, lng, radiusM, maxFeatures); let features: any[] | null = [];
+  for (const candidateRadius of radiiM) {
+    const candidateUrl = geusUrl('jupiter_boringer_ws', lat, lng, candidateRadius, maxFeatures); const candidate = await fetchFeatures(fetcher, candidateUrl);
+    url = candidateUrl; radiusM = candidateRadius;
+    if (candidate === null) { features = null; break; }
+    features = candidate;
+    if (candidate.length) break;
+  }
   if (features === null) return unavailable('dk-jupiter-boreholes-unavailable', 'Nærliggende boringer', `${GEUS} — Jupiter`, url, 'Jupiter-boringer kunne ikke forespørges.', 'SOURCE_UNAVAILABLE');
-  if (!features.length) return unavailable('dk-jupiter-boreholes-no-data', 'Nærliggende boringer', `${GEUS} — Jupiter`, url, `Jupiter returnerede ingen boringer i det ca. ${radiusM} m søgeområde.`);
-  const records = features.map(feature => { const p = props(feature); const point = pointCoordinates(feature); return { dguNumber: text(pick(p, 'dgunr', 'dgunr_trimmed', 'DGU_NR')), purpose: text(pick(p, 'formanv', 'anvendelse', 'formaal')), category: text(pick(p, 'kode', 'hovedtype')), depthM: numberValue(pick(p, 'dybde', 'boringsdybde', 'totaldybde', 'depth')), year: text(pick(p, 'aar', 'boreaar', 'year')), municipality: text(pick(p, 'kommunenavn', 'kommune')), coordinateUncertainty: numberValue(pick(p, 'koord_usikkerhed', 'koordinatusikkerhed', 'usikkerhed')), distanceM: point ? Math.round(haversineM(lat, lng, point[0], point[1])) : null }; }).sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
+  if (!features.length) return unavailable('dk-jupiter-boreholes-no-data', 'Nærliggende boringer', `${GEUS} — Jupiter`, url, `Jupiter returnerede ingen boringer i søgeområder op til ca. ${radiusM} m.`);
+  const records = features.map(feature => { const p = props(feature); const point = pointCoordinates(feature); return { dguNumber: text(pick(p, 'dgunr', 'dgunr_trimmed', 'DGU_NR')), purpose: text(pick(p, 'formanv_tekst', 'formaal_tekst', 'anvendelse_tekst', 'formanv', 'formaal', 'anvendelse')), category: text(pick(p, 'kode_tekst', 'hovedtype', 'kode')), depthM: numberValue(pick(p, 'dybde_num', 'dybde', 'boringsdybde', 'totaldybde', 'depth')), year: text(pick(p, 'aar', 'boreaar', 'year')), municipality: text(pick(p, 'kommunenavn', 'kommune')), coordinateUncertainty: numberValue(pick(p, 'koord_usikkerhed', 'koordinatusikkerhed', 'usikkerhed')), distanceM: point ? Math.round(haversineM(lat, lng, point[0], point[1])) : null }; }).sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
   const nearest = records[0];
-  return { id: 'dk-jupiter-boreholes', category: 'Nærliggende boringer', claim: `Jupiter returnerede ${records.length} boring${records.length === 1 ? '' : 'er'} i søgeområdet${nearest?.distanceM !== null && nearest?.distanceM !== undefined ? `; nærmeste returnerede boring ligger ca. ${nearest.distanceM} m fra stedet` : ''}.`, status: 'VERIFIED', sourceName: `${GEUS} — Jupiter`, sourceUrl: url, datasetDate: today(), spatialRelationship: `Borepunkter i et ca. ${radiusM} m søgeområde omkring det valgte koordinat`, calculationMethod: 'GEUS Jupiter WFS jupiter_boringer_ws; returnerede punkter sorteret efter geodætisk afstand', confidence: 'High', limitation: 'Nærliggende boringer er kontekst. Lagfølge, dybder og observationer i en naboboring dokumenterer ikke forholdene under hele den valgte grund og må ikke bruges som projekteringsparametre uden stedsspecifik geoteknisk undersøgelse.', value: { count: records.length, nearestDistanceM: nearest?.distanceM ?? null, records: records.slice(0, 15) } };
+  const capped = records.length >= maxFeatures;
+  return { id: 'dk-jupiter-boreholes', category: 'Nærliggende boringer', claim: `Jupiter returnerede ${records.length} boring${records.length === 1 ? '' : 'er'} i det første søgeområde med træffer (ca. ${radiusM} m)${capped ? `; forespørgslen nåede loftet på ${maxFeatures} poster` : ''}${nearest?.distanceM !== null && nearest?.distanceM !== undefined ? `; nærmeste returnerede boring ligger ca. ${nearest.distanceM} m fra stedet` : ''}.`, status: 'VERIFIED', sourceName: `${GEUS} — Jupiter`, sourceUrl: url, datasetDate: today(), spatialRelationship: `Borepunkter i det første ikke-tomme søgeområde, ca. ${radiusM} m omkring det valgte koordinat`, calculationMethod: 'GEUS Jupiter WFS jupiter_boringer_ws; progressivt 250/500/750/1000 m søgevindue og returnerede punkter sorteret efter geodætisk afstand', confidence: 'High', limitation: 'Nærliggende boringer er kontekst. Lagfølge, dybder og observationer i en naboboring dokumenterer ikke forholdene under hele den valgte grund og må ikke bruges som projekteringsparametre uden stedsspecifik geoteknisk undersøgelse.', value: { count: records.length, queryRadiusM: radiusM, queryLimit: maxFeatures, queryMayBeTruncated: capped, nearestDistanceM: nearest?.distanceM ?? null, records: records.slice(0, 15) } };
 }
 
 async function queryGroundwater(lat: number, lng: number, fetcher: FetchLike): Promise<DenmarkGroundEvidence> {
-  const radiusM = 5000; const url = geusUrl('jupiter_boringer_seneste_pejling', lat, lng, radiusM, 40); const features = await fetchFeatures(fetcher, url);
+  const radiiM = [500, 1000, 2000, 5000]; const maxFeatures = 40;
+  let radiusM = radiiM[radiiM.length - 1]; let url = geusUrl('jupiter_boringer_seneste_pejling', lat, lng, radiusM, maxFeatures); let features: any[] | null = [];
+  for (const candidateRadius of radiiM) {
+    const candidateUrl = geusUrl('jupiter_boringer_seneste_pejling', lat, lng, candidateRadius, maxFeatures); const candidate = await fetchFeatures(fetcher, candidateUrl);
+    url = candidateUrl; radiusM = candidateRadius;
+    if (candidate === null) { features = null; break; }
+    features = candidate;
+    if (candidate.length) break;
+  }
   if (features === null) return unavailable('dk-jupiter-groundwater-unavailable', 'Grundvandsobservationer', `${GEUS} — Jupiter`, url, 'Jupiters lag med seneste pejling kunne ikke forespørges.', 'SOURCE_UNAVAILABLE');
-  if (!features.length) return unavailable('dk-jupiter-groundwater-no-data', 'Grundvandsobservationer', `${GEUS} — Jupiter`, url, `Jupiter returnerede ingen boring med seneste pejling i det ca. ${radiusM} m søgeområde.`);
-  const records = features.map(feature => { const p = props(feature); const point = pointCoordinates(feature); return { dguNumber: text(pick(p, 'dgunr', 'dgunr_trimmed', 'DGU_NR')), latestLevel: numberValue(pick(p, 'vandstand', 'seneste_pejling', 'pejling', 'vandspejl')), levelDate: text(pick(p, 'pejledato', 'dato', 'seneste_dato')), distanceM: point ? Math.round(haversineM(lat, lng, point[0], point[1])) : null }; }).sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
+  if (!features.length) return unavailable('dk-jupiter-groundwater-no-data', 'Grundvandsobservationer', `${GEUS} — Jupiter`, url, `Jupiter returnerede ingen boring med seneste pejling i søgeområder op til ca. ${radiusM} m.`);
+  const records = features.map(feature => { const p = props(feature); const point = pointCoordinates(feature); return { dguNumber: text(pick(p, 'dgunr', 'dgunr_trimmed', 'DGU_NR')), depthBelowTerrainM: numberValue(pick(p, 'vandstandterraen_num', 'vandstandterraen', 'vandstand', 'seneste_pejling', 'pejling', 'vandspejl')), levelDate: text(pick(p, 'pejletidspunkt', 'pejledato', 'dato', 'seneste_dato')), distanceM: point ? Math.round(haversineM(lat, lng, point[0], point[1])) : null }; }).sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
   const nearest = records[0];
-  return { id: 'dk-jupiter-groundwater', category: 'Grundvandsobservationer', claim: `Jupiter returnerede ${records.length} registrering${records.length === 1 ? '' : 'er'} med seneste pejling i søgeområdet${nearest?.distanceM !== null && nearest?.distanceM !== undefined ? `; nærmeste returnerede registrering ligger ca. ${nearest.distanceM} m fra stedet` : ''}.`, status: 'VERIFIED', sourceName: `${GEUS} — Jupiter, seneste pejling`, sourceUrl: url, datasetDate: nearest?.levelDate || today(), spatialRelationship: `Registrerede boringer med pejling i et ca. ${radiusM} m søgeområde`, calculationMethod: 'GEUS Jupiter WFS jupiter_boringer_seneste_pejling; observationer rangordnet efter afstand', confidence: 'High', limitation: 'Pejlinger fra andre boringer er observationskontekst og må ikke omsættes til en grundvandstand på den valgte grund. Niveauer varierer med magasin, terræn, sæson og målemetode; stedsspecifik verifikation er nødvendig.', value: { count: records.length, nearestDistanceM: nearest?.distanceM ?? null, records: records.slice(0, 15) } };
+  const capped = records.length >= maxFeatures;
+  return { id: 'dk-jupiter-groundwater', category: 'Grundvandsobservationer', claim: `Jupiter returnerede ${records.length} registrering${records.length === 1 ? '' : 'er'} med seneste pejling i det første søgeområde med træffer (ca. ${radiusM} m)${capped ? `; forespørgslen nåede loftet på ${maxFeatures} poster` : ''}${nearest?.distanceM !== null && nearest?.distanceM !== undefined ? `; nærmeste returnerede registrering ligger ca. ${nearest.distanceM} m fra stedet` : ''}.`, status: 'VERIFIED', sourceName: `${GEUS} — Jupiter, seneste pejling`, sourceUrl: url, datasetDate: today(), spatialRelationship: `Registrerede boringer med pejling i det første ikke-tomme søgeområde, ca. ${radiusM} m`, calculationMethod: 'GEUS Jupiter WFS jupiter_boringer_seneste_pejling; progressivt 500/1000/2000/5000 m søgevindue og observationer rangordnet efter afstand', confidence: 'High', limitation: 'Pejlinger fra andre boringer er observationskontekst og kan være historiske. De må ikke omsættes til en grundvandstand på den valgte grund. Niveauer varierer med magasin, terræn, sæson og målemetode; stedsspecifik verifikation er nødvendig.', value: { count: records.length, queryRadiusM: radiusM, queryLimit: maxFeatures, queryMayBeTruncated: capped, nearestDistanceM: nearest?.distanceM ?? null, records: records.slice(0, 15) } };
 }
 
 async function queryPlanning(lat: number, lng: number, fetcher: FetchLike): Promise<DenmarkGroundEvidence> {
@@ -125,15 +129,13 @@ async function queryPlanning(lat: number, lng: number, fetcher: FetchLike): Prom
 }
 
 export async function queryDenmarkGroundEvidence(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<DenmarkGroundEvidence[]> {
-  return Promise.all([querySurfaceGeology(lat, lng, fetcher), queryBoreholes(lat, lng, fetcher), queryGroundwater(lat, lng, fetcher), queryPlanning(lat, lng, fetcher)]);
+  return Promise.all([queryBoreholes(lat, lng, fetcher), queryGroundwater(lat, lng, fetcher), queryPlanning(lat, lng, fetcher)]);
 }
 
 export function enrichDenmarkGroundEvidence(report: any, evidence: DenmarkGroundEvidence[]): void {
   if (!report) return;
-  const surface = evidence.find(item => item.id === 'dk-geus-surface-geology' && item.status === 'VERIFIED');
   const planning = evidence.find(item => item.id === 'dk-plandata-localplan' && item.status === 'VERIFIED');
   report.denmark_ground_evidence = evidence.map(item => ({ id: item.id, status: item.status, sourceName: item.sourceName }));
-  if (surface) report.geosurvey_context = { ...(report.geosurvey_context || {}), surface_geology: surface.value, national_surface_geology_source: surface.sourceName, national_surface_geology_url: surface.sourceUrl };
   if (planning) {
     const value: any = planning.value || {}; const first = Array.isArray(value.plans) ? value.plans[0] : null;
     report.planning = { ...(report.planning || {}), status: 'VERIFIED', hasLocalPlan: true, planDesignation: first?.name || first?.planNumber || 'Vedtaget lokalplan', permittedUseCategory: 'Se den registrerede lokalplan og originale bestemmelser', maxFar: 'Kræver plandokument / kommunal verifikation', maxCoveragePct: 'Kræver plandokument / kommunal verifikation', minBiologicallyActivePct: 'Kræver plandokument / kommunal verifikation', maxBuildingHeightM: 'Kræver plandokument / kommunal verifikation', setbackRules: 'Kræver plandokument / kommunal verifikation', authorityName: first?.municipality || report.planning?.authorityName || 'Kommune', documentRequired: 'Gældende lokalplan, kommuneplanramme og eventuelle tilladelser/dispensationer', sourceName: 'Plandata.dk', limitation: planning.limitation };
@@ -141,3 +143,5 @@ export function enrichDenmarkGroundEvidence(report: any, evidence: DenmarkGround
 }
 
 export const DENMARK_GROUND_SOURCES = { geusWfs: GEUS_WFS, geusPortal: GEUS_PORTAL, plandataWfs: PLANDATA_WFS, plandataPortal: PLANDATA_PORTAL };
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
