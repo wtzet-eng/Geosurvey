@@ -83,5 +83,3 @@ test('entity-style response without parcel geometry fails closed instead of clai
   assert.equal(result.reasonCode, 'MALFORMED_DATA');
   assert.equal(result.evidence[0].status, 'REQUIRES_VERIFICATION');
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
