@@ -63,3 +63,5 @@ test('Spanish planning source and authority labels are localized', () => {
   assert.doesNotMatch(text, /Spatial Planning Authority|competent local planning authority/i);
   assert.match(text, /autoridad de planeamiento|autoridad urbanística competente/i);
 });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
