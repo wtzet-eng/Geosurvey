@@ -180,10 +180,36 @@ export function renderSlovakLocalizedReport(canonical: CanonicalReport): any {
     'terrain-elevation-slope': 'Terén a topografia',
     'soilgrids-isric-mechanics': 'Model pôdy'
   };
+  const genericCategories: Record<string, string> = {
+    'Terrain & Topography': 'Terén a topografia',
+    'Cross-border hydrology context': 'Regionálny hydrologický kontext',
+    'Geology & Soil Mechanics': 'Geológia a mechanika zemín',
+    'Infrastructure & Access': 'Infraštruktúra a prístup',
+    'Environmental & Conservation': 'Životné prostredie a ochrana prírody',
+    'Market Valuation & Economics': 'Trh a hodnota pozemku',
+    'Pedological spatial context': 'Priestorový pôdny kontext',
+    'Mapped geology': 'Mapovaná geológia',
+    'Hydrogeological context': 'Hydrogeologický kontext',
+    'Ground hazards': 'Geologické riziká'
+  };
+  const localizeGenericClaim = (input: string) => {
+    const mean = input.match(/^Mean elevation ([\d.,-]+) m a\.s\.l\. with slope gradient of ([\d.,-]+)° \((.+)\)$/i);
+    if (mean) return `Priemerná nadmorská výška ${mean[1]} m, sklon ${mean[2]}° (${mean[3].replace(/^Flat/i, 'rovinný').replace(/^Gentle/i, 'mierny')}).`;
+    if (/^Hydrology proximity data is not available because the spatial query did not complete/i.test(input)) return 'Údaje o blízkosti hydrologických prvkov nie sú k dispozícii, pretože priestorový dopyt sa nedokončil. Nebola odvodená žiadna trieda povodňového rizika.';
+    const soil = input.match(/^Soil Texture: (.+?) \(Sand ([\d.,]+)%, Silt ([\d.,]+)%, Clay ([\d.,]+)%, Mean Density ([\d.,]+) g\/cm³, pH ([\d.,]+)\) \[MODELLED\]$/i);
+    if (soil) return `Textúra pôdy: ${texture(soil[1]) || soil[1]} (piesok ${soil[2]} %, prach ${soil[3]} %, íl ${soil[4]} %, priemerná objemová hmotnosť ${soil[5]} g/cm³, pH ${soil[6]}) [MODELOVANÉ].`;
+    if (/^Nearest public road corridor unconfirmed in open dataset$/i.test(input)) return 'Najbližší koridor verejnej cesty nebol potvrdený v otvorenom zdroji.';
+    if (/^Environmental spatial query unavailable/i.test(input)) return 'Priestorový dopyt pre životné prostredie nebol dostupný; nebol odvodený záver o prekrytí ani vzdialenosti od chráneného územia.';
+    const samples = input.match(/^SoilGrids returned (\d+) usable model samples across the selected geometry and vicinity\.?$/i);
+    if (samples) return `SoilGrids poskytol ${samples[1]} použiteľných modelových vzoriek pre vybranú geometriu a okolie.`;
+    if (/^No usable hydrogeological collector response was returned/i.test(input)) return 'Pre vybrané súradnice nebola vrátená použiteľná odpoveď hydrogeologického zdroja.';
+    if (/^The official slope-deformation susceptibility layer did not return a usable site feature/i.test(input)) return 'Oficiálna vrstva náchylnosti na svahové deformácie nevrátila použiteľný prvok pre lokalitu.';
+    return input;
+  };
   const evidenceRegistry = canonical.evidenceRecords.map(record => {
     const code = (record.value as { reasonCode?: AvailabilityReason } | null)?.reasonCode;
     const isSupport = record.id.startsWith('country-support-');
-    const category = isSupport ? supportCategory : categories[record.id] || record.category || 'Dôkazový podklad';
+    const category = isSupport ? supportCategory : categories[record.id] || genericCategories[record.category] || record.category || 'Dôkazový podklad';
     const claim = isSupport
       ? reason('NOT_SUPPORTED_FOR_COUNTRY')
       : record.id === 'sk-sguds-engineering-geology-50k'
@@ -192,7 +218,7 @@ export function renderSlovakLocalizedReport(canonical: CanonicalReport): any {
           ? 'ŠGÚDŠ poskytuje hydrogeologický mapový kontext pre vybranú lokalitu.'
           : record.id === 'sk-sguds-borehole-context'
             ? 'Register vrtov ŠGÚDŠ poskytuje okolité prieskumné záznamy; nejde o merania pod vybranou parcelou.'
-            : record.claim;
+            : localizeGenericClaim(record.claim || '');
     return {
       ...record,
       category,
@@ -205,8 +231,13 @@ export function renderSlovakLocalizedReport(canonical: CanonicalReport): any {
   });
 
   const planningAuthority = String(canonical.planning.authorityName || 'Príslušný obecný / stavebný úrad')
+    .replace(/^(.+?) competent local planning authority$/i, '$1 – príslušný orgán územného plánovania')
+    .replace(/competent planning \/ building authority/gi, 'príslušný orgán územného plánovania a stavebný úrad')
     .replace(/Municipal Planning Department \(Wydział Architektury \/ Urbanistyki\)/gi, 'príslušný obecný / stavebný úrad')
     .replace(/Wydział Architektury \/ Urbanistyki/gi, 'príslušný obecný / stavebný úrad');
+  const planningSource = String(canonical.planning.sourceName || planningAuthority)
+    .replace(/^(.+?) Spatial Planning Authority/i, '$1 – orgán územného plánovania')
+    .replace(/Spatial Planning Authority/gi, 'orgán územného plánovania');
   const checklist = [
     ['Úradné potvrdenie územného plánovania', 'Získať aktuálnu záväznú územnoplánovaciu informáciu alebo stanovisko.', planningAuthority],
     ['Geotechnický prieskum', 'Objednať geotechnický prieskum lokality podľa Eurokódu 7.', 'Geotechnik / inžiniersky geológ'],
@@ -254,8 +285,8 @@ export function renderSlovakLocalizedReport(canonical: CanonicalReport): any {
       soil_and_ground: section(soilText, groundDetail, canonical.soil.status, canonical.soil.sourceName, canonical.soil.reasonCode ? reason(canonical.soil.reasonCode) : undefined),
       geohazard_risk: section(geologyText, `${geologyText} Mapované geologické a svahové údaje slúžia na skríning a nenahrádzajú prieskum konkrétnej parcely.`, canonical.geology.status, canonical.geology.sourceName, canonical.geology.reasonCode ? reason(canonical.geology.reasonCode) : undefined),
       flooding_risk: section(floodText, canonical.flood.reasonCode ? reason(canonical.flood.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.flood.status, canonical.flood.sourceName, canonical.flood.reasonCode ? reason(canonical.flood.reasonCode) : undefined),
-      zoning_and_land_use: section(`Parametre územného plánovania treba potvrdiť podľa dokumentu ${canonical.planning.instrumentName}.`, reason(canonical.planning.reasonCode), canonical.planning.status, canonical.planning.sourceName, reason(canonical.planning.reasonCode)),
-      building_regulations: section(reason('AUTHORITATIVE_DATA_REQUIRED'), `Regulačné podmienky treba potvrdiť podľa dokumentu ${canonical.planning.instrumentName}.`, canonical.planning.status, canonical.planning.authorityName, reason(canonical.planning.reasonCode)),
+      zoning_and_land_use: section(`Parametre územného plánovania treba potvrdiť podľa dokumentu ${canonical.planning.instrumentName}.`, reason(canonical.planning.reasonCode), canonical.planning.status, planningSource, reason(canonical.planning.reasonCode)),
+      building_regulations: section(reason('AUTHORITATIVE_DATA_REQUIRED'), `Regulačné podmienky treba potvrdiť podľa dokumentu ${canonical.planning.instrumentName}.`, canonical.planning.status, planningAuthority, reason(canonical.planning.reasonCode)),
       environmental_factors: section(environmentText, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.environment.status, canonical.environment.sourceName, canonical.environment.reasonCode ? reason(canonical.environment.reasonCode) : undefined),
       infrastructure_and_access: section(roadText, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : reason('AUTHORITATIVE_DATA_REQUIRED'), canonical.infrastructure.status, canonical.infrastructure.sourceName, canonical.infrastructure.reasonCode ? reason(canonical.infrastructure.reasonCode) : undefined),
       market_and_comparables: section(valuationText, canonical.valuation.reasonCode ? reason(canonical.valuation.reasonCode) : 'Ide o orientačnú hodnotu samotného pozemku; budovy, stavby a iné zlepšenia nie sú zahrnuté.', canonical.valuation.status, canonical.valuation.sourceName, canonical.valuation.reasonCode ? reason(canonical.valuation.reasonCode) : undefined),
