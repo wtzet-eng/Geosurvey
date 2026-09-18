@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { FloatingSupportLandSurf, SupportLandSurf } from '../components/SupportLandSurf';
+import { FloatingSupportLandSurf, SupportLandSurf, supportLandSurfCopy } from '../components/SupportLandSurf';
 import { localizeAspect } from './aspectI18n';
 
 test('support CTA remains visible with the configured Ko-fi destination', () => {
@@ -18,16 +18,27 @@ test('Czech Slovak Danish and Swedish views localize cardinal words while preser
   assert.equal(localizeAspect('North (0°)', 'sk', 'údaj nie je k dispozícii'), 'Sever (0°)');
   assert.equal(localizeAspect('East (83°)', 'da', 'ikke tilgængelig'), 'Øst (83°)');
   assert.equal(localizeAspect('West (281°)', 'sv', 'inte tillgängligt'), 'Väster (281°)');
+  assert.equal(localizeAspect('West (270°)', 'no', 'ikke tilgjengelig'), 'Vest (270°)');
+});
+
+test('support CTA is localized for report languages', () => {
+  const cases = [['pl', /Wesprzyj LandSurf/], ['es', /Apoyar LandSurf/], ['sk', /Podporte LandSurf/], ['no', /Støtt LandSurf/], ['sv', /Stöd LandSurf/]] as const;
+  for (const [language, expected] of cases) {
+    const copy = supportLandSurfCopy(language);
+    assert.match(copy.heading, expected);
+    const html = renderToStaticMarkup(React.createElement(SupportLandSurf, { language }));
+    assert.match(html, expected);
+    assert.doesNotMatch(html, /Support LandSurf|Thank you for support|Every supporter receives/i);
+  }
 });
 
 
-test('floating Ko-fi shortcut stays available in the report corner at all screen widths', () => {
+test('Ko-fi shortcut is stackable below the AI action at the same width', () => {
   const html = renderToStaticMarkup(React.createElement(FloatingSupportLandSurf));
   assert.match(html, /Support LandSurf/);
   assert.match(html, /https:\/\/ko-fi\.com\/surveyland/);
   assert.match(html, /#496931/i);
-  assert.match(html, /fixed bottom-4 left-4/);
+  assert.match(html, /w-full/);
+  assert.doesNotMatch(html, /fixed bottom-4 left-4/);
   assert.match(html, /print:hidden/);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
