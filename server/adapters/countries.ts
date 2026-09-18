@@ -166,6 +166,16 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     baseValuationPerSqm: 0,
     valuationDataSource: NO_GENERIC_VALUE
   },
+  BG: {
+    countryCode: 'BG', countryName: 'Bulgaria', currency: 'BGN', symbol: 'лв',
+    cadastreAuthority: 'Agency for Geodesy, Cartography and Cadastre (AGCC / АГКК — KAIS)', cadastrePortalUrl: 'https://kais.cadastre.bg/',
+    geologyAuthority: 'Ministry of Energy — National Geological Fund (Национален геоложки фонд)', geologyPortalUrl: 'https://www.me.government.bg/',
+    floodAuthority: 'Ministry of Environment and Water / Basin Directorates — Flood Risk Management Information System (ISURN)', floodPortalUrl: 'https://isurn.moew.government.bg/',
+    planningInstrumentName: 'Общ устройствен план (ОУП) / Подробен устройствен план (ПУП)',
+    standardSetbackRule: 'Determined by the applicable OUP/PUP, the Spatial Development Act and competent municipal/building authority; requires official confirmation',
+    baseValuationPerSqm: 0,
+    valuationDataSource: NO_GENERIC_VALUE
+  },
   EU: {
     countryCode: 'EU', countryName: 'Europe', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'National cadastral authority / INSPIRE cadastral parcels', cadastrePortalUrl: 'https://inspire.ec.europa.eu/',
