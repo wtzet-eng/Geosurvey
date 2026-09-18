@@ -296,5 +296,3 @@ test('placeholder dash is never promoted to a verified geological unit', () => {
   assert.equal(canonical.geology.lithology, null);
   assert.equal(canonical.geology.geologicalAge, null);
 });
-
-[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
