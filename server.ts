@@ -101,7 +101,10 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
   try {
     const shape = req.body.shape || req.body.boundaryShape;
     const requestedArea = Number(req.body.areaSize);
-    const areaSize = Number.isFinite(requestedArea) && requestedArea > 0 ? requestedArea : 1000;
+    if (!Number.isFinite(requestedArea) || requestedArea <= 0) {
+      return res.status(400).json({ error: 'A positive site area is required.', code: 'SITE_AREA_INVALID' });
+    }
+    const areaSize = requestedArea;
     const countryCode = String(req.body.countryCode || req.body.country || 'PL').toUpperCase();
     const baseProfile = getCountryProfile(countryCode);
     const cProfile = countryCode === 'DK' ? {
@@ -148,12 +151,15 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let resolvedCountryCode = resolvedLocation.countryCode;
     const resolvedRegionCode = resolvedLocation.regionCode;
 
-    const countryLocationMismatch = Boolean(resolvedCountryCode && resolvedCountryCode !== countryCode && !(countryCode === 'GB' && resolvedCountryCode === 'UK'));
+    const locationCountryConfirmed = Boolean(resolvedCountryCode && (resolvedCountryCode === countryCode || (countryCode === 'GB' && resolvedCountryCode === 'UK')));
+    const countryLocationUnresolved = !resolvedCountryCode;
+    const countryLocationMismatch = Boolean(resolvedCountryCode && !locationCountryConfirmed);
     const acquisitionCountryCode = countryLocationMismatch ? 'EU' : countryCode;
     stage = 'geospatial-analysis-pipeline';
     const evidenceReport: any = await runGeospatialAnalysisPipeline({ lat, lng, areaSizeM2: areaSize, countryCode: acquisitionCountryCode, language, locationName, municipality, county: countyName, state: stateName, roadName });
     evidenceReport.countryCode = countryCode;
     evidenceReport.countryLocationMismatch = countryLocationMismatch;
+    evidenceReport.countryLocationUnresolved = countryLocationUnresolved;
 
     let czechiaCadastre: any = null;
     let norwayCadastre: any = null;
@@ -430,7 +436,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       });
     }
 
-    if (!countryLocationMismatch && support.capabilities.nationalValuation && ['AT', 'ES', 'FI', 'IE', 'LU'].includes(countryCode)) {
+    if (locationCountryConfirmed && support.capabilities.nationalValuation && ['AT', 'ES', 'FI', 'IE', 'LU'].includes(countryCode)) {
       stage = 'europe-land-valuation';
       try {
         const luxembourgPagCategory = countryCode === 'LU'
@@ -447,6 +453,9 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
 
     if (countryLocationMismatch) {
       evidenceReport.evidenceRegistry.push({ id: `country-location-mismatch-${diagnosticId}`, category: 'Location Validation', claim: `Selected country (${countryCode}) does not match the country resolved from the site coordinates (${resolvedCountryCode}). National integrations for the selected country were not queried.`, status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap Nominatim reverse geocoding', sourceUrl: 'https://nominatim.openstreetmap.org/', datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: 'Site-centre reverse geocode', calculationMethod: 'Reverse geocode of the selected site coordinates before national acquisition', confidence: 'High', limitation: 'The selected country is retained for the report, but only cross-border evidence is used until the country/location mismatch is corrected.', value: { selectedCountryCode: countryCode, resolvedCountryCode, reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' } });
+    }
+    if (countryLocationUnresolved) {
+      evidenceReport.evidenceRegistry.push({ id: `country-location-unresolved-${diagnosticId}`, category: 'Location Validation', claim: `The selected country (${countryCode}) could not be independently confirmed from the site coordinates because reverse geocoding returned no country.`, status: 'REQUIRES_VERIFICATION', sourceName: 'OpenStreetMap Nominatim reverse geocoding', sourceUrl: 'https://nominatim.openstreetmap.org/', datasetDate: new Date().toISOString().slice(0, 10), spatialRelationship: 'Site-centre reverse geocode', calculationMethod: 'Reverse geocode of the selected site coordinates before country-dependent valuation', confidence: 'Low', limitation: 'Country-dependent automated valuation is suppressed until the country is confirmed. Coordinate-based global or cross-border screening may still be shown.', value: { selectedCountryCode: countryCode, reasonCode: 'SOURCE_UNAVAILABLE' } });
     }
 
     stage = 'report-assembly';
