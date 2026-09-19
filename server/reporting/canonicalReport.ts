@@ -149,7 +149,8 @@ function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdap
     if (!c.nationalCadastre && /cadastre|cadastr|parcel/.test(text)) return [];
     if (!c.nationalPlanning && /planning|zoning|mpzp|bebau/.test(text)) {
       const irelandContext = support.countryCode === 'IE' && /^ie-(?:myplan-gzt(?:-(?:no-data|unavailable))?|npad-(?:nearby-applications|unavailable))$/.test(record.id);
-      if (!irelandContext) return [];
+      const swissContext = support.countryCode === 'CH' && record.id === 'ch-building-zone';
+      if (!irelandContext && !swissContext) return [];
     }
     if (!c.nationalValuation && /valuation|market valuation|econom/.test(text) && !(modelledValuationAvailable && record.id === 'valuation-indicative-model')) return [];
     if (!c.nationalRadon && /radon/.test(text)) return [];
