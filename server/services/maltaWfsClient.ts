@@ -20,11 +20,31 @@ const decodeXml = (value: string) => value
 const featureTypeNames = (xml: string): string[] => {
   const blocks = xml.match(/<(?:\w+:)?FeatureType\b[\s\S]*?<\/(?:\w+:)?FeatureType>/gi) || [];
   const names = blocks.map(block => {
-    const match = block.match(/<(?:\w+:)?Name>([\s\S]*?)<\/(?:\w+:)?Name>/i);
+    const match = block.match(/<(?:\w+:)?Name\b[^>]*>([\s\S]*?)<\/(?:\w+:)?Name>/i);
     return match ? decodeXml(match[1]) : '';
   }).filter(Boolean);
   return [...new Set(names)];
 };
+
+
+const geometryPropertyName = (xml: string): string | null => {
+  const matches = [...xml.matchAll(/<(?:\w+:)?element\b[^>]*name="([^"]+)"[^>]*type="gml:([^"]*(?:Geometry|Point|Curve|Surface|Polygon|LineString|MultiSurface)[^"]*)"/gi)]
+    .map(match => match[1]);
+  const preferred = ['shape', 'geometry', 'geom', 'the_geom', 'location'];
+  for (const name of preferred) {
+    const hit = matches.find(candidate => candidate.toLowerCase() === name);
+    if (hit) return hit;
+  }
+  return matches[0] || null;
+};
+
+const spatialFilter = (propertyName: string, lat: number, lng: number, radiusM: number): string => {
+  const dy = radiusM / 111320;
+  const dx = radiusM / (111320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+  const latMin = lat - dy, latMax = lat + dy, lngMin = lng - dx, lngMax = lng + dx;
+  return `<fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:gml="http://www.opengis.net/gml/3.2"><fes:BBOX><fes:ValueReference>${propertyName}</fes:ValueReference><gml:Envelope srsName="http://www.opengis.net/def/crs/EPSG/0/4326"><gml:lowerCorner>${latMin} ${lngMin}</gml:lowerCorner><gml:upperCorner>${latMax} ${lngMax}</gml:upperCorner></gml:Envelope></fes:BBOX></fes:Filter>`;
+};
+
 
 async function request(fetcher: FetchLike, url: string, accept: string, timeoutMs = 10000): Promise<Response | null> {
   const ctrl = new AbortController();
@@ -67,18 +87,21 @@ export async function queryMaltaWfs(
   const typeName = names[0];
   if (!typeName) return { status: 'MALFORMED_DATA', features: [], error: 'No WFS feature type discovered' };
 
-  const dy = radiusM / 111320;
-  const dx = radiusM / (111320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
-  const bbox = `${lng - dx},${lat - dy},${lng + dx},${lat + dy},EPSG:4326`;
+  const describeUrl = serviceUrl(baseUrl, { SERVICE: 'WFS', REQUEST: 'DescribeFeatureType', VERSION: '2.0.0', TYPENAMES: typeName });
+  const describeResponse = await request(fetcher, describeUrl, 'application/xml,text/xml,*/*');
+  if (!describeResponse) return { status: 'SOURCE_UNAVAILABLE', features: [], typeName, error: 'DescribeFeatureType failed' };
+  let schema = '';
+  try { schema = await describeResponse.text(); } catch {
+    return { status: 'MALFORMED_DATA', features: [], typeName, error: 'Unreadable DescribeFeatureType response' };
+  }
+  const geometryProperty = geometryPropertyName(schema);
+  if (!geometryProperty) return { status: 'MALFORMED_DATA', features: [], typeName, error: 'No WFS geometry property discovered' };
+  const filter = spatialFilter(geometryProperty, lat, lng, radiusM);
 
   const attempts = [
     serviceUrl(baseUrl, {
       SERVICE: 'WFS', REQUEST: 'GetFeature', VERSION: '2.0.0', TYPENAMES: typeName,
-      OUTPUTFORMAT: 'application/json', SRSNAME: 'EPSG:4326', BBOX: bbox, COUNT: '100'
-    }),
-    serviceUrl(baseUrl, {
-      SERVICE: 'WFS', REQUEST: 'GetFeature', VERSION: '1.1.0', TYPENAME: typeName,
-      OUTPUTFORMAT: 'application/json', SRSNAME: 'EPSG:4326', BBOX: bbox, MAXFEATURES: '100'
+      OUTPUTFORMAT: 'application/geo+json', SRSNAME: 'EPSG:4326', FILTER: filter, COUNT: '1000'
     })
   ];
 
@@ -87,7 +110,9 @@ export async function queryMaltaWfs(
     if (!response) continue;
     try {
       const body: any = JSON.parse(await response.text());
-      if (Array.isArray(body?.features)) return { status: 'OK', features: body.features, typeName };
+      if (body?.type === 'FeatureCollection' && (body.features === undefined || Array.isArray(body.features))) {
+        return { status: 'OK', features: Array.isArray(body.features) ? body.features : [], typeName };
+      }
     } catch {
       // Try the alternate WFS version before failing closed.
     }
@@ -132,14 +157,32 @@ export function geometryPoints(geometry: any): [number, number][] {
     .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
 }
 
+const readablePropertyText = (raw: any): string | null => {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const value = String(raw).trim().replace(/\s+/g, ' ');
+    return value && !/^(null|none|unknown|n\/a|-+)$/i.test(value) ? value : null;
+  }
+  if (typeof raw !== 'object') return null;
+  for (const key of ['text', 'title', 'value', 'name', 'localId', 'identifier']) {
+    if (key in raw) {
+      const nested = readablePropertyText(raw[key]);
+      if (nested) return nested;
+    }
+  }
+  for (const value of Object.values(raw)) {
+    const nested = readablePropertyText(value);
+    if (nested) return nested;
+  }
+  return null;
+};
+
 export function propertyValue(properties: Record<string, any>, patterns: RegExp[]): string | null {
   for (const pattern of patterns) {
     const key = Object.keys(properties || {}).find(name => pattern.test(name));
     if (!key) continue;
-    const raw = properties[key];
-    if (raw === null || raw === undefined) continue;
-    const value = String(raw).trim().replace(/\s+/g, ' ');
-    if (value && !/^(null|none|unknown|n\/a|-+)$/i.test(value)) return value;
+    const value = readablePropertyText(properties[key]);
+    if (value) return value;
   }
   return null;
 }

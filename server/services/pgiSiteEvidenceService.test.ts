@@ -219,3 +219,25 @@ test('all approved Polish routes unavailable stays REQUIRES_VERIFICATION', async
   assert.ok(evidence.every(item => item.reasonCode === 'SOURCE_UNAVAILABLE'));
   assert.ok(evidence.every(item => !/geological unit is absent|no geology exists/i.test(item.claim)));
 });
+
+test('PGI numeric SYMBOL_GEN remains a map symbol and is not presented as a geological unit', () => {
+  const base = {
+    status: 'VERIFIED' as const,
+    sourceName: 'Państwowy Instytut Geologiczny – PIB', sourceUrl: 'https://example.test/wms', datasetDate: '2026-09-19',
+    spatialRelationship: 'Exact site centre queried', calculationMethod: 'fixture', confidence: 'Medium' as const,
+    spatialScope: 'SITE' as const, limitation: 'Mapped evidence only.'
+  };
+  const evidence: any[] = [{
+    ...base, id: 'pgi-mgp-regional-site', category: 'Geological Map of Poland (MGP)',
+    value: { scale: '1:200,000', featureInfo: { features: [{ properties: {
+      SYMBOL_GEN: '382', Litologia: 'piaski', Stratygrafia: 'ZLODOWACENIE ODRY', Geneza: 'rzeczno-lodowcowa'
+    } }] } }
+  }];
+  const report: any = {};
+  enrichGeologyFromPgi(report, evidence);
+  assert.equal(report.geosurvey_context.geological_unit_name, null);
+  assert.equal(report.geosurvey_context.lithology_type, 'piaski');
+  assert.equal(report.geosurvey_context.geological_period_era, 'ZLODOWACENIE ODRY');
+  assert.equal(report.geosurvey_context.genetic_origin, 'rzeczno-lodowcowa');
+  assert.equal(report.geosurvey_context.evidence_level, 'VERIFIED');
+});

@@ -379,3 +379,20 @@ test('placeholder dash is never promoted to a verified geological unit', () => {
   assert.equal(canonical.geology.lithology, null);
   assert.equal(canonical.geology.geologicalAge, null);
 });
+test('verified national mapped geology replaces a stale soil-only scoring rationale', () => {
+  const raw = rawReport('PL');
+  raw.evidenceScore.breakdown.geologyAndGroundwater = { score: 0, max: 20, rationale: 'SoilGrids query unavailable or malformed; no soil or groundwater evidence points awarded.' };
+  raw.geosurvey_context = {
+    geological_unit_name: null,
+    lithology_type: 'Piaski',
+    geological_period_era: 'ZLODOWACENIE ODRY',
+    genetic_origin: 'wodnolodowcowa',
+    evidence_level: 'VERIFIED',
+    source_name: 'Państwowy Instytut Geologiczny – PIB',
+    source_url: 'https://geolog.pgi.gov.pl'
+  };
+  const canonical = createCanonicalReport(raw, getCountryProfile('PL'));
+  assert.equal(canonical.evidenceScore.breakdown.geologyAndGroundwater.score, 18);
+  assert.match(canonical.evidenceScore.breakdown.geologyAndGroundwater.rationale, /Verified national mapped geology/i);
+  assert.doesNotMatch(canonical.evidenceScore.breakdown.geologyAndGroundwater.rationale, /no soil or groundwater evidence points awarded/i);
+});

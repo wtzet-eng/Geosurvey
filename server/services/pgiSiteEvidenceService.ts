@@ -67,6 +67,17 @@ function pgiProperty(props: Record<string, unknown>, patterns: RegExp[]): string
   return key ? usableMappedText(props[key]) : null;
 }
 
+function pgiGeologicalUnit(props: Record<string, unknown>): string | null {
+  for (const key of Object.keys(props)) {
+    if (!FIELD_PATTERNS.unit.some(pattern => pattern.test(key))) continue;
+    if (/^(?:symbol|kod)|symbol_/i.test(key)) continue;
+    const value = usableMappedText(props[key]);
+    if (!value || /^\d+(?:[.,]\d+)?$/.test(value)) continue;
+    return value;
+  }
+  return null;
+}
+
 function contextDescriptor(info: any, patterns: RegExp[], maxValues = 4): string | null {
   const props = mergedFeatureProperties(info);
   const values = Object.entries(props)
@@ -107,7 +118,8 @@ function selectFieldEvidence(maps: PgiSiteEvidence[], field: GeologicalField): {
     return order.indexOf(mapFamily(a)) - order.indexOf(mapFamily(b));
   });
   for (const evidence of ordered) {
-    const value = pgiProperty(pgiFeatureProperties(evidence), FIELD_PATTERNS[field]);
+    const props = pgiFeatureProperties(evidence);
+    const value = field === 'unit' ? pgiGeologicalUnit(props) : pgiProperty(props, FIELD_PATTERNS[field]);
     if (value) return { value, evidence };
   }
   return null;
@@ -116,7 +128,7 @@ function selectFieldEvidence(maps: PgiSiteEvidence[], field: GeologicalField): {
 function mappedGroundSample(evidence: PgiSiteEvidence): MappedGroundSample | null {
   if (evidence.status !== 'VERIFIED' || !/pgi-(?:smgp-50k|mlp-50k|mgp-regional|engineering-geology)/i.test(evidence.id)) return null;
   const props = pgiFeatureProperties(evidence);
-  const unit = pgiProperty(props, FIELD_PATTERNS.unit);
+  const unit = pgiGeologicalUnit(props);
   const lithology = pgiProperty(props, FIELD_PATTERNS.lithology);
   const geologicalAge = pgiProperty(props, FIELD_PATTERNS.period);
   if (!unit && !lithology) return null;

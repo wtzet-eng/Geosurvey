@@ -48,7 +48,7 @@ const firstContaining = (features: any[], lat: number, lng: number): any | null 
 const labelFrom = (properties: Record<string, any>): string | null =>
   propertyValue(properties, [
     /lithostrat/i, /formation/i, /member/i, /unit.*name/i, /geolog.*name/i,
-    /description/i, /class/i, /category/i, /designation/i, /site.*name/i, /^name$/i, /label/i, /code/i
+    /site.*name/i, /^name$/i, /label/i, /description/i, /class/i, /category/i, /code/i, /designation/i
   ]);
 
 async function bedrock(lat:number,lng:number,fetcher:FetchLike):Promise<MaltaEvidence> {
@@ -58,10 +58,11 @@ async function bedrock(lat:number,lng:number,fetcher:FetchLike):Promise<MaltaEvi
   const feature=firstContaining(result.features,lat,lng);
   if(!feature) return unavailable('mt-geology-bedrock-no-data','Mapped bedrock geology',sourceName,GEOLOGY_PORTAL,'The Malta 1:10,000 bedrock service responded but returned no bedrock polygon at the selected coordinate.','NO_DATA');
   const p=feature.properties||{};
-  const unit=propertyValue(p,[/lithostrat/i,/formation/i,/member/i,/unit.*name/i,/geolog.*name/i,/label/i,/name/i]);
+  let unit=propertyValue(p,[/lithostrat/i,/formation/i,/member/i,/unit.*name/i,/geolog.*name/i,/label/i,/name/i]);
+  if (unit && /^(?:BEDROCK|SUPERFICIAL|ARTIFICIAL)_POLYGON$/i.test(unit)) unit = null;
   const lithology=propertyValue(p,[/litholog/i,/rock.*type/i,/description/i,/material/i]);
   const age=propertyValue(p,[/age/i,/epoch/i,/period/i]);
-  if(!unit&&!lithology) return unavailable('mt-geology-bedrock-malformed','Mapped bedrock geology',sourceName,GEOLOGY_PORTAL,'The bedrock service returned a feature without a readable unit or rock description.','MALFORMED_DATA');
+  if(!unit&&!lithology) return unavailable('mt-geology-bedrock-malformed','Mapped bedrock geology',sourceName,GEOLOGY_PORTAL,'The bedrock service returned a mapped polygon but no readable geological unit or rock description; the generic INSPIRE feature name is not presented as geology.','MALFORMED_DATA');
   return {
     id:'mt-geology-bedrock',category:'Mapped bedrock geology',
     claim:'The 2021–2022 Malta geological resurvey at 1:10,000 maps the selected coordinate as ' + (unit||'a bedrock unit') + (lithology?': '+lithology:'') + '.',

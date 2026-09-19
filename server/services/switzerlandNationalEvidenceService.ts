@@ -11,9 +11,9 @@ const HYDRO = 'ch.bafu.hydrogeologische-karte_100';
 const GROUNDWATER = 'ch.bafu.grundwasserkoerper';
 const SEISMIC_SUBSOIL = 'ch.bafu.gefahren-baugrundklassen';
 const BUILDING_ZONES = 'ch.are.bauzonen';
-const KBS = 'https://www.geodienste.ch/db/kataster_belasteter_standorte_v1_5_0/deu/ogcapi';
-const KBS_AREAS = 'belastete_standorte_flaechen';
-const KBS_POINTS = 'belastete_standorte_punkte';
+const KBS_WFS = 'https://geodienste.ch/db/kataster_belasteter_standorte_v1_5_0/deu';
+const KBS_AREAS = 'ms:belastete_standorte_flaechen';
+const KBS_POINTS = 'ms:belastete_standorte_punkte';
 const today = () => new Date().toISOString().slice(0, 10);
 
 const text = (v: unknown): string | null => {
@@ -34,10 +34,14 @@ const preferred = (attrs: Record<string, any>, names: string[]): string | null =
 };
 function readableLabel(result: any, names: string[]): string | null {
   const attrs = result?.attributes || result?.properties || {};
-  return preferred(attrs, names)
-    || text(result?.label)
-    || text(result?.featureId)
-    || Object.entries(attrs).map(([, value]) => text(value)).find(value => value && !/^https?:/i.test(value)) || null;
+  const candidates = [preferred(attrs, names), text(attrs.label), text(result?.label)];
+  for (const value of candidates) {
+    if (!value) continue;
+    if (/^\d+(?:[.,]\d+)?$/.test(value)) continue;
+    if (/^[A-Z]{1,6}\d+[A-Za-z0-9_-]*$/i.test(value) || /_(?:rect|poly|point|line)$/i.test(value)) continue;
+    return value;
+  }
+  return null;
 }
 function identifyUrl(layer: string, lat: number, lng: number): string {
   const d = 0.002;
@@ -114,8 +118,11 @@ function distanceM(lat1:number,lng1:number,lat2:number,lng2:number):number {
 async function contaminatedSites(lat: number, lng: number, fetcher: FetchLike): Promise<SwissEvidence> {
   const radiusM = 500;
   const dy = radiusM / 111320, dx = radiusM / (111320 * Math.max(.2, Math.cos(lat * Math.PI / 180)));
-  const bbox = `${lng-dx},${lat-dy},${lng+dx},${lat+dy}`;
-  const makeUrl = (collection: string) => `${KBS}/collections/${collection}/items?${new URLSearchParams({f:'json',bbox,limit:'100',crs:'http://www.opengis.net/def/crs/OGC/1.3/CRS84'})}`;
+  const makeUrl = (typeName: string) => `${KBS_WFS}?${new URLSearchParams({
+    SERVICE:'WFS', REQUEST:'GetFeature', VERSION:'2.0.0', TYPENAMES:typeName,
+    OUTPUTFORMAT:'application/json; subtype=geojson', SRSNAME:'EPSG:4326',
+    BBOX:`${lat-dy},${lng-dx},${lat+dy},${lng+dx},EPSG:4326`, COUNT:'200'
+  })}`;
   const [areaBody, pointBody] = await Promise.all([json(fetcher, makeUrl(KBS_AREAS), 12000), json(fetcher, makeUrl(KBS_POINTS), 12000)]);
   const sourceName = 'geodienste.ch / cantonal registers — Kataster der belasteten Standorte (KbS)';
   const sourceUrl = 'https://geodienste.ch/services/kataster_belasteter_standorte?locale=de';
@@ -151,7 +158,7 @@ async function contaminatedSites(lat: number, lng: number, fetcher: FetchLike): 
         : 'The harmonised cantonal contaminated-site service responded successfully and returned no direct mapped site at the selected coordinate or point record within 500 m.',
     status:'VERIFIED', sourceName, sourceUrl, datasetDate:today(),
     spatialRelationship:'Direct point-in-polygon screen plus 500 m point-record context',
-    calculationMethod:'geodienste.ch OGC API Features queries of KbS area and point collections in CRS84',
+    calculationMethod:'geodienste.ch WFS 2.0 queries of KbS area and point layers in EPSG:4326',
     confidence: overlaps.length ? 'High' : 'Medium',
     limitation:'This is a screening query of the published cantonal contaminated-site registers. It does not establish soil cleanliness, parcel-wide absence, remediation status beyond the source record, or liability. Confirm the current cantonal KbS extract before acquisition or development.',
     value:{intersects:overlaps.length>0,records,nearbyPointCount:nearbyPoints.length,nearestPointDistanceM:nearbyPoints[0]?.distanceM??null}
@@ -161,11 +168,11 @@ async function contaminatedSites(lat: number, lng: number, fetcher: FetchLike): 
 export async function querySwitzerlandNationalEvidence(lat:number,lng:number,fetcher:FetchLike=fetch):Promise<SwissEvidence[]> {
   const [bedrock,unconsolidated,hydro,groundwater,seismicSubsoil,buildingZone,kbs] = await Promise.all([
     mappedLayer({id:'ch-geocover-bedrock',category:'Mapped bedrock geology',layer:BEDROCK,sourceName:'swisstopo — swissGEOCOVER2D bedrock',lat,lng,fetcher,names:['lithostratigraphy','lithostratigraphic_unit','unit_name','name','bezeichnung','description'],claim:l=>`swissGEOCOVER2D maps the bedrock unit at the selected coordinate as ${l}.`,limitation:'Geological mapping is screening context and does not establish rock-head depth, weathering, fractures or geotechnical design parameters beneath the parcel.'}),
-    mappedLayer({id:'ch-geocover-unconsolidated',category:'Mapped superficial geology',layer:UNCONSOLIDATED,sourceName:'swisstopo — swissGEOCOVER2D unconsolidated deposits',lat,lng,fetcher,names:['lithology','unit_name','name','bezeichnung','description'],claim:l=>`swissGEOCOVER2D maps the unconsolidated/superficial unit at the selected coordinate as ${l}.`,limitation:'Mapped superficial deposits do not establish thickness, fill, density, consistency or parcel-specific stratigraphy.'}),
-    mappedLayer({id:'ch-hydrogeology-100k',category:'Hydrogeological context',layer:HYDRO,sourceName:'BAFU — Hydrogeologische Karte der Schweiz 1:100 000',lat,lng,fetcher,names:['name','bezeichnung','description','hydrogeologie','klasse'],claim:l=>`The federal hydrogeological map classifies the selected coordinate as ${l}.`,limitation:'Regional hydrogeological mapping does not establish groundwater depth, seasonal levels, permeability or dewatering requirements at the parcel.'}),
-    mappedLayer({id:'ch-groundwater-body',category:'Groundwater body',layer:GROUNDWATER,sourceName:'BAFU — Grundwasserkörper',lat,lng,fetcher,names:['name','bezeichnung','description','gwk_name'],claim:l=>`BAFU maps the selected coordinate within groundwater-body context ${l}.`,limitation:'Groundwater-body mapping is regional context, not a parcel water-table measurement or water-right determination.'}),
+    mappedLayer({id:'ch-geocover-unconsolidated',category:'Mapped superficial geology',layer:UNCONSOLIDATED,sourceName:'swisstopo — swissGEOCOVER2D unconsolidated deposits',lat,lng,fetcher,names:['label','runc_litstrat_de','runc_litho_de','lithology','unit_name','bezeichnung','description'],claim:l=>`swissGEOCOVER2D maps the unconsolidated/superficial unit at the selected coordinate as ${l}.`,limitation:'Mapped superficial deposits do not establish thickness, fill, density, consistency or parcel-specific stratigraphy.'}),
+    mappedLayer({id:'ch-hydrogeology-100k',category:'Hydrogeological context',layer:HYDRO,sourceName:'BAFU — Hydrogeologische Karte der Schweiz 1:100 000',lat,lng,fetcher,names:['label','hydrogeologie','klasse','bezeichnung','description','name'],claim:l=>`The federal hydrogeological map classifies the selected coordinate as ${l}.`,limitation:'Regional hydrogeological mapping does not establish groundwater depth, seasonal levels, permeability or dewatering requirements at the parcel.'}),
+    mappedLayer({id:'ch-groundwater-body',category:'Groundwater body',layer:GROUNDWATER,sourceName:'BAFU — Grundwasserkörper',lat,lng,fetcher,names:['gwkname','label','gwkid','bezeichnung','description','name'],claim:l=>`BAFU maps the selected coordinate within groundwater-body context ${l}.`,limitation:'Groundwater-body mapping is regional context, not a parcel water-table measurement or water-right determination.'}),
     mappedLayer({id:'ch-seismic-subsoil',category:'Seismic ground context',layer:SEISMIC_SUBSOIL,sourceName:'BAFU — Baugrundklassen nach SIA 261',lat,lng,fetcher,names:['klasse','class','name','bezeichnung','description'],claim:l=>`BAFU seismic ground-class mapping returns class ${l} at the selected coordinate.`,limitation:'Mapped SIA ground class is screening context and does not replace project-specific seismic/geotechnical ground classification.'}),
-    mappedLayer({id:'ch-building-zone',category:'Planning context',layer:BUILDING_ZONES,sourceName:'Bundesamt für Raumentwicklung (ARE) — Bauzonen Schweiz harmonisiert',lat,lng,fetcher,names:['nutzungsart','typ','zone','name','bezeichnung','description'],claim:l=>`The harmonised Swiss building-zone layer returns ${l} at the selected coordinate.`,limitation:'The harmonised federal building-zone dataset is planning context only. It does not certify development rights, permitted use, density, setbacks or a current binding communal/cantonal decision; verify the ÖREB extract and competent planning authority.'}),
+    mappedLayer({id:'ch-building-zone',category:'Planning context',layer:BUILDING_ZONES,sourceName:'Bundesamt für Raumentwicklung (ARE) — Bauzonen Schweiz harmonisiert',lat,lng,fetcher,names:['ch_bez_d','nutzungsart','typ','zone','label','bezeichnung','description','name'],claim:l=>`The harmonised Swiss building-zone layer returns ${l} at the selected coordinate.`,limitation:'The harmonised federal building-zone dataset is planning context only. It does not certify development rights, permitted use, density, setbacks or a current binding communal/cantonal decision; verify the ÖREB extract and competent planning authority.'}),
     contaminatedSites(lat,lng,fetcher)
   ]);
   return [bedrock,unconsolidated,hydro,groundwater,seismicSubsoil,buildingZone,kbs];

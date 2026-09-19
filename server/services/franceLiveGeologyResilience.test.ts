@@ -85,3 +85,36 @@ test('France live-like BRGM inventory reaches WFS lithology fallback and keeps o
   const featureInfoUrls = requested.filter(url => /REQUEST=GetFeatureInfo/i.test(url));
   assert.ok(featureInfoUrls.every(url => !/PERIMETRE|CATALOG|GUADELOUPE|MARTINIQUE/i.test(url)), 'catalogue/perimeter/overseas layers must not consume geology query attempts');
 });
+
+test('France BRGM 1M fallback never maps CODE_GEOL or SHAPE metrics as reader geology', async () => {
+  clearOperationalMetadata();
+  const malformedSemanticFeature = `<?xml version="1.0"?>
+  <wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs" xmlns:gml="http://www.opengis.net/gml" xmlns:brgm="urn:brgm">
+    <gml:featureMember><brgm:LITHO_1M_SIMPLIFIEE>
+      <brgm:OBJECTID>2025</brgm:OBJECTID>
+      <brgm:CODE_GEOL>2</brgm:CODE_GEOL>
+      <brgm:SHAPE_Leng>2174843.18245999980</brgm:SHAPE_Leng>
+      <brgm:SHAPE_Area>9818669941.80999950</brgm:SHAPE_Area>
+      <brgm:DESCR>Calcaires, marnes et gypse</brgm:DESCR>
+      <brgm:TYPE>Roches Sédimentaires</brgm:TYPE>
+      <gml:Polygon><gml:outerBoundaryIs><gml:LinearRing><gml:coordinates>2.35,48.85 2.36,48.85 2.36,48.86 2.35,48.86 2.35,48.85</gml:coordinates></gml:LinearRing></gml:outerBoundaryIs></gml:Polygon>
+    </brgm:LITHO_1M_SIMPLIFIEE></gml:featureMember>
+  </wfs:FeatureCollection>`;
+  const fetcher = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.startsWith('https://geoservices.brgm.fr/geologie') && /SERVICE=WMS.*REQUEST=GetCapabilities/i.test(url)) return response(liveLikeGeologyCapabilities);
+    if (url.startsWith('https://geoservices.brgm.fr/risques') && /SERVICE=WMS.*REQUEST=GetCapabilities/i.test(url)) return response(riskCapabilities);
+    if (url.startsWith('https://geoservices.brgm.fr/geologie') && /SERVICE=WFS.*REQUEST=GetCapabilities/i.test(url)) return response(wfsCapabilities);
+    if (/SERVICE=WFS/i.test(url) && /REQUEST=GetFeature/i.test(url) && /LITHO_1M_SIMPLIFIEE/i.test(url)) return response(malformedSemanticFeature, 'application/gml+xml');
+    if (/SERVICE=WFS/i.test(url) && /REQUEST=GetFeature/i.test(url)) return response(emptyFeatures, 'application/gml+xml');
+    if (/REQUEST=GetFeatureInfo/i.test(url)) return response(JSON.stringify({ features: [] }), 'application/json');
+    return response('', 'text/plain', 404);
+  }) as typeof fetch;
+
+  const items = await queryFranceSiteEvidence(48.8566, 2.3522, fetcher);
+  const geology = items.find(item => item.id === 'fr-brgm-geology-site');
+  assert.equal(geology?.status, 'VERIFIED');
+  assert.equal((geology?.value as any)?.unit, null);
+  assert.equal((geology?.value as any)?.lithology, 'Calcaires, marnes et gypse');
+  assert.notEqual((geology?.value as any)?.lithology, '2174843.18245999980');
+});
