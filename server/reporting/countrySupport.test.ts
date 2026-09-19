@@ -230,7 +230,10 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.equal(be.maturity, 'LIMITED');
   assert.equal(be.capabilities.nationalCadastre, true); assert.equal(be.capabilities.nationalGeology, true); assert.equal(be.capabilities.nationalBoreholes, false);
   assert.equal(be.capabilities.nationalHydrogeology, false); assert.equal(be.capabilities.nationalFlood, false); assert.equal(be.capabilities.nationalPlanning, false); assert.equal(be.capabilities.nationalValuation, false);
-  for (const code of ['IT', 'CH', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  const ch = getCountrySupport('CH');
+  assert.equal(ch.maturity, 'LIMITED'); assert.equal(ch.capabilities.nationalCadastre, true); assert.equal(ch.capabilities.nationalGeology, true); assert.equal(ch.capabilities.nationalHydrogeology, true);
+  assert.equal(ch.capabilities.nationalFlood, false); assert.equal(ch.capabilities.nationalPlanning, false); assert.equal(ch.capabilities.nationalValuation, false); assert.equal(ch.capabilities.nationalRadon, false); assert.equal(ch.capabilities.nationalMining, false);
+  for (const code of ['IT', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });
