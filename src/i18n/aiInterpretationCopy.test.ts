@@ -45,3 +45,21 @@ test('Slovak AI interpretation shell is localized', () => {
   assert.equal(copy.low, 'Nízka');
   assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
 });
+
+
+test('German AI interpretation shell is localized', () => {
+  const copy = aiPanelCopy('de');
+  const text = Object.values(copy).join('\n');
+  assert.equal(copy.brand, 'LandSurf KI-Interpretation');
+  assert.equal(copy.title, 'Gesammelte Evidenz interpretieren');
+  assert.equal(copy.completed, 'Interpretation abgeschlossen');
+  assert.equal(copy.observations, 'Direkte Beobachtungen');
+  assert.equal(copy.limitations, 'Einschränkungen');
+  assert.equal(copy.verifyNext, 'Als Nächstes zu prüfen');
+  assert.equal(copy.runAgain, 'Erneut ausführen');
+  assert.equal(copy.confidence, 'Konfidenz');
+  assert.equal(copy.high, 'Hoch');
+  assert.equal(copy.medium, 'Mittel');
+  assert.equal(copy.low, 'Niedrig');
+  assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
+});
