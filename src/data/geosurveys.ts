@@ -33,10 +33,10 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
     datasets: ['BRGM Carte géologique de la France 1:50 000 (InfoTerre)', 'Banque du Sous-Sol (BSS) – Sondages et forages géologiques', 'Géorisques – Retrait-gonflement des argiles (RGA) & Cavités souterraines', 'Géoportail de l\'Urbanisme (GPU – Plans Locaux d\'Urbanisme PLU/PLUi)', 'Demandes de Valeurs Foncières (DVF / Etalab – Prix réels des parcelles)']
   },
   CH: {
-    countryCode: 'CH', countryName: 'Switzerland', authorityName: 'Bundesamt für Landestopografie Swisstopo (Geologischer Landesatlas)', acronym: 'Swisstopo',
-    officialPortalUrl: 'https://www.swisstopo.admin.ch', mapViewerUrl: 'https://map.geo.admin.ch/?layers=ch.swisstopo.geologie-geocover', cadastrePortalUrl: 'https://www.cadastre.ch', hazardPortalUrl: 'https://map.geo.admin.ch/?layers=ch.bafu.gefaehrdungskarte-oberflaechenabfluss',
-    description: 'Swisstopo GeoCover Geologischer Atlas der Schweiz 1:25 000 & ÖREB-Kataster',
-    datasets: ['Swisstopo GeoCover – Geologischer Vektor-Atlas 1:25 000', 'ÖREB-Kataster (Öffentlich-rechtliche Eigentumsbeschränkungen)', 'BAFU Gefährdungskarten (Oberflächenabfluss & Rutschungen)', 'Hydrogeologische Karte der Schweiz 1:100 000']
+    countryCode: 'CH', countryName: 'Switzerland', authorityName: 'Bundesamt für Landestopografie swisstopo – Landesgeologie', acronym: 'swisstopo',
+    officialPortalUrl: 'https://www.swisstopo.admin.ch', mapViewerUrl: 'https://map.geo.admin.ch/?layers=ch.swisstopo.geologie-swissgeocover2d_bedrock', cadastrePortalUrl: 'https://www.cadastre.ch', hazardPortalUrl: 'https://map.geo.admin.ch/?layers=ch.bafu.gefaehrdungskarte-oberflaechenabfluss',
+    description: 'swissGEOCOVER2D – harmonisierte digitale geologische 2D-Daten der Schweiz & ÖREB-Kataster',
+    datasets: ['swisstopo swissGEOCOVER2D – bedrock and unconsolidated deposits', 'ÖREB-Kataster (Öffentlich-rechtliche Eigentumsbeschränkungen)', 'BAFU Gefährdungskarten (Oberflächenabfluss & Rutschungen)', 'Hydrogeologische Karte der Schweiz 1:100 000']
   },
   AT: {
     countryCode: 'AT', countryName: 'Austria', authorityName: 'Geologische Bundesanstalt / GeoSphere Austria', acronym: 'GeoSphere Austria',
