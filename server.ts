@@ -443,10 +443,10 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
         evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Swiss federal geology and/or hydrogeology returned official mapped context at the selected coordinate. These sources are credited as screening evidence without inferring parcel stratigraphy, groundwater depth or design parameters.';
       }
-      const environmentalVerified = switzerlandNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['ch-kbs-contaminated-sites','ch-surface-runoff'].includes(item.id));
+      const environmentalVerified = switzerlandNationalEvidence.some((item: any) => item.status === 'VERIFIED' && item.id === 'ch-kbs-contaminated-sites');
       if (environmentalVerified && evidenceReport.evidenceScore?.breakdown?.environmentalAndFlood) {
         evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score = Math.max(8, Number(evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score) || 0);
-        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'Swiss official contaminated-site and/or surface-runoff screening responded at the selected coordinate. This is credited as environmental screening, not as proof of clean ground or statutory flood clearance.';
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'The harmonised cantonal contaminated-site register responded for the selected coordinate. This is credited as environmental screening, not as proof of clean ground; Swiss flood-hazard status still requires the competent cantonal/ÖREB source.';
       }
       const buildingZoneVerified = switzerlandNationalEvidence.some((item: any) => item.id === 'ch-building-zone' && item.status === 'VERIFIED');
       if (buildingZoneVerified && evidenceReport.evidenceScore?.breakdown?.planningAndMarket) {
