@@ -27,6 +27,8 @@ import { applyBelgiumCadastreToReport, queryBelgiumCadastre } from './server/ser
 import { enrichBelgiumNationalEvidence, queryBelgiumNationalEvidence } from './server/services/belgiumNationalEvidenceService';
 import { applySwitzerlandCadastreToReport, querySwitzerlandCadastre } from './server/services/switzerlandCadastreService';
 import { enrichSwitzerlandNationalEvidence, querySwitzerlandNationalEvidence } from './server/services/switzerlandNationalEvidenceService';
+import { applyMaltaCadastreToReport, queryMaltaCadastre } from './server/services/maltaCadastreService';
+import { enrichMaltaNationalEvidence, queryMaltaNationalEvidence } from './server/services/maltaNationalEvidenceService';
 import { getCenterFromShape, resolveSiteLocation } from './server/services/locationResolutionService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
@@ -171,6 +173,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let luxembourgCadastre: any = null;
     let belgiumCadastre: any = null;
     let switzerlandCadastre: any = null;
+    let maltaCadastre: any = null;
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -220,6 +223,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: switzerlandCadastre.sourceName, organization: 'Amtliche Vermessung Schweiz / swisstopo / cantonal surveying authorities', url: switzerlandCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Switzerland official cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'MT' && support.capabilities.nationalCadastre) {
+      stage = 'malta-cadastre';
+      try {
+        maltaCadastre = await queryMaltaCadastre(lat, lng);
+        applyMaltaCadastreToReport(evidenceReport, maltaCadastre, areaSize);
+        if (maltaCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(12, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'The Malta Land Registry / Planning Authority registered-land WFS returned a parcel polygon at the selected coordinate. It is credited as official open-data screening, not as a legally conclusive title or surveyed-boundary determination.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: maltaCadastre.sourceName, organization: 'Malta Land Registry / Planning Authority', url: maltaCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Malta registered parcel notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'NL' && support.capabilities.nationalCadastre) {
       stage = 'netherlands-cadastre';
       try {
@@ -340,6 +357,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let luxembourgNationalEvidence: any[] = [];
     let belgiumNationalEvidence: any[] = [];
     let switzerlandNationalEvidence: any[] = [];
+    let maltaNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -455,6 +473,29 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
       evidenceReport.dataSourcesCited.push({ name: 'swisstopo swissGEOCOVER2D / BAFU federal geodata', organization: 'swisstopo / Bundesamt für Umwelt (BAFU)', url: 'https://map.geo.admin.ch/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+    } else if (!countryLocationMismatch && countryCode === 'MT' && (support.capabilities.nationalGeology || support.capabilities.nationalHydrogeology || support.capabilities.nationalFlood)) {
+      stage = 'malta-national-evidence';
+      try { maltaNationalEvidence = await queryMaltaNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Malta national evidence notice:`, e); }
+      stage = 'malta-report-enrichment';
+      if (maltaNationalEvidence.length) evidenceReport.evidenceRegistry.push(...maltaNationalEvidence);
+      try { enrichMaltaNationalEvidence(evidenceReport, maltaNationalEvidence); } catch (e) { console.warn(`[${diagnosticId}] Malta evidence enrichment notice:`, e); }
+
+      const verifiedGround = maltaNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['mt-geology-bedrock','mt-geology-superficial','mt-geology-artificial','mt-groundwater-body'].includes(item.id));
+      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Malta national 1:10,000 geology and/or official groundwater mapping returned site-specific mapped context. These sources are credited as screening evidence without inferring parcel design parameters or groundwater depth.';
+      }
+
+      const officialFlood = maltaNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['mt-flood-hazard','mt-flood-risk'].includes(item.id));
+      const environmental = maltaNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['mt-groundwater-protection','mt-natura2000'].includes(item.id));
+      if ((officialFlood || environmental) && evidenceReport.evidenceScore?.breakdown?.environmentalAndFlood) {
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score = Math.max(10, Number(evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score) || 0);
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'Official Malta Floods Directive, groundwater-protection and/or Natura 2000 WFS layers responded for direct centre-point screening. This is not parcel-wide flood, ecological or regulatory clearance.';
+      }
+
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => !['Geological Survey','Hydrological Registry'].includes(source?.type)) : [];
+      evidenceReport.dataSourcesCited.push({ name: 'Geological Survey of Malta — Geological Map of the Maltese Islands 1:10,000', organization: 'Continental Shelf Department', url: 'https://continentalshelf.gov.mt/geological-survey/geological-map/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+      evidenceReport.dataSourcesCited.push({ name: 'Malta Floods Directive — Flood Hazard / Flood Risk Areas', organization: 'Energy & Water Agency / Planning Authority', url: 'https://portal.data.gov.mt/dataset/flood-hazard-areas', type: 'Hydrological Registry', status: officialFlood ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'SE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
       stage = 'sweden-ground-evidence';
       try { swedenGroundEvidence = await querySwedenGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden evidence notice:`, e); }
@@ -566,7 +607,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       : areaSize;
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && valuationAreaM2 !== null && valuationAreaM2 > 0 ? value / valuationAreaM2 : null;
     const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
-    const registeredAreaM2 = hasOfficialParcel || (countryCode === 'NL' && netherlandsCadastre?.success) || (countryCode === 'BE' && belgiumCadastre?.success)
+    const registeredAreaM2 = hasOfficialParcel || (countryCode === 'NL' && netherlandsCadastre?.success) || (countryCode === 'BE' && belgiumCadastre?.success) || (countryCode === 'MT' && maltaCadastre?.success)
       ? evidenceReport.parcel?.officialAreaM2 ?? null : null;
 
     const reportData = {
@@ -581,6 +622,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       belgium_cadastre: belgiumCadastre?.success ? evidenceReport.belgium_cadastre : null,
       switzerland_cadastre: switzerlandCadastre?.success ? evidenceReport.switzerland_cadastre : null,
       switzerland_contaminated_site: evidenceReport.switzerland_contaminated_site || null,
+      malta_cadastre: maltaCadastre?.success ? evidenceReport.malta_cadastre : null,
+      malta_ground_context: evidenceReport.malta_ground_context || null,
       belgium_region: evidenceReport.belgium_region || null,
       canonical_evidence: canonicalReport,
       evidence_registry: evidenceDisplayRecords,
@@ -620,6 +663,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       belgium_national_evidence_count: belgiumNationalEvidence.length,
       switzerland_cadastre_evidence_count: Array.isArray(switzerlandCadastre?.evidence) ? switzerlandCadastre.evidence.length : 0,
       switzerland_national_evidence_count: switzerlandNationalEvidence.length,
+      malta_cadastre_evidence_count: Array.isArray(maltaCadastre?.evidence) ? maltaCadastre.evidence.length : 0,
+      malta_national_evidence_count: maltaNationalEvidence.length,
       europe_valuation_evidence: europeValuationEvidence ? { id: europeValuationEvidence.id, status: europeValuationEvidence.status, source: europeValuationEvidence.sourceName } : null,
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };

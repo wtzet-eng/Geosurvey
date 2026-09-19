@@ -175,6 +175,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     baseValuationPerSqm: 0,
     valuationDataSource: NO_GENERIC_VALUE
   },
+  MT: {
+    countryCode: 'MT', countryName: 'Malta', currency: 'EUR', symbol: '€',
+    cadastreAuthority: 'Malta Land Registry / Planning Authority — Parcels of Registered Land', cadastrePortalUrl: 'https://portal.data.gov.mt/dataset/parcels-of-registered-land',
+    geologyAuthority: 'Continental Shelf Department — Geological Survey of Malta', geologyPortalUrl: 'https://continentalshelf.gov.mt/geological-survey/geological-map/',
+    floodAuthority: 'Energy & Water Agency / Planning Authority — Floods Directive layers', floodPortalUrl: 'https://portal.data.gov.mt/dataset/flood-hazard-areas',
+    planningInstrumentName: 'Planning Authority Local Plans / Development Planning Act / applicable development-zone and policy maps',
+    standardSetbackRule: 'Development-control and local-plan requirements depend on the site and proposal; confirm with the Malta Planning Authority',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   EU: {
     countryCode: 'EU', countryName: 'Europe', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'National cadastral authority / INSPIRE cadastral parcels', cadastrePortalUrl: 'https://inspire.ec.europa.eu/',

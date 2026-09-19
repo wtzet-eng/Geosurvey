@@ -262,9 +262,60 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   const ch = getCountrySupport('CH');
   assert.equal(ch.maturity, 'LIMITED'); assert.equal(ch.capabilities.nationalCadastre, true); assert.equal(ch.capabilities.nationalGeology, true); assert.equal(ch.capabilities.nationalHydrogeology, true);
   assert.equal(ch.capabilities.nationalFlood, false); assert.equal(ch.capabilities.nationalPlanning, false); assert.equal(ch.capabilities.nationalValuation, false); assert.equal(ch.capabilities.nationalRadon, false); assert.equal(ch.capabilities.nationalMining, false);
-  for (const code of ['IT', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  const mt = getCountrySupport('MT');
+  assert.equal(mt.maturity, 'LIMITED'); assert.equal(mt.capabilities.nationalCadastre, true); assert.equal(mt.capabilities.nationalGeology, true);
+  assert.equal(mt.capabilities.nationalHydrogeology, true); assert.equal(mt.capabilities.nationalFlood, true);
+  assert.equal(mt.capabilities.nationalPlanning, false); assert.equal(mt.capabilities.nationalValuation, false); assert.equal(mt.capabilities.nationalRadon, false); assert.equal(mt.capabilities.nationalMining, false);
+  const mtProfile = getCountryProfile('MT');
+  assert.match(mtProfile.cadastreAuthority, /Malta Land Registry|Registered Land/i);
+  assert.match(mtProfile.geologyAuthority, /Geological Survey of Malta|Continental Shelf/i);
+  assert.doesNotMatch(mtProfile.geologyAuthority, /EuroGeoSurveys/i);
+  for (const code of ['IT', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
+});
+
+test('Malta national flood remains fail-closed until official flood evidence is verified', () => {
+  const raw = rawReport('MT');
+  const modelOnly = createCanonicalReport(raw, getCountryProfile('MT'));
+  assert.equal(modelOnly.flood.classification, null);
+  assert.equal(modelOnly.flood.status, 'REQUIRES_VERIFICATION');
+
+  raw.terrain.floodInundationRisk = {
+    ...raw.terrain.floodInundationRisk,
+    status: 'VERIFIED',
+    level: 'High',
+    statutoryZoneStatus: 'Official Malta Floods Directive layer overlaps selected coordinate',
+    sourceName: 'Malta Floods Directive — Flood Hazard / Flood Risk Areas'
+  };
+  raw.evidenceRegistry.push({
+    id: 'mt-flood-risk', category: 'Flood risk', claim: 'Official flood-risk layer overlaps the site', status: 'VERIFIED',
+    sourceName: 'Malta Floods Directive — Flood Risk Areas', sourceUrl: 'https://portal.data.gov.mt/dataset/flood-risk-areas',
+    datasetDate: '2026-09-19', spatialRelationship: 'site', calculationMethod: 'official WFS point screen', confidence: 'High',
+    limitation: 'centre-point screen'
+  });
+  const verified = createCanonicalReport(raw, getCountryProfile('MT'));
+  assert.equal(verified.flood.classification, 'HIGH');
+  assert.equal(verified.flood.status, 'VERIFIED');
+  assert.match(verified.flood.sourceName, /Malta Floods Directive/);
+});
+
+test('Malta evidence score stays below Robust until binding planning is automated', () => {
+  const raw = rawReport('MT');
+  raw.evidenceScore.breakdown = {
+    cadastreAndGeometry: { score: 20, max: 20, rationale: 'official parcel screening' },
+    terrainAndElevation: { score: 20, max: 20, rationale: 'terrain' },
+    geologyAndGroundwater: { score: 20, max: 20, rationale: 'official geology' },
+    infrastructureAndAccess: { score: 15, max: 15, rationale: 'access' },
+    environmentalAndFlood: { score: 15, max: 15, rationale: 'official environment' },
+    planningAndMarket: { score: 10, max: 10, rationale: 'fixture only' }
+  };
+  raw.evidenceScore.totalScore = 100;
+  const canonical = createCanonicalReport(raw, getCountryProfile('MT'));
+  assert.equal(canonical.evidenceScore.totalScore, 74);
+  assert.match(canonical.evidenceScore.cappingApplied || '', /binding development-zone|local-plan/i);
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
 });
 
 test('unsupported limited country still withholds national conclusions and valuation', () => {

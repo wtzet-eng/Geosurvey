@@ -11,6 +11,8 @@ test('report languages put the selected country native language first and Englis
   assert.deepEqual(codes('PL', 'pl').slice(0, 2), ['pl', 'en']);
   assert.deepEqual(codes('NL', 'nl').slice(0, 2), ['nl', 'en']);
   assert.deepEqual(codes('FR', 'fr').slice(0, 2), ['fr', 'en']);
+  assert.equal(codes('MT', 'mt')[0], 'en');
+  assert.equal(codes('MT', 'mt').includes('mt'), false);
 });
 
 test('country-specific report packs remain limited to their own countries', () => {
