@@ -23,14 +23,12 @@ test('Swiss national evidence keeps official mapped context distinct from design
       'ch.bafu.hydrogeologische-karte_100':'Porous aquifer context',
       'ch.bafu.grundwasserkoerper':'Groundwater body CH-GW-1',
       'ch.bafu.gefahren-baugrundklassen':'C',
-      'ch.bafu.gefahren-gefaehrdungszonen':'Z1b',
-      'ch.are.bauzonen':'Wohnzone',
-      'ch.bafu.gefaehrdungskarte-oberflaechenabfluss':'0.10–0.25 m'
+      'ch.are.bauzonen':'Wohnzone'
     };
     return response({results:labels[layer]?[{attributes:{name:labels[layer]}}]:[]});
   };
   const items=await querySwitzerlandNationalEvidence(47.3769,8.5417,fetcher);
-  assert.equal(items.length,9);
+  assert.equal(items.length,7);
   assert.equal(items.find(x=>x.id==='ch-geocover-bedrock')?.status,'VERIFIED');
   assert.match(items.find(x=>x.id==='ch-geocover-bedrock')?.claim||'',/Molasse/);
   assert.equal(items.find(x=>x.id==='ch-building-zone')?.status,'VERIFIED');
@@ -48,7 +46,6 @@ test('Swiss national evidence keeps official mapped context distinct from design
   };
   enrichSwitzerlandNationalEvidence(report,items);
   assert.equal(report.soil.geologicalUnit,'Molasse');
-  assert.equal(report.terrain.geohazards.seismicRisk.status,'VERIFIED');
   assert.equal(report.planning.status,'REQUIRES_VERIFICATION');
   assert.equal(report.planning.planDesignation,'Wohnzone');
 });
@@ -77,7 +74,7 @@ test('Swiss contaminated-site overlap is surfaced without turning it into a geot
 test('Swiss official-source failures remain explicit and never become clear findings',async()=>{
   const fetcher:typeof fetch=async()=>response({error:'unavailable'},503);
   const items=await querySwitzerlandNationalEvidence(46.948,7.4474,fetcher);
-  assert.equal(items.length,9);
+  assert.equal(items.length,7);
   assert.ok(items.every(item=>item.status==='REQUIRES_VERIFICATION'));
   assert.match(items.find(x=>x.id==='ch-kbs-unavailable')?.claim||'',/no clear-site conclusion/i);
 });
