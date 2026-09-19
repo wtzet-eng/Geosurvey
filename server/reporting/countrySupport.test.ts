@@ -92,6 +92,35 @@ test('Belgium preserves the exact verified regional geology source and withholds
   assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
 });
 
+test('Switzerland preserves official geology and contextual building-zone evidence without claiming binding planning or valuation', () => {
+  const raw = rawReport('CH');
+  raw.geosurvey_context = {
+    geological_unit_name: 'Molasse',
+    evidence_level: 'VERIFIED',
+    source_name: 'swisstopo — swissGEOCOVER2D bedrock',
+    source_url: 'https://api3.geo.admin.ch/rest/services/api/MapServer/ch.swisstopo.geologie-swissgeocover2d_bedrock/legend'
+  };
+  raw.evidenceRegistry.push({
+    id: 'ch-geocover-bedrock', category: 'Mapped bedrock geology', claim: 'swissGEOCOVER2D maps Molasse.', status: 'VERIFIED',
+    sourceName: 'swisstopo — swissGEOCOVER2D bedrock', sourceUrl: 'https://api3.geo.admin.ch/', datasetDate: '2026-09-19',
+    spatialRelationship: 'site', calculationMethod: 'official identify', confidence: 'High', limitation: 'screening'
+  }, {
+    id: 'ch-building-zone', category: 'Planning context', claim: 'ARE harmonised building-zone context: Wohnzone.', status: 'VERIFIED',
+    sourceName: 'ARE — Bauzonen Schweiz harmonisiert', sourceUrl: 'https://map.geo.admin.ch/', datasetDate: '2026-09-19',
+    spatialRelationship: 'site', calculationMethod: 'official identify', confidence: 'High',
+    limitation: 'Context only; binding planning and ÖREB still require verification.'
+  });
+  const canonical = createCanonicalReport(raw, getCountryProfile('CH'));
+  assert.equal(canonical.geology.unitName, 'Molasse');
+  assert.match(canonical.geology.sourceName, /swissGEOCOVER2D/);
+  assert.equal(canonical.evidenceRecords.some(item => item.id === 'ch-building-zone'), true);
+  assert.equal(canonical.planning.status, 'REQUIRES_VERIFICATION');
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.valuation.min, null);
+  assert.equal(canonical.valuation.max, null);
+  assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+});
+
 test('Czech national radon and mining conclusions require verified official evidence', () => {
   const raw = rawReport('CZ');
   raw.evidenceRegistry.push(
