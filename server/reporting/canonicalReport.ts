@@ -226,6 +226,10 @@ function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountryS
     totalScore = 74;
     cappingApplied = 'Overall Irish evidence quality is capped below Robust while binding planning and automated national flood mapping remain outside current coverage.';
   }
+  if (support.countryCode === 'MT' && !c.nationalPlanning && totalScore > 74) {
+    totalScore = 74;
+    cappingApplied = 'Overall Malta evidence quality is capped below Robust while binding development-zone/local-plan acquisition remains outside current automated coverage.';
+  }
   const ratingClass: CanonicalEvidenceScore['ratingClass'] = totalScore >= 75 ? 'Robust Evidence (75-100)' : totalScore >= 50 ? 'Moderate Evidence (50-74)' : 'Preliminary / Low Evidence (<50)';
   const verifiedCount = evidenceRecords.filter(record => record.status === 'VERIFIED').length;
   const modelledCount = evidenceRecords.filter(record => record.status === 'MODELLED').length;
@@ -400,8 +404,8 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     flood: countryLocationMismatch
       ? { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: mismatchSourceName, reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' }
       : c.nationalFlood
-      ? riskCode(report.terrain.floodInundationRisk.level)
-        ? { classification: riskCode(report.terrain.floodInundationRisk.level), status: report.terrain.floodInundationRisk.status, distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: report.terrain.floodInundationRisk.sourceName, reasonCode: undefined }
+      ? (report.terrain.floodInundationRisk.status === 'VERIFIED' && riskCode(report.terrain.floodInundationRisk.level))
+        ? { classification: riskCode(report.terrain.floodInundationRisk.level), status: 'VERIFIED', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: report.terrain.floodInundationRisk.sourceName, reasonCode: undefined }
         : { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: report.terrain.floodInundationRisk.sourceName, reasonCode: evidenceReason(report, /flood/i) || 'AUTHORITATIVE_DATA_REQUIRED' }
       : { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: profile.floodAuthority, reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     soil: { texture: soilTexture, bearingCapacity: null, sandPct: finite(report.soil.topsoilSandPct), siltPct: finite(report.soil.topsoilSiltPct), clayPct: finite(report.soil.topsoilClayPct), ph: finite(report.soil.meanPhH2O), status: report.soil.status, sourceName: report.soil.sourceName, sourceUrl: report.soil.sourceUrl || null, reasonCode: soilAvailable ? undefined : evidenceReason(report, /soilgrids|soil/i) || 'SOURCE_UNAVAILABLE' },
