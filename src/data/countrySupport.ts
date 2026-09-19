@@ -61,7 +61,8 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   AT: valuationOnly('AT'), ES: valuationOnly('ES'), FI: valuationOnly('FI'),
   IE: { countryCode: 'IE', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true, nationalValuation: true, nationalRadon: true } },
   LU: { countryCode: 'LU', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true, nationalFlood: true, nationalPlanning: true, nationalValuation: true } },
-  BE: { countryCode: 'BE', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } }
+  BE: { countryCode: 'BE', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } },
+  CH: { countryCode: 'CH', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true } }
 };
 
 export function getCountrySupport(countryCode: string): CountrySupportProfile {
