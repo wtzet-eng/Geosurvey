@@ -14,10 +14,11 @@ import {
 } from 'lucide-react';
 
 import { BoundaryShape, BoundaryType, SiteReport } from './types';
-import { EUROPEAN_COUNTRIES, REPORT_LANGUAGES } from './data/countries';
+import { EUROPEAN_COUNTRIES } from './data/countries';
 import { getCountrySupport } from './data/countrySupport';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
 import { getBrowserLanguage, getFrontPageI18n, getLocalizedTagline } from './utils/i18nTitle';
+import { getAvailableReportLanguages, normalizeReportLanguage, REPORT_LANGUAGE_OPTIONS } from './utils/reportLanguageOptions';
 import { getBoundaryStatusText } from './utils/boundaryStatusI18n';
 import { getActionText } from './utils/actionI18n';
 import { MapPicker } from './components/MapPicker';
@@ -27,28 +28,9 @@ import { SavedReportsModal } from './components/SavedReportsModal';
 import { EmbedModal } from './components/EmbedModal';
 import { SiteComparisonModal } from './components/SiteComparisonModal';
 
-const REPORT_LANGUAGE_OPTIONS = [
-  ...REPORT_LANGUAGES,
-  { code: 'fr', label: 'Français (French)' },
-  { code: 'es', label: 'Español (Spanish)' },
-  { code: 'fi', label: 'Suomi (Finnish)' },
-  { code: 'sk', label: 'Slovenčina (Slovak)' }
-].filter((item, index, all) => all.findIndex(other => other.code === item.code) === index);
-const SUPPORTED_REPORT_LANGUAGE_CODES = new Set(['en', 'de', 'pl', 'nl', 'cs', 'da', 'no', 'sv', 'sk', 'fr', 'es', 'fi']);
 const SELECTABLE_COUNTRIES = EUROPEAN_COUNTRIES
   .filter((country) => Object.values(getCountrySupport(country.code).capabilities).some(Boolean))
   .sort((a, b) => a.name.localeCompare(b.name, 'en'));
-
-const normalizeReportLanguage = (language: string, countryCode = '') => {
-  const rawCode = String(language || '').toLowerCase().split('-')[0];
-  const code = rawCode === 'nb' ? 'no' : rawCode;
-  if (code === 'sk') return countryCode === 'SK' ? 'sk' : 'en';
-  if (code === 'cs') return countryCode === 'CZ' ? 'cs' : 'en';
-  if (code === 'da') return countryCode === 'DK' ? 'da' : 'en';
-  if (code === 'no') return countryCode === 'NO' ? 'no' : 'en';
-  if (code === 'sv') return countryCode === 'SE' ? 'sv' : 'en';
-  return SUPPORTED_REPORT_LANGUAGE_CODES.has(code) ? code : 'en';
-};
 
 const SLOVAK_FRONT_PAGE = {
   badge: 'Európska platforma pre stavebné pozemky a geologické riziká',
@@ -162,14 +144,7 @@ export default function App() {
       ]
     : SELECTABLE_COUNTRIES;
   const currentCountry = EUROPEAN_COUNTRIES.find((c) => c.code === countryCode) || SELECTABLE_COUNTRIES[0] || EUROPEAN_COUNTRIES[0];
-  const availableReportLanguages = REPORT_LANGUAGE_OPTIONS.filter((language) => {
-    if (language.code === 'sk') return countryCode === 'SK';
-    if (language.code === 'cs') return countryCode === 'CZ';
-    if (language.code === 'da') return countryCode === 'DK';
-    if (language.code === 'no') return countryCode === 'NO';
-    if (language.code === 'sv') return countryCode === 'SE';
-    return true;
-  });
+  const availableReportLanguages = getAvailableReportLanguages(countryCode, currentCountry.language);
   const fp = languageCode === 'sk' ? SLOVAK_FRONT_PAGE : NATIVE_FRONT_PAGES[languageCode] || getFrontPageI18n(languageCode);
   const boundaryText = getBoundaryStatusText(languageCode);
   const actionText = getActionText(languageCode);

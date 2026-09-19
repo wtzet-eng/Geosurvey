@@ -92,6 +92,35 @@ test('Belgium preserves the exact verified regional geology source and withholds
   assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
 });
 
+test('Switzerland preserves official geology and contextual building-zone evidence without claiming binding planning or valuation', () => {
+  const raw = rawReport('CH');
+  raw.geosurvey_context = {
+    geological_unit_name: 'Molasse',
+    evidence_level: 'VERIFIED',
+    source_name: 'swisstopo — swissGEOCOVER2D bedrock',
+    source_url: 'https://api3.geo.admin.ch/rest/services/api/MapServer/ch.swisstopo.geologie-swissgeocover2d_bedrock/legend'
+  };
+  raw.evidenceRegistry.push({
+    id: 'ch-geocover-bedrock', category: 'Mapped bedrock geology', claim: 'swissGEOCOVER2D maps Molasse.', status: 'VERIFIED',
+    sourceName: 'swisstopo — swissGEOCOVER2D bedrock', sourceUrl: 'https://api3.geo.admin.ch/', datasetDate: '2026-09-19',
+    spatialRelationship: 'site', calculationMethod: 'official identify', confidence: 'High', limitation: 'screening'
+  }, {
+    id: 'ch-building-zone', category: 'Planning context', claim: 'ARE harmonised building-zone context: Wohnzone.', status: 'VERIFIED',
+    sourceName: 'ARE — Bauzonen Schweiz harmonisiert', sourceUrl: 'https://map.geo.admin.ch/', datasetDate: '2026-09-19',
+    spatialRelationship: 'site', calculationMethod: 'official identify', confidence: 'High',
+    limitation: 'Context only; binding planning and ÖREB still require verification.'
+  });
+  const canonical = createCanonicalReport(raw, getCountryProfile('CH'));
+  assert.equal(canonical.geology.unitName, 'Molasse');
+  assert.match(canonical.geology.sourceName, /swissGEOCOVER2D/);
+  assert.equal(canonical.evidenceRecords.some(item => item.id === 'ch-building-zone'), true);
+  assert.equal(canonical.planning.status, 'REQUIRES_VERIFICATION');
+  assert.equal(canonical.planning.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+  assert.equal(canonical.valuation.min, null);
+  assert.equal(canonical.valuation.max, null);
+  assert.equal(canonical.valuation.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
+});
+
 test('Czech national radon and mining conclusions require verified official evidence', () => {
   const raw = rawReport('CZ');
   raw.evidenceRegistry.push(
@@ -230,7 +259,10 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.equal(be.maturity, 'LIMITED');
   assert.equal(be.capabilities.nationalCadastre, true); assert.equal(be.capabilities.nationalGeology, true); assert.equal(be.capabilities.nationalBoreholes, false);
   assert.equal(be.capabilities.nationalHydrogeology, false); assert.equal(be.capabilities.nationalFlood, false); assert.equal(be.capabilities.nationalPlanning, false); assert.equal(be.capabilities.nationalValuation, false);
-  for (const code of ['IT', 'CH', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  const ch = getCountrySupport('CH');
+  assert.equal(ch.maturity, 'LIMITED'); assert.equal(ch.capabilities.nationalCadastre, true); assert.equal(ch.capabilities.nationalGeology, true); assert.equal(ch.capabilities.nationalHydrogeology, true);
+  assert.equal(ch.capabilities.nationalFlood, false); assert.equal(ch.capabilities.nationalPlanning, false); assert.equal(ch.capabilities.nationalValuation, false); assert.equal(ch.capabilities.nationalRadon, false); assert.equal(ch.capabilities.nationalMining, false);
+  for (const code of ['IT', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'MT', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });

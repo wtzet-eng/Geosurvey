@@ -25,6 +25,8 @@ import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './serv
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
 import { applyBelgiumCadastreToReport, queryBelgiumCadastre } from './server/services/belgiumCadastreService';
 import { enrichBelgiumNationalEvidence, queryBelgiumNationalEvidence } from './server/services/belgiumNationalEvidenceService';
+import { applySwitzerlandCadastreToReport, querySwitzerlandCadastre } from './server/services/switzerlandCadastreService';
+import { enrichSwitzerlandNationalEvidence, querySwitzerlandNationalEvidence } from './server/services/switzerlandNationalEvidenceService';
 import { getCenterFromShape, resolveSiteLocation } from './server/services/locationResolutionService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
@@ -168,6 +170,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let irelandCadastre: any = null;
     let luxembourgCadastre: any = null;
     let belgiumCadastre: any = null;
+    let switzerlandCadastre: any = null;
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -201,6 +204,22 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: belgiumCadastre.sourceName, organization: 'FPS Finance / General Administration of Patrimonial Documentation (GAPD)', url: belgiumCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Belgium federal cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'CH' && support.capabilities.nationalCadastre) {
+      stage = 'switzerland-cadastre';
+      try {
+        switzerlandCadastre = await querySwitzerlandCadastre(lat, lng);
+        applySwitzerlandCadastreToReport(evidenceReport, switzerlandCadastre, areaSize);
+        if (switzerlandCadastre.success) {
+          municipality = switzerlandCadastre.parcel?.municipality || municipality;
+          stateName = switzerlandCadastre.parcel?.canton || stateName;
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Swiss official surveying returned the legally valid cadastral parcel polygon at the selected coordinate. This supports parcel identity and mapped geometry but does not establish ownership, land-register rights, easements or ÖREB restrictions.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: switzerlandCadastre.sourceName, organization: 'Amtliche Vermessung Schweiz / swisstopo / cantonal surveying authorities', url: switzerlandCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Switzerland official cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'NL' && support.capabilities.nationalCadastre) {
       stage = 'netherlands-cadastre';
       try {
@@ -320,6 +339,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let irelandNationalEvidence: any[] = [];
     let luxembourgNationalEvidence: any[] = [];
     let belgiumNationalEvidence: any[] = [];
+    let switzerlandNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -411,6 +431,30 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const regionalSource = belgiumNationalEvidence.find((item: any) => item.status === 'VERIFIED' && ['be-fl-geology', 'be-wa-geology'].includes(item.id));
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
       evidenceReport.dataSourcesCited.push({ name: regionalSource?.sourceName || 'Belgian regional geological authority', organization: regionalSource?.sourceName || 'Belgian regional geological authority', url: regionalSource?.sourceUrl || cProfile.geologyPortalUrl, type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+    } else if (!countryLocationMismatch && countryCode === 'CH' && (support.capabilities.nationalGeology || support.capabilities.nationalHydrogeology)) {
+      stage = 'switzerland-national-evidence';
+      try { switzerlandNationalEvidence = await querySwitzerlandNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Switzerland national evidence notice:`, e); }
+      stage = 'switzerland-report-enrichment';
+      if (switzerlandNationalEvidence.length) evidenceReport.evidenceRegistry.push(...switzerlandNationalEvidence);
+      try { enrichSwitzerlandNationalEvidence(evidenceReport, switzerlandNationalEvidence); } catch (e) { console.warn(`[${diagnosticId}] Switzerland evidence enrichment notice:`, e); }
+
+      const verifiedGround = switzerlandNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['ch-geocover-bedrock','ch-geocover-unconsolidated','ch-hydrogeology-100k','ch-groundwater-body'].includes(item.id));
+      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Swiss federal geology and/or hydrogeology returned official mapped context at the selected coordinate. These sources are credited as screening evidence without inferring parcel stratigraphy, groundwater depth or design parameters.';
+      }
+      const environmentalVerified = switzerlandNationalEvidence.some((item: any) => item.status === 'VERIFIED' && item.id === 'ch-kbs-contaminated-sites');
+      if (environmentalVerified && evidenceReport.evidenceScore?.breakdown?.environmentalAndFlood) {
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score = Math.max(8, Number(evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score) || 0);
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'The harmonised cantonal contaminated-site register responded for the selected coordinate. This is credited as environmental screening, not as proof of clean ground; Swiss flood-hazard status still requires the competent cantonal/ÖREB source.';
+      }
+      const buildingZoneVerified = switzerlandNationalEvidence.some((item: any) => item.id === 'ch-building-zone' && item.status === 'VERIFIED');
+      if (buildingZoneVerified && evidenceReport.evidenceScore?.breakdown?.planningAndMarket) {
+        evidenceReport.evidenceScore.breakdown.planningAndMarket.score = Math.max(4, Number(evidenceReport.evidenceScore.breakdown.planningAndMarket.score) || 0);
+        evidenceReport.evidenceScore.breakdown.planningAndMarket.rationale = 'ARE harmonised building-zone context was returned for the site. Binding buildability, use, density and restrictions still require the current cantonal/communal planning record and ÖREB extract; no land-market valuation is inferred.';
+      }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
+      evidenceReport.dataSourcesCited.push({ name: 'swisstopo swissGEOCOVER2D / BAFU federal geodata', organization: 'swisstopo / Bundesamt für Umwelt (BAFU)', url: 'https://map.geo.admin.ch/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'SE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
       stage = 'sweden-ground-evidence';
       try { swedenGroundEvidence = await querySwedenGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] SGU Sweden evidence notice:`, e); }
@@ -535,6 +579,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       norway_cadastre: norwayCadastre?.success ? evidenceReport.norway_cadastre : null,
       denmark_cadastre: denmarkCadastre?.success ? evidenceReport.denmark_cadastre : null,
       belgium_cadastre: belgiumCadastre?.success ? evidenceReport.belgium_cadastre : null,
+      switzerland_cadastre: switzerlandCadastre?.success ? evidenceReport.switzerland_cadastre : null,
+      switzerland_contaminated_site: evidenceReport.switzerland_contaminated_site || null,
       belgium_region: evidenceReport.belgium_region || null,
       canonical_evidence: canonicalReport,
       evidence_registry: evidenceDisplayRecords,
@@ -572,6 +618,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       denmark_cadastre_evidence_count: Array.isArray(denmarkCadastre?.evidence) ? denmarkCadastre.evidence.length : 0,
       belgium_cadastre_evidence_count: Array.isArray(belgiumCadastre?.evidence) ? belgiumCadastre.evidence.length : 0,
       belgium_national_evidence_count: belgiumNationalEvidence.length,
+      switzerland_cadastre_evidence_count: Array.isArray(switzerlandCadastre?.evidence) ? switzerlandCadastre.evidence.length : 0,
+      switzerland_national_evidence_count: switzerlandNationalEvidence.length,
       europe_valuation_evidence: europeValuationEvidence ? { id: europeValuationEvidence.id, status: europeValuationEvidence.status, source: europeValuationEvidence.sourceName } : null,
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };

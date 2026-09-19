@@ -125,7 +125,7 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
   CH: {
     countryCode: 'CH', countryName: 'Switzerland', currency: 'CHF', symbol: 'CHF',
     cadastreAuthority: 'Eidgenössische Vermessungsdirektion (Swisstopo / Cadastre.ch)', cadastrePortalUrl: 'https://cadastre.ch',
-    geologyAuthority: 'Swisstopo - Landesgeologie (GeoCover 1:25 000)', geologyPortalUrl: 'https://swisstopo.admin.ch',
+    geologyAuthority: 'swisstopo – Swiss Geological Survey (swissGEOCOVER2D)', geologyPortalUrl: 'https://swisstopo.admin.ch',
     floodAuthority: 'Bundesamt für Umwelt (BAFU Gefahrenkarten)', floodPortalUrl: 'https://bafu.admin.ch',
     planningInstrumentName: 'ÖREB-Kataster / cantonal and communal zoning', standardSetbackRule: 'Cantonal/communal rules require verification',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
