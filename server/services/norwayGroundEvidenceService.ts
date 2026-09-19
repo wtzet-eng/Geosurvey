@@ -192,7 +192,7 @@ async function queryRadon(lat: number, lng: number, fetcher: FetchLike): Promise
   if (!features) return unavailable('no-ngu-radon-unavailable', 'Radon awareness', url, 'NGU’s national radon-awareness dataset could not be queried.', 'SOURCE_UNAVAILABLE');
   if (!features.length) return unavailable('no-ngu-radon-no-data', 'Radon awareness', url, 'NGU’s radon-awareness dataset returned no polygon at the selected location.');
   const p = props(features[0]);
-  const classification = text(p.aktsomhetGradNavn) || text(p.aktsomhetGrad);
+  const classification = text(p.radonAktsomhetGradNavn) || text(p.radonAktsomhetGrad) || text(p.aktsomhetGradNavn) || text(p.aktsomhetGrad);
   if (!classification) return unavailable('no-ngu-radon-malformed', 'Radon awareness', url, 'NGU returned a radon-awareness polygon without a readable classification.', 'MALFORMED_DATA');
   return {
     id: 'no-ngu-radon-awareness',

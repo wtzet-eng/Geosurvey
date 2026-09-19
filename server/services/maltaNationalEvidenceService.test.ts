@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { enrichMaltaNationalEvidence, queryMaltaNationalEvidence } from './maltaNationalEvidenceService';
 
-const caps='<WFS_Capabilities><FeatureTypeList><FeatureType><Name>mt:test_layer</Name></FeatureType></FeatureTypeList></WFS_Capabilities>';
+const caps='<WFS_Capabilities><FeatureTypeList><FeatureType><Name xmlns:mt="urn:mt">mt:test_layer</Name></FeatureType></FeatureTypeList></WFS_Capabilities>';
+const schema='<schema><element name="shape" type="gml:GeometryPropertyType"/><element name="geometry" type="gml:GeometryPropertyType"/></schema>';
 const response=(body:any,status=200,type='application/json')=>new Response(typeof body==='string'?body:JSON.stringify(body),{status,headers:{'content-type':type}});
 const polygon=(properties:any={})=>({type:'Feature',geometry:{type:'Polygon',coordinates:[[[14.50,35.89],[14.52,35.89],[14.52,35.91],[14.50,35.91],[14.50,35.89]]]},properties});
 const line=(properties:any={})=>({type:'Feature',geometry:{type:'LineString',coordinates:[[14.50,35.89],[14.52,35.91]]},properties});
@@ -11,6 +12,7 @@ test('Malta national service combines 1:10k geology, ground hazards, water, floo
   const fetcher:typeof fetch=async(input:any)=>{
     const url=new URL(String(input));
     if(url.searchParams.get('REQUEST')==='GetCapabilities') return response(caps,200,'text/xml');
+    if(url.searchParams.get('REQUEST')==='DescribeFeatureType') return response(schema,200,'text/xml');
     const raw=String(input);
     if(raw.includes('b67296ce')) return response({type:'FeatureCollection',features:[polygon({formation:'Globigerina Limestone',lithology:'limestone',age:'Miocene'})]});
     if(raw.includes('a04d7574')) return response({type:'FeatureCollection',features:[]});
@@ -55,4 +57,21 @@ test('Malta official-source failures never become negative findings',async()=>{
   assert.equal(items.length,10);
   assert.ok(items.every(item=>item.status==='REQUIRES_VERIFICATION'));
   assert.ok(items.every(item=>/unavailable/i.test(item.id)));
+});
+
+test('Malta generic INSPIRE bedrock object name is not promoted as a geological unit',async()=>{
+  const fetcher:typeof fetch=async(input:any)=>{
+    const url=new URL(String(input));
+    if(url.searchParams.get('REQUEST')==='GetCapabilities') return response(caps,200,'text/xml');
+    if(url.searchParams.get('REQUEST')==='DescribeFeatureType') return response(schema,200,'text/xml');
+    const raw=String(input);
+    if(raw.includes('b67296ce')) return response({type:'FeatureCollection',features:[polygon({name:'BEDROCK_POLYGON'})]});
+    return response({type:'FeatureCollection'});
+  };
+  const items=await queryMaltaNationalEvidence(35.9,14.51,fetcher);
+  const bedrock=items.find(x=>x.id==='mt-geology-bedrock-malformed');
+  assert.equal(bedrock?.status,'REQUIRES_VERIFICATION');
+  assert.match(bedrock?.claim||'',/no readable geological unit/i);
+  assert.equal(items.find(x=>x.id==='mt-flood-hazard')?.status,'VERIFIED');
+  assert.equal((items.find(x=>x.id==='mt-flood-hazard')?.value as any)?.intersects,false);
 });

@@ -46,3 +46,16 @@ test('NGU evidence fails closed when an endpoint is unavailable', async () => {
   assert.equal((deposits?.value as any)?.reasonCode, 'SOURCE_UNAVAILABLE');
   assert.ok(items.every(item => item.status === 'REQUIRES_VERIFICATION'));
 });
+
+test('NGU September 2026 radon schema is accepted without dropping older aliases', async () => {
+  const fetcher: typeof fetch = async (input: any) => {
+    const url = String(input);
+    if (url.includes('/radonaktsomhet/')) return jsonResponse({ features: [{ properties: { radonAktsomhetGrad: 'megetHøy', oppdateringsdato: '2026-08-31T22:00:00Z' } }] });
+    return jsonResponse({ features: [] });
+  };
+  const items = await queryNorwayGroundEvidence(59.9139, 10.7522, fetcher);
+  const radon = items.find(item => item.id === 'no-ngu-radon-awareness');
+  assert.equal(radon?.status, 'VERIFIED');
+  assert.equal((radon?.value as any)?.classification, 'megetHøy');
+  assert.match(radon?.claim || '', /megetHøy/);
+});

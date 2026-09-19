@@ -1,10 +1,10 @@
 import type { EvidenceItem, VerifiedSiteReport } from '../types';
 
 type FetchLike = typeof fetch;
-const AV_ITEMS = 'https://www.geodienste.ch/db/av_0/deu/ogcapi/collections/RESF/items';
+const AV_WFS = 'https://geodienste.ch/db/av_0/deu';
+const AV_TYPE = 'ms:RESF';
 const PORTAL = 'https://www.cadastre.ch/';
 const SOURCE = 'Amtliche Vermessung Schweiz / geodienste.ch — rechtsgültige Liegenschaften';
-const CRS84 = 'http://www.opengis.net/def/crs/OGC/1.3/CRS84';
 const LIMITATION = 'The official cadastral geometry identifies the mapped parcel for screening. It does not establish ownership, land-register rights, easements, encumbrances or the current ÖREB restrictions; verify those in the competent land register and ÖREB cadastre.';
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -95,12 +95,13 @@ function queryUrl(lat: number, lng: number): string {
   const dy = 20 / 111320;
   const dx = 20 / (111320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
   const p = new URLSearchParams({
-    f: 'json',
-    bbox: `${lng - dx},${lat - dy},${lng + dx},${lat + dy}`,
-    limit: '20',
-    crs: CRS84
+    SERVICE: 'WFS', REQUEST: 'GetFeature', VERSION: '2.0.0', TYPENAMES: AV_TYPE,
+    OUTPUTFORMAT: 'application/json; subtype=geojson', SRSNAME: 'EPSG:4326',
+    // WFS 2.0 follows the formal EPSG:4326 axis order: latitude, longitude.
+    BBOX: `${lat - dy},${lng - dx},${lat + dy},${lng + dx},EPSG:4326`,
+    COUNT: '50'
   });
-  return `${AV_ITEMS}?${p}`;
+  return `${AV_WFS}?${p}`;
 }
 async function fetchFeatures(lat: number, lng: number, fetcher: FetchLike): Promise<any[] | null> {
   const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 9000);
@@ -119,8 +120,8 @@ function unavailable(reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_D
     success: false, reasonCode, sourceName: SOURCE, sourceUrl: PORTAL,
     evidence: [{
       id: 'ch-av-cadastre-unavailable', category: 'Cadastre & identification', claim, status: 'REQUIRES_VERIFICATION',
-      sourceName: SOURCE, sourceUrl: AV_ITEMS, datasetDate: today(), spatialRelationship: 'Selected site coordinate',
-      calculationMethod: 'Official Swiss cadastral OGC API Features query with point-in-polygon validation', confidence: 'Low',
+      sourceName: SOURCE, sourceUrl: AV_WFS, datasetDate: today(), spatialRelationship: 'Selected site coordinate',
+      calculationMethod: 'Official Swiss cadastral WFS 2.0 query with point-in-polygon validation', confidence: 'Low',
       limitation: LIMITATION, value: { reasonCode }
     }]
   };
@@ -136,7 +137,7 @@ export async function querySwitzerlandCadastre(lat: number, lng: number, fetcher
   if (!feature) return unavailable('NO_DATA', 'The Swiss official cadastral service responded but returned no legally valid parcel polygon containing the selected coordinate.');
 
   const a = feature.properties || {};
-  const egrid = first(a, ['egrid', 'EGRID', 'egrid_id', 'egridid']);
+  const egrid = first(a, ['EGRIS_EGRID', 'egrid', 'EGRID', 'egrid_id', 'egridid']);
   const parcelNumber = first(a, ['nummer', 'number', 'parzellennummer', 'liegenschaftsnummer', 'parcel_number', 'parcelnumber', 'label']);
   const parcelId = egrid || parcelNumber || text(feature.id);
   if (!parcelId) return unavailable('MALFORMED_DATA', 'The Swiss cadastral service returned a parcel polygon without a usable EGRID or parcel identifier.');
@@ -158,9 +159,9 @@ export async function querySwitzerlandCadastre(lat: number, lng: number, fetcher
     evidence: [{
       id: 'ch-av-cadastre', category: 'Cadastre & identification',
       claim: `Swiss official surveying identifies parcel ${parcelNumber || parcelId}${egrid ? ` (EGRID ${egrid})` : ''}${parcel.officialAreaM2 ? ` with registered area approximately ${Math.round(parcel.officialAreaM2).toLocaleString('en')} m²` : ''}.`,
-      status: 'VERIFIED', sourceName: SOURCE, sourceUrl: AV_ITEMS, datasetDate: today(),
+      status: 'VERIFIED', sourceName: SOURCE, sourceUrl: AV_WFS, datasetDate: today(),
       spatialRelationship: 'Official legally valid cadastral polygon containing the selected coordinate',
-      calculationMethod: 'geodienste.ch AV OGC API Features RESF query in CRS84 with point-in-polygon validation',
+      calculationMethod: 'geodienste.ch AV WFS 2.0 RESF query in EPSG:4326 with point-in-polygon validation',
       confidence: 'High', limitation: LIMITATION, value: parcel
     }]
   };

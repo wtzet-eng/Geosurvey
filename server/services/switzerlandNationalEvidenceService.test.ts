@@ -78,3 +78,24 @@ test('Swiss official-source failures remain explicit and never become clear find
   assert.ok(items.every(item=>item.status==='REQUIRES_VERIFICATION'));
   assert.match(items.find(x=>x.id==='ch-kbs-unavailable')?.claim||'',/no clear-site conclusion/i);
 });
+
+test('Swiss source-like attributes prefer human classifications over technical identifiers', async () => {
+  const fetcher:typeof fetch=async(input:any)=>{
+    const url=String(input);
+    if(url.includes('/kataster_belasteter_standorte_v1_5_0/')) return response({type:'FeatureCollection',features:[]});
+    const layer=layerFrom(url);
+    const attributes:Record<string,any>={
+      'ch.swisstopo.geologie-swissgeocover2d_unconsolidated':{featureId:'106857',runc_litho_de:'Lockergestein',runc_litstrat_de:'unbekannt',label:'Lockergestein'},
+      'ch.bafu.hydrogeologische-karte_100':{name:'HK01_karte_rect',label:'HK01_karte_rect'},
+      'ch.bafu.grundwasserkoerper':{gwkid:'CH5101',gwkname:'Limmattal',label:'Limmattal'},
+      'ch.are.bauzonen':{name:'Zürich',ch_bez_d:'Mischzonen',label:'Zürich'}
+    };
+    const a=attributes[layer];
+    return response({results:a?[{attributes:a}]:[]});
+  };
+  const items=await querySwitzerlandNationalEvidence(47.3769,8.5417,fetcher);
+  assert.equal((items.find(x=>x.id==='ch-geocover-unconsolidated')?.value as any)?.label,'Lockergestein');
+  assert.equal((items.find(x=>x.id==='ch-groundwater-body')?.value as any)?.label,'Limmattal');
+  assert.equal((items.find(x=>x.id==='ch-building-zone')?.value as any)?.label,'Mischzonen');
+  assert.equal(items.find(x=>x.id==='ch-hydrogeology-100k-malformed')?.status,'REQUIRES_VERIFICATION');
+});

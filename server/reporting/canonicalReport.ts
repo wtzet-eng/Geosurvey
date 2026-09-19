@@ -204,7 +204,9 @@ function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountryS
       ? { ...raw.cadastreAndGeometry, max: 20 }
       : { score: 0, max: 0, rationale: 'National cadastral acquisition is outside current automated coverage for this country and is excluded from the score denominator.' },
     terrainAndElevation: { ...raw.terrainAndElevation, max: 20 },
-    geologyAndGroundwater: { ...raw.geologyAndGroundwater, score: geologyVerified ? Math.max(raw.geologyAndGroundwater.score, 18) : raw.geologyAndGroundwater.score, max: 20 },
+    geologyAndGroundwater: geologyVerified
+      ? { ...raw.geologyAndGroundwater, score: Math.max(raw.geologyAndGroundwater.score, 18), max: 20, rationale: raw.geologyAndGroundwater.score >= 18 ? raw.geologyAndGroundwater.rationale : 'Verified national mapped geology is available at the selected site. It is credited as screening evidence without treating mapped geology as parcel-specific geotechnical design data.' }
+      : { ...raw.geologyAndGroundwater, max: 20 },
     infrastructureAndAccess: { ...raw.infrastructureAndAccess, max: 15 },
     environmentalAndFlood: { ...raw.environmentalAndFlood, max: 15, rationale: c.nationalFlood ? raw.environmentalAndFlood.rationale : 'Cross-border environmental and hydrology context only; unsupported national flood mapping is excluded from the evidence claim.' },
     planningAndMarket: c.nationalPlanning || c.nationalValuation

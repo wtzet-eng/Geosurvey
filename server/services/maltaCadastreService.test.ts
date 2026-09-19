@@ -2,13 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyMaltaCadastreToReport, queryMaltaCadastre } from './maltaCadastreService';
 
-const caps='<WFS_Capabilities><FeatureTypeList><FeatureType><Name>mt:registered_parcels</Name></FeatureType></FeatureTypeList></WFS_Capabilities>';
+const caps='<WFS_Capabilities><FeatureTypeList><FeatureType><Name xmlns:mt="urn:mt">mt:registered_parcels</Name></FeatureType></FeatureTypeList></WFS_Capabilities>';
+const schema='<schema><element name="geometry" type="gml:MultiSurfacePropertyType"/></schema>';
 const response=(body:any,status=200,type='application/json')=>new Response(typeof body==='string'?body:JSON.stringify(body),{status,headers:{'content-type':type}});
 
 test('Malta registered-land service returns containing parcel without claiming legal boundary conclusiveness',async()=>{
   const fetcher:typeof fetch=async(input:any)=>{
     const url=new URL(String(input));
     if(url.searchParams.get('REQUEST')==='GetCapabilities') return response(caps,200,'text/xml');
+    if(url.searchParams.get('REQUEST')==='DescribeFeatureType') return response(schema,200,'text/xml');
     return response({type:'FeatureCollection',features:[{
       type:'Feature',id:'feature-1',
       geometry:{type:'Polygon',coordinates:[[[14.50,35.89],[14.52,35.89],[14.52,35.91],[14.50,35.91],[14.50,35.89]]]},

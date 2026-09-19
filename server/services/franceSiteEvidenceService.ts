@@ -191,13 +191,13 @@ function pick(props: Record<string, unknown>, patterns: RegExp[]): string | null
   return null;
 }
 
-const UNIT_PATTERNS = [/^formation$/i, /^unite/i, /^unité/i, /nom.*formation/i, /libell.*(?:unit|geol)/i, /geologic.*unit/i, /geol.*unit/i, /^code.*geol/i];
-const LITHOLOGY_PATTERNS = [/^litho/i, /litholog/i, /nature.*(?:roche|terrain)/i, /facies/i, /faciès/i, /rock.*type/i, /materiau/i, /matériau/i, /libell.*litho/i];
+const UNIT_PATTERNS = [/^formation$/i, /^unite/i, /^unité/i, /nom.*formation/i, /libell.*(?:unit|geol)/i, /geologic.*unit/i, /geol.*unit/i];
+const LITHOLOGY_PATTERNS = [/^litho/i, /litholog/i, /^descr$/i, /nature.*(?:roche|terrain)/i, /facies/i, /faciès/i, /rock.*type/i, /materiau/i, /matériau/i, /libell.*litho/i];
 const AGE_PATTERNS = [/^age/i, /strat/i, /periode/i, /période/i, /epoch/i, /époque/i, /\bere\b/i, /\bère\b/i];
 const GENESIS_PATTERNS = [/origine/i, /genese/i, /genèse/i, /mode.*depot/i, /mode.*dépôt/i];
 
 function firstDescriptiveValue(props: Record<string, unknown>): string | null {
-  const excluded = /^(id|fid|gid|objectid|shape|geom|geometry|x|y|bbox|layer|scale|echelle|échelle|url|code|symbol|symbole|sheet|feuille|numero|numéro)$/i;
+  const excluded = /^(id|fid|gid|objectid|shape(?:[._].*)?|geom(?:etry)?(?:[._].*)?|x|y|bbox|layer|scale|echelle|échelle|url|code(?:[._].*)?|symbol|symbole|sheet|feuille|numero|numéro)$/i;
   for (const [key, raw] of Object.entries(props)) {
     if (excluded.test(key)) continue;
     const value = clean(raw);
