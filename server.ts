@@ -1,3 +1,5 @@
+[Reading 813 lines from start (total: 813 lines, 0 remaining)]
+
 import express from 'express';
 import { createBillingRouter } from './server/services/billingRoutes';
 import path from 'path';
@@ -13,6 +15,7 @@ import { enrichGeologyFromBrgm, queryFranceSiteEvidence } from './server/service
 import { enrichSlovakiaGroundEvidence, querySlovakiaGroundEvidence } from './server/services/slovakiaGroundEvidenceService';
 import { enrichCzechiaGroundEvidence, queryCzechiaGroundEvidence } from './server/services/czechiaGroundEvidenceService';
 import { applyCzechiaCadastreToReport, queryCzechiaCadastre } from './server/services/czechiaCadastreService';
+import { queryCzechiaInspireCadastre } from './server/services/czechiaInspireCadastreService';
 import { enrichSwedenGroundEvidence, querySwedenGroundEvidence } from './server/services/swedenGroundEvidenceService';
 import { applyNorwayCadastreToReport, queryNorwayCadastre } from './server/services/norwayCadastreService';
 import { applyNetherlandsCadastreToReport, queryNetherlandsCadastre } from './server/services/netherlandsCadastreService';
@@ -89,7 +92,13 @@ app.get('/api/cadastre/query', async (req, res) => {
   const profile = getCountryProfile(country);
   const support = getCountrySupport(country);
   if (support.capabilities.nationalCadastre && country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
-  if (support.capabilities.nationalCadastre && country === 'CZ') return res.json(await queryCzechiaCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'CZ') {
+    const national = await queryCzechiaCadastre(lat, lng);
+    const inspire = national.success && national.parcel?.geometryPoints?.length
+      ? await queryCzechiaInspireCadastre(national.parcel.geometryPoints, national.parcel.cadastralAreaId && national.parcel.parcelNumber ? `${national.parcel.cadastralAreaId}-${national.parcel.parcelNumber}` : null)
+      : null;
+    return res.json({ ...national, inspire });
+  }
   if (support.capabilities.nationalCadastre && country === 'NO') return res.json(await queryNorwayCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'NL') return res.json(await queryNetherlandsCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'DK') return res.json(await queryDenmarkCadastre(lat, lng));
@@ -178,6 +187,11 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'czechia-cadastre';
       try {
         czechiaCadastre = await queryCzechiaCadastre(lat, lng);
+        let czechiaInspire: any = null;
+        if (czechiaCadastre.success && czechiaCadastre.parcel?.geometryPoints?.length) {
+          czechiaInspire = await queryCzechiaInspireCadastre(czechiaCadastre.parcel.geometryPoints, czechiaCadastre.parcel.cadastralAreaId && czechiaCadastre.parcel.parcelNumber ? `${czechiaCadastre.parcel.cadastralAreaId}-${czechiaCadastre.parcel.parcelNumber}` : null);
+          czechiaCadastre.inspire = czechiaInspire;
+        }
         if (czechiaCadastre.success) {
           applyCzechiaCadastreToReport(evidenceReport, czechiaCadastre, areaSize);
           municipality = czechiaCadastre.parcel?.municipality || municipality;
@@ -189,6 +203,26 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           }
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
           evidenceReport.dataSourcesCited.push({ name: czechiaCadastre.sourceName, organization: 'Český úřad zeměměřický a katastrální (ČÚZK)', url: czechiaCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+          if (czechiaInspire?.success) {
+            const localRef = czechiaCadastre.parcel?.cadastralAreaId && czechiaCadastre.parcel?.parcelNumber
+              ? `${czechiaCadastre.parcel.cadastralAreaId}-${czechiaCadastre.parcel.parcelNumber}`
+              : null;
+            const inspireRef = czechiaInspire.parcel?.nationalCadastralReference || null;
+            const referenceAgrees = Boolean(localRef && inspireRef && localRef === inspireRef);
+            evidenceReport.evidenceRegistry.push({
+              id: 'cz-inspire-cadastre', category: 'Cadastre & identification',
+              claim: `Czech INSPIRE Cadastral Parcels returned ${inspireRef || czechiaInspire.parcel?.label || 'a parcel'} from the ČÚZK ISKN publication${referenceAgrees ? '; national cadastral reference agrees with RÚIAN' : ''}.`,
+              status: referenceAgrees ? 'VERIFIED' : 'REQUIRES_VERIFICATION',
+              sourceName: 'ČÚZK INSPIRE WFS — Cadastral Parcels',
+              sourceUrl: czechiaInspire.source.serviceUrl, datasetDate: czechiaInspire.datasetDate,
+              spatialRelationship: 'INSPIRE parcel queried around the official RÚIAN parcel geometry',
+              calculationMethod: 'ČÚZK INSPIRE WFS 2.0.0 cp:CadastralParcel bbox query',
+              confidence: referenceAgrees ? 'High' : 'Medium',
+              limitation: referenceAgrees ? 'INSPIRE publication and RÚIAN agree on the national cadastral reference. INSPIRE remains an interoperable publication; legal title and rights require KN/ISKN.' : 'INSPIRE returned a parcel, but the national reference could not be independently matched to RÚIAN in this query.',
+              value: { inspireId: czechiaInspire.parcel?.inspireId, nationalCadastralReference: inspireRef, areaM2: czechiaInspire.parcel?.areaM2, referenceAgrees }
+            });
+            evidenceReport.dataSourcesCited.push({ name: 'ČÚZK INSPIRE WFS — Cadastral Parcels', organization: 'Český úřad zeměměřický a katastrální (ČÚZK)', url: czechiaInspire.source.serviceUrl, type: 'Official National Cadastre', status: referenceAgrees ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+          }
         } else if (Array.isArray(czechiaCadastre.evidence)) {
           evidenceReport.evidenceRegistry.push(...czechiaCadastre.evidence);
         }
@@ -779,3 +813,5 @@ async function startServer() {
 }
 
 startServer().catch(err => { console.error('Failed to start server:', err); process.exit(1); });
+
+[executed on device: toma (e8359509-e325-4515-b2ff-2da47ff811ad)]
