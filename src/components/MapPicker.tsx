@@ -26,6 +26,7 @@ interface MapPickerProps {
   defaultCenter?: [number, number];
   defaultZoom?: number;
   language?: string;
+  countryCode?: string;
 }
 
 export const MapPicker: React.FC<MapPickerProps> = ({
@@ -36,7 +37,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   onClear,
   defaultCenter = [51.1657, 10.4515],
   defaultZoom = 6,
-  language = 'en'
+  language = 'en',
+  countryCode = 'PL'
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -49,6 +51,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const [tileType, setTileType] = useState<'osm' | 'satellite' | 'terrain'>('osm');
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
   const [isLocating, setIsLocating] = useState(false);
+  const [isFindingParcel, setIsFindingParcel] = useState(false);
+  const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number } | null>(null);
   const t = getMapPickerText(language);
 
   // Fix default marker icons in Leaflet
@@ -168,6 +172,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // Reset / Clear everything
   const handleReset = useCallback(() => {
     setDrawingPoints([]);
+    setOfficialParcel(null);
     onClear();
   }, [onClear]);
 
@@ -233,6 +238,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         if (shape && shape.type === 'polygon' && drawingPoints.length === 0) {
           // If clicking while completed, start a fresh new polygon from this click
           onChange(null);
+          setOfficialParcel(null);
           setDrawingPoints([latLng]);
           return;
         }
@@ -306,11 +312,14 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         const bounds = L.latLngBounds(shape.corners[0], shape.corners[1]);
         L.rectangle(bounds, polygonStyle).addTo(group);
       } else if (shape.type === 'polygon' && shape.points && shape.points.length >= 3) {
-        // Completed polygon
-        L.polygon(shape.points, polygonStyle).addTo(group);
+        // Official cadastral geometry is evidence, not a manually editable drawing.
+        const shapeStyle = officialParcel
+          ? { ...polygonStyle, color: '#15803d', fillColor: '#22c55e', fillOpacity: 0.16 }
+          : polygonStyle;
+        L.polygon(shape.points, shapeStyle).addTo(group);
 
-        // Add corner handles so user can adjust corners if desired
-        shape.points.forEach((p, idx) => {
+        // Manually drawn polygons remain editable. Official cadastral geometry does not.
+        if (!officialParcel) shape.points.forEach((p, idx) => {
           const vertexIcon = L.divIcon({
             className: 'vertex-handle-icon',
             html: `<div style="width:14px;height:14px;background:#ffffff;border:2.5px solid #2563eb;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,0.3);cursor:move;"></div>`,
@@ -397,7 +406,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         }).addTo(group);
       }
     }
-  }, [shape, drawingPoints, circleRadius, finishPolygon, handleVertexDrag, t]);
+  }, [shape, drawingPoints, circleRadius, finishPolygon, handleVertexDrag, t, officialParcel]);
 
   // Geocoding search
   const handleSearch = async (e: React.FormEvent) => {
@@ -418,7 +427,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     }
   };
 
-  const selectSearchResult = (result: { lat: string; lon: string; display_name: string }) => {
+  const selectSearchResult = async (result: { lat: string; lon: string; display_name: string }) => {
     const lat = parseFloat(result.lat);
     const lon = parseFloat(result.lon);
 
@@ -432,6 +441,31 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     }
     setSearchResults([]);
     setSearchQuery(result.display_name.split(',')[0]);
+    setOfficialParcel(null);
+
+    if (countryCode.toUpperCase() === 'PL') {
+      setIsFindingParcel(true);
+      try {
+        const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=PL');
+        if (!response.ok) throw new Error('Cadastral lookup failed');
+        const parcel = await response.json();
+
+        if (parcel.success && Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
+          const points = parcel.geometryPoints as [number, number][];
+          setOfficialParcel({ parcelId: parcel.parcelId, areaM2: parcel.officialAreaM2 });
+          onChange({ type: 'polygon', points });
+
+          if (mapRef.current) {
+            const bounds = L.latLngBounds(points as L.LatLngExpression[]);
+            mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+          }
+        }
+      } catch (err) {
+        console.warn('Cadastral lookup notice:', err);
+      } finally {
+        setIsFindingParcel(false);
+      }
+    }
   };
 
   return (
@@ -547,14 +581,20 @@ export const MapPicker: React.FC<MapPickerProps> = ({
 
       {/* Simple, Step-by-Step Helper Status Bar */}
       <div className={`px-4 py-2.5 flex flex-wrap items-center justify-between text-xs gap-2 z-10 border-b transition ${
-        drawingPoints.length > 0
+        officialParcel || isFindingParcel
+          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
+          : drawingPoints.length > 0
           ? 'bg-amber-50/90 border-amber-200 text-amber-950'
           : shape
           ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
           : 'bg-slate-50 border-slate-200 text-slate-700'
       }`}>
         <div className="flex items-center gap-2 font-medium">
-          {mode === 'polygon' ? (
+          {isFindingParcel ? (
+            <><Crosshair className="h-4 w-4 text-emerald-600 animate-pulse shrink-0" /><span>{t.findingParcel}</span></>
+          ) : officialParcel ? (
+            <><Check className="h-4 w-4 text-emerald-600 shrink-0" /><span><strong>{t.officialParcelFound}</strong>{officialParcel.parcelId ? ' · ' + officialParcel.parcelId : ''}</span></>
+          ) : mode === 'polygon' ? (
             drawingPoints.length === 0 ? (
               shape ? (
                 <>
