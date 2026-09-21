@@ -12,10 +12,19 @@ export interface AiVerificationItem {
   priority: 'high' | 'medium' | 'standard';
 }
 
+export interface AiKeyConsideration {
+  title: string;
+  concern: string;
+  evidenceBasis: string;
+  verifyNext: string;
+  priority: 'high' | 'medium' | 'standard';
+}
+
 export interface AiEvidenceInterpretation {
   provider: AiInterpretationProvider;
   model: string;
   generatedAt: string;
+  keyConsiderations: AiKeyConsideration[];
   observations: string[];
   interpretation: string[];
   limitations: string[];
@@ -42,6 +51,7 @@ export const AI_INTERPRETATION_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
+    keyConsiderations: { type: 'array', maxItems: 6, items: { type: 'object', additionalProperties: false, properties: { title: { type: 'string' }, concern: { type: 'string' }, evidenceBasis: { type: 'string' }, verifyNext: { type: 'string' }, priority: { type: 'string', enum: ['high', 'medium', 'standard'] } }, required: ['title', 'concern', 'evidenceBasis', 'verifyNext', 'priority'] } },
     observations: { type: 'array', maxItems: 12, items: { type: 'string' } },
     interpretation: { type: 'array', maxItems: 12, items: { type: 'string' } },
     limitations: { type: 'array', maxItems: 12, items: { type: 'string' } },
@@ -62,7 +72,7 @@ export const AI_INTERPRETATION_SCHEMA = {
     overallConfidence: { type: 'string', enum: ['high', 'medium', 'low'] },
     disclaimer: { type: 'string' }
   },
-  required: ['observations', 'interpretation', 'limitations', 'verificationRequired', 'overallConfidence', 'disclaimer']
+  required: ['keyConsiderations', 'observations', 'interpretation', 'limitations', 'verificationRequired', 'overallConfidence', 'disclaimer']
 } as const;
 
 const SYSTEM_PROMPT = `You are the LandSurf evidence interpreter for preliminary building-plot due diligence.
@@ -86,8 +96,13 @@ STRICT EVIDENCE RULES:
 - Never turn an unavailable value into a numeric estimate.
 - Do not recommend a specific foundation system or certify a site as safe/buildable.
 - Keep the result useful for a purchaser deciding what to verify next.
+- Put the most decision-relevant development implications in keyConsiderations; this is the prominent highlight layer, so do not bury important geological, hydrological or terrain implications only inside interpretation.
+- Each key consideration must state the concern, the evidence basis and the most useful next verification. Use cautious language unless the supplied evidence explicitly documents a hazard.
+- Peat or organic deposits can indicate potential compressibility and settlement; soft or variable ground can indicate settlement or bearing-condition uncertainty; clay-rich material combined with meaningful slope or documented deformation can warrant slope-stability or slow-movement investigation; mapped landslides or explicit geohazards should be highlighted directly. Do not infer a required pile foundation or a confirmed unstable slope.
+- Distinguish watercourse proximity from mapped flood exposure. If official flood-hazard/risk mapping is supplied, state the mapped scenario and exposure. If only a nearby river or low terrain is supplied, describe a water/flood consideration or verification need rather than asserting flood risk. Where groundwater or wet-ground evidence is supplied, excavation water/dewatering can be a potential construction consideration, not a measured groundwater condition.
+- Prefer up to five strong key considerations over a generic checklist; return an empty keyConsiderations array when the evidence does not support a material development consideration.
 
-Return one JSON object with exactly these fields: observations, interpretation, limitations, verificationRequired, overallConfidence, disclaimer. Human-readable text must use the requested report language. Keep source and authority proper names unchanged. Keep the response concise: at most six entries per array and one or two short sentences per entry. Always finish the complete JSON object.
+Return one JSON object with exactly these fields: keyConsiderations, observations, interpretation, limitations, verificationRequired, overallConfidence, disclaimer. Human-readable text must use the requested report language. Keep source and authority proper names unchanged. Keep the response concise: at most six entries per array and one or two short sentences per entry. Always finish the complete JSON object.
 
 OUTPUT CONTRACT:
 - Return all required fields using exactly the field names in the schema below.
@@ -266,6 +281,8 @@ export function validateAiInterpretation(value: unknown): Omit<AiEvidenceInterpr
   const confidence = String(data.overallConfidence || '').toLowerCase();
   if (!['high', 'medium', 'low'].includes(confidence)) throw new Error('AI response has an invalid confidence value.');
   if (!Array.isArray(data.verificationRequired)) throw new Error('AI response field verificationRequired must be an array.');
+  if (!Array.isArray(data.keyConsiderations)) throw new Error('AI response field keyConsiderations must be an array.');
+  const keyConsiderations: AiKeyConsideration[] = data.keyConsiderations.slice(0, 6).map((item: any) => { const title=cleanString(item?.title,500); const concern=cleanString(item?.concern,2500); const evidenceBasis=cleanString(item?.evidenceBasis,2500); const verifyNext=cleanString(item?.verifyNext,2000); const priority=String(item?.priority||'').toLowerCase(); if(!title||!concern||!evidenceBasis||!verifyNext||!['high','medium','standard'].includes(priority)) throw new Error('AI response contains an invalid key consideration.'); return {title,concern,evidenceBasis,verifyNext,priority: priority as AiKeyConsideration['priority']}; });
   const verificationRequired: AiVerificationItem[] = data.verificationRequired.slice(0, 12).map((item: any) => {
     const topic = cleanString(item?.topic, 1000);
     const reason = cleanString(item?.reason, 3000);
@@ -276,6 +293,7 @@ export function validateAiInterpretation(value: unknown): Omit<AiEvidenceInterpr
   const disclaimer = cleanString(data.disclaimer, 4000);
   if (!disclaimer) throw new Error('AI response is missing its disclaimer.');
   return {
+    keyConsiderations,
     observations: validateStringArray(data.observations, 'observations'),
     interpretation: validateStringArray(data.interpretation, 'interpretation'),
     limitations: validateStringArray(data.limitations, 'limitations'),

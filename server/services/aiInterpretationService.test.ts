@@ -49,6 +49,7 @@ const report: any = {
 };
 
 const validInterpretation = {
+  keyConsiderations: [{ title: 'Ground conditions', concern: 'Variable ground may affect settlement and foundation planning.', evidenceBasis: 'Mapped geological evidence supplied to LandSurf.', verifyNext: 'Site-specific geotechnical investigation.', priority: 'high' }],
   observations: ['A verified borehole is reported 370 m from the selected site.'],
   interpretation: ['The borehole is useful regional context but does not establish parcel-specific ground conditions.'],
   limitations: ['No parcel-specific geotechnical investigation is present.'],

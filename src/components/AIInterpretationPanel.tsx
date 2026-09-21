@@ -40,6 +40,7 @@ interface AiInterpretation {
   provider: 'mistral' | 'ollama';
   model: string;
   generatedAt: string;
+  keyConsiderations: Array<{ title: string; concern: string; evidenceBasis: string; verifyNext: string; priority: 'high' | 'medium' | 'standard' }>;
   observations: string[];
   interpretation: string[];
   limitations: string[];
@@ -105,6 +106,15 @@ export const aiPanelCopy = (language: string) => language.toLowerCase().startsWi
 };
 const priorityLabel = (priority: string, copy: ReturnType<typeof aiPanelCopy>) => priority === 'high' ? copy.high : priority === 'medium' ? copy.medium : copy.standard;
 const confidenceLabel = (confidence: string, copy: ReturnType<typeof aiPanelCopy>) => confidence === 'high' ? copy.high : confidence === 'medium' ? copy.medium : copy.low;
+const developmentCopy = (language: string) => {
+  const l = language.toLowerCase();
+  if (l.startsWith('pl')) return { keyConsiderations: 'Kluczowe kwestie dla zagospodarowania', basedOnEvidence: 'Podstawa w dowodach', checkNext: 'Co sprawdzić dalej' };
+  if (l.startsWith('de')) return { keyConsiderations: 'Wichtige Entwicklungshinweise', basedOnEvidence: 'Grundlage der Evidenz', checkNext: 'Nächster Prüfschritt' };
+  if (l.startsWith('fr')) return { keyConsiderations: 'Points clés pour le développement', basedOnEvidence: 'Fondement des données', checkNext: 'À vérifier ensuite' };
+  if (l.startsWith('nl')) return { keyConsiderations: 'Belangrijke ontwikkelingspunten', basedOnEvidence: 'Onderbouwing', checkNext: 'Volgende controle' };
+  if (l.startsWith('es')) return { keyConsiderations: 'Consideraciones clave para el desarrollo', basedOnEvidence: 'Base de evidencia', checkNext: 'Qué comprobar después' };
+  return { keyConsiderations: 'Key development considerations', basedOnEvidence: 'Evidence basis', checkNext: 'Check next' };
+};
 const PENDING_TRANSACTION_KEY = 'surveyland_pending_paddle_transaction';
 
 export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
@@ -143,6 +153,7 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
     setBillingMessage('');
   }, [report.id]);
 
+  const devCopy = developmentCopy(report.language);
   const pendingKey = () => user && billing ? `${PENDING_TRANSACTION_KEY}:${user.uid}:${billing.environment}` : null;
   const authenticatedRequest = async (action: 'entitlement' | 'create_checkout' | 'confirm_purchase', extras: Record<string, unknown> = {}) => {
     const uid = userIdRef.current;
@@ -375,6 +386,7 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
 
           {result && <div className="space-y-4">
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><div className="flex items-center gap-2 text-sm font-bold text-emerald-900"><CheckCircle2 className="h-4 w-4" />{ui.completed}</div><div className="mt-1 text-xs text-emerald-800">{ui.confidence}: {confidenceLabel(result.overallConfidence,ui)} · {result.provider} / {result.model}</div></div>
+            {result.keyConsiderations.length > 0 && <section className="rounded-3xl border border-amber-200 bg-amber-50/70 p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><div><div className="text-[10px] font-black uppercase tracking-widest text-amber-700">{devCopy.keyConsiderations}</div><h3 className="mt-0.5 text-base font-black text-slate-950">{devCopy.keyConsiderations}</h3></div><AlertTriangle className="h-5 w-5 text-amber-600" /></div><div className="mt-4 space-y-3">{result.keyConsiderations.map((item,index)=><div key={item.title + '-' + index} className="rounded-2xl border border-amber-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div className="text-sm font-black text-slate-950">{item.title}</div><span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">{priorityLabel(item.priority,ui)}</span></div><p className="mt-2 text-sm leading-relaxed text-slate-700">{item.concern}</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black uppercase tracking-wide text-slate-400">{devCopy.basedOnEvidence}</div><div className="mt-1 text-xs leading-relaxed text-slate-600">{item.evidenceBasis}</div></div><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black uppercase tracking-wide text-slate-400">{devCopy.checkNext}</div><div className="mt-1 text-xs leading-relaxed text-slate-600">{item.verifyNext}</div></div></div></div>)}</div></section>}
             <ResultList title={ui.observations} items={result.observations} emptyText={ui.none} />
             <ResultList title={ui.interpretation} items={result.interpretation} emptyText={ui.none} />
             <ResultList title={ui.limitations} items={result.limitations} emptyText={ui.none} />
