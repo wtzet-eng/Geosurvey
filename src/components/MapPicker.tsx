@@ -41,6 +41,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
+  const addressMarkerRef = useRef<L.Marker | null>(null);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -423,6 +424,11 @@ export const MapPicker: React.FC<MapPickerProps> = ({
 
     if (mapRef.current) {
       mapRef.current.setView([lat, lon], 16);
+      addressMarkerRef.current?.remove();
+      addressMarkerRef.current = L.marker([lat, lon])
+        .addTo(mapRef.current)
+        .bindPopup(result.display_name)
+        .openPopup();
     }
     setSearchResults([]);
     setSearchQuery(result.display_name.split(',')[0]);
