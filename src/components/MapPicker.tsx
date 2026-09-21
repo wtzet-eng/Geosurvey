@@ -574,9 +574,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
             ) : drawingPoints.length === 1 ? (
               <>
                 <MousePointerClick className="h-4 w-4 text-amber-600 shrink-0" />
-                <span>
-                  <strong>{t.corner1Placed}</strong> {t.clickCorner2}
-                </span>
+                <span>{t.afterFirstPoint}</span>
               </>
             ) : drawingPoints.length === 2 ? (
               <>
