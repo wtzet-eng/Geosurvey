@@ -270,7 +270,12 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.match(mtProfile.cadastreAuthority, /Malta Land Registry|Registered Land/i);
   assert.match(mtProfile.geologyAuthority, /Geological Survey of Malta|Continental Shelf/i);
   assert.doesNotMatch(mtProfile.geologyAuthority, /EuroGeoSurveys/i);
-  for (const code of ['IT', 'PT', 'HU', 'RO', 'HR', 'GR', 'EE', 'LV', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  const hr = getCountrySupport('HR');
+  assert.equal(hr.maturity, 'LIMITED');
+  assert.equal(hr.capabilities.nationalFlood, true);
+  assert.equal(hr.capabilities.nationalCadastre, false); assert.equal(hr.capabilities.nationalGeology, false);
+  assert.equal(hr.capabilities.nationalPlanning, false); assert.equal(hr.capabilities.nationalValuation, false);
+  for (const code of ['IT', 'PT', 'HU', 'RO', 'GR', 'EE', 'LV', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });

@@ -175,6 +175,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     baseValuationPerSqm: 0,
     valuationDataSource: NO_GENERIC_VALUE
   },
+  HR: {
+    countryCode: 'HR', countryName: 'Croatia', currency: 'EUR', symbol: '€',
+    cadastreAuthority: 'Državna geodetska uprava (DGU / Uređena zemlja / INSPIRE)', cadastrePortalUrl: 'https://geoportal.dgu.hr/',
+    geologyAuthority: 'Croatian Geological Survey (Hrvatski geološki institut)', geologyPortalUrl: 'https://www.hgi-cgs.hr/en/geoloske-karte/',
+    floodAuthority: 'Hrvatske vode — Flood Hazard Maps', floodPortalUrl: 'https://www.voda.hr/en/geoportal',
+    planningInstrumentName: 'Prostorni plan / Generalni urbanistički plan / local physical planning instrument (ISPU)',
+    standardSetbackRule: 'Determined by the applicable local physical plan and building regulations; requires official confirmation',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   MT: {
     countryCode: 'MT', countryName: 'Malta', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Malta Land Registry / Planning Authority — Parcels of Registered Land', cadastrePortalUrl: 'https://portal.data.gov.mt/dataset/parcels-of-registered-land',

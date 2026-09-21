@@ -19,6 +19,7 @@ import { fetchBgsSiteEvidence, ukGeotechnicalDesignFallback } from '../services/
 import { resolvePolandValuationBenchmark } from '../services/polandValuationBenchmark';
 import { fetchPolandCadastralParcel } from '../adapters/poland';
 import { getCountryProfile } from '../adapters/countries';
+import { fetchCroatiaFloodEvidence } from '../services/croatiaFloodService';
 
 export interface AnalysisInput {
   lat: number;
@@ -42,12 +43,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
     countryCode === 'PL' ? fetchPolandCadastralParcel(lat, lng) : Promise.resolve(null),
-    countryCode === 'GB' ? fetchBgsSiteEvidence(lat, lng) : Promise.resolve(null)
+    countryCode === 'GB' ? fetchBgsSiteEvidence(lat, lng) : Promise.resolve(null),
+    countryCode === 'HR' ? fetchCroatiaFloodEvidence(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
@@ -200,6 +202,21 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     }
   };
 
+  if (croatiaFloodEvidence) {
+    terrainAnalysis.floodInundationRisk = {
+      status: croatiaFloodEvidence.status,
+      level: croatiaFloodEvidence.level,
+      distanceToWaterwayM: watercourseDist,
+      waterwayName: osmFeatures.nearestWatercourse.name,
+      waterwayType: osmFeatures.nearestWatercourse.type,
+      statutoryZoneStatus: croatiaFloodEvidence.status === 'VERIFIED' ? 'Official Croatian flood-hazard WMS queried at the selected coordinate' : 'Official Croatian flood-hazard source could not be queried reliably',
+      description: croatiaFloodEvidence.description,
+      sourceName: croatiaFloodEvidence.sourceName,
+      limitation: croatiaFloodEvidence.evidence.limitation
+    };
+    evidenceRegistry.push(croatiaFloodEvidence.evidence);
+  }
+
   evidenceRegistry.push({
     id: 'terrain-elevation-slope',
     category: 'Terrain & Topography',
@@ -219,15 +236,21 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     category: 'Hydrology & Flooding',
     claim: terrainAnalysis.floodInundationRisk.description,
     status: terrainAnalysis.floodInundationRisk.status,
-    sourceName: osmAvailable ? 'OpenStreetMap hydrology' : cProfile.floodAuthority,
-    sourceUrl: osmAvailable ? 'https://www.openstreetmap.org/' : cProfile.floodPortalUrl,
-    datasetDate: todayStr,
-    spatialRelationship: watercourseDist !== undefined
+    sourceName: croatiaFloodEvidence?.sourceName || (osmAvailable ? 'OpenStreetMap hydrology' : cProfile.floodAuthority),
+    sourceUrl: croatiaFloodEvidence?.sourceUrl || (osmAvailable ? 'https://www.openstreetmap.org/' : cProfile.floodPortalUrl),
+    datasetDate: croatiaFloodEvidence?.datasetDate || todayStr,
+    spatialRelationship: croatiaFloodEvidence
+      ? croatiaFloodEvidence.evidence.spatialRelationship
+      : watercourseDist !== undefined
       ? `Proximity vector to nearest mapped open watercourse: ${watercourseDist} m`
       : '450 m spatial query buffer around parcel',
-    calculationMethod: 'Spatial distance transform to nearest mapped hydrology vectors',
-    confidence: watercourseDist !== undefined && watercourseDist > 200 ? 'High' : 'Medium',
-    limitation: 'Does not replace official statutory flood-hazard mapping or project-specific stormwater and drainage assessment.'
+    calculationMethod: croatiaFloodEvidence
+      ? croatiaFloodEvidence.evidence.calculationMethod
+      : 'Spatial distance transform to nearest mapped hydrology vectors',
+    confidence: croatiaFloodEvidence
+      ? croatiaFloodEvidence.evidence.confidence
+      : watercourseDist !== undefined && watercourseDist > 200 ? 'High' : 'Medium',
+    limitation: croatiaFloodEvidence?.evidence.limitation || 'Does not replace official statutory flood-hazard mapping or project-specific stormwater and drainage assessment.'
   });
 
   // =========================================================================
@@ -582,7 +605,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   let terrainScore = terrainAvailable ? 14 : 0;
   let geoScore = soilGridsData.success ? 14 : 0;
   let infraScore = osmAvailable ? 12 : 0;
-  let envScore = osmAvailable ? 11 : 0;
+  let envScore = croatiaFloodEvidence?.status === 'VERIFIED' ? 15 : osmAvailable ? 11 : 0;
   let planScore = 4;                                  // Planning unverified, capped at 4/10
 
   let rawTotalScore = cadScore + terrainScore + geoScore + infraScore + envScore + planScore;
@@ -638,7 +661,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       environmentalAndFlood: {
         score: envScore,
         max: 15,
-        rationale: osmAvailable ? 'Spatial buffer analysis to nearest surface watercourse and mapped protected areas. Statutory flood maps unretrieved.' : 'Spatial query unavailable; no flood-proximity or protected-area conclusion inferred.'
+        rationale: croatiaFloodEvidence?.status === 'VERIFIED'
+          ? 'Official Croatian flood-hazard mapping was queried at the selected coordinate across the 2019 high-, medium- and low-probability scenarios.'
+          : osmAvailable ? 'Spatial buffer analysis to nearest surface watercourse and mapped protected areas. Statutory flood maps unretrieved.' : 'Spatial query unavailable; no flood-proximity or protected-area conclusion inferred.'
       },
       planningAndMarket: {
         score: planScore,
