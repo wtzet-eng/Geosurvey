@@ -46,4 +46,7 @@ test('normalization continues to reject country-specific languages outside their
   assert.equal(normalizeReportLanguage('sv', 'CH'), 'en');
   assert.equal(normalizeReportLanguage('nb-NO', 'NO'), 'no');
   assert.equal(normalizeReportLanguage('de-CH', 'CH'), 'de');
+  assert.equal(normalizeReportLanguage('hr', 'HR'), 'hr');
+  assert.equal(normalizeReportLanguage('hr', 'DE'), 'en');
+  assert.deepEqual(codes('HR', 'hr').slice(0, 2), ['hr', 'en']);
 });

@@ -15,7 +15,8 @@ const SUPPORT_COPY: Record<string, SupportCopy> = {
   sk: { heading:'Podporte LandSurf', body:'Ak bol report užitočný, môžete podporiť ďalší vývoj LandSurf. Podpora je dobrovoľná a neposkytuje dodatočný prístup ani služby.', button:'Ďakujem za podporu', thanks:'Každý podporovateľ dostane osobné poďakovanie.' },
   fr: { heading:'Soutenir LandSurf', body:'Si ce rapport vous a été utile, vous pouvez soutenir le développement continu de LandSurf. Le soutien est volontaire et ne donne pas accès à des services supplémentaires.', button:'Merci pour votre soutien', thanks:'Chaque soutien reçoit un remerciement personnel.' },
   es: { heading:'Apoyar LandSurf', body:'Si este informe le resultó útil, puede apoyar el desarrollo continuo de LandSurf. El apoyo es voluntario y no proporciona acceso ni servicios adicionales.', button:'Gracias por su apoyo', thanks:'Cada persona que apoya recibe un agradecimiento personal.' },
-  fi: { heading:'Tue LandSurfia', body:'Jos raportti oli hyödyllinen, voit tukea LandSurfin jatkokehitystä. Tuki on vapaaehtoista eikä tuo lisäkäyttöoikeuksia tai palveluja.', button:'Kiitos tuesta', thanks:'Jokainen tukija saa henkilökohtaisen kiitoksen.' }
+  fi: { heading:'Tue LandSurfia', body:'Jos raportti oli hyödyllinen, voit tukea LandSurfin jatkokehitystä. Tuki on vapaaehtoista eikä tuo lisäkäyttöoikeuksia tai palveluja.', button:'Kiitos tuesta', thanks:'Jokainen tukija saa henkilökohtaisen kiitoksen.' },
+  hr: { heading:'Podržite LandSurf', body:'Ako vam je ovaj izvještaj bio koristan, možete podržati daljnji razvoj LandSurfa. Podrška je dobrovoljna i ne omogućuje dodatni pristup ni usluge.', button:'Hvala na podršci', thanks:'Svaka osoba koja podrži projekt dobiva osobnu zahvalu.' }
 };
 
 export const supportLandSurfCopy = (language = 'en'): SupportCopy => {

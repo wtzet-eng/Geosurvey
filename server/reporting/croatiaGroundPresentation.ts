@@ -1,4 +1,4 @@
-import { CanonicalReport, ReportLanguage } from './canonicalReport';
+import { CanonicalReport } from './canonicalReport';
 
 export interface CroatiaGroundPresentation {
   narrative: string;
@@ -10,7 +10,13 @@ export interface CroatiaGroundPresentation {
   geologicalAge: string | null;
 }
 
-type CroatiaCopyLanguage = 'en' | 'de' | 'pl';
+type CroatiaCopyLanguage = 'en' | 'de' | 'pl' | 'hr';
+
+const localizeCroatiaUnit = (value: string) => value
+  .replace(/\bHolocene\b/gi, 'Holocen')
+  .replace(/\bsedimentary material\b/gi, 'sedimentni materijal')
+  .replace(/\bclastic sedimentary rock\b/gi, 'klastične sedimentne stijene')
+  .replace(/\blimestone\b/gi, 'vapnenac');
 
 const copy = {
   en: {
@@ -41,6 +47,20 @@ const copy = {
     hazardBoundary: 'Der geologische Befund ist keine Klassifizierung von Hangrutschung, Hochwasser oder Gründung. Diese Fragen erfordern separate Gefahrennachweise und standortbezogene Untersuchungen.',
     boundary: 'Diese Evidenz dient nur der Vorprüfung. Sie ersetzt keine Baugrunduntersuchung und liefert keine Gründungsbemessungswerte oder gemessenen Grundwasserstände.'
   },
+  hr: {
+    regional: (unit: string) => `Nacionalno geološko kartiranje HGI-ja smješta lokaciju u ${localizeCroatiaUnit(unit)}.`,
+    sedimentary: 'Ovo je široki regionalni pregled: kartirana klasa ne pokazuje sadrži li lokacija rastresite prirodne naslage, nasip ili trošni materijal niti kolika je njihova debljina i stanje.',
+    clastic: 'Kartirani kontekst su klastične sedimentne stijene. Regionalno kartiranje ne određuje dubinu stijenske podloge, trošenje, ispucanost ni lokalna inženjerska svojstva.',
+    limestone: 'Kartirani kontekst je vapnenac. Regionalno kartiranje ne određuje dubinu stijenske podloge, ispucanost ni eventualne šupljine/kraške značajke na lokaciji; to treba procijeniti samo na temelju detaljnijih lokalnih podataka gdje je relevantno.',
+    generic: 'Kartirani geološki kontekst predstavlja regionalni pregled i ne određuje uvjete tla na konkretnoj parceli.',
+    focusSedimentary: 'Fokus istraživanja: potvrditi materijal i njegovo podrijetlo, debljinu, stanje, odnos s podzemnim vodama te eventualni nasip ili slabe slojeve istraživanjem tla na konkretnoj lokaciji.',
+    focusRock: 'Fokus istraživanja: potvrditi dubinu stijenske podloge, trošenje i ispucanost istraživanjem na lokaciji; gdje je dostupno, pregledati detaljnije HGI karte.',
+    focusLimestone: 'Fokus istraživanja: potvrditi stijensku podlogu, ispucanost i lokalno relevantne podatke o šupljinama/kraškim značajkama prije oslanjanja na regionalnu kartu vapnenca.',
+    age: (age: string) => `Kartirana geološka starost: ${localizeCroatiaUnit(age)}.`,
+    scale: 'Automatizirani sloj je HGI INSPIRE Geološka karta u mjerilu 1:300.000; detaljnije serije HGI karata dostupne su za izravan pregled.',
+    hazardBoundary: 'Geološki nalaz nije klasifikacija klizišta, poplava ni temeljenja. Za ta pitanja potrebni su zasebni podaci o opasnostima i istraživanje konkretne lokacije.',
+    boundary: 'Ovi dokazi služe samo za preliminarnu provjeru zemljišta. Ne zamjenjuju geotehničko istraživanje i ne daju parametre za projektiranje temelja ni izmjerenu razinu podzemne vode.'
+  },
   pl: {
     regional: (unit: string) => `Krajowe kartowanie geologiczne HGI wskazuje dla lokalizacji ${unit}.`,
     sedimentary: 'Jest to szeroki kontekst do analizy wstępnej: kartowana klasa nie określa, czy pod lokalizacją występują luźne osady naturalne, nasypy lub zwietrzelina ani jaka jest ich miąższość i stan.',
@@ -61,14 +81,14 @@ function finiteString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-export function renderCroatiaGroundPresentation(canonical: CanonicalReport, language: ReportLanguage): CroatiaGroundPresentation | null {
+export function renderCroatiaGroundPresentation(canonical: CanonicalReport, language: string): CroatiaGroundPresentation | null {
   if (canonical.countryCode !== 'HR' || canonical.geology.status !== 'VERIFIED') return null;
   const unit = finiteString(canonical.geology.unitName);
   const lithology = finiteString(canonical.geology.lithology);
   const geologicalAge = finiteString(canonical.geology.geologicalAge);
   if (!unit && !lithology && !geologicalAge) return null;
 
-  const copyLanguage: CroatiaCopyLanguage = language === 'de' ? 'de' : language === 'pl' ? 'pl' : 'en';
+  const copyLanguage: CroatiaCopyLanguage = language === 'de' ? 'de' : language === 'pl' ? 'pl' : language === 'hr' ? 'hr' : 'en';
   const c = copy[copyLanguage];
   const unitText = unit || [geologicalAge, lithology].filter(Boolean).join(' — ') || c.generic;
   const normalized = `${unit || ''} ${lithology || ''}`.toLowerCase();

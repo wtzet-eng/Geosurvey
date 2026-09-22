@@ -43,6 +43,7 @@ import { renderLocalizedReport } from './server/reporting/localizedReport';
 import { renderSlovakLocalizedReport } from './server/reporting/slovakLocalizedReport';
 import { renderDutchLocalizedReport } from './server/reporting/dutchLocalizedReport';
 import { renderFrEsFiLocalizedReport } from './server/reporting/frEsFiLocalizedReport';
+import { renderCroatiaLocalizedReport } from './server/reporting/croatiaLocalizedReport';
 import { renderCzechLocalizedReport } from './server/reporting/czechLocalizedReport';
 import { renderSwedishLocalizedReport } from './server/reporting/swedishLocalizedReport';
 import { renderNorwegianLocalizedReport } from './server/reporting/norwegianLocalizedReport';
@@ -133,7 +134,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     } : baseProfile;
     const support = getCountrySupport(countryCode);
     const country = req.body.country || cProfile.countryName;
-    const defaultLanguage = countryCode === 'FR' ? 'fr' : countryCode === 'ES' ? 'es' : countryCode === 'FI' ? 'fi' : countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'DK' ? 'da' : countryCode === 'NO' ? 'no' : countryCode === 'SE' ? 'sv' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : 'en';
+    const defaultLanguage = countryCode === 'FR' ? 'fr' : countryCode === 'ES' ? 'es' : countryCode === 'FI' ? 'fi' : countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'DK' ? 'da' : countryCode === 'NO' ? 'no' : countryCode === 'SE' ? 'sv' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : countryCode === 'HR' ? 'hr' : 'en';
     const requestedLanguage = String(req.body.language || req.body.languageCode || defaultLanguage).toLowerCase().split('-')[0];
     const language = requestedLanguage === 'sk'
       ? (countryCode === 'SK' ? 'sk' : 'en')
@@ -145,7 +146,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             ? (countryCode === 'SE' ? 'sv' : 'en')
             : (requestedLanguage === 'no' || requestedLanguage === 'nb')
               ? (countryCode === 'NO' ? 'no' : 'en')
-              : ['en', 'de', 'pl', 'nl', 'fr', 'es', 'fi'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
+              : ['en', 'de', 'pl', 'nl', 'fr', 'es', 'fi', 'hr'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
     stage = 'site-centre';
     const center = getCenterFromShape(shape, req.body);
     if (!center) return res.status(400).json({ error: 'Select a site on the map to continue.', code: 'SITE_LOCATION_REQUIRED' });
@@ -607,7 +608,10 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const isSwedishPresentation = countryCode === 'SE' && language === 'sv';
     const isDutchPresentation = language === 'nl';
     const isFrEsFiPresentation = language === 'fr' || language === 'es' || language === 'fi';
-    const presentation: any = isSlovakPresentation
+    const isCroatianPresentation = countryCode === 'HR' && language === 'hr';
+    const presentation: any = isCroatianPresentation
+      ? renderCroatiaLocalizedReport(canonicalReport)
+      : isSlovakPresentation
       ? renderSlovakLocalizedReport(canonicalReport)
       : isCzechPresentation
         ? renderCzechLocalizedReport(canonicalReport)
@@ -622,7 +626,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
                 : isFrEsFiPresentation
                   ? renderFrEsFiLocalizedReport(canonicalReport, language as 'fr' | 'es' | 'fi')
                   : renderLocalizedReport(canonicalReport, language);
-    if (!isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
+    if (!isCroatianPresentation && !isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
     const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
     if (franceGroundPresentation) {
       presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${franceGroundPresentation.narrative}`.trim();
@@ -656,7 +660,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const existingSource = presentation.sections.building_regulations.source_cited;
       presentation.sections.building_regulations.source_cited = [...new Set([existingSource, ...czechiaCadastrePresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
-    const evidenceDisplayRecords = (isSlovakPresentation || isCzechPresentation || isDanishPresentation || isSwedishPresentation || isNorwegianPresentation || isDutchPresentation || isFrEsFiPresentation) ? presentation.evidenceRegistry : buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
+    const evidenceDisplayRecords = (isCroatianPresentation || isSlovakPresentation || isCzechPresentation || isDanishPresentation || isSwedishPresentation || isNorwegianPresentation || isDutchPresentation || isFrEsFiPresentation) ? presentation.evidenceRegistry : buildEvidenceDisplayRecords(canonicalReport.evidenceRecords, presentation.evidenceRegistry);
     // Match the area selected by createCanonicalReport for the German benchmark.
     const finiteArea = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
     const valuationAreaM2 = countryCode === 'DE'

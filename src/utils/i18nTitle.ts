@@ -118,6 +118,11 @@ const FRONT_PAGE_DICTIONARY: Record<string, Partial<FrontPageI18n>> = {
     clear: "Ryd",
     clickPrompt: "Klik på kortet for at angive grænsen."
   },
+  hr: {
+    badge: 'Europska platforma za provjeru građevinskih parcela',
+    heroSub: 'Objedinjavamo dostupne podatke o ovoj lokaciji na jednom mjestu. Odaberite parcelu kako biste provjerili tlo, geološke rizike, planiranje i vrijednost zemljišta, uz jasno označene nedostatke podataka.',
+    step1: '1. Odredite granice parcele', searchPh: 'Pretražite adresu ili grad (npr. Zagreb, Split, Rijeka)...', step2: '2. Konfiguracija i parametri', areaLbl: 'Površina parcele (m²)', countryLbl: 'Država (Europa)', langLbl: 'Jezik izvještaja', btnGen: 'Provjeri parcelu', modeCircle: 'Krug', modeRect: 'Pravokutnik', modePoly: 'Slobodni poligon', finishPoly: 'Završi poligon', clear: 'Očisti', clickPrompt: 'Kliknite na kartu kako biste postavili granicu.'
+  },
   no: {
     badge: "Europeisk plattform for byggegrunn og geofarer",
     heroSub: "Tegn eller velg en byggetomt i Europa. Få en foreløpig rapport basert på tilgjengelige offentlige data om grunnforhold, geologiske farer, arealplanlegging og tomteverdi.",
@@ -149,7 +154,8 @@ const TAGLINES: Record<string, string> = {
   sk: 'Spoznajte pozemok. Porovnajte možnosti. Zistite, čo treba overiť ďalej.',
   fr: 'Comprenez le terrain. Comparez vos options. Sachez quoi vérifier ensuite.',
   es: 'Comprenda la parcela. Compare sus opciones. Sepa qué comprobar a continuación.',
-  fi: 'Ymmärrä tontti. Vertaa vaihtoehtoja. Tiedä, mitä tarkistaa seuraavaksi.'
+  fi: 'Ymmärrä tontti. Vertaa vaihtoehtoja. Tiedä, mitä tarkistaa seuraavaksi.',
+  hr: 'Upoznajte zemljište. Usporedite mogućnosti. Saznajte što još treba provjeriti.'
 };
 
 export function getLocalizedTagline(langCode?: string): string {

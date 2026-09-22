@@ -58,11 +58,15 @@ test('French, Spanish and Finnish report presentation dictionaries avoid known E
   assert.match(getReportPresentation('fr').executive, /Synthèse/);
   assert.match(getReportPresentation('es').executive, /Resumen/);
   assert.match(getReportPresentation('fi').executive, /Yhteenveto/);
+  const croatian = presentationTextValues('hr').join('\n');
+  for (const phrase of newLanguageLeakage) assert.doesNotMatch(croatian, new RegExp(phrase, 'i'), `hr: ${phrase}`);
+  assert.match(getReportPresentation('hr').executive, /Sažetak/);
+  assert.match(getReportPresentation('hr').sourceLibrary, /Registar dokaza/);
 });
 
 test('all report dictionaries expose the same presentation contract', () => {
   const keys = Object.keys(getReportPresentation('en')).sort();
-  for (const language of ['de', 'pl', 'nl', 'fr', 'es', 'fi']) {
+  for (const language of ['de', 'pl', 'nl', 'fr', 'es', 'fi', 'hr']) {
     assert.deepEqual(Object.keys(getReportPresentation(language)).sort(), keys, language);
   }
 });
@@ -123,6 +127,13 @@ test('canonical enums and unavailable sentinels never leak into localized presen
   assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'fr')), ['Modélisé', 'Vérifié', 'Vérification requise']);
   assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'es')), ['Modelado', 'Verificado', 'Requiere verificación']);
   assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'fi')), ['Mallinnettu', 'Vahvistettu', 'Vaatii tarkistuksen']);
+  assert.deepEqual(['NEGLIGIBLE', 'LOW', 'MODERATE', 'HIGH', 'MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'hr')), ['Zanemariv', 'Nizak', 'Umjeren', 'Visok', 'Modelirano', 'Provjereno', 'Potrebna provjera']);
+  assert.equal(localizePresentationValue('Sandy Loam', 'hr'), 'Pjeskovita ilovača');
+  assert.equal(localizePresentationValue('No data', 'hr'), 'Nema podataka');
+  assert.equal(localizePresentationValue('Holocene — sedimentary material', 'hr'), 'Holocen — sedimentni materijal');
+  assert.equal(localizePresentationValue('Exact point', 'hr'), 'Točno na odabranoj točki');
+  assert.equal(localizePresentationValue('Screened', 'hr'), 'Preliminarno provjereno');
+  assert.notEqual(localizeAvailabilityReason('NO_DATA', 'hr'), localizeAvailabilityReason('SOURCE_UNAVAILABLE', 'hr'));
   for (const value of ['Not available', 'No data', 'Unknown', 'Unavailable', 'Not assessed', 'Requires verification', 'Not measured']) {
     assert.equal(localizePresentationValue(value, 'pl'), 'Brak danych');
     assert.equal(localizePresentationValue(value, 'de'), 'Keine Daten');

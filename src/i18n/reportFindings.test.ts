@@ -55,6 +55,7 @@ test('decision-first opening is localized for shared and dedicated country langu
     ['sk', /prvá kontrola/i],
     ['da', /første vurdering/i],
     ['cs', /první kontrola/i],
+    ['hr', /Korisna prva provjera/i],
   ] as const;
   for (const [language, expected] of cases) {
     const opening = decisionIntroCopy(language);

@@ -63,3 +63,21 @@ test('German AI interpretation shell is localized', () => {
   assert.equal(copy.low, 'Niedrig');
   assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
 });
+
+
+test('Croatian AI interpretation shell is localized', () => {
+  const copy = aiPanelCopy('hr');
+  const text = Object.values(copy).join('\n');
+  assert.equal(copy.brand, 'LandSurf AI interpretacija');
+  assert.equal(copy.title, 'Protumačite prikupljene dokaze');
+  assert.equal(copy.completed, 'Interpretacija dovršena');
+  assert.equal(copy.observations, 'Izravna opažanja');
+  assert.equal(copy.limitations, 'Ograničenja');
+  assert.equal(copy.verifyNext, 'Što provjeriti dalje');
+  assert.equal(copy.runAgain, 'Pokreni ponovno');
+  assert.equal(copy.confidence, 'Pouzdanost');
+  assert.equal(copy.high, 'Visoka');
+  assert.equal(copy.medium, 'Srednja');
+  assert.equal(copy.low, 'Niska');
+  assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
+});

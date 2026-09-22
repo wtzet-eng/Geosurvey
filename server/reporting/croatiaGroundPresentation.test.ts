@@ -61,6 +61,18 @@ test('Croatia ground presentation localizes core investigation wording', () => {
   assert.match(de!.narrative, /standortbezogene Untersuchung/i);
   assert.match(pl!.narrative, /klastyczne skały osadowe/i);
   assert.match(pl!.narrative, /badaniu dla lokalizacji/i);
+  const hr = renderCroatiaGroundPresentation(canonical, 'hr');
+  assert.ok(hr);
+  assert.match(hr!.narrative, /klastične sedimentne stijene/i);
+  assert.match(hr!.narrative, /dubinu stijenske podloge/i);
+  assert.doesNotMatch(hr!.narrative, /Investigation focus|Regional mapping|site-specific/i);
+
+  const sedimentary = { ...canonical, geology: { ...canonical.geology, unitName:'Holocene — sedimentary material', lithology:'sedimentary material', geologicalAge:'Holocene' } };
+  const hrSedimentary = renderCroatiaGroundPresentation(sedimentary, 'hr');
+  assert.ok(hrSedimentary);
+  assert.match(hrSedimentary!.narrative, /Holocen — sedimentni materijal/);
+  assert.match(hrSedimentary!.narrative, /Kartirana geološka starost: Holocen/);
+  assert.match(hrSedimentary!.narrative, /regionalni pregled/);
 });
 
 test('Croatia ground presentation does not render for another country', () => {

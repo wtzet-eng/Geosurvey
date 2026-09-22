@@ -5,7 +5,8 @@ const EXTRA_REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'fr', label: 'Français (French)' },
   { code: 'es', label: 'Español (Spanish)' },
   { code: 'fi', label: 'Suomi (Finnish)' },
-  { code: 'sk', label: 'Slovenčina (Slovak)' }
+  { code: 'sk', label: 'Slovenčina (Slovak)' },
+  { code: 'hr', label: 'Hrvatski (Croatian)' }
 ];
 
 export const REPORT_LANGUAGE_OPTIONS: ReportLanguage[] = [
@@ -20,7 +21,8 @@ const COUNTRY_SPECIFIC_LANGUAGE: Record<string, string> = {
   cs: 'CZ',
   da: 'DK',
   no: 'NO',
-  sv: 'SE'
+  sv: 'SE',
+  hr: 'HR'
 };
 
 const normalizeCode = (language: string): string => {

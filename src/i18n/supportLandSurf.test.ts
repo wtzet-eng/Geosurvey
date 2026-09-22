@@ -22,7 +22,7 @@ test('Czech Slovak Danish and Swedish views localize cardinal words while preser
 });
 
 test('support CTA is localized for report languages', () => {
-  const cases = [['pl', /Wesprzyj LandSurf/], ['es', /Apoyar LandSurf/], ['sk', /Podporte LandSurf/], ['no', /Støtt LandSurf/], ['sv', /Stöd LandSurf/]] as const;
+  const cases = [['hr', /Podržite LandSurf/], ['pl', /Wesprzyj LandSurf/], ['es', /Apoyar LandSurf/], ['sk', /Podporte LandSurf/], ['no', /Støtt LandSurf/], ['sv', /Stöd LandSurf/]] as const;
   for (const [language, expected] of cases) {
     const copy = supportLandSurfCopy(language);
     assert.match(copy.heading, expected);

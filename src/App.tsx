@@ -61,6 +61,18 @@ const NATIVE_FRONT_PAGES: Record<string, ReturnType<typeof getFrontPageI18n>> = 
 };
 
 const extraUi: Record<string, Record<string, string>> = {
+  hr: {
+    'Please draw a site boundary on the map first.': 'Najprije nacrtajte granicu parcele na karti.',
+    'Failed to analyze site. Please try again.': 'Analiza lokacije nije uspjela. Pokušajte ponovno.',
+    'An error occurred while generating the report.': 'Došlo je do pogreške pri izradi izvještaja.',
+    'Boundary set · approx': 'Granica postavljena · približno',
+    '(adjust area input to resize)': '(promijenite površinu za promjenu veličine)',
+    'Click the map to place the circle center.': 'Kliknite na kartu kako biste postavili središte kruga.',
+    'Click two opposite corners on the map to draw the rectangle.': 'Kliknite dva suprotna kuta na karti kako biste nacrtali pravokutnik.',
+    'Click sequential points on the map to draw a custom polygon boundary.': 'Klikćite uzastopne točke na karti kako biste nacrtali granicu poligona.',
+    '(auto-calculated from boundary)': '(automatski izračunato iz granice)',
+    'Gathering governmental data…': 'Dohvaćaju se javni podaci…'
+  },
   fr: {
     'Please draw a site boundary on the map first.': 'Dessinez d’abord les limites du terrain sur la carte.',
     'Failed to analyze site. Please try again.': 'L’analyse du site a échoué. Veuillez réessayer.',
@@ -113,7 +125,7 @@ const extraUi: Record<string, Record<string, string>> = {
 };
 
 const uiText = (language: string, en: string, nl: string, cs: string, sv: string, no: string, sk: string) => {
-  if (language === 'fr' || language === 'es' || language === 'fi' || language === 'da') return extraUi[language]?.[en] || en;
+  if (language === 'fr' || language === 'es' || language === 'fi' || language === 'da' || language === 'hr') return extraUi[language]?.[en] || en;
   return language === 'nl' ? nl : language === 'cs' ? cs : language === 'sv' ? sv : language === 'no' ? no : language === 'sk' ? sk : en;
 };
 
@@ -272,7 +284,8 @@ export default function App() {
       (newCode !== 'CZ' && languageCode === 'cs') ||
       (newCode !== 'DK' && languageCode === 'da') ||
       (newCode !== 'NO' && languageCode === 'no') ||
-      (newCode !== 'SE' && languageCode === 'sv')
+      (newCode !== 'SE' && languageCode === 'sv') ||
+      (newCode !== 'HR' && languageCode === 'hr')
     ) {
       setLanguageCode('en');
       setLanguageWasManuallySelected(false);
