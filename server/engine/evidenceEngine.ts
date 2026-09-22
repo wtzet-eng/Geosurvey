@@ -22,6 +22,7 @@ import { getCountryProfile } from '../adapters/countries';
 import { fetchCroatiaFloodEvidence } from '../services/croatiaFloodService';
 import { queryCroatiaCadastre } from '../services/croatiaCadastreService';
 import { enrichCroatiaGroundwaterEvidence, fetchCroatiaGroundwaterEvidence } from '../services/croatiaHydrogeologyService';
+import { enrichCroatiaBrownfieldEvidence, fetchCroatiaBrownfieldEvidence } from '../services/croatiaBrownfieldService';
 
 export interface AnalysisInput {
   lat: number;
@@ -45,7 +46,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -53,14 +54,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'GB' ? fetchBgsSiteEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaFloodEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? queryCroatiaCadastre(lat, lng) : Promise.resolve(null),
-    countryCode === 'HR' ? fetchCroatiaGroundwaterEvidence(lat, lng) : Promise.resolve(null)
+    countryCode === 'HR' ? fetchCroatiaGroundwaterEvidence(lat, lng) : Promise.resolve(null),
+    countryCode === 'HR' ? fetchCroatiaBrownfieldEvidence(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
 
-  if (countryCode === 'HR' && croatiaGroundwater) {
-    evidenceRegistry.push(croatiaGroundwater);
-  }
+  if (countryCode === 'HR' && croatiaGroundwater) evidenceRegistry.push(croatiaGroundwater);
+  if (countryCode === 'HR' && croatiaBrownfield) evidenceRegistry.push(croatiaBrownfield);
 
   // =========================================================================
   // 1. Cadastral Parcel Resolution & Official Geometry (Priority 1)
@@ -865,6 +866,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     statutoryDisclaimers
   };
   if (countryCode === 'HR' && croatiaGroundwater) enrichCroatiaGroundwaterEvidence(report, croatiaGroundwater);
+  if (countryCode === 'HR' && croatiaBrownfield) enrichCroatiaBrownfieldEvidence(report, croatiaBrownfield);
   if (countryCode === 'GB' && bgsEvidence) report.geosurvey_context = {
     geological_unit_name: bgsEvidence.geology.unitName,
     lithology_type: bgsEvidence.geology.lithology,
