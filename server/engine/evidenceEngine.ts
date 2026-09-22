@@ -21,6 +21,7 @@ import { fetchPolandCadastralParcel } from '../adapters/poland';
 import { getCountryProfile } from '../adapters/countries';
 import { fetchCroatiaFloodEvidence } from '../services/croatiaFloodService';
 import { queryCroatiaCadastre } from '../services/croatiaCadastreService';
+import { enrichCroatiaGroundwaterEvidence, fetchCroatiaGroundwaterEvidence } from '../services/croatiaHydrogeologyService';
 
 export interface AnalysisInput {
   lat: number;
@@ -44,17 +45,22 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
     countryCode === 'PL' ? fetchPolandCadastralParcel(lat, lng) : Promise.resolve(null),
     countryCode === 'GB' ? fetchBgsSiteEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaFloodEvidence(lat, lng) : Promise.resolve(null),
-    countryCode === 'HR' ? queryCroatiaCadastre(lat, lng) : Promise.resolve(null)
+    countryCode === 'HR' ? queryCroatiaCadastre(lat, lng) : Promise.resolve(null),
+    countryCode === 'HR' ? fetchCroatiaGroundwaterEvidence(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
+
+  if (countryCode === 'HR' && croatiaGroundwater) {
+    evidenceRegistry.push(croatiaGroundwater);
+  }
 
   // =========================================================================
   // 1. Cadastral Parcel Resolution & Official Geometry (Priority 1)
@@ -272,7 +278,6 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     limitation: croatiaFloodEvidence?.evidence.limitation || 'Does not replace official statutory flood-hazard mapping or project-specific stormwater and drainage assessment.'
   });
 
-  // =========================================================================
   // 3. Soil, Lithology & Honest Groundwater (Priority 4, 5, 6)
   // Reclassified SoilGrids as MODELLED (not VERIFIED) with no fake groundwater depths
   // =========================================================================
@@ -290,6 +295,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     stratPeriod = 'Not available — requires validated PGI-PIB map evidence';
     groundRegime = 'Not available — requires authoritative hydrogeological evidence';
     plGroundwaterNotice = 'Poziom wód gruntowych nie został ustalony na podstawie pomiaru dla działki. Wymagane są dane obserwacyjne lub badania terenowe.';
+  } else if (countryCode === 'HR' && croatiaGroundwater?.status === 'VERIFIED') {
+    const value = (croatiaGroundwater.value || {}) as Record<string, unknown>;
+    const bodyName = typeof value.groundwaterBodyName === 'string' ? value.groundwaterBodyName : null;
+    const bodyCode = typeof value.groundwaterBodyCode === 'string' ? value.groundwaterBodyCode : null;
+    const quantitativeStatus = typeof value.quantitativeStatus === 'string' ? value.quantitativeStatus : null;
+    const chemicalStatus = typeof value.chemicalStatus === 'string' ? value.chemicalStatus : null;
+    groundRegime = [bodyName && `Groundwater body: ${bodyName}${bodyCode ? ` (${bodyCode})` : ''}`, quantitativeStatus && `quantitative status: ${quantitativeStatus}`, chemicalStatus && `chemical status: ${chemicalStatus}`].filter(Boolean).join('; ');
+    plGroundwaterNotice = 'Regional groundwater-body evidence only; groundwater level and seasonal variation are not measured at the selected parcel.';
   } else if (countryCode === 'GB' && bgsEvidence) {
     if (bgsEvidence.geology.available) {
       geologicalUnitName = bgsEvidence.geology.unitName || 'Not available';
@@ -851,6 +864,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     dataSourcesCited,
     statutoryDisclaimers
   };
+  if (countryCode === 'HR' && croatiaGroundwater) enrichCroatiaGroundwaterEvidence(report, croatiaGroundwater);
   if (countryCode === 'GB' && bgsEvidence) report.geosurvey_context = {
     geological_unit_name: bgsEvidence.geology.unitName,
     lithology_type: bgsEvidence.geology.lithology,
