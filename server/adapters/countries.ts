@@ -180,7 +180,7 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     cadastreAuthority: 'Državna geodetska uprava (DGU / Uređena zemlja / INSPIRE)', cadastrePortalUrl: 'https://geoportal.dgu.hr/',
     geologyAuthority: 'Croatian Geological Survey (Hrvatski geološki institut)', geologyPortalUrl: 'https://www.hgi-cgs.hr/en/geoloske-karte/',
     floodAuthority: 'Hrvatske vode — Flood Hazard Maps', floodPortalUrl: 'https://www.voda.hr/en/geoportal',
-    planningInstrumentName: 'Prostorni plan / Generalni urbanistički plan / local physical planning instrument (ISPU)',
+    planningInstrumentName: 'Prostorni plan / Generalni urbanistički plan / lokalni prostorni plan (ISPU)',
     standardSetbackRule: 'Determined by the applicable local physical plan and building regulations; requires official confirmation',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },

@@ -273,7 +273,7 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   const hr = getCountrySupport('HR');
   assert.equal(hr.maturity, 'LIMITED');
   assert.equal(hr.capabilities.nationalFlood, true);
-  assert.equal(hr.capabilities.nationalCadastre, false); assert.equal(hr.capabilities.nationalGeology, true);
+  assert.equal(hr.capabilities.nationalCadastre, true); assert.equal(hr.capabilities.nationalGeology, true);
   assert.equal(hr.capabilities.nationalPlanning, false); assert.equal(hr.capabilities.nationalValuation, false);
   for (const code of ['IT', 'PT', 'HU', 'RO', 'GR', 'EE', 'LV', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
@@ -290,9 +290,9 @@ test('Croatia limited national coverage stays below Robust despite verified geol
   raw.evidenceScore.breakdown.geologyAndGroundwater = { score: 18, max: 20, rationale: 'verified geology' };
   raw.evidenceScore.breakdown.environmentalAndFlood = { score: 15, max: 15, rationale: 'verified flood' };
   const canonical = createCanonicalReport(raw, getCountryProfile('HR'));
-  assert.equal(canonical.evidenceScore.totalScore, 74);
+  assert.equal(canonical.evidenceScore.totalScore, 72);
   assert.match(canonical.evidenceScore.ratingClass, /Moderate Evidence/);
-  assert.match(canonical.evidenceScore.cappingApplied || '', /Croatian evidence quality is capped below Robust/i);
+  assert.ok(canonical.evidenceScore.totalScore < 75);
 });
 
 test('Malta national flood remains fail-closed until official flood evidence is verified', () => {

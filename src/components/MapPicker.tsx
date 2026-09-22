@@ -136,7 +136,19 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         maxZoom: 17,
       }).addTo(map);
     }
-  }, [tileType]);
+    if (countryCode.toUpperCase() === 'HR' && officialParcel) {
+      L.tileLayer.wms('https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms', {
+        layers: 'CP.CadastralParcel',
+        styles: 'CP.CadastralParcel.Default',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.85,
+        version: '1.3.0',
+        crs: L.CRS.EPSG4326,
+        attribution: 'DGU cadastral parcels'
+      }).addTo(map);
+    }
+  }, [tileType, countryCode, officialParcel]);
 
   // Handle center / country updates from parent (only pans map view, never creates preset shape)
   const prevDefaultCenterRef = useRef(defaultCenter);
@@ -443,21 +455,24 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     setSearchQuery(result.display_name.split(',')[0]);
     setOfficialParcel(null);
 
-    if (countryCode.toUpperCase() === 'PL') {
+    if (['PL', 'HR'].includes(countryCode.toUpperCase())) {
       setIsFindingParcel(true);
       try {
-        const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=PL');
+        const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + countryCode.toUpperCase());
         if (!response.ok) throw new Error('Cadastral lookup failed');
         const parcel = await response.json();
 
-        if (parcel.success && Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
-          const points = parcel.geometryPoints as [number, number][];
-          setOfficialParcel({ parcelId: parcel.parcelId, areaM2: parcel.officialAreaM2 });
-          onChange({ type: 'polygon', points });
-
-          if (mapRef.current) {
-            const bounds = L.latLngBounds(points as L.LatLngExpression[]);
-            mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+        if (parcel.success) {
+          setOfficialParcel({ parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2 });
+          if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
+            const points = parcel.geometryPoints as [number, number][];
+            onChange({ type: 'polygon', points });
+            if (mapRef.current) {
+              const bounds = L.latLngBounds(points as L.LatLngExpression[]);
+              mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+            }
+          } else if (mapRef.current) {
+            mapRef.current.setView([lat, lon], 18);
           }
         }
       } catch (err) {

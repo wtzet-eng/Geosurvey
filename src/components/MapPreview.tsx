@@ -7,13 +7,15 @@ interface MapPreviewProps {
   lng: number;
   areaSize: number;
   boundary?: BoundaryShape;
+  countryCode?: string;
 }
 
 export const MapPreview: React.FC<MapPreviewProps> = ({
   lat,
   lng,
   areaSize,
-  boundary
+  boundary,
+  countryCode
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -33,6 +35,19 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
       maxZoom: 19
     }).addTo(map);
 
+    if (countryCode?.toUpperCase() === 'HR') {
+      L.tileLayer.wms('https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms', {
+        layers: 'CP.CadastralParcel',
+        styles: 'CP.CadastralParcel.Default',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.85,
+        version: '1.3.0',
+        crs: L.CRS.EPSG4326,
+        attribution: 'DGU cadastral parcels'
+      }).addTo(map);
+    }
+
     mapRef.current = map;
 
     const timer = setTimeout(() => map.invalidateSize(), 150);
@@ -50,7 +65,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
       map.remove();
       mapRef.current = null;
     };
-  }, [lat, lng]);
+  }, [lat, lng, countryCode]);
 
   useEffect(() => {
     if (!mapRef.current) return;

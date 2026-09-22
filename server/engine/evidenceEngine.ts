@@ -20,6 +20,7 @@ import { resolvePolandValuationBenchmark } from '../services/polandValuationBenc
 import { fetchPolandCadastralParcel } from '../adapters/poland';
 import { getCountryProfile } from '../adapters/countries';
 import { fetchCroatiaFloodEvidence } from '../services/croatiaFloodService';
+import { queryCroatiaCadastre } from '../services/croatiaCadastreService';
 
 export interface AnalysisInput {
   lat: number;
@@ -43,13 +44,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
     countryCode === 'PL' ? fetchPolandCadastralParcel(lat, lng) : Promise.resolve(null),
     countryCode === 'GB' ? fetchBgsSiteEvidence(lat, lng) : Promise.resolve(null),
-    countryCode === 'HR' ? fetchCroatiaFloodEvidence(lat, lng) : Promise.resolve(null)
+    countryCode === 'HR' ? fetchCroatiaFloodEvidence(lat, lng) : Promise.resolve(null),
+    countryCode === 'HR' ? queryCroatiaCadastre(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
@@ -59,7 +61,24 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
 
-  if (countryCode === 'PL' && polandCadastre && polandCadastre.success) {
+  if (countryCode === 'HR' && croatiaCadastre && croatiaCadastre.success && croatiaCadastre.parcel) {
+    const p = croatiaCadastre.parcel;
+    parcelInfo = {
+      status: 'VERIFIED', parcelId: p.parcelNumber, commune: p.cadMunicipalityName || municipality,
+      countryCode: 'HR', isOfficialGeometry: false, areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2,
+      cadastralSource: croatiaCadastre.sourceName, datasetDate: todayStr,
+      limitation: 'Parcel identity and registered area were retrieved from DGU. The official boundary is displayed from the DGU cadastral WMS; vector coordinates are not treated as a surveyed legal boundary.'
+    };
+    evidenceRegistry.push({
+      id: 'hr-cadastre-parcel', category: 'Cadastre & Identification',
+      claim: `DGU cadastral parcel ${p.parcelNumber} in ${p.cadMunicipalityName || p.cadMunicipalityRegNum || 'the cadastral municipality'}; registered area ${p.officialAreaM2 ?? 'not returned'} m².`,
+      status: 'VERIFIED', sourceName: croatiaCadastre.sourceName, sourceUrl: croatiaCadastre.sourceUrl, datasetDate: todayStr,
+      spatialRelationship: `DGU WMS parcel identified at ${lat.toFixed(6)}°N, ${lng.toFixed(6)}°E`,
+      calculationMethod: 'DGU INSPIRE WMS GetFeatureInfo (EPSG:4326) followed by Uređena zemlja parcel-info lookup',
+      confidence: 'High', limitation: 'Official cadastral screening evidence; ownership, encumbrances and legal boundary conclusiveness require competent cadastral/land-register records.',
+      value: { parcelId: p.parcelNumber, registeredParcelId: p.parcelId, officialAreaM2: p.officialAreaM2, cadMunicipalityRegNum: p.cadMunicipalityRegNum }
+    });
+  } else if (countryCode === 'PL' && polandCadastre && polandCadastre.success) {
     const hasOfficialGeom = Boolean(polandCadastre.isOfficialGeometry && polandCadastre.geometryPoints && polandCadastre.geometryPoints.length >= 3);
     const effectiveAreaM2 = polandCadastre.officialAreaM2 || areaSizeM2;
 

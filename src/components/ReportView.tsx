@@ -32,9 +32,15 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
             ? <ReportViewDanish report={report} onBack={onBack} />
             : <ReportViewEvidenceV2 report={report} onBack={onBack} />;
 
-  return <>
-    <AIInterpretationPanel report={report} />
-    {reportView}
-    <SupportLandSurf language={report.language} />
-  </>;
+  return (
+    <div className="flex w-full flex-col">
+      <div className="order-1 w-full">{reportView}</div>
+      <div className="order-2 w-full">
+        <AIInterpretationPanel report={report} />
+      </div>
+      <div className="order-3 w-full">
+        <SupportLandSurf language={report.language} />
+      </div>
+    </div>
+  );
 };

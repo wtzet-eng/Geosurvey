@@ -31,6 +31,7 @@ import { enrichSwitzerlandNationalEvidence, querySwitzerlandNationalEvidence } f
 import { applyMaltaCadastreToReport, queryMaltaCadastre } from './server/services/maltaCadastreService';
 import { enrichMaltaNationalEvidence, queryMaltaNationalEvidence } from './server/services/maltaNationalEvidenceService';
 import { enrichCroatiaNationalEvidence, queryCroatiaNationalEvidence } from './server/services/croatiaNationalEvidenceService';
+import { queryCroatiaCadastre } from './server/services/croatiaCadastreService';
 import { getCenterFromShape, resolveSiteLocation } from './server/services/locationResolutionService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
@@ -93,6 +94,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   const profile = getCountryProfile(country);
   const support = getCountrySupport(country);
   if (support.capabilities.nationalCadastre && country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'HR') return res.json(await queryCroatiaCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'CZ') {
     const national = await queryCzechiaCadastre(lat, lng);
     const inspire = national.success && national.parcel?.geometryPoints?.length
@@ -667,8 +669,9 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       ? finiteArea(evidenceReport.parcel.officialAreaM2) ?? finiteArea(evidenceReport.parcel.areaCalculatedM2)
       : areaSize;
     const safePerSqm = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && valuationAreaM2 !== null && valuationAreaM2 > 0 ? value / valuationAreaM2 : null;
-    const hasOfficialParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED' && evidenceReport.parcel?.isOfficialGeometry);
-    const registeredAreaM2 = hasOfficialParcel || (countryCode === 'NL' && netherlandsCadastre?.success) || (countryCode === 'BE' && belgiumCadastre?.success) || (countryCode === 'MT' && maltaCadastre?.success)
+    const hasVerifiedParcel = Boolean(support.capabilities.nationalCadastre && evidenceReport.parcel?.status === 'VERIFIED');
+    const hasOfficialParcel = Boolean(hasVerifiedParcel && evidenceReport.parcel?.isOfficialGeometry);
+    const registeredAreaM2 = hasVerifiedParcel || (countryCode === 'NL' && netherlandsCadastre?.success) || (countryCode === 'BE' && belgiumCadastre?.success) || (countryCode === 'MT' && maltaCadastre?.success)
       ? evidenceReport.parcel?.officialAreaM2 ?? null : null;
 
     const reportData = {
@@ -730,7 +733,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };
 
-    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: hasOfficialParcel ? evidenceReport.parcel?.geometryPoints : null, is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, report_data: reportData };
+    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: hasOfficialParcel ? evidenceReport.parcel?.geometryPoints : null, is_official_parcel: hasVerifiedParcel, official_area_m2: registeredAreaM2, report_data: reportData };
     reportsStore[finalReport.id] = finalReport;
     res.json(finalReport);
   } catch (error: any) {

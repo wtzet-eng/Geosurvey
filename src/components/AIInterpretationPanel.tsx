@@ -314,15 +314,11 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
   );
 
   return <>
-    <div className="mx-auto w-full max-w-5xl px-4 pt-4 xl:hidden print:hidden">
-      <div className="ml-auto flex w-52 flex-col gap-2">
-        {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-950/10 hover:bg-indigo-700')}
+    <div className="mx-auto w-full max-w-5xl px-4 pt-5 pb-2 sm:px-6 print:hidden">
+      <div className="mx-auto flex w-full max-w-sm flex-col gap-2">
+        {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-indigo-950/10 hover:bg-indigo-700')}
         <FloatingSupportLandSurf language={report.language} />
       </div>
-    </div>
-    <div className="fixed bottom-5 right-5 z-40 hidden w-52 flex-col gap-2 xl:flex print:hidden">
-      {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-xl shadow-indigo-950/20 hover:bg-indigo-700')}
-      <FloatingSupportLandSurf language={report.language} />
     </div>
 
     {isOpen && <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm p-3 sm:p-6 print:hidden" role="dialog" aria-modal="true">
