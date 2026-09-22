@@ -60,7 +60,7 @@ const level = (value: unknown) => String(value ?? '').trim();
 const localScientificValue = (value: string | null | undefined) => {
   if (!value) return c.unavailable;
   const text = value.trim();
-  return text.replace(/\bHolocene\b/gi, 'Holocen').replace(/\bsedimentary material\b/gi, 'sedimentni materijal').replace(/\bclastic sedimentary rock\b/gi, 'klastične sedimentne stijene').replace(/\blimestone\b/gi, 'vapnenac');
+  return text.replace(/\bGroundwater body\b/gi, 'Tijelo podzemnih voda').replace(/\bquantitative status\b/gi, 'kvantitativni status').replace(/\bchemical status\b/gi, 'kemijski status').replace(/\bGood\b/gi, 'Dobar').replace(/\bHolocene\b/gi, 'Holocen').replace(/\bsedimentary material\b/gi, 'sedimentni materijal').replace(/\bclastic sedimentary rock\b/gi, 'klastične sedimentne stijene').replace(/\blimestone\b/gi, 'vapnenac');
 };
 const localSoilTexture = (value: string | null | undefined) => {
   if (!value) return c.unavailable;

@@ -39,6 +39,10 @@ const copies: Record<string, { labels: { verified: string; modelled: string; req
   fi: {
     labels: { verified: 'Vahvistettu tieto', modelled: 'Mallinnettu / alueellinen', requires: 'Vaatii tarkistuksen' },
     titles: { verified: 'Vahvistettu suoraan virallisesta rekisteristä', modelled: 'Mallinnettu alueellisesta aineistosta tai tilastollisesta arviosta', requires: 'Vaatii kohdekohtaisen tai viranomaisvahvistuksen' }
+  },
+  hr: {
+    labels: { verified: 'Provjereni podaci', modelled: 'Modelirano / regionalno', requires: 'Potrebna provjera' },
+    titles: { verified: 'Izravno potvrđeno u mjerodavnom registru', modelled: 'Modelirano na temelju regionalnih podataka ili statističkih procjena', requires: 'Potrebna provjera na lokaciji ili potvrda nadležnog tijela' }
   }
 };
 
