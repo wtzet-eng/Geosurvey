@@ -249,6 +249,15 @@ export interface GroundContextPresentation {
   terrain_min_elevation_m: number | null;
   terrain_max_elevation_m: number | null;
   terrain_local_relief_m: number | null;
+  croatia_context?: {
+    narrative: string;
+    geohazardNarrative: string;
+    sourceNames: string[];
+    focus: string;
+    mappedUnit: string | null;
+    lithology: string | null;
+    geologicalAge: string | null;
+  };
 }
 
 export interface ReportData {

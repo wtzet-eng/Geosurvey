@@ -232,6 +232,10 @@ function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountryS
     totalScore = 74;
     cappingApplied = 'Overall Malta evidence quality is capped below Robust while binding development-zone/local-plan acquisition remains outside current automated coverage.';
   }
+  if (support.countryCode === 'HR' && (!c.nationalCadastre || !c.nationalPlanning) && totalScore > 74) {
+    totalScore = 74;
+    cappingApplied = 'Overall Croatian evidence quality is capped below Robust while national cadastral acquisition and binding planning acquisition remain outside current automated coverage.';
+  }
   const ratingClass: CanonicalEvidenceScore['ratingClass'] = totalScore >= 75 ? 'Robust Evidence (75-100)' : totalScore >= 50 ? 'Moderate Evidence (50-74)' : 'Preliminary / Low Evidence (<50)';
   const verifiedCount = evidenceRecords.filter(record => record.status === 'VERIFIED').length;
   const modelledCount = evidenceRecords.filter(record => record.status === 'MODELLED').length;

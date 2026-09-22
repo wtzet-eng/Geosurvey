@@ -273,11 +273,26 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   const hr = getCountrySupport('HR');
   assert.equal(hr.maturity, 'LIMITED');
   assert.equal(hr.capabilities.nationalFlood, true);
-  assert.equal(hr.capabilities.nationalCadastre, false); assert.equal(hr.capabilities.nationalGeology, false);
+  assert.equal(hr.capabilities.nationalCadastre, false); assert.equal(hr.capabilities.nationalGeology, true);
   assert.equal(hr.capabilities.nationalPlanning, false); assert.equal(hr.capabilities.nationalValuation, false);
   for (const code of ['IT', 'PT', 'HU', 'RO', 'GR', 'EE', 'LV', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
+});
+
+test('Croatia limited national coverage stays below Robust despite verified geology and flood evidence', () => {
+  const raw = rawReport('HR');
+  raw.geosurvey_context = {
+    geological_unit_name: 'Holocene — sedimentary material',
+    lithology_type: 'sedimentary material', geological_period_era: 'Holocene', evidence_level: 'VERIFIED',
+    source_name: 'Croatian Geological Survey', source_url: 'https://transformiraj.nipp.hr/ows/services/org.2.abf7ddc6-7578-4070-a9db-c291a42e55c6_wfs'
+  };
+  raw.evidenceScore.breakdown.geologyAndGroundwater = { score: 18, max: 20, rationale: 'verified geology' };
+  raw.evidenceScore.breakdown.environmentalAndFlood = { score: 15, max: 15, rationale: 'verified flood' };
+  const canonical = createCanonicalReport(raw, getCountryProfile('HR'));
+  assert.equal(canonical.evidenceScore.totalScore, 74);
+  assert.match(canonical.evidenceScore.ratingClass, /Moderate Evidence/);
+  assert.match(canonical.evidenceScore.cappingApplied || '', /Croatian evidence quality is capped below Robust/i);
 });
 
 test('Malta national flood remains fail-closed until official flood evidence is verified', () => {

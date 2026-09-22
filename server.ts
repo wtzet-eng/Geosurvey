@@ -30,6 +30,7 @@ import { applySwitzerlandCadastreToReport, querySwitzerlandCadastre } from './se
 import { enrichSwitzerlandNationalEvidence, querySwitzerlandNationalEvidence } from './server/services/switzerlandNationalEvidenceService';
 import { applyMaltaCadastreToReport, queryMaltaCadastre } from './server/services/maltaCadastreService';
 import { enrichMaltaNationalEvidence, queryMaltaNationalEvidence } from './server/services/maltaNationalEvidenceService';
+import { enrichCroatiaNationalEvidence, queryCroatiaNationalEvidence } from './server/services/croatiaNationalEvidenceService';
 import { getCenterFromShape, resolveSiteLocation } from './server/services/locationResolutionService';
 import { getUKVerificationChecklist } from './server/services/ukRecommendationsService';
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
@@ -47,6 +48,7 @@ import { renderSwedishLocalizedReport } from './server/reporting/swedishLocalize
 import { renderNorwegianLocalizedReport } from './server/reporting/norwegianLocalizedReport';
 import { renderDanishLocalizedReport } from './server/reporting/danishLocalizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
+import { renderCroatiaGroundPresentation } from './server/reporting/croatiaGroundPresentation';
 import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
 import { renderCzechiaGroundPresentation } from './server/reporting/czechiaGroundPresentation';
 import { renderCzechiaCadastrePresentation } from './server/reporting/czechiaCadastrePresentation';
@@ -390,6 +392,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let belgiumNationalEvidence: any[] = [];
     let switzerlandNationalEvidence: any[] = [];
     let maltaNationalEvidence: any[] = [];
+    let croatiaNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -406,6 +409,19 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'france-site-evidence'; try { franceSiteEvidence = await queryFranceSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] BRGM France evidence notice:`, e); }
       stage = 'france-report-enrichment'; if (franceSiteEvidence.length) evidenceReport.evidenceRegistry.push(...franceSiteEvidence);
       try { enrichGeologyFromBrgm(evidenceReport, franceSiteEvidence); } catch (e) { console.warn(`[${diagnosticId}] BRGM geology enrichment notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'HR' && support.capabilities.nationalGeology) {
+      stage = 'croatia-national-geology';
+      try { croatiaNationalEvidence = await queryCroatiaNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] HGI Croatia geology notice:`, e); }
+      stage = 'croatia-report-enrichment';
+      if (croatiaNationalEvidence.length) evidenceReport.evidenceRegistry.push(...croatiaNationalEvidence);
+      try { enrichCroatiaNationalEvidence(evidenceReport, croatiaNationalEvidence); } catch (e) { console.warn(`[${diagnosticId}] HGI Croatia geology enrichment notice:`, e); }
+      const verifiedGround = croatiaNationalEvidence.some((item: any) => item.id === 'hr-hgi-geology-site' && item.status === 'VERIFIED');
+      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Croatian Geological Survey INSPIRE geology returned verified mapped regional context at the selected coordinate. It is credited as screening evidence without inferring parcel engineering parameters.';
+      }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
+      evidenceReport.dataSourcesCited.push({ name: 'Croatian Geological Survey — INSPIRE Geological Map 1:300,000', organization: 'Croatian Geological Survey (Hrvatski geološki institut)', url: 'https://transformiraj.nipp.hr/ows/services/org.2.abf7ddc6-7578-4070-a9db-c291a42e55c6_wfs', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'SK' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
       stage = 'slovakia-ground-evidence';
       try { slovakiaGroundEvidence = await querySlovakiaGroundEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] ŠGÚDŠ Slovakia evidence notice:`, e); }
@@ -625,6 +641,15 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       const existingSource = presentation.sections.soil_and_ground.source_cited;
       presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, ...czechiaGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
     }
+    const croatiaGroundPresentation = countryCode === 'HR' ? renderCroatiaGroundPresentation(canonicalReport, presentation.language) : null;
+    if (croatiaGroundPresentation) {
+      presentation.sections.geohazard_risk.summary = croatiaGroundPresentation.geohazardNarrative;
+      presentation.sections.geohazard_risk.detail = croatiaGroundPresentation.geohazardNarrative;
+      const existingSource = presentation.sections.soil_and_ground.source_cited;
+      const sources = [...new Set([existingSource, ...croatiaGroundPresentation.sourceNames].filter((source): source is string => Boolean(source)))].join('; ');
+      presentation.sections.soil_and_ground.source_cited = sources;
+      presentation.sections.geohazard_risk.source_cited = croatiaGroundPresentation.sourceNames.join('; ');
+    }
     const czechiaCadastrePresentation = isCzechPresentation ? null : renderCzechiaCadastrePresentation(canonicalReport, presentation.language);
     if (czechiaCadastrePresentation) {
       presentation.sections.building_regulations.detail = `${presentation.sections.building_regulations.detail} ${czechiaCadastrePresentation.narrative}`.trim();
@@ -647,7 +672,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       confidence_level: presentation.confidenceLabel,
       evidence_score: canonicalReport.evidenceScore,
       country_support: presentation.countrySupport,
-      ground_context: { ...presentation.groundContext, ...(franceGroundPresentation ? { france_context: franceGroundPresentation } : {}), ...(slovakiaGroundPresentation ? { slovakia_context: slovakiaGroundPresentation } : {}), ...(czechiaGroundPresentation ? { czechia_context: czechiaGroundPresentation } : {}) },
+      ground_context: { ...presentation.groundContext, ...(franceGroundPresentation ? { france_context: franceGroundPresentation } : {}), ...(slovakiaGroundPresentation ? { slovakia_context: slovakiaGroundPresentation } : {}), ...(czechiaGroundPresentation ? { czechia_context: czechiaGroundPresentation } : {}), ...(croatiaGroundPresentation ? { croatia_context: croatiaGroundPresentation } : {}) },
       czechia_cadastre: czechiaCadastre?.success ? { ...evidenceReport.czechia_cadastre, presentation: czechiaCadastrePresentation } : null,
       norway_cadastre: norwayCadastre?.success ? evidenceReport.norway_cadastre : null,
       denmark_cadastre: denmarkCadastre?.success ? evidenceReport.denmark_cadastre : null,
