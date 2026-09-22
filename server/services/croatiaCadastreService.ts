@@ -1,6 +1,7 @@
 import type { CadastralParcelInfo, EvidenceItem } from '../types';
 
 const WMS_URL = 'https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms';
+const WFS_URL = 'https://api.uredjenazemlja.hr/services/inspire/cp/wfs';
 const PARCEL_INFO_URL = 'https://oss.uredjenazemlja.hr/oss/public/cad/parcel-info';
 
 export interface CroatiaCadastreResult {
@@ -19,6 +20,7 @@ export interface CroatiaCadastreResult {
     officialAreaM2?: number;
     hasBuildingRight?: boolean;
     graphic?: boolean;
+    geometryPoints?: [number, number][];
   };
   evidence?: EvidenceItem[];
 }
@@ -33,6 +35,58 @@ async function fetchText(url: string, timeoutMs = 30000): Promise<string> {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchJson(url: string, timeoutMs = 20000): Promise<any> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function pointInRing(lat: number, lng: number, ring: any[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i] || [];
+    const [xj, yj] = ring[j] || [];
+    if (![xi, yi, xj, yj].every(Number.isFinite)) continue;
+    const intersects = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function geometryPointsContainingPoint(geometry: any, lat: number, lng: number): [number, number][] | undefined {
+  const polygons = geometry?.type === 'Polygon' ? [geometry.coordinates] : geometry?.type === 'MultiPolygon' ? geometry.coordinates : [];
+  for (const polygon of polygons) {
+    const outer = polygon?.[0];
+    if (Array.isArray(outer) && outer.length >= 3 && pointInRing(lat, lng, outer)) {
+      return outer.map(([x, y]: [number, number]) => [y, x] as [number, number]);
+    }
+  }
+  return undefined;
+}
+
+async function fetchCroatiaParcelGeometry(lat: number, lng: number): Promise<[number, number][] | undefined> {
+  const delta = 0.0002;
+  const params = new URLSearchParams({
+    SERVICE: 'WFS', VERSION: '2.0.0', REQUEST: 'GetFeature',
+    TYPENAMES: 'cp:CadastralParcel', SRSNAME: 'EPSG:4326',
+    // DGU WFS advertises EPSG:4326 with latitude,longitude axis order.
+    BBOX: `${lat - delta},${lng - delta},${lat + delta},${lng + delta},urn:ogc:def:crs:EPSG::4326`,
+    OUTPUTFORMAT: 'application/json', COUNT: '20'
+  });
+  const data = await fetchJson(`${WFS_URL}?${params.toString()}`);
+  for (const feature of Array.isArray(data?.features) ? data.features : []) {
+    const points = geometryPointsContainingPoint(feature.geometry, lat, lng);
+    if (points) return points;
+  }
+  return undefined;
 }
 
 function queryUrl(lat: number, lng: number): string {
@@ -72,6 +126,12 @@ export async function queryCroatiaCadastre(lat: number, lng: number): Promise<Cr
     if (!infoResponse.ok) throw new Error(`parcel-info HTTP ${infoResponse.status}`);
     const info = await infoResponse.json() as any;
     const officialAreaM2 = Number(info?.area);
+    let geometryPoints: [number, number][] | undefined;
+    try {
+      geometryPoints = await fetchCroatiaParcelGeometry(lat, lng);
+    } catch {
+      geometryPoints = undefined;
+    }
     return {
       success: true,
       sourceName,
@@ -84,6 +144,7 @@ export async function queryCroatiaCadastre(lat: number, lng: number): Promise<Cr
         cadMunicipalityName: info?.cadMunicipalityName,
         address: info?.address,
         officialAreaM2: Number.isFinite(officialAreaM2) ? officialAreaM2 : undefined,
+        geometryPoints,
         hasBuildingRight: typeof info?.hasBuildingRight === 'boolean' ? info.hasBuildingRight : undefined,
         graphic: typeof info?.graphic === 'boolean' ? info.graphic : undefined
       }
@@ -101,10 +162,12 @@ export function applyCroatiaCadastreToReport(report: any, result: CroatiaCadastr
     ...report.parcel,
     status: 'VERIFIED', parcelId: p.parcelNumber, countryCode: 'HR',
     commune: p.cadMunicipalityName || report.parcel?.commune,
-    geometryPoints: undefined, geometryWkt: undefined, isOfficialGeometry: false,
+    geometryPoints: p.geometryPoints, geometryWkt: undefined, isOfficialGeometry: Boolean(p.geometryPoints?.length),
     areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2,
     cadastralSource: result.sourceName, datasetDate: today,
-    limitation: 'Parcel identity and registered area were retrieved from DGU. The official boundary is displayed from the DGU cadastral WMS; vector boundary coordinates were not treated as a surveyed legal boundary.'
+    limitation: p.geometryPoints?.length
+      ? 'Parcel identity, registered area and mapped polygon were retrieved from DGU. The polygon is cadastral mapping evidence and does not replace a surveyed legal boundary.'
+      : 'Parcel identity and registered area were retrieved from DGU. No vector parcel polygon was returned.'
   } satisfies CadastralParcelInfo;
   report.croatia_cadastre = { ...p, boundaryMapService: WMS_URL };
   report.evidenceRegistry = Array.isArray(report.evidenceRegistry) ? report.evidenceRegistry.filter((e: any) => e.id !== 'cadastre-spatial-index') : [];

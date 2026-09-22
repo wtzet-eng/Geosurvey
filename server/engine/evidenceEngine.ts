@@ -72,16 +72,18 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     const p = croatiaCadastre.parcel;
     parcelInfo = {
       status: 'VERIFIED', parcelId: p.parcelNumber, commune: p.cadMunicipalityName || municipality,
-      countryCode: 'HR', isOfficialGeometry: false, areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2,
+      countryCode: 'HR', geometryPoints: p.geometryPoints, isOfficialGeometry: Boolean(p.geometryPoints?.length), areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2,
       cadastralSource: croatiaCadastre.sourceName, datasetDate: todayStr,
-      limitation: 'Parcel identity and registered area were retrieved from DGU. The official boundary is displayed from the DGU cadastral WMS; vector coordinates are not treated as a surveyed legal boundary.'
+      limitation: p.geometryPoints?.length
+        ? 'Parcel identity, registered area and the mapped parcel polygon were retrieved from DGU. The polygon is cadastral mapping evidence and does not replace a surveyed legal boundary or confirmation of title and encumbrances.'
+        : 'Parcel identity and registered area were retrieved from DGU. The vector parcel polygon was not returned; the report must not treat the WMS display as a surveyed legal boundary.'
     };
     evidenceRegistry.push({
       id: 'hr-cadastre-parcel', category: 'Cadastre & Identification',
       claim: `DGU cadastral parcel ${p.parcelNumber} in ${p.cadMunicipalityName || p.cadMunicipalityRegNum || 'the cadastral municipality'}; registered area ${p.officialAreaM2 ?? 'not returned'} m².`,
       status: 'VERIFIED', sourceName: croatiaCadastre.sourceName, sourceUrl: croatiaCadastre.sourceUrl, datasetDate: todayStr,
       spatialRelationship: `DGU WMS parcel identified at ${lat.toFixed(6)}°N, ${lng.toFixed(6)}°E`,
-      calculationMethod: 'DGU INSPIRE WMS GetFeatureInfo (EPSG:4326) followed by Uređena zemlja parcel-info lookup',
+      calculationMethod: 'DGU INSPIRE WMS GetFeatureInfo and INSPIRE WFS parcel geometry (EPSG:4326), followed by Uređena zemlja parcel-info lookup',
       confidence: 'High', limitation: 'Official cadastral screening evidence; ownership, encumbrances and legal boundary conclusiveness require competent cadastral/land-register records.',
       value: { parcelId: p.parcelNumber, registeredParcelId: p.parcelId, officialAreaM2: p.officialAreaM2, cadMunicipalityRegNum: p.cadMunicipalityRegNum }
     });

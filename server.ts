@@ -733,7 +733,10 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
     };
 
-    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: hasOfficialParcel ? evidenceReport.parcel?.geometryPoints : null, is_official_parcel: hasVerifiedParcel, official_area_m2: registeredAreaM2, report_data: reportData };
+    const officialGeometry = hasOfficialParcel && Array.isArray(evidenceReport.parcel?.geometryPoints) && evidenceReport.parcel.geometryPoints.length >= 3
+      ? { type: 'polygon', points: evidenceReport.parcel.geometryPoints }
+      : null;
+    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: officialGeometry || shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: officialGeometry?.points || null, is_official_parcel: hasVerifiedParcel, official_area_m2: registeredAreaM2, report_data: reportData };
     reportsStore[finalReport.id] = finalReport;
     res.json(finalReport);
   } catch (error: any) {
