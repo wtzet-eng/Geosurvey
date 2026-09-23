@@ -128,7 +128,19 @@ test('canonical enums and unavailable sentinels never leak into localized presen
   assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'es')), ['Modelado', 'Verificado', 'Requiere verificación']);
   assert.deepEqual(['MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'fi')), ['Mallinnettu', 'Vahvistettu', 'Vaatii tarkistuksen']);
   assert.deepEqual(['NEGLIGIBLE', 'LOW', 'MODERATE', 'HIGH', 'MODELLED', 'VERIFIED', 'REQUIRES_VERIFICATION'].map(value => localizePresentationValue(value, 'hr')), ['Zanemariv', 'Nizak', 'Umjeren', 'Visok', 'Modelirano', 'Provjereno', 'Potrebna provjera']);
-  assert.equal(localizePresentationValue('Sandy Loam', 'hr'), 'Pjeskovita ilovača');
+  const sandyLoamTranslations: Record<string, string> = {
+    en: 'Sandy loam',
+    de: 'Sandiger Lehm',
+    pl: 'glina piaszczysta',
+    nl: 'Zandige leem',
+    fr: 'Loam sableux',
+    es: 'franco arenoso',
+    fi: 'Hietainen hiesu',
+    hr: 'Pjeskovita ilovača'
+  };
+  for (const [language, expected] of Object.entries(sandyLoamTranslations)) {
+    assert.equal(localizePresentationValue('Sandy Loam', language), expected);
+  }
   assert.equal(localizePresentationValue('No data', 'hr'), 'Nema podataka');
   assert.equal(localizePresentationValue('Holocene — sedimentary material', 'hr'), 'Holocen — sedimentni materijal');
   assert.equal(localizePresentationValue('Exact point', 'hr'), 'Točno na odabranoj točki');

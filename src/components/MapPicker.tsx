@@ -422,11 +422,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     if (drawingPoints.length > 0) {
       drawingPoints.forEach((p, idx) => {
         const isFirst = idx === 0;
-        const canClose = isFirst && drawingPoints.length >= 3;
 
         const pointIcon = L.divIcon({
           className: 'drawing-point-icon',
-          html: `<div style="width:20px;height:20px;background:${isFirst ? '#16a34a' : '#2563eb'};border:2.5px solid #ffffff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#ffffff;font-size:11px;font-weight:bold;cursor:${canClose ? 'pointer' : 'default'};">
+          html: `<div style="width:20px;height:20px;background:${isFirst ? '#16a34a' : '#2563eb'};border:2.5px solid #ffffff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#ffffff;font-size:11px;font-weight:bold;cursor:default;">
                   ${idx + 1}
                  </div>`,
           iconSize: [20, 20],
@@ -438,22 +437,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           zIndexOffset: 2000
         }).addTo(group);
 
-        if (canClose) {
-          marker.bindTooltip(t.closePolygon, {
-            permanent: true,
-            direction: 'top',
-            className: 'text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 shadow-sm'
-          });
-          marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            finishPolygon();
-          });
-        } else {
-          marker.bindTooltip(formatMapPickerText(t.point, idx + 1), {
-            direction: 'top',
-            className: 'text-[10px] font-medium'
-          });
-        }
+        marker.bindTooltip(formatMapPickerText(t.point, idx + 1), {
+          direction: 'top',
+          className: 'text-[10px] font-medium pointer-events-none'
+        });
       });
 
       // Connecting line between placed points
@@ -729,8 +716,11 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           )}
         </div>
         
-        {/* Drawing Action Buttons (Undo / Finish / Redraw) */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Drawing status only — actions float over the map below. */}
+      </div>
+
+      {/* Drawing Action Buttons: bottom-center on mobile, bottom-right on desktop. */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 sm:left-auto sm:right-3 sm:translate-x-0 z-[1000] flex items-center gap-2">
           {drawingPoints.length > 0 && (
             <button
               type="button"
@@ -765,7 +755,6 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               <span>{t.drawNew}</span>
             </button>
           )}
-        </div>
       </div>
 
       {/* Map Canvas */}
