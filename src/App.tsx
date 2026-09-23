@@ -132,6 +132,7 @@ const uiText = (language: string, en: string, nl: string, cs: string, sv: string
 export default function App() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
   const [shape, setShape] = useState<BoundaryShape | null>(null);
+  const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number } | null>(null);
   const [areaSize, setAreaSize] = useState<number>(1000);
   const [countryCode, setCountryCode] = useState<string>('DE');
   const [detectedCountryCode, setDetectedCountryCode] = useState<string | null>(null);
@@ -277,6 +278,7 @@ export default function App() {
     const nextCountry = EUROPEAN_COUNTRIES.find((country) => country.code === newCode);
     setCountryCode(newCode);
     setShape(null);
+    setOfficialParcel(null);
     if (!languageWasManuallySelected && nextCountry) {
       setLanguageCode(normalizeReportLanguage(nextCountry.language, nextCountry.code));
     } else if (
@@ -303,7 +305,12 @@ export default function App() {
     setCountryCode(nextCountry.code);
     setDetectedCountryCode(nextCountry.code);
     setShape(null);
+    setOfficialParcel(null);
     if (!languageWasManuallySelected) setLanguageCode(normalizeReportLanguage(getBrowserLanguage(), nextCountry.code));
+  };
+
+  const handleOfficialParcelSelected = (parcel: { parcelId?: string; areaM2?: number } | null) => {
+    setOfficialParcel(parcel);
   };
 
   const handleShapeChange = (newShape: BoundaryShape | null) => {
@@ -328,7 +335,15 @@ export default function App() {
       const center = getBoundaryCenter(shape) || currentCountry.defaultCenter;
       const res = await fetch('/api/analyze-site', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shape, areaSize: Math.round(areaSize), country: currentCountry.name, countryCode: currentCountry.code, language: languageCode, currency: currentCountry.currency })
+        body: JSON.stringify({
+          shape,
+          areaSize: Math.round(areaSize),
+          country: currentCountry.name,
+          countryCode: currentCountry.code,
+          language: languageCode,
+          currency: currentCountry.currency,
+          officialParcel: officialParcel || undefined
+        })
       });
       if (!res.ok) throw new Error(uiText(languageCode, 'Failed to analyze site. Please try again.', 'De locatieanalyse kon niet worden voltooid. Probeer het opnieuw.', 'Analýzu lokality se nepodařilo dokončit. Zkuste to znovu.', 'Platsanalysen kunde inte slutföras. Försök igen.', 'Analysen kunne ikke fullføres. Prøv igjen.', 'Analýzu lokality sa nepodarilo dokončiť. Skúste to znova.'));
       const reportPayload = await res.json();
@@ -377,7 +392,7 @@ export default function App() {
                 <button type="button" onClick={() => { setMode('circle'); setShape(null); }} className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${mode === 'circle' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}><Circle className="h-3.5 w-3.5" /><span>{fp.modeCircle}</span></button>
               </div>
             </div>
-            <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => setShape(null)} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} language={languageCode} countryCode={currentCountry.code} onCountryDetected={handleCountryDetectedFromSearch} />
+            <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => { setShape(null); setOfficialParcel(null); }} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} language={languageCode} countryCode={currentCountry.code} onCountryDetected={handleCountryDetectedFromSearch} onOfficialParcelSelected={handleOfficialParcelSelected} />
             <div className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
               {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{boundaryText.boundarySet} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{boundaryText.adjustArea}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && boundaryText.circleInstruction}{mode === 'rectangle' && boundaryText.rectangleInstruction}{mode === 'polygon' && boundaryText.polygonInstruction}</span>}
             </div>
@@ -405,6 +420,11 @@ export default function App() {
               {errorMessage && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs flex items-center gap-2 border border-red-200/60"><AlertCircle className="h-4 w-4 shrink-0 text-red-500" /><span>{errorMessage}</span></div>}
             </div>
             <div className="space-y-3 pt-2">
+              {officialParcel && (
+                <div className="px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium">
+                  Official parcel identified and ready for site screening.
+                </div>
+              )}
               <button type="button" onClick={handleAnalyzeSite} disabled={isAnalyzing || !isBoundaryComplete} className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition">
                 {isAnalyzing ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{uiText(languageCode, 'Gathering governmental data…', 'Openbare gegevens worden opgehaald…', 'Načítám veřejná data…', 'Hämtar offentliga data…', 'Henter offentlige data…', 'Získavam údaje z verejných zdrojov…')}</span></> : <><Building2 className="h-4 w-4" /><span>{fp.btnGen}</span><ChevronRight className="h-4 w-4 ml-auto" /></>}
               </button>

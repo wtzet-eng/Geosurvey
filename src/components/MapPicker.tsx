@@ -28,6 +28,7 @@ interface MapPickerProps {
   language?: string;
   countryCode?: string;
   onCountryDetected?: (countryCode: string) => void;
+  onOfficialParcelSelected?: (parcel: { parcelId?: string; areaM2?: number } | null) => void;
 }
 
 export const MapPicker: React.FC<MapPickerProps> = ({
@@ -40,7 +41,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   defaultZoom = 6,
   language = 'en',
   countryCode = 'PL',
-  onCountryDetected
+  onCountryDetected,
+  onOfficialParcelSelected
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -187,8 +189,9 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const handleReset = useCallback(() => {
     setDrawingPoints([]);
     setOfficialParcel(null);
+    onOfficialParcelSelected?.(null);
     onClear();
-  }, [onClear]);
+  }, [onClear, onOfficialParcelSelected]);
 
   // Geolocation trigger (pans map to user's location)
   const handleLocateMe = () => {
@@ -226,10 +229,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       if (!parcel.success) return false;
 
       if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
-        setOfficialParcel({
+        const selectedParcel = {
           parcelId: parcel.parcel?.parcelNumber || parcel.parcelId,
           areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2
-        });
+        };
+        setOfficialParcel(selectedParcel);
+        onOfficialParcelSelected?.(selectedParcel);
         const points = parcel.geometryPoints as [number, number][];
         onChange({ type: 'polygon', points });
         if (mapRef.current) {
@@ -245,7 +250,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     } finally {
       setIsFindingParcel(false);
     }
-  }, [countryCode, onChange]);
+  }, [countryCode, onChange, onOfficialParcelSelected]);
 
   // Map Click & Double Click Handling
   useEffect(() => {
