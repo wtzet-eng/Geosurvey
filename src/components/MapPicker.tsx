@@ -56,6 +56,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
   const [isLocating, setIsLocating] = useState(false);
   const [isFindingParcel, setIsFindingParcel] = useState(false);
+  const parcelLookupPendingRef = useRef(false);
   const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number } | null>(null);
   const t = getMapPickerText(language);
 
@@ -221,6 +222,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
     if (countryCode.toUpperCase() !== 'HR') return false;
 
+    if (parcelLookupPendingRef.current) return false;
+    parcelLookupPendingRef.current = true;
     setIsFindingParcel(true);
     try {
       const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=HR');
@@ -248,6 +251,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       console.warn('Cadastral click lookup notice:', err);
       return false;
     } finally {
+      parcelLookupPendingRef.current = false;
       setIsFindingParcel(false);
     }
   }, [countryCode, onChange, onOfficialParcelSelected]);
@@ -264,6 +268,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       // forcing the user to redraw a boundary manually. If no official parcel is
       // found, fall back to the existing drawing behaviour.
       if (countryCode.toUpperCase() === 'HR' && mode === 'polygon' && drawingPoints.length === 0) {
+        // While Croatian cadastral lookup is in progress, keep map clicks in
+        // parcel-selection mode. Do not accidentally turn a normal parcel click
+        // into the first point of a manually drawn polygon.
+        if (parcelLookupPendingRef.current || isFindingParcel) return;
         const selected = await findOfficialParcelAtPoint(latLng[0], latLng[1]);
         if (selected) return;
       }
@@ -330,7 +338,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       map.off('click', handleMapClick);
       map.off('dblclick', handleMapDblClick);
     };
-  }, [mode, circleRadius, drawingPoints, shape, onChange, finishPolygon, countryCode, findOfficialParcelAtPoint]);
+  }, [mode, circleRadius, drawingPoints, shape, onChange, finishPolygon, countryCode, findOfficialParcelAtPoint, isFindingParcel]);
 
   // Mode changes: clear in-progress drawing points
   useEffect(() => {
@@ -506,9 +514,11 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     setSearchResults([]);
     setSearchQuery(result.display_name.split(',')[0]);
     setOfficialParcel(null);
+    onOfficialParcelSelected?.(null);
 
     const searchCountryCode = detectedCountry || countryCode.toUpperCase();
     if (['PL', 'HR'].includes(searchCountryCode)) {
+      parcelLookupPendingRef.current = true;
       setIsFindingParcel(true);
       try {
         const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + searchCountryCode);
@@ -516,7 +526,9 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         const parcel = await response.json();
 
         if (parcel.success) {
-          setOfficialParcel({ parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2 });
+          const selectedParcel = { parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2 };
+          setOfficialParcel(selectedParcel);
+          onOfficialParcelSelected?.(selectedParcel);
           if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
             const points = parcel.geometryPoints as [number, number][];
             onChange({ type: 'polygon', points });
@@ -531,6 +543,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       } catch (err) {
         console.warn('Cadastral lookup notice:', err);
       } finally {
+        parcelLookupPendingRef.current = false;
         setIsFindingParcel(false);
       }
     }
