@@ -212,13 +212,54 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     );
   };
 
+  // Find and select an official parcel at a clicked map location.
+  const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
+    if (countryCode.toUpperCase() !== 'HR') return false;
+
+    setIsFindingParcel(true);
+    try {
+      const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=HR');
+      if (!response.ok) return false;
+      const parcel = await response.json();
+      if (!parcel.success) return false;
+
+      if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
+        setOfficialParcel({
+          parcelId: parcel.parcel?.parcelNumber || parcel.parcelId,
+          areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2
+        });
+        const points = parcel.geometryPoints as [number, number][];
+        onChange({ type: 'polygon', points });
+        if (mapRef.current) {
+          const bounds = L.latLngBounds(points as L.LatLngExpression[]);
+          mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+        }
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('Cadastral click lookup notice:', err);
+      return false;
+    } finally {
+      setIsFindingParcel(false);
+    }
+  }, [countryCode, onChange]);
+
   // Map Click & Double Click Handling
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    const handleMapClick = (e: L.LeafletMouseEvent) => {
+    const handleMapClick = async (e: L.LeafletMouseEvent) => {
       const latLng: [number, number] = [e.latlng.lat, e.latlng.lng];
+
+      // Croatia: a map click can select the official cadastral parcel instead of
+      // forcing the user to redraw a boundary manually. If no official parcel is
+      // found, fall back to the existing drawing behaviour.
+      if (countryCode.toUpperCase() === 'HR' && mode === 'polygon' && drawingPoints.length === 0) {
+        const selected = await findOfficialParcelAtPoint(latLng[0], latLng[1]);
+        if (selected) return;
+      }
 
       if (mode === 'circle') {
         onChange({
@@ -282,7 +323,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       map.off('click', handleMapClick);
       map.off('dblclick', handleMapDblClick);
     };
-  }, [mode, circleRadius, drawingPoints, shape, onChange, finishPolygon]);
+  }, [mode, circleRadius, drawingPoints, shape, onChange, finishPolygon, countryCode, findOfficialParcelAtPoint]);
 
   // Mode changes: clear in-progress drawing points
   useEffect(() => {
