@@ -29,6 +29,7 @@ interface MapPickerProps {
   countryCode?: string;
   onCountryDetected?: (countryCode: string) => void;
   onOfficialParcelSelected?: (parcel: { parcelId?: string; areaM2?: number } | null) => void;
+  onParcelLookupStateChange?: (isFinding: boolean) => void;
 }
 
 export const MapPicker: React.FC<MapPickerProps> = ({
@@ -42,7 +43,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   language = 'en',
   countryCode = 'PL',
   onCountryDetected,
-  onOfficialParcelSelected
+  onOfficialParcelSelected,
+  onParcelLookupStateChange
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -225,6 +227,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     if (parcelLookupPendingRef.current) return false;
     parcelLookupPendingRef.current = true;
     setIsFindingParcel(true);
+    onParcelLookupStateChange?.(true);
     try {
       const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=HR');
       if (!response.ok) return false;
@@ -253,8 +256,9 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     } finally {
       parcelLookupPendingRef.current = false;
       setIsFindingParcel(false);
+      onParcelLookupStateChange?.(false);
     }
-  }, [countryCode, onChange, onOfficialParcelSelected]);
+  }, [countryCode, onChange, onOfficialParcelSelected, onParcelLookupStateChange]);
 
   // Map Click & Double Click Handling
   useEffect(() => {
@@ -520,6 +524,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     if (['PL', 'HR'].includes(searchCountryCode)) {
       parcelLookupPendingRef.current = true;
       setIsFindingParcel(true);
+      onParcelLookupStateChange?.(true);
       try {
         const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + searchCountryCode);
         if (!response.ok) throw new Error('Cadastral lookup failed');
@@ -545,6 +550,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       } finally {
         parcelLookupPendingRef.current = false;
         setIsFindingParcel(false);
+        onParcelLookupStateChange?.(false);
       }
     }
   };

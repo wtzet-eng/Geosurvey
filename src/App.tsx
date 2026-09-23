@@ -133,6 +133,7 @@ export default function App() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
   const [shape, setShape] = useState<BoundaryShape | null>(null);
   const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number } | null>(null);
+  const [isFindingParcel, setIsFindingParcel] = useState(false);
   const [areaSize, setAreaSize] = useState<number>(1000);
   const [countryCode, setCountryCode] = useState<string>('DE');
   const [detectedCountryCode, setDetectedCountryCode] = useState<string | null>(null);
@@ -392,9 +393,17 @@ export default function App() {
                 <button type="button" onClick={() => { setMode('circle'); setShape(null); }} className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${mode === 'circle' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}><Circle className="h-3.5 w-3.5" /><span>{fp.modeCircle}</span></button>
               </div>
             </div>
-            <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => { setShape(null); setOfficialParcel(null); }} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} language={languageCode} countryCode={currentCountry.code} onCountryDetected={handleCountryDetectedFromSearch} onOfficialParcelSelected={handleOfficialParcelSelected} />
+            <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => { setShape(null); setOfficialParcel(null); }} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} language={languageCode} countryCode={currentCountry.code} onCountryDetected={handleCountryDetectedFromSearch} onOfficialParcelSelected={handleOfficialParcelSelected} onParcelLookupStateChange={setIsFindingParcel} />
             <div className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
-              {isBoundaryComplete ? <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{boundaryText.boundarySet} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{boundaryText.adjustArea}</span>}</div> : <span className="text-slate-500">{mode === 'circle' && boundaryText.circleInstruction}{mode === 'rectangle' && boundaryText.rectangleInstruction}{mode === 'polygon' && boundaryText.polygonInstruction}</span>}
+              {isFindingParcel ? (
+                <span className="text-emerald-700 font-medium">{languageCode === 'hr' ? 'Pronađena je lokacija. Molimo pričekajte dok identificiramo službenu katastarsku česticu…' : 'Location found. Please wait while we identify the official cadastral parcel…'}</span>
+              ) : officialParcel ? (
+                <span className="text-emerald-700 font-medium">{languageCode === 'hr' ? 'Službena katastarska čestica je identificirana i spremna za provjeru lokacije.' : 'Official cadastral parcel identified and ready for site screening.'}</span>
+              ) : isBoundaryComplete ? (
+                <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{boundaryText.boundarySet} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{boundaryText.adjustArea}</span>}</div>
+              ) : (
+                <span className="text-slate-500">{mode === 'circle' && boundaryText.circleInstruction}{mode === 'rectangle' && boundaryText.rectangleInstruction}{mode === 'polygon' && boundaryText.polygonInstruction}</span>
+              )}
             </div>
           </div>
 
