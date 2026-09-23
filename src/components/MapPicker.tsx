@@ -27,6 +27,7 @@ interface MapPickerProps {
   defaultZoom?: number;
   language?: string;
   countryCode?: string;
+  onCountryDetected?: (countryCode: string) => void;
 }
 
 export const MapPicker: React.FC<MapPickerProps> = ({
@@ -38,7 +39,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   defaultCenter = [51.1657, 10.4515],
   defaultZoom = 6,
   language = 'en',
-  countryCode = 'PL'
+  countryCode = 'PL',
+  onCountryDetected
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -47,7 +49,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<{ display_name: string; lat: string; lon: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<{ display_name: string; lat: string; lon: string; address?: { country_code?: string } }[]>([]);
   const [tileType, setTileType] = useState<'osm' | 'satellite' | 'terrain'>('osm');
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
   const [isLocating, setIsLocating] = useState(false);
@@ -470,7 +472,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     setSearchResults([]);
 
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(searchQuery)}&limit=5`);
       const data = await res.json();
       setSearchResults(data);
     } catch (err) {
@@ -480,8 +482,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     }
   };
 
-  const selectSearchResult = async (result: { lat: string; lon: string; display_name: string }) => {
+  const selectSearchResult = async (result: { lat: string; lon: string; display_name: string; address?: { country_code?: string } }) => {
     const lat = parseFloat(result.lat);
+    const detectedCountry = result.address?.country_code?.toUpperCase();
+    if (detectedCountry && detectedCountry !== countryCode.toUpperCase()) {
+      onCountryDetected?.(detectedCountry);
+    }
     const lon = parseFloat(result.lon);
 
     if (mapRef.current) {
@@ -496,10 +502,11 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     setSearchQuery(result.display_name.split(',')[0]);
     setOfficialParcel(null);
 
-    if (['PL', 'HR'].includes(countryCode.toUpperCase())) {
+    const searchCountryCode = detectedCountry || countryCode.toUpperCase();
+    if (['PL', 'HR'].includes(searchCountryCode)) {
       setIsFindingParcel(true);
       try {
-        const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + countryCode.toUpperCase());
+        const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + searchCountryCode);
         if (!response.ok) throw new Error('Cadastral lookup failed');
         const parcel = await response.json();
 
