@@ -223,14 +223,15 @@ export const MapPicker: React.FC<MapPickerProps> = ({
 
   // Find and select an official parcel at a clicked map location.
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
-    if (countryCode.toUpperCase() !== 'HR') return false;
+    const lookupCountry = countryCode.toUpperCase();
+    if (!['DE', 'HR'].includes(lookupCountry)) return false;
 
     if (parcelLookupPendingRef.current) return false;
     parcelLookupPendingRef.current = true;
     setIsFindingParcel(true);
     onParcelLookupStateChange?.(true);
     try {
-      const response = await apiFetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=HR');
+      const response = await apiFetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=' + lookupCountry);
       if (!response.ok) return false;
       const parcel = await response.json();
       if (!parcel.success) return false;
@@ -269,13 +270,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     const handleMapClick = async (e: L.LeafletMouseEvent) => {
       const latLng: [number, number] = [e.latlng.lat, e.latlng.lng];
 
-      // Croatia: a map click can select the official cadastral parcel instead of
-      // forcing the user to redraw a boundary manually. If no official parcel is
-      // found, fall back to the existing drawing behaviour.
-      if (countryCode.toUpperCase() === 'HR' && mode === 'polygon' && drawingPoints.length === 0) {
-        // While Croatian cadastral lookup is in progress, keep map clicks in
-        // parcel-selection mode. Do not accidentally turn a normal parcel click
-        // into the first point of a manually drawn polygon.
+      // Germany and Croatia: a map click can select the official cadastral parcel
+      // instead of forcing the user to redraw a boundary manually. If no official
+      // parcel is found, fall back to the existing drawing behaviour.
+      if (['DE', 'HR'].includes(countryCode.toUpperCase()) && mode === 'polygon' && drawingPoints.length === 0) {
+        // While cadastral lookup is in progress, keep map clicks in parcel-selection
+        // mode. Do not accidentally turn a parcel click into a manual polygon point.
         if (parcelLookupPendingRef.current || isFindingParcel) return;
         const selected = await findOfficialParcelAtPoint(latLng[0], latLng[1]);
         if (selected) return;
@@ -513,7 +513,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     onOfficialParcelSelected?.(null);
 
     const searchCountryCode = detectedCountry || countryCode.toUpperCase();
-    if (['PL', 'HR'].includes(searchCountryCode)) {
+    if (['DE', 'PL', 'HR'].includes(searchCountryCode)) {
       parcelLookupPendingRef.current = true;
       setIsFindingParcel(true);
       onParcelLookupStateChange?.(true);
