@@ -427,13 +427,24 @@ export const MapPicker: React.FC<MapPickerProps> = ({
 
         const marker = L.marker(p, {
           icon: pointIcon,
-          zIndexOffset: 2000
+          zIndexOffset: 2000,
+          interactive: isFirst && drawingPoints.length >= 3
         }).addTo(group);
 
         marker.bindTooltip(formatMapPickerText(t.point, idx + 1), {
           direction: 'top',
           className: 'text-[10px] font-medium pointer-events-none'
         });
+
+        // The first point is the explicit "close" target once at least three
+        // corners exist. This avoids the old distance-based auto-close while
+        // still making closing the polygon intuitive.
+        if (isFirst && drawingPoints.length >= 3) {
+          marker.on('click', (event: L.LeafletMouseEvent) => {
+            L.DomEvent.stopPropagation(event);
+            finishPolygon();
+          });
+        }
       });
 
       // Connecting line between placed points
