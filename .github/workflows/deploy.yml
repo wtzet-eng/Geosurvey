@@ -28,6 +28,16 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Ensure Artifact Registry repository exists
+        run: |
+          if ! gcloud artifacts repositories describe cloud-run-source-deploy --location="${REGION}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
+            gcloud artifacts repositories create cloud-run-source-deploy \
+              --repository-format=docker \
+              --location="${REGION}" \
+              --project="${PROJECT_ID}" \
+              --description="Docker images for Cloud Run deployments"
+          fi
+
       - name: Authorize Docker to push to Google Artifact Registry
         run: |
           gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
