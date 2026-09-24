@@ -64,6 +64,7 @@ jobs:
             --ingress=all
           env_vars: |-
             MISTRAL_API_KEY=${{ secrets.MISTRAL_API_KEY }}
+            FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
             AI_INTERPRETATION_PROVIDER=mistral
 
       - name: Show Cloud Run service URL
