@@ -87,6 +87,41 @@ function appendRecord(records: EvidenceItem[], raw: EvidenceItem | undefined): E
  * Wales or Northern Ireland.
  */
 export function applySiteSpecificCountryEvidence(canonical: CanonicalReport, rawReport: VerifiedSiteReport): CanonicalReport {
+  if (canonical.countryCode === 'DE') {
+    const geology = rawReport.evidenceRegistry.find(record => record.id === 'de-mv-geology-gk50' && record.status === 'VERIFIED');
+    const regionalRecords = rawReport.evidenceRegistry.filter(record => record.id.startsWith('de-mv-'));
+    let evidenceRecords = [...canonical.evidenceRecords];
+    for (const record of regionalRecords) evidenceRecords = appendRecord(evidenceRecords, record);
+    if (!geology) return { ...canonical, evidenceRecords };
+    const raw = (geology.value || {}) as Record<string, unknown>;
+    return {
+      ...canonical,
+      geology: {
+        ...canonical.geology,
+        unitName: typeof raw.geologicalUnit === 'string' ? raw.geologicalUnit : canonical.geology.unitName,
+        lithology: typeof raw.lithology === 'string' ? raw.lithology : canonical.geology.lithology,
+        geologicalAge: typeof raw.geologicalAge === 'string' ? raw.geologicalAge : canonical.geology.geologicalAge,
+        geneticOrigin: typeof raw.geneticOrigin === 'string' ? raw.geneticOrigin : canonical.geology.geneticOrigin,
+        status: 'VERIFIED',
+        sourceName: geology.sourceName,
+        sourceUrl: geology.sourceUrl || canonical.geology.sourceUrl,
+        reasonCode: undefined
+      },
+      evidenceScore: {
+        ...canonical.evidenceScore,
+        breakdown: {
+          ...canonical.evidenceScore.breakdown,
+          geologyAndGroundwater: {
+            ...canonical.evidenceScore.breakdown.geologyAndGroundwater,
+            score: Math.max(18, canonical.evidenceScore.breakdown.geologyAndGroundwater.score),
+            max: 20,
+            rationale: 'Verified Mecklenburg-Vorpommern GK50 regional geology is available at the selected coordinate. Nearby LBDS boreholes are contextual evidence and are not treated as parcel-specific engineering parameters.'
+          }
+        }
+      },
+      evidenceRecords
+    };
+  }
   if (canonical.countryCode !== 'GB') return canonical;
   const flood = rawReport.evidenceRegistry.find(record => record.id === 'uk-ea-flood-site' && record.status === 'VERIFIED');
   const mining = rawReport.evidenceRegistry.find(record => record.id === 'uk-geosure-non-coal-mining' && record.status === 'VERIFIED');

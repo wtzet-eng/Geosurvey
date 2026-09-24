@@ -24,6 +24,7 @@ import { applyIrelandCadastreToReport, queryIrelandCadastre } from './server/ser
 import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './server/services/irelandNationalEvidenceService';
 import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './server/services/luxembourgCadastreService';
 import { applyGermanyCadastreToReport, queryGermanyCadastre } from './server/services/germanyCadastreService';
+import { enrichGermanyMvGroundEvidence, queryGermanyMvGroundEvidence } from './server/services/germanyMvEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
 import { applyBelgiumCadastreToReport, queryBelgiumCadastre } from './server/services/belgiumCadastreService';
 import { enrichBelgiumNationalEvidence, queryBelgiumNationalEvidence } from './server/services/belgiumNationalEvidenceService';
@@ -189,6 +190,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let switzerlandCadastre: any = null;
     let maltaCadastre: any = null;
     let germanyCadastre: any = null;
+    let germanyMvEvidence: any[] = [];
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -359,6 +361,33 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: denmarkCadastre.sourceName, organization: 'Datafordeleren / Matriklen', url: denmarkCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Datafordeleren Denmark cadastre notice:`, e); }
+    }
+
+    if (!countryLocationMismatch && countryCode === 'DE') {
+      stage = 'germany-mv-ground-evidence';
+      try {
+        const mvResult = await queryGermanyMvGroundEvidence(lat, lng, stateName, fetch);
+        germanyMvEvidence = mvResult.evidence;
+        enrichGermanyMvGroundEvidence(evidenceReport, mvResult);
+        if (mvResult.evidence.some((item: any) => item.id === 'de-mv-boreholes-lbds' && item.status === 'VERIFIED')) {
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          evidenceReport.dataSourcesCited.push({
+            name: 'LUNG M-V — Landesbohrdatenspeicher (LBDS)',
+            organization: 'Landesamt für Umwelt, Naturschutz und Geologie Mecklenburg-Vorpommern',
+            url: 'https://umweltkarten.lung-mv.de/dienste/gg_lbds?SERVICE=WFS&REQUEST=GetCapabilities',
+            type: 'Regional Borehole Register', status: 'VERIFIED'
+          });
+        }
+        if (mvResult.evidence.some((item: any) => item.id === 'de-mv-geology-gk50' && item.status === 'VERIFIED')) {
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          evidenceReport.dataSourcesCited.push({
+            name: 'LUNG M-V — Geologische Karte (GK 50) 1:50.000',
+            organization: 'Landesamt für Umwelt, Naturschutz und Geologie Mecklenburg-Vorpommern',
+            url: 'https://www.umweltkarten.mv-regierung.de/script/mv_a7_geol_karten_wfs.php?SERVICE=WFS&REQUEST=GetCapabilities',
+            type: 'Regional Geological Survey', status: 'VERIFIED'
+          });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Mecklenburg-Vorpommern regional evidence notice:`, e); }
     }
 
     const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
@@ -728,6 +757,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       pgi_site_evidence_count: pgiSiteEvidence.length,
       uk_site_evidence_count: ukSiteEvidence.length,
       france_site_evidence_count: franceSiteEvidence.length,
+      germany_mv_evidence_count: germanyMvEvidence.length,
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
       czechia_ground_evidence_count: czechiaGroundEvidence.length,
       czechia_cadastre_evidence_count: Array.isArray(czechiaCadastre?.evidence) ? czechiaCadastre.evidence.length : 0,

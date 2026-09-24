@@ -145,6 +145,7 @@ function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdap
   const c = support.capabilities;
   const modelledValuationAvailable = hasModelledValuation(report, support);
   const filtered = report.evidenceRegistry.flatMap(record => {
+    if (support.countryCode === 'DE' && record.id.startsWith('de-mv-')) return [record];
     const text = `${record.id} ${record.category}`.toLowerCase();
     if (!c.nationalCadastre && /cadastre|cadastr|parcel/.test(text)) return [];
     if (!c.nationalPlanning && /planning|zoning|mpzp|bebau/.test(text)) {

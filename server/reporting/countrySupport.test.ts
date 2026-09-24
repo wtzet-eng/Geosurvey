@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getCountryProfile } from '../adapters/countries';
 import { getCountrySupport } from '../../src/data/countrySupport';
+import { applySiteSpecificCountryEvidence } from './evidenceDisplay';
 import { createCanonicalReport } from './canonicalReport';
 import { renderLocalizedReport } from './localizedReport';
 
@@ -415,4 +416,18 @@ test('verified national mapped geology replaces a stale soil-only scoring ration
   assert.equal(canonical.evidenceScore.breakdown.geologyAndGroundwater.score, 18);
   assert.match(canonical.evidenceScore.breakdown.geologyAndGroundwater.rationale, /Verified national mapped geology/i);
   assert.doesNotMatch(canonical.evidenceScore.breakdown.geologyAndGroundwater.rationale, /no soil or groundwater evidence points awarded/i);
+});
+
+
+test('Germany exposes verified Mecklenburg-Vorpommern regional geology without claiming Germany-wide geology coverage', () => {
+  const raw = rawReport('DE');
+  raw.geosurvey_context = { geological_unit_name: 'Test M-V unit', lithology_type: 'sand', geological_period_era: 'Pleistocene', evidence_level: 'VERIFIED', source_name: 'LUNG M-V — Geologische Karte (GK 50) 1:50.000', source_url: 'https://example.test/mv' };
+  raw.evidenceRegistry.push({ id: 'de-mv-geology-gk50', category: 'Regional geology & ground evidence', claim: 'Verified M-V geology', status: 'VERIFIED', sourceName: 'LUNG M-V — Geologische Karte (GK 50) 1:50.000', sourceUrl: 'https://example.test/mv', datasetDate: '2026-09-24', spatialRelationship: 'site', calculationMethod: 'fixture', confidence: 'High', limitation: 'regional screening', value: { geologicalUnit: 'Test M-V unit', lithology: 'sand', geologicalAge: 'Pleistocene', geneticOrigin: 'glaciofluvial' } });
+  raw.evidenceRegistry.push({ id: 'de-mv-boreholes-lbds', category: 'Regional geology & ground evidence', claim: '30 nearby boreholes', status: 'VERIFIED', sourceName: 'LUNG M-V — Landesbohrdatenspeicher (LBDS)', sourceUrl: 'https://example.test/lbds', datasetDate: '2026-09-24', spatialRelationship: 'within 1.5 km', calculationMethod: 'fixture', confidence: 'High', limitation: 'contextual only', value: { count: 30 } });
+  const base = createCanonicalReport(raw, getCountryProfile('DE'));
+  const regional = applySiteSpecificCountryEvidence(base, raw);
+  assert.equal(getCountrySupport('DE').capabilities.nationalGeology, false);
+  assert.equal(regional.geology.status, 'VERIFIED');
+  assert.equal(regional.geology.unitName, 'Test M-V unit');
+  assert.equal(regional.evidenceRecords.some(record => record.id === 'de-mv-boreholes-lbds'), true);
 });
