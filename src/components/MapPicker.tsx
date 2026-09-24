@@ -315,16 +315,9 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           return;
         }
 
-        // If clicking near first point with >= 3 points, close it!
-        if (drawingPoints.length >= 3) {
-          const first = drawingPoints[0];
-          const dist = map.distance(L.latLng(latLng[0], latLng[1]), L.latLng(first[0], first[1]));
-          if (dist < 25) {
-            finishPolygon();
-            return;
-          }
-        }
-
+        // Do not auto-close when a click happens near the first point.
+        // On small or dense plots this can make the fourth corner impossible to place.
+        // Finish explicitly with the finish control or double-click.
         setDrawingPoints(prev => [...prev, latLng]);
       }
     };
