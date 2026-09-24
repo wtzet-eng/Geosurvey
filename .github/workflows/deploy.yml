@@ -61,6 +61,7 @@ jobs:
             --max-instances=10
             --cpu=1
             --memory=512Mi
+            --ingress=all
 
       - name: Show Cloud Run service URL
         shell: bash
