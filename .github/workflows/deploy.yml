@@ -67,6 +67,7 @@ jobs:
             FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
             AI_INTERPRETATION_PROVIDER=mistral
 
+      # Deploy runtime secrets for AI and Firebase authentication.
       - name: Show Cloud Run service URL
         shell: bash
         run: |
