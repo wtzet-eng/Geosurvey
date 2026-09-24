@@ -216,7 +216,7 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const de = getCountrySupport('DE'); const fr = getCountrySupport('FR');
   assert.equal(pl.maturity, 'SUPPORTED'); assert.equal(pl.capabilities.nationalCadastre, true); assert.equal(pl.capabilities.nationalGeology, true);
   assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, false);
-  assert.equal(de.maturity, 'LIMITED'); assert.equal(de.capabilities.nationalValuation, true); assert.equal(de.capabilities.nationalCadastre, false); assert.equal(de.capabilities.nationalPlanning, false);
+  assert.equal(de.maturity, 'LIMITED'); assert.equal(de.capabilities.nationalValuation, true); assert.equal(de.capabilities.nationalCadastre, true); assert.equal(de.capabilities.nationalPlanning, false);
   assert.equal(fr.maturity, 'LIMITED'); assert.equal(fr.capabilities.nationalGeology, true); assert.equal(fr.capabilities.nationalBoreholes, true); assert.equal(fr.capabilities.nationalValuation, true);
   for (const code of ['SK', 'AT', 'ES', 'FI']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.equal(support.capabilities.nationalValuation, true); assert.equal(support.capabilities.nationalCadastre, false);

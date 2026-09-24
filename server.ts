@@ -23,6 +23,7 @@ import { enrichDenmarkGroundEvidence, queryDenmarkGroundEvidence } from './serve
 import { applyIrelandCadastreToReport, queryIrelandCadastre } from './server/services/irelandCadastreService';
 import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './server/services/irelandNationalEvidenceService';
 import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './server/services/luxembourgCadastreService';
+import { applyGermanyCadastreToReport, queryGermanyCadastre } from './server/services/germanyCadastreService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
 import { applyBelgiumCadastreToReport, queryBelgiumCadastre } from './server/services/belgiumCadastreService';
 import { enrichBelgiumNationalEvidence, queryBelgiumNationalEvidence } from './server/services/belgiumNationalEvidenceService';
@@ -95,6 +96,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   const support = getCountrySupport(country);
   if (support.capabilities.nationalCadastre && country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'HR') return res.json(await queryCroatiaCadastre(lat, lng));
+  if (country === 'DE') return res.json(await queryGermanyCadastre(lat, lng, null));
   if (support.capabilities.nationalCadastre && country === 'CZ') {
     const national = await queryCzechiaCadastre(lat, lng);
     const inspire = national.success && national.parcel?.geometryPoints?.length
@@ -186,6 +188,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let belgiumCadastre: any = null;
     let switzerlandCadastre: any = null;
     let maltaCadastre: any = null;
+    let germanyCadastre: any = null;
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -230,6 +233,16 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.evidenceRegistry.push(...czechiaCadastre.evidence);
         }
       } catch (e) { console.warn(`[${diagnosticId}] ČÚZK Czechia cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'DE') {
+      stage = 'germany-cadastre';
+      try {
+        germanyCadastre = await queryGermanyCadastre(lat, lng, stateName);
+        applyGermanyCadastreToReport(evidenceReport, germanyCadastre, areaSize);
+        if (germanyCadastre.success) {
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          evidenceReport.dataSourcesCited.push({ name: germanyCadastre.sourceName, organization: 'Landesamt für innere Verwaltung M-V, Amt für Geoinformation, Vermessung und Katasterwesen', url: germanyCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Germany cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'BE' && support.capabilities.nationalCadastre) {
       stage = 'belgium-cadastre';
       try {
