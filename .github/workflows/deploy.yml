@@ -61,3 +61,8 @@ jobs:
             --max-instances=10
             --cpu=1
             --memory=512Mi
+
+      - name: Show Cloud Run service URL
+        shell: bash
+        run: |
+          echo "Cloud Run service URL: $(gcloud run services describe "${SERVICE_NAME}" --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
