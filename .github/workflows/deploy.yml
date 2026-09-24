@@ -63,8 +63,8 @@ jobs:
             --memory=512Mi
             --ingress=all
           env_vars: |-
-            MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-            AI_INTERPRETATION_PROVIDER: mistral
+            MISTRAL_API_KEY=${{ secrets.MISTRAL_API_KEY }}
+            AI_INTERPRETATION_PROVIDER=mistral
 
       - name: Show Cloud Run service URL
         shell: bash
