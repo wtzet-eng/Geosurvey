@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiClient';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import {
@@ -229,7 +230,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     setIsFindingParcel(true);
     onParcelLookupStateChange?.(true);
     try {
-      const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=HR');
+      const response = await apiFetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=HR');
       if (!response.ok) return false;
       const parcel = await response.json();
       if (!parcel.success) return false;
@@ -517,7 +518,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       setIsFindingParcel(true);
       onParcelLookupStateChange?.(true);
       try {
-        const response = await fetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + searchCountryCode);
+        const response = await apiFetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + searchCountryCode);
         if (!response.ok) throw new Error('Cadastral lookup failed');
         const parcel = await response.json();
 

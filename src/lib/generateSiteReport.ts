@@ -1,3 +1,4 @@
+import { apiFetch } from './apiClient';
 import { shapeAreaM2, shapeCenter, boundaryText, ShapeObj } from "./geoUtils";
 
 export interface GenerateSiteReportParams {
@@ -21,7 +22,7 @@ export async function generateSiteReport({
   const areaM2 = shapeAreaM2(shape, areaSize);
   const boundaryDesc = boundaryText(shape, areaM2) || `an area of approximately ${areaM2} m²`;
 
-  const response = await fetch("/api/generate-report", {
+  const response = await apiFetch("/api/generate-report", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

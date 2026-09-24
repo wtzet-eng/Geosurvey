@@ -1,3 +1,4 @@
+import { apiFetch } from './lib/apiClient';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   MapPin,
@@ -198,7 +199,7 @@ export default function App() {
       if (areaParam && !isNaN(Number(areaParam))) setAreaSize(Math.max(50, Number(areaParam)));
       const repId = params.get('report_id');
       if (repId) {
-        fetch(`/api/reports/${repId}`).then((res) => (res.ok ? res.json() : null)).then((rep) => { if (rep) setActiveReport(rep); }).catch(() => {});
+        apiFetch(`/api/reports/${repId}`).then((res) => (res.ok ? res.json() : null)).then((rep) => { if (rep) setActiveReport(rep); }).catch(() => {});
       }
     } catch (e) {
       console.warn('Error reading URL search params:', e);
@@ -258,14 +259,14 @@ export default function App() {
       const local = localStorage.getItem('saved_site_reports');
       if (local) setSavedReports(JSON.parse(local));
     } catch (e) { console.warn('Could not read saved reports from localStorage'); }
-    fetch('/api/reports').then((res) => res.json()).then((data) => { if (Array.isArray(data) && data.length > 0) setSavedReports(data); }).catch(() => {});
+    apiFetch('/api/reports').then((res) => res.json()).then((data) => { if (Array.isArray(data) && data.length > 0) setSavedReports(data); }).catch(() => {});
   }, []);
 
   const saveReportToStore = (report: SiteReport) => {
     const updated = [report, ...savedReports.filter((r) => r.id !== report.id)];
     setSavedReports(updated);
     try { localStorage.setItem('saved_site_reports', JSON.stringify(updated)); } catch (e) { console.warn('LocalStorage save failed'); }
-    fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(report) }).catch(() => {});
+    apiFetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(report) }).catch(() => {});
   };
 
   const handleDeleteReport = (id: string) => {
@@ -334,7 +335,7 @@ export default function App() {
     setIsAnalyzing(true);
     try {
       const center = getBoundaryCenter(shape) || currentCountry.defaultCenter;
-      const res = await fetch('/api/analyze-site', {
+      const res = await apiFetch('/api/analyze-site', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shape,

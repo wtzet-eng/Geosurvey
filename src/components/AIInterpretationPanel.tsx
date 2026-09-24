@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiClient';
 import React, { useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { AlertTriangle, BrainCircuit, CheckCircle2, CreditCard, Loader2, LogIn, LogOut, RefreshCw, ShieldCheck, Sparkles, X } from 'lucide-react';
@@ -136,7 +137,7 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/ai/status')
+    apiFetch('/api/ai/status')
       .then(async response => response.ok ? response.json() : null)
       .then(value => { if (active && value) setStatus(value); })
       .catch(() => undefined);
@@ -163,7 +164,7 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
     const token = await getCurrentFirebaseIdToken();
     if (!uid || !token || userIdRef.current !== uid) throw new Error('Please sign in to manage AI credits.');
     const route = action === 'entitlement' ? 'status' : action === 'create_checkout' ? 'checkout' : 'confirm';
-    const response = await fetch(`/api/billing/${route}`, {
+    const response = await apiFetch(`/api/billing/${route}`, {
       method: action === 'entitlement' ? 'GET' : 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       ...(action !== 'entitlement' ? { body: JSON.stringify(action === 'confirm_purchase' ? { transactionId: extras.transactionId } : {}) } : {})
@@ -251,7 +252,7 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
         if (!token) throw new Error('Please sign in before using AI interpretation.');
         headers.Authorization = `Bearer ${token}`;
       }
-      const response = await fetch('/api/ai/interpret', {
+      const response = await apiFetch('/api/ai/interpret', {
         method: 'POST',
         headers,
         body: JSON.stringify({ report: token ? { ...report, __surveyland_token: token } : report })

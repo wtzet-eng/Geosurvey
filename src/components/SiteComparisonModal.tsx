@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiClient';
 import React, { useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { AlertTriangle, BrainCircuit, CheckCircle2, GitCompareArrows, Loader2, LogIn, ShieldCheck, Sparkles, X } from 'lucide-react';
@@ -26,7 +27,7 @@ export const SiteComparisonModal: React.FC<Props> = ({ isOpen, onClose, reports,
   const [result, setResult] = useState<ComparisonResult | null>(null);
 
   useEffect(() => {
-    fetch('/api/ai/status').then(r => r.ok ? r.json() : null).then(v => v && setStatus(v)).catch(() => undefined);
+    apiFetch('/api/ai/status').then(r => r.ok ? r.json() : null).then(v => v && setStatus(v)).catch(() => undefined);
     return subscribeToAuthState(setUser);
   }, []);
 
@@ -64,7 +65,7 @@ export const SiteComparisonModal: React.FC<Props> = ({ isOpen, onClose, reports,
         if (!token) throw new Error('Please sign in before using AI comparison.');
         headers.Authorization = `Bearer ${token}`;
       }
-      const response = await fetch('/api/ai/compare', { method: 'POST', headers, body: JSON.stringify({ reports: selectedReports, intendedUse: intendedUse.trim() || null }) });
+      const response = await apiFetch('/api/ai/compare', { method: 'POST', headers, body: JSON.stringify({ reports: selectedReports, intendedUse: intendedUse.trim() || null }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'AI comparison failed.');
       if (payload.kind === 'quota_exhausted') throw new Error('No AI credits remain. Open a site report and use “Interpret with AI” to view or add credits.');
