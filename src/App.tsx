@@ -356,7 +356,8 @@ export default function App() {
         latitude: Number(reportPayload.latitude ?? center[0]),
         longitude: Number(reportPayload.longitude ?? center[1]),
         area_size: Number(reportPayload.area_size ?? Math.round(areaSize)),
-        boundary: reportPayload.boundary || shape
+        boundary: reportPayload.boundary || shape,
+        selected_boundary: shape
       } : {
         id: 'rep_' + Math.random().toString(36).substring(2, 9), created_at: new Date().toISOString(),
         location_name: reportPayload.location_name || `${center[0].toFixed(4)}, ${center[1].toFixed(4)}`,

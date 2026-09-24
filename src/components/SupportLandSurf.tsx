@@ -34,7 +34,7 @@ export const SupportLandSurf: React.FC<Props> = ({ language = 'en' }) => {
         <h2 className="text-base font-semibold text-white">{copy.heading}</h2>
         <p className="mx-auto mt-1 max-w-xl text-sm leading-relaxed text-white/85">{copy.body}</p>
         <a
-          href="https://ko-fi.com/surveyland"
+          href="https://ko-fi.com/groundsurf"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-4 inline-flex items-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#496931] transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#496931]"
@@ -51,12 +51,12 @@ export const FloatingSupportLandSurf: React.FC<Props> = ({ language = 'en' }) =>
   const copy = supportLandSurfCopy(language);
   return (
     <a
-      href="https://ko-fi.com/surveyland"
+      href="https://ko-fi.com/groundsurf"
       target="_blank"
       rel="noopener noreferrer"
       aria-label={copy.heading}
       data-testid="floating-support-landsurf"
-      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#496931] px-4 py-3 text-sm font-bold text-white shadow-xl shadow-slate-950/15 transition hover:bg-[#3f5b2a] focus:outline-none focus:ring-2 focus:ring-[#496931]/40 focus:ring-offset-2 print:hidden"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#496931] px-4 py-3 text-sm font-bold text-white shadow-xl shadow-slate-950/15 transition hover:bg-[#3f5b2a] focus:outline-none focus:ring-2 focus:ring-[#496931]/40 focus:ring-offset-2 print:hidden sm:w-auto sm:px-4"
     >
       <Heart className="h-4 w-4" />
       <span>{copy.heading}</span>

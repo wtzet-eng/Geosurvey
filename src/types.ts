@@ -314,6 +314,7 @@ export interface SiteReport {
   area_size: number;
   boundary: BoundaryShape;
   official_geometry?: [number, number][] | null;
+  selected_boundary?: BoundaryShape;
   is_official_parcel?: boolean;
   official_area_m2?: number | null;
   report_data: ReportData;

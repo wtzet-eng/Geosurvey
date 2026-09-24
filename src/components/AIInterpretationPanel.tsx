@@ -314,9 +314,9 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
   );
 
   return <>
-    <div className="mx-auto w-full max-w-5xl px-4 pt-5 pb-2 sm:px-6 print:hidden">
+    <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] -translate-x-1/2 px-0 print:hidden sm:left-auto sm:right-4 sm:w-auto sm:translate-x-0">
       <div className="mx-auto flex w-full max-w-sm flex-col gap-2">
-        {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-indigo-950/10 hover:bg-indigo-700')}
+        {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-indigo-950/10 hover:bg-indigo-700 sm:min-w-56')}
         <FloatingSupportLandSurf language={report.language} />
       </div>
     </div>
