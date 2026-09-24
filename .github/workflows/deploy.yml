@@ -49,6 +49,7 @@ jobs:
           docker push ${IMAGE_NAME}:latest
 
       - name: Deploy to Cloud Run
+        id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.SERVICE_NAME }}
@@ -61,3 +62,6 @@ jobs:
             --max-instances=10
             --cpu=1
             --memory=512Mi
+
+      - name: Print Cloud Run service URL
+        run: echo "Cloud Run service URL: ${{ steps.deploy.outputs.url }}"
