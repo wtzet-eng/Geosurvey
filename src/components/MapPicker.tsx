@@ -18,6 +18,13 @@ import {
 import { BoundaryShape, BoundaryType } from '../types';
 import { formatMapPickerText, getMapPickerText } from '../utils/mapPickerI18n';
 
+const BAVARIA_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://geoservices.bayern.de/od/wms/alkis/v1/parzellarkarte_2026',
+  viewLayer: 'by_alkis_parzellarkarte_grau',
+  viewStyle: '',
+  attribution: '© Bayerische Vermessungsverwaltung — ALKIS-Parzellarkarte, Stand 01.01.2026'
+};
+
 interface MapPickerProps {
   mode: BoundaryType;
   shape: BoundaryShape | null;
@@ -62,6 +69,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const parcelLookupPendingRef = useRef(false);
   const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number; state?: string; stateCode?: string; viewServiceUrl?: string; viewLayer?: string; viewStyle?: string; viewAttribution?: string } | null>(null);
   const [cadastralState, setCadastralState] = useState<string | null>(null);
+  const [cadastralContext, setCadastralContext] = useState<{ viewServiceUrl: string; viewLayer: string; viewStyle: string; attribution: string } | null>(null);
   const t = getMapPickerText(language);
 
   // Fix default marker icons in Leaflet
@@ -145,16 +153,26 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         maxZoom: 17,
       }).addTo(map);
     }
-    if (countryCode.toUpperCase() === 'DE' && officialParcel?.viewServiceUrl) {
-      L.tileLayer.wms(officialParcel.viewServiceUrl, {
-        layers: officialParcel.viewLayer || 'CP.CadastralParcel',
-        styles: officialParcel.viewStyle || 'default',
-        format: 'image/png',
-        transparent: true,
-        opacity: 0.8,
-        version: '1.3.0',
-        attribution: officialParcel.viewAttribution || 'Official German cadastral data'
-      }).addTo(map);
+    if (countryCode.toUpperCase() === 'DE') {
+      const view = officialParcel?.viewServiceUrl
+        ? {
+            viewServiceUrl: officialParcel.viewServiceUrl,
+            viewLayer: officialParcel.viewLayer || 'CP.CadastralParcel',
+            viewStyle: officialParcel.viewStyle || 'default',
+            attribution: officialParcel.viewAttribution || 'Official German cadastral data'
+          }
+        : cadastralContext;
+      if (view) {
+        L.tileLayer.wms(view.viewServiceUrl, {
+          layers: view.viewLayer,
+          styles: view.viewStyle,
+          format: 'image/png',
+          transparent: true,
+          opacity: 0.8,
+          version: '1.3.0',
+          attribution: view.attribution
+        }).addTo(map);
+      }
     } else if (countryCode.toUpperCase() === 'HR' && officialParcel) {
       L.tileLayer.wms('https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms', {
         layers: 'CP.CadastralParcel',
@@ -204,6 +222,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const handleReset = useCallback(() => {
     setDrawingPoints([]);
     setOfficialParcel(null);
+    setCadastralContext(null);
     onOfficialParcelSelected?.(null);
     onClear();
   }, [onClear, onOfficialParcelSelected]);
@@ -365,7 +384,10 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // State context is only meaningful while Germany is selected; do not carry
   // a previously detected German Land into another country's lookup.
   useEffect(() => {
-    if (countryCode.toUpperCase() !== 'DE') setCadastralState(null);
+    if (countryCode.toUpperCase() !== 'DE') {
+      setCadastralState(null);
+      setCadastralContext(null);
+    }
   }, [countryCode]);
 
   // Handle dragging completed polygon vertex
@@ -520,6 +542,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     const lat = parseFloat(result.lat);
     const detectedCountry = result.address?.country_code?.toUpperCase();
     const detectedState = result.address?.state || result.address?.province || result.address?.region || result.address?.['ISO3166-2-lvl4'];
+    const detectedStateNormalized = String(detectedState || '').trim().toLowerCase();
+    setCadastralContext(detectedStateNormalized === 'bayern' || detectedStateNormalized === 'bavaria' || detectedStateNormalized === 'de-by' ? BAVARIA_CADASTRAL_CONTEXT : null);
     if (detectedState) setCadastralState(detectedState);
     if (detectedCountry && detectedCountry !== countryCode.toUpperCase()) {
       onCountryDetected?.(detectedCountry);
@@ -553,6 +577,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         if (parcel.success) {
           const selectedParcel = { parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2, state: parcel.parcel?.state, stateCode: parcel.parcel?.stateCode, viewServiceUrl: parcel.viewServiceUrl, viewLayer: parcel.viewLayer, viewStyle: parcel.viewStyle, viewAttribution: parcel.viewAttribution };
           setOfficialParcel(selectedParcel);
+          setCadastralContext(null);
           onOfficialParcelSelected?.(selectedParcel);
           if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
             const points = parcel.geometryPoints as [number, number][];
