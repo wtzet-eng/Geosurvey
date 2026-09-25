@@ -144,7 +144,20 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         maxZoom: 17,
       }).addTo(map);
     }
-    if (countryCode.toUpperCase() === 'HR' && officialParcel) {
+    if (countryCode.toUpperCase() === 'DE' && officialParcel) {
+      // Official Mecklenburg-Vorpommern INSPIRE cadastral view service.
+      // Keep the service as a visual context layer while the selected parcel
+      // polygon below remains the primary, directly identified geometry.
+      L.tileLayer.wms('https://www.geodaten-mv.de/dienste/inspire_cp_alkis_view', {
+        layers: 'CP.CadastralParcel',
+        styles: 'CP.CadastralParcel.OutlinesOnly',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.8,
+        version: '1.3.0',
+        attribution: '© GeoBasis-DE/M-V'
+      }).addTo(map);
+    } else if (countryCode.toUpperCase() === 'HR' && officialParcel) {
       L.tileLayer.wms('https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms', {
         layers: 'CP.CadastralParcel',
         styles: 'CP.CadastralParcel.Default',
