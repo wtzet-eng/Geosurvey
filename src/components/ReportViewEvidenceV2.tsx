@@ -190,7 +190,15 @@ export const ReportViewEvidenceV2: React.FC<ReportViewProps> = ({report,onBack})
   const floodConfirmed=data.flooding_risk?.evidence_level==='VERIFIED';
   const opening=decisionIntroCopy(report.language);
   const clarity=clarityCopy(report.language);
-  const knownItems=[...highlights.map(item=>`${item![0]}: ${item![1]}`), ...(waterEvidenceVerified?[journey.waterKnown]:[]), ...(contaminationVerified?[journey.contamination]:[])].slice(0,6);
+  const groundOpeningSummary=groundContext?.summary?.trim() || '';
+  const snapshotFacts=[
+    [c.location, report.location_name],
+    [c.area, report.area_size.toLocaleString(report.language)+' m²'],
+    ...(available(tech.cadastral_parcel_id)?[[c.cadastralParcel, localizePresentationValue(tech.cadastral_parcel_id,report.language)]]:[]),
+    ...(available(data.geosurvey_context?.geological_unit_name)?[[c.geologicalUnit, localizePresentationValue(data.geosurvey_context?.geological_unit_name,report.language)]]:[]),
+    ...(available(data.geosurvey_context?.lithology_type)?[[c.lithology, localizePresentationValue(data.geosurvey_context?.lithology_type,report.language)]]:[]),
+    ...(typeof tech.slope_degrees==='number'&&Number.isFinite(tech.slope_degrees)?[[c.slope, tech.slope_degrees+'°']]:[])
+  ].slice(0,6);
 
   return <div className="min-h-screen bg-slate-100/70 text-slate-900 pb-20">
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-4 py-3 shadow-sm"><div className="mx-auto max-w-5xl flex items-center justify-between gap-3"><div className="flex items-center gap-3 min-w-0">{onBack&&<button type="button" onClick={onBack} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold shrink-0"><ArrowLeft className="h-3.5 w-3.5"/>{c.back}</button>}<div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0"><Landmark className="h-4 w-4"/></div><div className="min-w-0"><div className="font-bold text-sm truncate">GroundSurf</div><div className="text-[10px] text-slate-500 truncate">{c.subtitle}</div></div></div><div className="flex items-center gap-1.5 shrink-0"><button type="button" onClick={()=>setIsDriveOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold"><HardDrive className="h-3.5 w-3.5"/>Drive</button><button type="button" onClick={()=>setIsEmbedOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold"><Code className="h-3.5 w-3.5"/>{c.embed}</button><button type="button" onClick={copyLink} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-semibold">{copied?<Check className="h-3.5 w-3.5 text-emerald-600"/>:<Copy className="h-3.5 w-3.5"/>}{copied?c.copied:c.share}</button><button type="button" onClick={()=>window.print()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold"><Printer className="h-3.5 w-3.5"/><span className="hidden sm:inline">PDF</span></button></div></div></header>
@@ -198,10 +206,10 @@ export const ReportViewEvidenceV2: React.FC<ReportViewProps> = ({report,onBack})
     <main className="mx-auto max-w-5xl px-4 pt-6 space-y-6">
       <section className="rounded-3xl bg-slate-950 text-white p-6 sm:p-8 shadow-lg">
         <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-widest"><FileText className="h-4 w-4"/>1. {c.executive}</div>
-        <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">{clarity.known}</h1>
-        <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-4xl">{opening.first} {opening.evidence}</p>
+        <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">{opening.complete}</h1>
+        <p className="mt-3 text-sm text-slate-200 leading-relaxed max-w-4xl">{snapshotFacts.map(([label,value],i)=><React.Fragment key={String(label)}>{i>0&&<span className="text-slate-500"> · </span>}<strong className="text-white">{label}:</strong> {value}</React.Fragment>)}</p>
+        {groundOpeningSummary&&<p className="mt-3 text-sm text-indigo-100 leading-relaxed max-w-4xl">{groundOpeningSummary} <a href="#geology-section" className="text-indigo-200 underline decoration-indigo-400 underline-offset-2">{c.geology} →</a></p>}
         <div className="mt-6 space-y-5 max-w-4xl text-sm leading-relaxed">
-          <p><strong className="text-white">{clarity.known}.</strong> <a href="#site-section" className="text-indigo-200 underline decoration-indigo-400 underline-offset-2">{c.site} →</a>{knownItems.length ? <>{knownItems.slice(0,4).map((item,i)=><span key={i}>{i===0 ? ' ' : ' · '}{item}</span>)}</> : ` ${clarity.none}`}</p>
           {highRisks.length>0&&<p><strong className="text-white">{findings.flags}.</strong> {highRisks.slice(0,2).map((risk,i)=><span key={i}>{i>0?' · ':''}{risk.category}: {localizePresentationValue(risk.level,report.language)}</span>)} <a href="#hazards-section" className="text-indigo-200 underline decoration-indigo-400 underline-offset-2">{c.hazards} →</a></p>}
           <p><strong className="text-white">{clarity.suggests}.</strong> {opening.clear} <a href="#geology-section" className="text-indigo-200 underline decoration-indigo-400 underline-offset-2">{c.geology} &amp; {c.ground} →</a></p>
           <p><strong className="text-white">{c.flood}.</strong> {opening.next} <a href="#flood-section" className="text-indigo-200 underline decoration-indigo-400 underline-offset-2">{c.flood} →</a></p>
