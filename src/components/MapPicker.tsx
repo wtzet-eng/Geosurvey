@@ -54,13 +54,14 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<{ display_name: string; lat: string; lon: string; address?: { country_code?: string } }[]>([]);
+  const [searchResults, setSearchResults] = useState<{ display_name: string; lat: string; lon: string; address?: { country_code?: string; state?: string; province?: string; region?: string; 'ISO3166-2-lvl4'?: string } }[]>([]);
   const [tileType, setTileType] = useState<'osm' | 'satellite' | 'terrain'>('osm');
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
   const [isLocating, setIsLocating] = useState(false);
   const [isFindingParcel, setIsFindingParcel] = useState(false);
   const parcelLookupPendingRef = useRef(false);
-  const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number } | null>(null);
+  const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number; state?: string; stateCode?: string } | null>(null);
+  const [cadastralState, setCadastralState] = useState<string | null>(null);
   const t = getMapPickerText(language);
 
   // Fix default marker icons in Leaflet
@@ -144,19 +145,31 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         maxZoom: 17,
       }).addTo(map);
     }
-    if (countryCode.toUpperCase() === 'DE' && officialParcel) {
-      // Official Mecklenburg-Vorpommern INSPIRE cadastral view service.
-      // Keep the service as a visual context layer while the selected parcel
-      // polygon below remains the primary, directly identified geometry.
-      L.tileLayer.wms('https://www.geodaten-mv.de/dienste/inspire_cp_alkis_view', {
-        layers: 'CP.CadastralParcel',
-        styles: 'CP.CadastralParcel.OutlinesOnly',
-        format: 'image/png',
-        transparent: true,
-        opacity: 0.8,
-        version: '1.3.0',
-        attribution: '© GeoBasis-DE/M-V'
-      }).addTo(map);
+    if (countryCode.toUpperCase() === 'DE' && officialParcel?.stateCode) {
+      const germanyCadastralView = officialParcel.stateCode === 'DE-NW'
+        ? {
+            url: 'https://www.wms.nrw.de/geobasis/wms_nw_inspire-flurstuecke_alkis',
+            style: 'CP.CadastralParcel.Default',
+            attribution: '© GeoBasis NRW'
+          }
+        : officialParcel.stateCode === 'DE-MV'
+        ? {
+            url: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_view',
+            style: 'CP.CadastralParcel.OutlinesOnly',
+            attribution: '© GeoBasis-DE/M-V'
+          }
+        : null;
+      if (germanyCadastralView) {
+        L.tileLayer.wms(germanyCadastralView.url, {
+          layers: 'CP.CadastralParcel',
+          styles: germanyCadastralView.style,
+          format: 'image/png',
+          transparent: true,
+          opacity: 0.8,
+          version: '1.3.0',
+          attribution: germanyCadastralView.attribution
+        }).addTo(map);
+      }
     } else if (countryCode.toUpperCase() === 'HR' && officialParcel) {
       L.tileLayer.wms('https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms', {
         layers: 'CP.CadastralParcel',
@@ -238,13 +251,15 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
     const lookupCountry = countryCode.toUpperCase();
     if (!['DE', 'HR'].includes(lookupCountry)) return false;
+    if (lookupCountry === 'DE' && !cadastralState) return false;
 
     if (parcelLookupPendingRef.current) return false;
     parcelLookupPendingRef.current = true;
     setIsFindingParcel(true);
     onParcelLookupStateChange?.(true);
     try {
-      const response = await apiFetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=' + lookupCountry);
+      const stateParam = lookupCountry === 'DE' && cadastralState ? '&state=' + encodeURIComponent(cadastralState) : '';
+      const response = await apiFetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lng.toFixed(6) + '&country=' + lookupCountry + stateParam);
       if (!response.ok) return false;
       const parcel = await response.json();
       if (!parcel.success) return false;
@@ -252,7 +267,9 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
         const selectedParcel = {
           parcelId: parcel.parcel?.parcelNumber || parcel.parcelId,
-          areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2
+          areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2,
+          state: parcel.parcel?.state,
+          stateCode: parcel.parcel?.stateCode
         };
         setOfficialParcel(selectedParcel);
         onOfficialParcelSelected?.(selectedParcel);
@@ -273,7 +290,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       setIsFindingParcel(false);
       onParcelLookupStateChange?.(false);
     }
-  }, [countryCode, onChange, onOfficialParcelSelected, onParcelLookupStateChange]);
+  }, [countryCode, cadastralState, onChange, onOfficialParcelSelected, onParcelLookupStateChange]);
 
   // Map Click & Double Click Handling
   useEffect(() => {
@@ -355,6 +372,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   useEffect(() => {
     setDrawingPoints([]);
   }, [mode]);
+
+  // State context is only meaningful while Germany is selected; do not carry
+  // a previously detected German Land into another country's lookup.
+  useEffect(() => {
+    if (countryCode.toUpperCase() !== 'DE') setCadastralState(null);
+  }, [countryCode]);
 
   // Handle dragging completed polygon vertex
   const handleVertexDrag = useCallback((idx: number, newLatLng: L.LatLng) => {
@@ -504,9 +527,11 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     }
   };
 
-  const selectSearchResult = async (result: { lat: string; lon: string; display_name: string; address?: { country_code?: string } }) => {
+  const selectSearchResult = async (result: { lat: string; lon: string; display_name: string; address?: { country_code?: string; state?: string; province?: string; region?: string; 'ISO3166-2-lvl4'?: string } }) => {
     const lat = parseFloat(result.lat);
     const detectedCountry = result.address?.country_code?.toUpperCase();
+    const detectedState = result.address?.state || result.address?.province || result.address?.region || result.address?.['ISO3166-2-lvl4'];
+    if (detectedState) setCadastralState(detectedState);
     if (detectedCountry && detectedCountry !== countryCode.toUpperCase()) {
       onCountryDetected?.(detectedCountry);
     }
@@ -531,12 +556,13 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       setIsFindingParcel(true);
       onParcelLookupStateChange?.(true);
       try {
-        const response = await apiFetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + searchCountryCode);
+        const stateParam = searchCountryCode === 'DE' && detectedState ? '&state=' + encodeURIComponent(detectedState) : '';
+        const response = await apiFetch('/api/cadastre/query?lat=' + lat.toFixed(6) + '&lng=' + lon.toFixed(6) + '&country=' + searchCountryCode + stateParam);
         if (!response.ok) throw new Error('Cadastral lookup failed');
         const parcel = await response.json();
 
         if (parcel.success) {
-          const selectedParcel = { parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2 };
+          const selectedParcel = { parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2, state: parcel.parcel?.state, stateCode: parcel.parcel?.stateCode };
           setOfficialParcel(selectedParcel);
           onOfficialParcelSelected?.(selectedParcel);
           if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {

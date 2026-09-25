@@ -22,7 +22,22 @@ test('Germany cadastral lookup resolves a Mecklenburg-Vorpommern parcel from off
   assert.equal(result.parcel?.geometryPoints.length, 5);
   assert.equal(result.evidence[0].status, 'VERIFIED');
   const inferred = await queryGermanyCadastre(53.505043, 13.996212, null, fetcher as typeof fetch);
-  assert.equal(inferred.parcel?.parcelId, 'Flurstück 44');
+  assert.equal(inferred.success, false);
+  assert.equal(inferred.reasonCode, 'STATE_NOT_AUTOMATED');
+});
+
+test('Germany cadastral lookup routes North Rhine-Westphalia to the official NRW INSPIRE WFS', async () => {
+  let requestedUrl = '';
+  const fetcher = async (input: RequestInfo | URL) => {
+    requestedUrl = String(input);
+    return new Response(xml, { status: 200 });
+  };
+  const result = await queryGermanyCadastre(53.505043, 13.996212, 'Nordrhein-Westfalen', fetcher as typeof fetch);
+  assert.equal(result.success, true);
+  assert.equal(result.parcel?.state, 'Nordrhein-Westfalen');
+  assert.equal(result.parcel?.stateCode, 'DE-NW');
+  assert.equal(result.evidence[0].id, 'de-nw-alkis-cadastre');
+  assert.match(requestedUrl, /www\.wfs\.nrw\.de\/geobasis\/wfs_nw_inspire-flurstuecke_alkis/);
 });
 
 test('Germany cadastral lookup does not confuse another German state with no data', async () => {

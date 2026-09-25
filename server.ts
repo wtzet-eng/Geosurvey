@@ -92,12 +92,13 @@ function consumeAiRateLimit(key: string) {
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 app.get('/api/cadastre/query', async (req, res) => {
   const lat = Number(req.query.lat); const lng = Number(req.query.lng); const country = String(req.query.country || 'PL').toUpperCase();
+  const state = String(req.query.state || '').trim() || null;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Valid lat and lng query parameters are required.' });
   const profile = getCountryProfile(country);
   const support = getCountrySupport(country);
   if (support.capabilities.nationalCadastre && country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'HR') return res.json(await queryCroatiaCadastre(lat, lng));
-  if (country === 'DE') return res.json(await queryGermanyCadastre(lat, lng, null));
+  if (country === 'DE') return res.json(await queryGermanyCadastre(lat, lng, state));
   if (support.capabilities.nationalCadastre && country === 'CZ') {
     const national = await queryCzechiaCadastre(lat, lng);
     const inspire = national.success && national.parcel?.geometryPoints?.length
@@ -242,7 +243,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         applyGermanyCadastreToReport(evidenceReport, germanyCadastre, areaSize);
         if (germanyCadastre.success) {
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
-          evidenceReport.dataSourcesCited.push({ name: germanyCadastre.sourceName, organization: 'Landesamt für innere Verwaltung M-V, Amt für Geoinformation, Vermessung und Katasterwesen', url: germanyCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+          evidenceReport.dataSourcesCited.push({ name: germanyCadastre.sourceName, organization: germanyCadastre.parcel?.state || 'German state surveying authority', url: germanyCadastre.sourceUrl, type: 'Official State Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Germany cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'BE' && support.capabilities.nationalCadastre) {

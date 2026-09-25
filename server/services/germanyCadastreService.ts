@@ -6,15 +6,55 @@ export interface GermanyCadastreResult {
   sourceName: string;
   sourceUrl: string;
   datasetDate: string;
-  parcel?: { parcelId: string; nationalCadastralReference: string | null; officialAreaM2: number | null; geometryPoints: [number, number][]; state: string };
+  parcel?: { parcelId: string; nationalCadastralReference: string | null; officialAreaM2: number | null; geometryPoints: [number, number][]; state: string; stateCode: string };
   evidence: EvidenceItem[];
   limitation: string;
 }
 
-const MV_WFS = 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download';
-const MV_PORTAL = 'https://www.geoportal-mv.de/portal/Geowebdienste/INSPIRE-Themen/Flurstuecke_Grundstuecke';
-const SOURCE = 'GeoBasis-DE/M-V — INSPIRE-WFS Flurstücke/Grundstücke ALKIS';
-const STATE = 'Mecklenburg-Vorpommern';
+interface GermanyCadastreProfile {
+  state: string;
+  stateCode: string;
+  aliases: string[];
+  wfsUrl: string;
+  wmsUrl: string;
+  wmsStyle: string;
+  sourceName: string;
+  publisher: string;
+  portalUrl: string;
+  evidenceId: string;
+}
+
+const PROFILES: GermanyCadastreProfile[] = [
+  {
+    state: 'Mecklenburg-Vorpommern', stateCode: 'DE-MV',
+    aliases: ['mecklenburg-vorpommern', 'mecklenburg western pomerania', 'de-mv'],
+    wfsUrl: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download',
+    wmsUrl: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_view',
+    wmsStyle: 'CP.CadastralParcel.OutlinesOnly',
+    sourceName: 'GeoBasis-DE/M-V — INSPIRE-WFS Flurstücke/Grundstücke ALKIS',
+    publisher: 'GeoBasis-DE/M-V',
+    portalUrl: 'https://www.geoportal-mv.de/portal/Geowebdienste/INSPIRE-Themen/Flurstuecke_Grundstuecke',
+    evidenceId: 'de-mv-alkis-cadastre'
+  },
+  {
+    state: 'Nordrhein-Westfalen', stateCode: 'DE-NW',
+    aliases: ['nordrhein-westfalen', 'north rhine-westphalia', 'north rhine westphalia', 'de-nw'],
+    wfsUrl: 'https://www.wfs.nrw.de/geobasis/wfs_nw_inspire-flurstuecke_alkis',
+    wmsUrl: 'https://www.wms.nrw.de/geobasis/wms_nw_inspire-flurstuecke_alkis',
+    wmsStyle: 'CP.CadastralParcel.Default',
+    sourceName: 'GeoBasis NRW — INSPIRE-WFS NW Flurstücke/Grundstücke ALKIS',
+    publisher: 'GeoBasis NRW',
+    portalUrl: 'https://www.bezreg-koeln.nrw.de/geobasis-nrw/produkte-und-dienste/inspire/inspire-nw-flurstuecke-grundstuecke',
+    evidenceId: 'de-nw-alkis-cadastre'
+  }
+];
+
+function profileForState(state: string | null | undefined): GermanyCadastreProfile | null {
+  const normalized = String(state || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return PROFILES.find(profile => profile.aliases.includes(normalized)) || null;
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 function text(value: unknown): string | null {
@@ -49,60 +89,61 @@ function extractMembers(xml: string) {
     return { label, ref, area, ring };
   }).filter(item => item.ring.length >= 3);
 }
-function unavailable(reasonCode: GermanyCadastreResult['reasonCode'], claim: string, sourceUrl = MV_PORTAL): GermanyCadastreResult {
+function unavailable(reasonCode: GermanyCadastreResult['reasonCode'], claim: string, profile: GermanyCadastreProfile | null = null, sourceUrl = profile?.portalUrl || 'https://www.bkg.bund.de'): GermanyCadastreResult {
+  const sourceName = profile?.sourceName || 'German cadastral services';
   const evidence: EvidenceItem = {
     id: 'de-cadastre-unavailable', category: 'Cadastre & identification', claim, status: 'REQUIRES_VERIFICATION',
-    sourceName: SOURCE, sourceUrl, datasetDate: today(), spatialRelationship: 'Selected site coordinate',
+    sourceName, sourceUrl, datasetDate: today(), spatialRelationship: 'Selected site coordinate',
     calculationMethod: 'State-specific official cadastral source routing; no negative inference from failed acquisition',
     confidence: 'Low',
     limitation: 'A failed or unimplemented lookup is not evidence that a parcel does not exist. Official cadastral verification remains required.',
-    value: { reasonCode }
+    value: { reasonCode, state: profile?.state || null, stateCode: profile?.stateCode || null }
   };
-  return { success: false, reasonCode, sourceName: SOURCE, sourceUrl, datasetDate: today(), evidence: [evidence], limitation: evidence.limitation };
+  return { success: false, reasonCode, sourceName, sourceUrl, datasetDate: today(), evidence: [evidence], limitation: evidence.limitation };
 }
 
 export async function queryGermanyCadastre(lat: number, lng: number, state: string | null | undefined, fetcher: typeof fetch = fetch): Promise<GermanyCadastreResult> {
-  const normalizedState = String(state || '').trim().toLowerCase();
-  const stateMatches = normalizedState === STATE.toLowerCase();
-  const stateUnknown = !normalizedState;
-  if (!stateMatches && !stateUnknown) {
-    return unavailable('STATE_NOT_AUTOMATED', "Germany's cadastral data are administered by the federal states. LandSurf currently has an automated official parcel lookup for Mecklenburg-Vorpommern; this German state is not yet automated.", 'https://www.bkg.bund.de');
+  const profile = profileForState(state);
+  if (!profile) {
+    return unavailable('STATE_NOT_AUTOMATED', state
+      ? `Germany's cadastral data are administered by the federal states. LandSurf has not yet validated an automated official parcel lookup for ${state}.`
+      : 'Germany\'s cadastral data are administered by the federal states. A German Land must be identified before an official parcel service can be selected.', profile);
   }
   const e = 0.00012;
   const bbox = [lat - e, lng - e, lat + e, lng + e, 'urn:ogc:def:crs:EPSG::4326'].join(',');
   const params = new URLSearchParams({ service: 'WFS', version: '2.0.0', request: 'GetFeature', typeNames: 'cp:CadastralParcel', srsName: 'EPSG:4326', bbox, count: '100' });
-  const url = MV_WFS + '?' + params.toString();
+  const url = profile.wfsUrl + '?' + params.toString();
   let xml = '';
   try {
     const response = await fetcher(url, { headers: { Accept: 'application/gml+xml, text/xml', 'User-Agent': 'LandSurf/1.0 Germany cadastral evidence' } });
-    if (!response.ok) return unavailable('SOURCE_UNAVAILABLE', 'The official Mecklenburg-Vorpommern ALKIS parcel service returned HTTP ' + response.status + '.', url);
+    if (!response.ok) return unavailable('SOURCE_UNAVAILABLE', `The official ${profile.state} ALKIS parcel service returned HTTP ${response.status}.`, profile, url);
     xml = await response.text();
   } catch {
-    return unavailable('SOURCE_UNAVAILABLE', 'The official Mecklenburg-Vorpommern ALKIS parcel service could not be reached.', url);
+    return unavailable('SOURCE_UNAVAILABLE', `The official ${profile.state} ALKIS parcel service could not be reached.`, profile, url);
   }
   const candidates = extractMembers(xml);
-  if (!candidates.length) return unavailable('NO_DATA', 'The official Mecklenburg-Vorpommern ALKIS parcel service returned no parcel geometry for the selected coordinate.', url);
+  if (!candidates.length) return unavailable('NO_DATA', `The official ${profile.state} ALKIS parcel service returned no parcel geometry for the selected coordinate.`, profile, url);
   const selected = candidates.find(candidate => pointInRing(lat, lng, candidate.ring));
-  if (!selected || !selected.label) return unavailable('MALFORMED_DATA', 'The official Mecklenburg-Vorpommern ALKIS service returned parcel data, but no single containing parcel could be resolved.', url);
-  const parcel = { parcelId: 'Flurstück ' + selected.label, nationalCadastralReference: selected.ref, officialAreaM2: selected.area, geometryPoints: selected.ring, state: STATE };
-  const claim = 'The official Mecklenburg-Vorpommern ALKIS service identifies ' + parcel.parcelId + (parcel.officialAreaM2 !== null ? ' with a registered area of ' + parcel.officialAreaM2 + ' m²' : '') + ' at the selected coordinate.';
+  if (!selected || !selected.label) return unavailable('MALFORMED_DATA', `The official ${profile.state} ALKIS service returned parcel data, but no single containing parcel could be resolved.`, profile, url);
+  const parcel = { parcelId: 'Flurstück ' + selected.label, nationalCadastralReference: selected.ref, officialAreaM2: selected.area, geometryPoints: selected.ring, state: profile.state, stateCode: profile.stateCode };
+  const claim = `The official ${profile.state} ALKIS service identifies ${parcel.parcelId}` + (parcel.officialAreaM2 !== null ? ` with a registered area of ${parcel.officialAreaM2} m²` : '') + ' at the selected coordinate.';
   const evidence: EvidenceItem = {
-    id: 'de-mv-alkis-cadastre', category: 'Cadastre & identification', claim, status: 'VERIFIED',
-    sourceName: SOURCE, sourceUrl: url, datasetDate: today(),
+    id: profile.evidenceId, category: 'Cadastre & identification', claim, status: 'VERIFIED',
+    sourceName: profile.sourceName, sourceUrl: url, datasetDate: today(),
     spatialRelationship: 'Official INSPIRE cadastral parcel polygon containing the selected coordinate',
-    calculationMethod: 'Mecklenburg-Vorpommern INSPIRE-WFS cp:CadastralParcel bbox query in EPSG:4326; containing polygon resolved by point-in-polygon test',
+    calculationMethod: `${profile.state} INSPIRE-WFS cp:CadastralParcel bbox query in EPSG:4326; containing polygon resolved by point-in-polygon test`,
     confidence: 'High',
     limitation: 'The returned parcel polygon is official cadastral evidence, but this report does not establish ownership, title, easements or a legally re-surveyed boundary. Those matters require the competent cadastral and land-register authorities.',
     value: parcel
   };
-  return { success: true, sourceName: SOURCE, sourceUrl: url, datasetDate: today(), parcel, evidence: [evidence], limitation: evidence.limitation };
+  return { success: true, sourceName: profile.sourceName, sourceUrl: url, datasetDate: today(), parcel, evidence: [evidence], limitation: evidence.limitation };
 }
 
 export function applyGermanyCadastreToReport(report: VerifiedSiteReport & Record<string, any>, result: GermanyCadastreResult, requestedAreaM2: number): void {
   report.evidenceRegistry = Array.isArray(report.evidenceRegistry) ? report.evidenceRegistry.filter(item => !/^cadastre-(spatial-index|parcel-id)$/.test(item.id)) : [];
   report.evidenceRegistry.push(...result.evidence);
   if (!result.success || !result.parcel) return;
-  report.parcel = { ...report.parcel, status: 'VERIFIED', parcelId: result.parcel.parcelId, countryCode: 'DE', geometryPoints: result.parcel.geometryPoints, isOfficialGeometry: true, areaCalculatedM2: requestedAreaM2, officialAreaM2: result.parcel.officialAreaM2 ?? undefined, cadastralSource: SOURCE, datasetDate: result.datasetDate, limitation: result.limitation };
+  report.parcel = { ...report.parcel, status: 'VERIFIED', parcelId: result.parcel.parcelId, countryCode: 'DE', geometryPoints: result.parcel.geometryPoints, isOfficialGeometry: true, areaCalculatedM2: requestedAreaM2, officialAreaM2: result.parcel.officialAreaM2 ?? undefined, cadastralSource: result.sourceName, datasetDate: result.datasetDate, limitation: result.limitation };
   report.germany_cadastre = result.parcel;
 }
-export const GERMANY_CADASTRE_SOURCE = { sourceName: SOURCE, serviceUrl: MV_WFS, portalUrl: MV_PORTAL };
+export const GERMANY_CADASTRE_SOURCE = PROFILES.map(({ state, stateCode, sourceName, wfsUrl, wmsUrl, portalUrl }) => ({ state, stateCode, sourceName, serviceUrl: wfsUrl, viewServiceUrl: wmsUrl, portalUrl }));
