@@ -25,6 +25,29 @@ const BAVARIA_CADASTRAL_CONTEXT = {
   attribution: '© Bayerische Vermessungsverwaltung — ALKIS-Parzellarkarte, Stand 01.01.2026'
 };
 
+// Keep the site marker inside the selected cadastral parcel rather than at the
+// original search point, which can sit near a parcel edge and obscure controls.
+const getPolygonCentroid = (points: [number, number][]): L.LatLng => {
+  let area = 0;
+  let centroidLat = 0;
+  let centroidLng = 0;
+
+  for (let i = 0; i < points.length; i++) {
+    const [lat1, lng1] = points[i];
+    const [lat2, lng2] = points[(i + 1) % points.length];
+    const cross = lng1 * lat2 - lng2 * lat1;
+    area += cross;
+    centroidLat += (lat1 + lat2) * cross;
+    centroidLng += (lng1 + lng2) * cross;
+  }
+
+  if (Math.abs(area) < 1e-12) {
+    return L.latLngBounds(points as L.LatLngExpression[]).getCenter();
+  }
+
+  return L.latLng(centroidLat / (3 * area), centroidLng / (3 * area));
+};
+
 interface MapPickerProps {
   mode: BoundaryType;
   shape: BoundaryShape | null;
@@ -283,6 +306,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         onOfficialParcelSelected?.(selectedParcel);
         const points = parcel.geometryPoints as [number, number][];
         onChange({ type: 'polygon', points });
+        addressMarkerRef.current?.setLatLng(getPolygonCentroid(points));
         if (mapRef.current) {
           const bounds = L.latLngBounds(points as L.LatLngExpression[]);
           mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
@@ -582,6 +606,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
             const points = parcel.geometryPoints as [number, number][];
             onChange({ type: 'polygon', points });
+            addressMarkerRef.current?.setLatLng(getPolygonCentroid(points));
             if (mapRef.current) {
               const bounds = L.latLngBounds(points as L.LatLngExpression[]);
               mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
