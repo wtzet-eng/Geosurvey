@@ -60,7 +60,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const [isLocating, setIsLocating] = useState(false);
   const [isFindingParcel, setIsFindingParcel] = useState(false);
   const parcelLookupPendingRef = useRef(false);
-  const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number; state?: string; stateCode?: string } | null>(null);
+  const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number; state?: string; stateCode?: string; viewServiceUrl?: string; viewLayer?: string; viewStyle?: string; viewAttribution?: string } | null>(null);
   const [cadastralState, setCadastralState] = useState<string | null>(null);
   const t = getMapPickerText(language);
 
@@ -145,31 +145,16 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         maxZoom: 17,
       }).addTo(map);
     }
-    if (countryCode.toUpperCase() === 'DE' && officialParcel?.stateCode) {
-      const germanyCadastralView = officialParcel.stateCode === 'DE-NW'
-        ? {
-            url: 'https://www.wms.nrw.de/geobasis/wms_nw_inspire-flurstuecke_alkis',
-            style: 'CP.CadastralParcel.Default',
-            attribution: '© GeoBasis NRW'
-          }
-        : officialParcel.stateCode === 'DE-MV'
-        ? {
-            url: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_view',
-            style: 'CP.CadastralParcel.OutlinesOnly',
-            attribution: '© GeoBasis-DE/M-V'
-          }
-        : null;
-      if (germanyCadastralView) {
-        L.tileLayer.wms(germanyCadastralView.url, {
-          layers: 'CP.CadastralParcel',
-          styles: germanyCadastralView.style,
-          format: 'image/png',
-          transparent: true,
-          opacity: 0.8,
-          version: '1.3.0',
-          attribution: germanyCadastralView.attribution
-        }).addTo(map);
-      }
+    if (countryCode.toUpperCase() === 'DE' && officialParcel?.viewServiceUrl) {
+      L.tileLayer.wms(officialParcel.viewServiceUrl, {
+        layers: officialParcel.viewLayer || 'CP.CadastralParcel',
+        styles: officialParcel.viewStyle || 'default',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.8,
+        version: '1.3.0',
+        attribution: officialParcel.viewAttribution || 'Official German cadastral data'
+      }).addTo(map);
     } else if (countryCode.toUpperCase() === 'HR' && officialParcel) {
       L.tileLayer.wms('https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms', {
         layers: 'CP.CadastralParcel',
@@ -269,7 +254,11 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           parcelId: parcel.parcel?.parcelNumber || parcel.parcelId,
           areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2,
           state: parcel.parcel?.state,
-          stateCode: parcel.parcel?.stateCode
+          stateCode: parcel.parcel?.stateCode,
+          viewServiceUrl: parcel.viewServiceUrl,
+          viewLayer: parcel.viewLayer,
+          viewStyle: parcel.viewStyle,
+          viewAttribution: parcel.viewAttribution
         };
         setOfficialParcel(selectedParcel);
         onOfficialParcelSelected?.(selectedParcel);
@@ -562,7 +551,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         const parcel = await response.json();
 
         if (parcel.success) {
-          const selectedParcel = { parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2, state: parcel.parcel?.state, stateCode: parcel.parcel?.stateCode };
+          const selectedParcel = { parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2, state: parcel.parcel?.state, stateCode: parcel.parcel?.stateCode, viewServiceUrl: parcel.viewServiceUrl, viewLayer: parcel.viewLayer, viewStyle: parcel.viewStyle, viewAttribution: parcel.viewAttribution };
           setOfficialParcel(selectedParcel);
           onOfficialParcelSelected?.(selectedParcel);
           if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {

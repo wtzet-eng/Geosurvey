@@ -7,6 +7,10 @@ export interface GermanyCadastreResult {
   sourceUrl: string;
   datasetDate: string;
   parcel?: { parcelId: string; nationalCadastralReference: string | null; officialAreaM2: number | null; geometryPoints: [number, number][]; state: string; stateCode: string };
+  viewServiceUrl?: string;
+  viewLayer?: string;
+  viewStyle?: string;
+  viewAttribution?: string;
   evidence: EvidenceItem[];
   limitation: string;
 }
@@ -17,6 +21,7 @@ interface GermanyCadastreProfile {
   aliases: string[];
   wfsUrl: string;
   wmsUrl: string;
+  wmsLayer?: string;
   wmsStyle: string;
   sourceName: string;
   publisher: string;
@@ -26,15 +31,60 @@ interface GermanyCadastreProfile {
 
 const PROFILES: GermanyCadastreProfile[] = [
   {
-    state: 'Mecklenburg-Vorpommern', stateCode: 'DE-MV',
-    aliases: ['mecklenburg-vorpommern', 'mecklenburg western pomerania', 'de-mv'],
-    wfsUrl: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download',
-    wmsUrl: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_view',
+    state: 'Baden-Württemberg', stateCode: 'DE-BW',
+    aliases: ['baden-württemberg', 'baden-wurttemberg', 'baden wuerttemberg', 'de-bw'],
+    wfsUrl: 'https://owsproxy.lgl-bw.de/owsproxy/wfs/WFS_INSP_BW_Flst_ALKIS',
+    wmsUrl: 'https://owsproxy.lgl-bw.de/owsproxy/ows/WMS_INSP_BW_Flst_ALKIS',
+    wmsLayer: 'alkis:CP.CadastralParcel',
+    wmsStyle: 'cadastralparcel',
+    sourceName: 'LGL Baden-Württemberg — INSPIRE-WFS Flurstücke/Grundstücke ALKIS',
+    publisher: 'LGL Baden-Württemberg',
+    portalUrl: 'https://www.lgl-bw.de/Produkte/Geodatendienste/INSPIRE/index.html',
+    evidenceId: 'de-bw-alkis-cadastre'
+  },
+  {
+    state: 'Brandenburg', stateCode: 'DE-BB',
+    aliases: ['brandenburg', 'de-bb'],
+    wfsUrl: 'https://inspire.brandenburg.de/services/cp_alkis_wfs',
+    wmsUrl: 'https://inspire.brandenburg.de/services/cp_alkis_wms',
     wmsStyle: 'CP.CadastralParcel.OutlinesOnly',
-    sourceName: 'GeoBasis-DE/M-V — INSPIRE-WFS Flurstücke/Grundstücke ALKIS',
-    publisher: 'GeoBasis-DE/M-V',
-    portalUrl: 'https://www.geoportal-mv.de/portal/Geowebdienste/INSPIRE-Themen/Flurstuecke_Grundstuecke',
-    evidenceId: 'de-mv-alkis-cadastre'
+    sourceName: 'GeoBasis-DE/LGB — INSPIRE-WFS Flurstücke/Grundstücke ALKIS Brandenburg',
+    publisher: 'GeoBasis-DE/LGB',
+    portalUrl: 'https://geobroker.geobasis-bb.de/gbss.php?MODE=GetProductInformation&PRODUCTID=77402954-cb0f-497d-ac47-c64d7c8dcc81',
+    evidenceId: 'de-bb-alkis-cadastre'
+  },
+  {
+    state: 'Hamburg', stateCode: 'DE-HH',
+    aliases: ['hamburg', 'de-hh'],
+    wfsUrl: 'https://geodienste.hamburg.de/HH_WFS_INSPIRE_Flurstuecke',
+    wmsUrl: 'https://geodienste.hamburg.de/HH_WMS_INSPIRE_Flurstuecke',
+    wmsStyle: 'CP.CadastralParcel.Default',
+    sourceName: 'Landesbetrieb Geoinformation und Vermessung Hamburg — INSPIRE WFS Flurstücke/Grundstücke ALKIS',
+    publisher: 'Landesbetrieb Geoinformation und Vermessung Hamburg',
+    portalUrl: 'https://suche.transparenz.hamburg.de/dataset/inspire-hh-flurstuecke-grundstuecke-alkis',
+    evidenceId: 'de-hh-alkis-cadastre'
+  },
+  {
+    state: 'Hessen', stateCode: 'DE-HE',
+    aliases: ['hessen', 'hesse', 'de-he'],
+    wfsUrl: 'https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wfs',
+    wmsUrl: 'https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wms',
+    wmsStyle: 'CP.CadastralParcel.Default',
+    sourceName: 'Hessisches Landesamt für Bodenmanagement und Geoinformation — INSPIRE-WFS Flurstücke/Grundstücke ALKIS',
+    publisher: 'Hessisches Landesamt für Bodenmanagement und Geoinformation',
+    portalUrl: 'https://www.geoportal.hessen.de/spatial-objects/710',
+    evidenceId: 'de-he-alkis-cadastre'
+  },
+  {
+    state: 'Niedersachsen', stateCode: 'DE-NI',
+    aliases: ['niedersachsen', 'lower saxony', 'de-ni'],
+    wfsUrl: 'https://www.inspire.niedersachsen.de/doorman/noauth/alkis-dls-cp',
+    wmsUrl: 'https://www.inspire.niedersachsen.de/doorman/noauth/alkis-vs-cp',
+    wmsStyle: 'CP.CadastralParcel.OutlinesOnly',
+    sourceName: 'LGLN — INSPIRE-WFS NI Flurstücke/Grundstücke ALKIS',
+    publisher: 'Landesamt für Geoinformation und Landesvermessung Niedersachsen',
+    portalUrl: 'https://numis.niedersachsen.de/trefferanzeige?docuuid=d5b05158-fd60-4749-9913-4d4afa85986b',
+    evidenceId: 'de-ni-alkis-cadastre'
   },
   {
     state: 'Nordrhein-Westfalen', stateCode: 'DE-NW',
@@ -46,6 +96,39 @@ const PROFILES: GermanyCadastreProfile[] = [
     publisher: 'GeoBasis NRW',
     portalUrl: 'https://www.bezreg-koeln.nrw.de/geobasis-nrw/produkte-und-dienste/inspire/inspire-nw-flurstuecke-grundstuecke',
     evidenceId: 'de-nw-alkis-cadastre'
+  },
+  {
+    state: 'Sachsen-Anhalt', stateCode: 'DE-ST',
+    aliases: ['sachsen-anhalt', 'saxony-anhalt', 'de-st'],
+    wfsUrl: 'https://geodatenportal.sachsen-anhalt.de/ows_INSPIRE_LVermGeo_ALKIS_CP_WFS',
+    wmsUrl: 'https://geodatenportal.sachsen-anhalt.de/ows_INSPIRE_LVermGeo_ALKIS_CP_WMS',
+    wmsStyle: 'CP.CadastralParcel.OutlinesOnly',
+    sourceName: 'LVermGeo Sachsen-Anhalt — INSPIRE-WFS Flurstücke/Grundstücke ALKIS',
+    publisher: 'Landesamt für Vermessung und Geoinformation Sachsen-Anhalt',
+    portalUrl: 'https://www.lvermgeo.sachsen-anhalt.de/de/gdp-open-data.html',
+    evidenceId: 'de-st-alkis-cadastre'
+  },
+  {
+    state: 'Schleswig-Holstein', stateCode: 'DE-SH',
+    aliases: ['schleswig-holstein', 'schleswig holstein', 'de-sh'],
+    wfsUrl: 'https://service.gdi-sh.de/SH_INSPIREDOWNLOAD_AI_CP_ALKIS',
+    wmsUrl: 'https://service.gdi-sh.de/SH_INSPIREVIEW_AI_CP_ALKIS',
+    wmsStyle: 'CP.CadastralParcel.OutlinesOnly',
+    sourceName: 'GeoBasis-DE/LVermGeo SH — INSPIRE WFS Flurstücke/Grundstücke ALKIS',
+    publisher: 'Landesamt für Vermessung und Geoinformation Schleswig-Holstein',
+    portalUrl: 'https://www.govdata.de/suche/daten/inspire-sh-flurstucke-grundstucke-alkis',
+    evidenceId: 'de-sh-alkis-cadastre'
+  },
+  {
+    state: 'Mecklenburg-Vorpommern', stateCode: 'DE-MV',
+    aliases: ['mecklenburg-vorpommern', 'mecklenburg western pomerania', 'de-mv'],
+    wfsUrl: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download',
+    wmsUrl: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_view',
+    wmsStyle: 'CP.CadastralParcel.OutlinesOnly',
+    sourceName: 'GeoBasis-DE/M-V — INSPIRE-WFS Flurstücke/Grundstücke ALKIS',
+    publisher: 'GeoBasis-DE/M-V',
+    portalUrl: 'https://www.geoportal-mv.de/portal/Geowebdienste/INSPIRE-Themen/Flurstuecke_Grundstuecke',
+    evidenceId: 'de-mv-alkis-cadastre'
   }
 ];
 
@@ -75,16 +158,24 @@ function pointInRing(lat: number, lng: number, ring: [number, number][]): boolea
   return inside;
 }
 function extractMembers(xml: string) {
-  return [...xml.matchAll(/<CadastralParcel\b[\s\S]*?<\/CadastralParcel>/g)].map(match => {
+  return [...xml.matchAll(/<(?:[A-Za-z0-9_.-]+:)?CadastralParcel\b[\s\S]*?<\/(?:[A-Za-z0-9_.-]+:)?CadastralParcel>/g)].map(match => {
     const member = match[0];
-    const label = text(member.match(/<label>([^<]+)<\/label>/)?.[1]);
-    const ref = text(member.match(/<nationalCadastralReference>([^<]+)<\/nationalCadastralReference>/)?.[1]);
-    const area = numberValue(member.match(/<areaValue[^>]*>([^<]+)<\/areaValue>/)?.[1]);
-    const pos = member.match(/<gml:posList>([^<]+)<\/gml:posList>/)?.[1];
-    const values = pos ? pos.trim().split(/\s+/).map(Number) : [];
+    const label = text(member.match(/<(?:[A-Za-z0-9_.-]+:)?label>([^<]+)<\/(?:[A-Za-z0-9_.-]+:)?label>/)?.[1]);
+    const ref = text(member.match(/<(?:[A-Za-z0-9_.-]+:)?nationalCadastralReference>([^<]+)<\/(?:[A-Za-z0-9_.-]+:)?nationalCadastralReference>/)?.[1]);
+    const area = numberValue(member.match(/<(?:[A-Za-z0-9_.-]+:)?areaValue[^>]*>([^<]+)<\/(?:[A-Za-z0-9_.-]+:)?areaValue>/)?.[1]);
+    const exterior = member.match(/<gml:exterior>([\s\S]*?)<\/gml:exterior>/)?.[1] || '';
+    const positions = [...exterior.matchAll(/<gml:posList>([^<]+)<\/gml:posList>/g)].flatMap(match => match[1].trim().split(/\s+/).map(Number));
     const ring: [number, number][] = [];
-    for (let i = 0; i + 1 < values.length; i += 2) {
-      if (Number.isFinite(values[i]) && Number.isFinite(values[i + 1])) ring.push([values[i], values[i + 1]]);
+    for (let i = 0; i + 1 < positions.length; i += 2) {
+      const a = positions[i], b = positions[i + 1];
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+      const point: [number, number] = a >= 47 && a <= 56 && b >= 4 && b <= 16
+        ? [a, b]
+        : b >= 47 && b <= 56 && a >= 4 && a <= 16
+        ? [b, a]
+        : [a, b];
+      const previous = ring[ring.length - 1];
+      if (!previous || previous[0] !== point[0] || previous[1] !== point[1]) ring.push(point);
     }
     return { label, ref, area, ring };
   }).filter(item => item.ring.length >= 3);
@@ -112,7 +203,9 @@ export async function queryGermanyCadastre(lat: number, lng: number, state: stri
   const e = 0.00012;
   const bbox = [lat - e, lng - e, lat + e, lng + e, 'urn:ogc:def:crs:EPSG::4326'].join(',');
   const params = new URLSearchParams({ service: 'WFS', version: '2.0.0', request: 'GetFeature', typeNames: 'cp:CadastralParcel', srsName: 'EPSG:4326', bbox, count: '100' });
-  const url = profile.wfsUrl + '?' + params.toString();
+  const serviceUrl = new URL(profile.wfsUrl);
+  params.forEach((value, key) => serviceUrl.searchParams.set(key, value));
+  const url = serviceUrl.toString();
   let xml = '';
   try {
     const response = await fetcher(url, { headers: { Accept: 'application/gml+xml, text/xml', 'User-Agent': 'LandSurf/1.0 Germany cadastral evidence' } });
@@ -136,7 +229,19 @@ export async function queryGermanyCadastre(lat: number, lng: number, state: stri
     limitation: 'The returned parcel polygon is official cadastral evidence, but this report does not establish ownership, title, easements or a legally re-surveyed boundary. Those matters require the competent cadastral and land-register authorities.',
     value: parcel
   };
-  return { success: true, sourceName: profile.sourceName, sourceUrl: url, datasetDate: today(), parcel, evidence: [evidence], limitation: evidence.limitation };
+  return {
+    success: true,
+    sourceName: profile.sourceName,
+    sourceUrl: url,
+    datasetDate: today(),
+    parcel,
+    evidence: [evidence],
+    limitation: evidence.limitation,
+    viewServiceUrl: profile.wmsUrl,
+    viewLayer: profile.wmsLayer || 'CP.CadastralParcel',
+    viewStyle: profile.wmsStyle,
+    viewAttribution: profile.stateCode === 'DE-BW' ? '© LGL Baden-Württemberg' : profile.stateCode === 'DE-BB' ? '© GeoBasis-DE/LGB' : profile.stateCode === 'DE-HE' ? '© GeoBasis Hessen' : profile.stateCode === 'DE-NI' ? '© LGLN' : profile.stateCode === 'DE-SN' ? '© GeoSN' : profile.stateCode === 'DE-ST' ? '© LVermGeo Sachsen-Anhalt' : profile.stateCode === 'DE-SH' ? '© GeoBasis-DE/LVermGeo SH' : profile.stateCode === 'DE-HH' ? '© Landesbetrieb Geoinformation und Vermessung Hamburg' : profile.stateCode === 'DE-SL' ? '© GeoBasis DE/LVGL-SL' : profile.publisher
+  };
 }
 
 export function applyGermanyCadastreToReport(report: VerifiedSiteReport & Record<string, any>, result: GermanyCadastreResult, requestedAreaM2: number): void {
