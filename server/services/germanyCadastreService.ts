@@ -4,6 +4,7 @@ export interface GermanyCadastreResult {
   success: boolean;
   reasonCode?: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA' | 'STATE_NOT_AUTOMATED';
   sourceName: string;
+  publisher?: string;
   sourceUrl: string;
   datasetDate: string;
   parcel?: { parcelId: string; nationalCadastralReference: string | null; officialAreaM2: number | null; geometryPoints: [number, number][]; state: string; stateCode: string };
@@ -22,7 +23,10 @@ interface GermanyCadastreProfile {
   wfsUrl: string;
   wfsTypeName?: string;
   wfsVersion?: string;
-  schema: 'INSPIRE' | 'BERLIN' | 'BREMEN';
+  querySrsName?: string;
+  bboxCrs?: string;
+  bboxEpsilon?: number;
+  schema: 'INSPIRE' | 'BERLIN' | 'BREMEN' | 'THURINGIA';
   wmsUrl: string;
   wmsLayer?: string;
   wmsStyle: string;
@@ -48,7 +52,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   {
     state: 'Bremen', stateCode: 'DE-HB',
     schema: 'BREMEN', wfsTypeName: 'app:flurstuecke',
-    aliases: ['bremen', 'de-hb', 'bremen and bremerhaven'],
+    aliases: ['bremen', 'freie hansestadt bremen', 'de-hb', 'bremen and bremerhaven'],
     wfsUrl: 'https://geodienste.bremen.de/wfs_hduk2958loah3976niun',
     wmsUrl: 'https://geodienste.bremen.de/wms_inspire_cp_alkis',
     wmsLayer: 'cp_cadastralparcel', wmsStyle: 'cp_cadastralparcel',
@@ -131,6 +135,42 @@ const PROFILES: GermanyCadastreProfile[] = [
     evidenceId: 'de-nw-alkis-cadastre'
   },
   {
+    state: 'Sachsen', stateCode: 'DE-SN',
+    schema: 'INSPIRE', querySrsName: 'EPSG:4258', bboxCrs: 'urn:ogc:def:crs:EPSG::4258', bboxEpsilon: 0.001,
+    aliases: ['sachsen', 'saxony', 'de-sn'],
+    wfsUrl: 'https://geodienste.sachsen.de/aaa/public_inspire/alkis/cp/dls/wfs',
+    wmsUrl: 'https://geodienste.sachsen.de/iwms_geosn_flurstuecke/guest',
+    wmsStyle: 'CP.CadastralParcel.OutlinesOnly',
+    sourceName: 'GeoSN — INSPIRE-WFS Flurstücke/Grundstücke ALKIS Sachsen',
+    publisher: 'GeoSN',
+    portalUrl: 'https://www.geodaten.sachsen.de/',
+    evidenceId: 'de-sn-alkis-cadastre'
+  },
+  {
+    state: 'Saarland', stateCode: 'DE-SL',
+    schema: 'INSPIRE', querySrsName: 'EPSG:4258', bboxCrs: 'urn:ogc:def:crs:EPSG::4258',
+    aliases: ['saarland', 'de-sl'],
+    wfsUrl: 'https://geoportal.saarland.de/gdi-sl/inspirewfs_Flurstuecke_Grundstuecke_ALKIS',
+    wmsUrl: 'https://geoportal.saarland.de/gdi-sl/inspirewms_Flurstuecke_Grundstuecke_ALKIS',
+    wmsStyle: 'CP.CadastralParcel.Default',
+    sourceName: 'Geoportal Saarland — INSPIRE-WFS Flurstücke/Grundstücke ALKIS',
+    publisher: 'Landesamt für Vermessung, Geoinformation und Landentwicklung Saarland',
+    portalUrl: 'https://geoportal.saarland.de/',
+    evidenceId: 'de-sl-alkis-cadastre'
+  },
+  {
+    state: 'Thüringen', stateCode: 'DE-TH',
+    schema: 'THURINGIA', wfsTypeName: 'ave:Flurstueck', querySrsName: 'EPSG:25832', bboxCrs: 'urn:ogc:def:crs:EPSG::25832', bboxEpsilon: 500,
+    aliases: ['thüringen', 'thueringen', 'thuringia', 'de-th'],
+    wfsUrl: 'https://www.geoproxy.geoportal-th.de/geoproxy/services/adv_alkis_v2_wfs',
+    wmsUrl: 'https://www.geoproxy.geoportal-th.de/geoproxy/services/INSPIREcp',
+    wmsStyle: 'CP.CadastralParcel.Default',
+    sourceName: 'TLBG Thüringen — ALKIS Flurstücke WFS',
+    publisher: 'Thüringer Landesamt für Bodenmanagement und Geoinformation',
+    portalUrl: 'https://geomis.geoportal-th.de/geonetwork/srv/search?keyword=Flurstücke',
+    evidenceId: 'de-th-alkis-cadastre'
+  },
+  {
     state: 'Sachsen-Anhalt', stateCode: 'DE-ST',
     schema: 'INSPIRE',
     aliases: ['sachsen-anhalt', 'saxony-anhalt', 'de-st'],
@@ -193,8 +233,69 @@ function pointInRing(lat: number, lng: number, ring: [number, number][]): boolea
   }
   return inside;
 }
+
+function wgs84ToUtm32(lat: number, lon: number): [number, number] {
+  const a = 6378137;
+  const eccentricity = 0.08181919084262149;
+  const k0 = 0.9996;
+  const e2 = eccentricity ** 2;
+  const ep2 = e2 / (1 - e2);
+  const phi = lat * Math.PI / 180;
+  const lambda = lon * Math.PI / 180;
+  const lambda0 = 9 * Math.PI / 180;
+  const sinPhi = Math.sin(phi);
+  const cosPhi = Math.cos(phi);
+  const tanPhi = Math.tan(phi);
+  const n = a / Math.sqrt(1 - e2 * sinPhi ** 2);
+  const t = tanPhi ** 2;
+  const c = ep2 * cosPhi ** 2;
+  const aa = cosPhi * (lambda - lambda0);
+  const m = a * (
+    (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * phi
+    - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * phi)
+    + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * phi)
+    - (35 * e2 ** 3 / 3072) * Math.sin(6 * phi)
+  );
+  const x = 500000 + k0 * n * (
+    aa + (1 - t + c) * aa ** 3 / 6 + (5 - 18 * t + t ** 2 + 72 * c - 58 * ep2) * aa ** 5 / 120
+  );
+  const y = k0 * (
+    m + n * tanPhi * (aa ** 2 / 2 + (5 - t + 9 * c + 4 * c ** 2) * aa ** 4 / 24 + (61 - 58 * t + t ** 2 + 600 * c - 330 * ep2) * aa ** 6 / 720)
+  );
+  return [x, y];
+}
+
+function utm32ToWgs84(easting: number, northing: number): [number, number] {
+  const a = 6378137;
+  const eccentricity = 0.08181919084262149;
+  const k0 = 0.9996;
+  const e1 = (1 - Math.sqrt(1 - eccentricity ** 2)) / (1 + Math.sqrt(1 - eccentricity ** 2));
+  const x = easting - 500000;
+  const y = northing;
+  const m = y / k0;
+  const mu = m / (a * (1 - eccentricity ** 2 / 4 - 3 * eccentricity ** 4 / 64 - 5 * eccentricity ** 6 / 256));
+  const j1 = 3 * e1 / 2 - 27 * e1 ** 3 / 32;
+  const j2 = 21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32;
+  const j3 = 151 * e1 ** 3 / 96;
+  const j4 = 1097 * e1 ** 4 / 512;
+  const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu) + j4 * Math.sin(8 * mu);
+  const e2 = eccentricity ** 2 / (1 - eccentricity ** 2);
+  const c1 = e2 * Math.cos(fp) ** 2;
+  const t1 = Math.tan(fp) ** 2;
+  const n1 = a / Math.sqrt(1 - eccentricity ** 2 * Math.sin(fp) ** 2);
+  const r1 = a * (1 - eccentricity ** 2) / (1 - eccentricity ** 2 * Math.sin(fp) ** 2) ** 1.5;
+  const d = x / (n1 * k0);
+  const q1 = n1 * Math.tan(fp) / r1;
+  const q2 = d ** 2 / 2;
+  const q3 = (5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - 9 * e2) * d ** 4 / 24;
+  const q4 = (61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - 252 * e2 - 3 * c1 ** 2) * d ** 6 / 720;
+  const lat = fp - q1 * (q2 - q3 + q4);
+  const lon0 = (32 * 6 - 183) * Math.PI / 180;
+  const lon = lon0 + (d - (1 + 2 * t1 + c1) * d ** 3 / 6 + (5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + 8 * e2 + 24 * t1 ** 2) * d ** 5 / 120) / Math.cos(fp);
+  return [lat * 180 / Math.PI, lon * 180 / Math.PI];
+}
 function extractMembers(xml: string, profile: GermanyCadastreProfile) {
-  const featureName = profile.schema === 'INSPIRE' ? 'CadastralParcel' : 'flurstuecke';
+  const featureName = profile.schema === 'INSPIRE' ? 'CadastralParcel' : profile.schema === 'THURINGIA' ? 'Flurstueck' : 'flurstuecke';
   const featurePattern = new RegExp(`<(?:(?:[A-Za-z0-9_.-]+):)?${featureName}\\b[\\s\\S]*?<\\/(?:(?:[A-Za-z0-9_.-]+):)?${featureName}>`, 'gi');
   const readTag = (member: string, names: string[]) => {
     for (const name of names) {
@@ -234,7 +335,9 @@ function extractMembers(xml: string, profile: GermanyCadastreProfile) {
     for (let i = 0; i + 1 < positions.length; i += 2) {
       const a = positions[i], b = positions[i + 1];
       if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
-      const point: [number, number] = a >= 47 && a <= 56 && b >= 4 && b <= 16
+      const point: [number, number] = profile.schema === 'THURINGIA'
+        ? utm32ToWgs84(a, b)
+        : a >= 47 && a <= 56 && b >= 4 && b <= 16
         ? [a, b]
         : b >= 47 && b <= 56 && a >= 4 && a <= 16
         ? [b, a]
@@ -255,7 +358,7 @@ function unavailable(reasonCode: GermanyCadastreResult['reasonCode'], claim: str
     limitation: 'A failed or unimplemented lookup is not evidence that a parcel does not exist. Official cadastral verification remains required.',
     value: { reasonCode, state: profile?.state || null, stateCode: profile?.stateCode || null }
   };
-  return { success: false, reasonCode, sourceName, sourceUrl, datasetDate: today(), evidence: [evidence], limitation: evidence.limitation };
+  return { success: false, reasonCode, sourceName, publisher: profile?.publisher, sourceUrl, datasetDate: today(), evidence: [evidence], limitation: evidence.limitation };
 }
 
 export async function queryGermanyCadastre(lat: number, lng: number, state: string | null | undefined, fetcher: typeof fetch = fetch): Promise<GermanyCadastreResult> {
@@ -265,9 +368,16 @@ export async function queryGermanyCadastre(lat: number, lng: number, state: stri
       ? `Germany's cadastral data are administered by the federal states. LandSurf has not yet validated an automated official parcel lookup for ${state}.`
       : 'Germany\'s cadastral data are administered by the federal states. A German Land must be identified before an official parcel service can be selected.', profile);
   }
-  const e = 0.00012;
-  const bbox = [lat - e, lng - e, lat + e, lng + e, 'urn:ogc:def:crs:EPSG::4326'].join(',');
-  const params = new URLSearchParams({ service: 'WFS', version: profile.wfsVersion || '2.0.0', request: 'GetFeature', typeNames: profile.wfsTypeName || 'cp:CadastralParcel', srsName: 'EPSG:4326', bbox, count: '100' });
+  const e = profile.bboxEpsilon || 0.00012;
+  const querySrsName = profile.querySrsName || 'EPSG:4326';
+  const [west, south, east, north] = querySrsName === 'EPSG:25832'
+    ? (() => {
+        const [x, y] = wgs84ToUtm32(lat, lng);
+        return [x - e, y - e, x + e, y + e];
+      })()
+    : [lat - e, lng - e, lat + e, lng + e];
+  const bbox = [west, south, east, north, profile.bboxCrs || 'urn:ogc:def:crs:EPSG::4326'].join(',');
+  const params = new URLSearchParams({ service: 'WFS', version: profile.wfsVersion || '2.0.0', request: 'GetFeature', typeNames: profile.wfsTypeName || 'cp:CadastralParcel', srsName: querySrsName, bbox, count: '100' });
   const serviceUrl = new URL(profile.wfsUrl);
   params.forEach((value, key) => serviceUrl.searchParams.set(key, value));
   const url = serviceUrl.toString();
@@ -297,6 +407,7 @@ export async function queryGermanyCadastre(lat: number, lng: number, state: stri
   return {
     success: true,
     sourceName: profile.sourceName,
+    publisher: profile.publisher,
     sourceUrl: url,
     datasetDate: today(),
     parcel,
@@ -305,7 +416,7 @@ export async function queryGermanyCadastre(lat: number, lng: number, state: stri
     viewServiceUrl: profile.wmsUrl,
     viewLayer: profile.wmsLayer || 'CP.CadastralParcel',
     viewStyle: profile.wmsStyle,
-    viewAttribution: profile.stateCode === 'DE-BW' ? '© LGL Baden-Württemberg' : profile.stateCode === 'DE-BB' ? '© GeoBasis-DE/LGB' : profile.stateCode === 'DE-HE' ? '© GeoBasis Hessen' : profile.stateCode === 'DE-NI' ? '© LGLN' : profile.stateCode === 'DE-SN' ? '© GeoSN' : profile.stateCode === 'DE-ST' ? '© LVermGeo Sachsen-Anhalt' : profile.stateCode === 'DE-SH' ? '© GeoBasis-DE/LVermGeo SH' : profile.stateCode === 'DE-HH' ? '© Landesbetrieb Geoinformation und Vermessung Hamburg' : profile.stateCode === 'DE-SL' ? '© GeoBasis DE/LVGL-SL' : profile.publisher
+    viewAttribution: profile.publisher,
   };
 }
 

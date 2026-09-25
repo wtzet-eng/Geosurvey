@@ -243,7 +243,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         applyGermanyCadastreToReport(evidenceReport, germanyCadastre, areaSize);
         if (germanyCadastre.success) {
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
-          evidenceReport.dataSourcesCited.push({ name: germanyCadastre.sourceName, organization: germanyCadastre.parcel?.state || 'German state surveying authority', url: germanyCadastre.sourceUrl, type: 'Official State Cadastre', status: 'VERIFIED' });
+          evidenceReport.dataSourcesCited.push({ name: germanyCadastre.sourceName, organization: germanyCadastre.publisher || germanyCadastre.parcel?.state || 'German state surveying authority', url: germanyCadastre.sourceUrl, type: 'Official State Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Germany cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'BE' && support.capabilities.nationalCadastre) {

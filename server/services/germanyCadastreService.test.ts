@@ -41,7 +41,7 @@ test('Germany cadastral lookup routes North Rhine-Westphalia to the official NRW
 });
 
 test('Germany cadastral lookup does not confuse another German state with no data', async () => {
-  const result = await queryGermanyCadastre(53.5, 13.9, 'Sachsen', async () => new Response('', { status: 200 }) as Response);
+  const result = await queryGermanyCadastre(53.5, 13.9, 'Bayern', async () => new Response('', { status: 200 }) as Response);
   assert.equal(result.success, false);
   assert.equal(result.reasonCode, 'STATE_NOT_AUTOMATED');
   assert.equal(result.evidence[0].status, 'REQUIRES_VERIFICATION');
@@ -129,8 +129,8 @@ test('Germany cadastral adapter resolves Bremen ALKIS field mappings and geometr
 test('Germany cadastral profiles route every currently activated INSPIRE state service', async () => {
   const states = [
     ['Baden-Württemberg', 'DE-BW'], ['Brandenburg', 'DE-BB'], ['Hamburg', 'DE-HH'], ['Hessen', 'DE-HE'],
-    ['Niedersachsen', 'DE-NI'], ['Nordrhein-Westfalen', 'DE-NW'], ['Sachsen-Anhalt', 'DE-ST'],
-    ['Schleswig-Holstein', 'DE-SH'], ['Mecklenburg-Vorpommern', 'DE-MV']
+    ['Niedersachsen', 'DE-NI'], ['Nordrhein-Westfalen', 'DE-NW'], ['Sachsen', 'DE-SN'], ['Saarland', 'DE-SL'],
+    ['Sachsen-Anhalt', 'DE-ST'], ['Schleswig-Holstein', 'DE-SH'], ['Mecklenburg-Vorpommern', 'DE-MV']
   ] as const;
   for (const [state, stateCode] of states) {
     let requestedUrl = '';
@@ -141,5 +141,34 @@ test('Germany cadastral profiles route every currently activated INSPIRE state s
     assert.equal(result.success, true, state);
     assert.equal(result.parcel?.stateCode, stateCode, state);
     assert.ok(requestedUrl.includes('service=WFS'), state);
+  }
+});
+
+const thuringiaXml = `<?xml version="1.0"?>
+<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:ave="http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/2.0">
+<wfs:member><ave:Flurstueck gml:id="th-test"><ave:flstkennz>160101054000570004__</ave:flstkennz><ave:flstnrzae>57</ave:flstnrzae><ave:flstnrnen>4</ave:flstnrnen><ave:flaeche>40000</ave:flaeche><ave:geometrie><gml:MultiSurface><gml:surfaceMember><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>642277 5649895 642677 5649895 642677 5650295 642277 5650295 642277 5649895</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></gml:surfaceMember></gml:MultiSurface></ave:geometrie></ave:Flurstueck></wfs:member></wfs:FeatureCollection>`;
+
+test('Germany cadastral adapter converts Thuringia UTM geometry to WGS84', async () => {
+  const result = await queryGermanyCadastre(50.9848, 11.0299, 'Thüringen', async () => new Response(thuringiaXml, { status: 200 }));
+  assert.equal(result.success, true);
+  assert.equal(result.parcel?.parcelId, 'Flurstück 57/4');
+  assert.equal(result.parcel?.officialAreaM2, 40000);
+  assert.equal(result.parcel?.stateCode, 'DE-TH');
+  assert.equal(result.parcel?.geometryPoints.length, 5);
+  assert.ok(Math.abs((result.parcel?.geometryPoints[0]?.[0] || 0) - 50.983) < 0.02);
+  assert.ok(Math.abs((result.parcel?.geometryPoints[0]?.[1] || 0) - 11.027) < 0.02);
+  assert.equal(result.viewServiceUrl, 'https://www.geoproxy.geoportal-th.de/geoproxy/services/INSPIREcp');
+});
+
+test('Germany cadastral adapter uses EPSG:4258 routing for Saxony and Saarland', async () => {
+  for (const [state, stateCode] of [['Sachsen', 'DE-SN'], ['Saarland', 'DE-SL']] as const) {
+    let requestedUrl = '';
+    const result = await queryGermanyCadastre(53.505043, 13.996212, state, async (input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return new Response(xml, { status: 200 });
+    });
+    assert.equal(result.success, true, state);
+    assert.equal(result.parcel?.stateCode, stateCode, state);
+    assert.match(requestedUrl, /srsName=EPSG%3A4258/);
   }
 });
