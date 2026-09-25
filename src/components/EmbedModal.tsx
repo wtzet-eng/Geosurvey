@@ -1061,7 +1061,7 @@ export function PlotValuationWidget() {
               <div>
                 <p className="text-sm font-bold text-emerald-950">Help clients arrive better prepared for professional advice.</p>
                 <p className="mt-1 text-xs leading-relaxed text-emerald-900/80">
-                  <strong>For geotechnical and land professionals:</strong> embed LandSurf on your website to help clients carry out an initial site screening before contacting you. LandSurf highlights available public evidence, uncertainties, and questions that may require professional investigation. It does not replace site-specific geotechnical assessment.
+                  <strong>For geotechnical and land professionals:</strong> embed GroundSurf on your website to help clients carry out an initial site screening before contacting you. GroundSurf highlights available public evidence, uncertainties, and questions that may require professional investigation. It does not replace site-specific geotechnical assessment.
                 </p>
               </div>
             </div>

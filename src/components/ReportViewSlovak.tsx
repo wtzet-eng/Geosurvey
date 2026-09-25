@@ -83,7 +83,7 @@ export const ReportViewSlovak: React.FC<Props> = ({ report, onBack }) => {
         <div className="flex items-center gap-3 min-w-0">
           {onBack && <button type="button" onClick={onBack} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold shrink-0"><ArrowLeft className="h-3.5 w-3.5" />Späť</button>}
           <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0"><Landmark className="h-4 w-4" /></div>
-          <div className="min-w-0"><div className="font-bold text-sm truncate">LandSurf</div><div className="text-[10px] text-slate-500 truncate">Predbežné posúdenie lokality · dôkazy na prvom mieste</div></div>
+          <div className="min-w-0"><div className="font-bold text-sm truncate">GroundSurf</div><div className="text-[10px] text-slate-500 truncate">Predbežné posúdenie lokality · dôkazy na prvom mieste</div></div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button type="button" onClick={() => setIsDriveOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold"><HardDrive className="h-3.5 w-3.5" />Drive</button>
@@ -150,10 +150,10 @@ export const ReportViewSlovak: React.FC<Props> = ({ report, onBack }) => {
 
       <section className="rounded-3xl bg-amber-50 border border-amber-200 p-6 sm:p-8">
         <div className="flex items-center gap-2 font-bold text-amber-950"><Mountain className="h-5 w-5" />Dôležité obmedzenia a odborné upozornenie</div>
-        <div className="mt-3 space-y-2 text-xs sm:text-sm text-amber-900 leading-relaxed">{legal.length ? legal.map((line: string, index: number) => <p key={index}>{line}</p>) : <><p>LandSurf je nástroj na predbežný desktopový skríning založený na verejných údajoch a automatizovanej priestorovej analýze.</p><p>Neprítomnosť zaznamenaného rizika alebo obmedzenia nie je dôkazom, že neexistuje.</p></>}</div>
+        <div className="mt-3 space-y-2 text-xs sm:text-sm text-amber-900 leading-relaxed">{legal.length ? legal.map((line: string, index: number) => <p key={index}>{line}</p>) : <><p>GroundSurf je nástroj na predbežný desktopový skríning založený na verejných údajoch a automatizovanej priestorovej analýze.</p><p>Neprítomnosť zaznamenaného rizika alebo obmedzenia nie je dôkazom, že neexistuje.</p></>}</div>
       </section>
 
-      <footer className="text-center text-[11px] text-slate-400 pt-2">LandSurf · predbežné posúdenie · vygenerované {new Date(report.created_at).toLocaleString('sk-SK')}</footer>
+      <footer className="text-center text-[11px] text-slate-400 pt-2">GroundSurf · predbežné posúdenie · vygenerované {new Date(report.created_at).toLocaleString('sk-SK')}</footer>
     </main>
   </div>;
 };

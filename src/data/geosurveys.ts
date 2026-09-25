@@ -77,13 +77,13 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
   SE: {
     countryCode: 'SE', countryName: 'Sweden', authorityName: 'Sveriges geologiska undersökning', acronym: 'SGU',
     officialPortalUrl: 'https://www.sgu.se', mapViewerUrl: 'https://apps.sgu.se/kartvisare/', cadastrePortalUrl: 'https://geotorget.lantmateriet.se/geodataprodukter/fastighetsindelning-direkt-api', hazardPortalUrl: 'https://gisapp.msb.se/apps/oversvamningsportal/',
-    description: 'Swedish public geological and hydrogeological services. LandSurf directly queries selected SGU OGC API Features datasets; cadastral, flood and binding planning information remain official-verification sources until separately automated.',
+    description: 'Swedish public geological and hydrogeological services. GroundSurf directly queries selected SGU OGC API Features datasets; cadastral, flood and binding planning information remain official-verification sources until separately automated.',
     datasets: ['SGU Jordarter 1:25 000–1:100 000 – superficial-deposit mapping', 'SGU Jordarter 1:250 000 – northern Sweden fallback', 'SGU Berggrund 1:50 000–1:250 000 – bedrock geological units and lithology', 'SGU Brunnsarkivet – wells and borehole observations', 'SGU Grundvattennivåer, observerade – groundwater observation station network', 'MSB Översvämningsportalen – official flood verification source', 'Lantmäteriet Fastighetsregistret / Fastighetsindelning Direkt – cadastral verification source', 'Municipal detailed plans / Nationella geodataplattformen – planning verification where available']
   },
   NO: {
     countryCode: 'NO', countryName: 'Norway', authorityName: 'Norges geologiske undersøkelse / Kartverket / Norges vassdrags- og energidirektorat', acronym: 'NGU / NADAG / Kartverket / NVE',
     officialPortalUrl: 'https://www.ngu.no', mapViewerUrl: 'https://www.ngu.no/geologiske-kart/karttjenester', cadastrePortalUrl: 'https://api.kartverket.no/eiendom/v1/', hazardPortalUrl: 'https://www.nve.no/karttjenester',
-    description: 'Norwegian public ground, property and natural-hazard services. LandSurf directly queries selected Kartverket and NGU datasets while retaining NVE and municipal planning sources for official verification where not yet automated.',
+    description: 'Norwegian public ground, property and natural-hazard services. GroundSurf directly queries selected Kartverket and NGU datasets while retaining NVE and municipal planning sources for official verification where not yet automated.',
     datasets: ['NGU Løsmasse detaljert – detailed superficial-deposit mapping', 'NGU NADAG – national geotechnical investigation and borehole database', 'NGU Mulighet for marin leire – marine-clay possibility screening', 'NGU Radon aktsomhet – national radon awareness map', 'Kartverket Åpent eiendoms-API – Matrikkelen property identification and mapped areas', 'NVE flood and landslide awareness/hazard maps', 'Geonorge / municipal digital area plans']
   },
   BE: {

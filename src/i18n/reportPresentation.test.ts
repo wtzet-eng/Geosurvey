@@ -222,7 +222,7 @@ test('Polish and Spanish localization covers the remaining report phrases seen i
   assert.match(localizePresentationValue('Walloon geological mapping could not be queried.', 'pl'), /walońskiej mapy geologicznej/);
   assert.match(localizePresentationValue('The selected coordinate was routed to Walloon official geodata services.', 'pl'), /walońskich serwisów geodanych/);
 
-  const market = localizePresentationValue("Market context only: 62–293 EUR/m². The selected area (154,804 m²) exceeds LandSurf's 50,000 m² total-value calibration guard, so the benchmark is not extrapolated to a whole-site total.", 'es');
+  const market = localizePresentationValue("Market context only: 62–293 EUR/m². The selected area (154,804 m²) exceeds GroundSurf's 50,000 m² total-value calibration guard, so the benchmark is not extrapolated to a whole-site total.", 'es');
   assert.match(market, /Solo contexto de mercado/);
   assert.doesNotMatch(market, /Market context only|selected area|whole-site total/i);
 

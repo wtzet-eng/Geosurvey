@@ -20,7 +20,7 @@ test('Swedish AI interpretation shell is localized', () => {
 test('Spanish AI interpretation shell is localized', () => {
   const copy = aiPanelCopy('es');
   const text = Object.values(copy).join('\n');
-  assert.match(copy.brand, /Interpretación de IA de LandSurf/);
+  assert.match(copy.brand, /Interpretación de IA de GroundSurf/);
   assert.match(copy.title, /Interpretar la evidencia recopilada/);
   assert.match(copy.completed, /Interpretación completada/);
   assert.match(copy.verifyNext, /Qué verificar a continuación/);
@@ -32,7 +32,7 @@ test('Spanish AI interpretation shell is localized', () => {
 test('Slovak AI interpretation shell is localized', () => {
   const copy = aiPanelCopy('sk');
   const text = Object.values(copy).join('\n');
-  assert.equal(copy.brand, 'Interpretácia AI LandSurf');
+  assert.equal(copy.brand, 'Interpretácia AI GroundSurf');
   assert.equal(copy.title, 'Interpretovať zhromaždené dôkazy');
   assert.equal(copy.observations, 'Priame pozorovania');
   assert.equal(copy.interpretation, 'Interpretácia');
@@ -50,7 +50,7 @@ test('Slovak AI interpretation shell is localized', () => {
 test('German AI interpretation shell is localized', () => {
   const copy = aiPanelCopy('de');
   const text = Object.values(copy).join('\n');
-  assert.equal(copy.brand, 'LandSurf KI-Interpretation');
+  assert.equal(copy.brand, 'GroundSurf KI-Interpretation');
   assert.equal(copy.title, 'Gesammelte Evidenz interpretieren');
   assert.equal(copy.completed, 'Interpretation abgeschlossen');
   assert.equal(copy.observations, 'Direkte Beobachtungen');
@@ -68,7 +68,7 @@ test('German AI interpretation shell is localized', () => {
 test('Croatian AI interpretation shell is localized', () => {
   const copy = aiPanelCopy('hr');
   const text = Object.values(copy).join('\n');
-  assert.equal(copy.brand, 'LandSurf AI interpretacija');
+  assert.equal(copy.brand, 'GroundSurf AI interpretacija');
   assert.equal(copy.title, 'Protumačite prikupljene dokaze');
   assert.equal(copy.completed, 'Interpretacija dovršena');
   assert.equal(copy.observations, 'Izravna opažanja');
