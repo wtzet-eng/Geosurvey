@@ -90,7 +90,43 @@ test('Germany cadastral parser accepts curved INSPIRE parcel rings', async () =>
   assert.equal(result.parcel?.geometryPoints.length, 5);
 });
 
-test('Germany cadastral profiles route every currently activated open state service', async () => {
+const berlinXml = `<?xml version="1.0"?>
+<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:alkis_flurstuecke="alkis_flurstuecke">
+<wfs:member><alkis_flurstuecke:flurstuecke gml:id="DEBE00YY12B00050">
+<uuid>DEBE00YY12B00050</uuid><bezeich>AX_Flurstueck</bezeich><afl>532.0</afl><fsko>11000192100498____</fsko><zae>498</zae><gmk>0001</gmk>
+<geometry><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>13.38995 52.52034 13.38994 52.52036 13.38961 52.52033 13.38970 52.52015 13.38995 52.52034</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></geometry>
+</alkis_flurstuecke:flurstuecke></wfs:member></wfs:FeatureCollection>`;
+
+test('Germany cadastral adapter resolves Berlin ALKIS field mappings and geometry', async () => {
+  const result = await queryGermanyCadastre(52.52025, 13.38980, 'Berlin', async () => new Response(berlinXml, { status: 200 }));
+  assert.equal(result.success, true);
+  assert.equal(result.parcel?.parcelId, 'Flurstück 498');
+  assert.equal(result.parcel?.officialAreaM2, 532);
+  assert.equal(result.parcel?.nationalCadastralReference, '11000192100498____');
+  assert.equal(result.parcel?.stateCode, 'DE-BE');
+  assert.equal(result.viewLayer, 'flurstuecke');
+  assert.equal(result.viewStyle, 'alkis_flurstuecke');
+});
+
+const bremenXml = `<?xml version="1.0"?>
+<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:app="http://www.deegree.org/app">
+<wfs:member><app:flurstuecke gml:id="DEHB01ALs0001uQkFL">
+<oid>DEHB01ALs0001uQkFL</oid><idflurst>DEHB01ALs0001uQk</idflurst><flaeche>3368.0</flaeche><flstkennz>044072072000130005__</flstkennz><flstnrzae>13</flstnrzae><flstnrnen>5</flstnrnen><land>Bremen</land>
+<geometry><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>8.749515 53.087378 8.749870 53.087655 8.750224 53.087370 8.750666 53.087015 8.750305 53.086734 8.749515 53.087378</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></geometry>
+</app:flurstuecke></wfs:member></wfs:FeatureCollection>`;
+
+test('Germany cadastral adapter resolves Bremen ALKIS field mappings and geometry', async () => {
+  const result = await queryGermanyCadastre(53.08720, 8.75000, 'Bremen', async () => new Response(bremenXml, { status: 200 }));
+  assert.equal(result.success, true);
+  assert.equal(result.parcel?.parcelId, 'Flurstück 13/5');
+  assert.equal(result.parcel?.officialAreaM2, 3368);
+  assert.equal(result.parcel?.nationalCadastralReference, '044072072000130005__');
+  assert.equal(result.parcel?.stateCode, 'DE-HB');
+  assert.equal(result.viewLayer, 'cp_cadastralparcel');
+  assert.equal(result.viewStyle, 'cp_cadastralparcel');
+});
+
+test('Germany cadastral profiles route every currently activated INSPIRE state service', async () => {
   const states = [
     ['Baden-Württemberg', 'DE-BW'], ['Brandenburg', 'DE-BB'], ['Hamburg', 'DE-HH'], ['Hessen', 'DE-HE'],
     ['Niedersachsen', 'DE-NI'], ['Nordrhein-Westfalen', 'DE-NW'], ['Sachsen-Anhalt', 'DE-ST'],

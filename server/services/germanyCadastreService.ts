@@ -20,6 +20,9 @@ interface GermanyCadastreProfile {
   stateCode: string;
   aliases: string[];
   wfsUrl: string;
+  wfsTypeName?: string;
+  wfsVersion?: string;
+  schema: 'INSPIRE' | 'BERLIN' | 'BREMEN';
   wmsUrl: string;
   wmsLayer?: string;
   wmsStyle: string;
@@ -31,7 +34,32 @@ interface GermanyCadastreProfile {
 
 const PROFILES: GermanyCadastreProfile[] = [
   {
+    state: 'Berlin', stateCode: 'DE-BE',
+    schema: 'BERLIN', wfsTypeName: 'alkis_flurstuecke:flurstuecke',
+    aliases: ['berlin', 'de-be'],
+    wfsUrl: 'https://gdi.berlin.de/services/wfs/alkis_flurstuecke',
+    wmsUrl: 'https://gdi.berlin.de/services/wms/alkis_flurstuecke',
+    wmsLayer: 'flurstuecke', wmsStyle: 'alkis_flurstuecke',
+    sourceName: 'Senatsverwaltung für Stadtentwicklung, Bauen und Wohnen Berlin — ALKIS Berlin Flurstücke WFS',
+    publisher: 'Senatsverwaltung für Stadtentwicklung, Bauen und Wohnen Berlin',
+    portalUrl: 'https://daten.berlin.de/datensaetze/alkis-berlin-flurstucke-wfs-1bc014d7',
+    evidenceId: 'de-be-alkis-cadastre'
+  },
+  {
+    state: 'Bremen', stateCode: 'DE-HB',
+    schema: 'BREMEN', wfsTypeName: 'app:flurstuecke',
+    aliases: ['bremen', 'de-hb', 'bremen and bremerhaven'],
+    wfsUrl: 'https://geodienste.bremen.de/wfs_hduk2958loah3976niun',
+    wmsUrl: 'https://geodienste.bremen.de/wms_inspire_cp_alkis',
+    wmsLayer: 'cp_cadastralparcel', wmsStyle: 'cp_cadastralparcel',
+    sourceName: 'Landesamt GeoInformation Bremen — ALKIS Flurstücke',
+    publisher: 'Landesamt GeoInformation Bremen',
+    portalUrl: 'https://metaver.de/trefferanzeige?docuuid=181B6EB2-AE14-4774-9B65-DB21FF4286C8',
+    evidenceId: 'de-hb-alkis-cadastre'
+  },
+  {
     state: 'Baden-Württemberg', stateCode: 'DE-BW',
+    schema: 'INSPIRE',
     aliases: ['baden-württemberg', 'baden-wurttemberg', 'baden wuerttemberg', 'de-bw'],
     wfsUrl: 'https://owsproxy.lgl-bw.de/owsproxy/wfs/WFS_INSP_BW_Flst_ALKIS',
     wmsUrl: 'https://owsproxy.lgl-bw.de/owsproxy/ows/WMS_INSP_BW_Flst_ALKIS',
@@ -44,6 +72,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Brandenburg', stateCode: 'DE-BB',
+    schema: 'INSPIRE',
     aliases: ['brandenburg', 'de-bb'],
     wfsUrl: 'https://inspire.brandenburg.de/services/cp_alkis_wfs',
     wmsUrl: 'https://inspire.brandenburg.de/services/cp_alkis_wms',
@@ -55,6 +84,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Hamburg', stateCode: 'DE-HH',
+    schema: 'INSPIRE',
     aliases: ['hamburg', 'de-hh'],
     wfsUrl: 'https://geodienste.hamburg.de/HH_WFS_INSPIRE_Flurstuecke',
     wmsUrl: 'https://geodienste.hamburg.de/HH_WMS_INSPIRE_Flurstuecke',
@@ -66,6 +96,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Hessen', stateCode: 'DE-HE',
+    schema: 'INSPIRE',
     aliases: ['hessen', 'hesse', 'de-he'],
     wfsUrl: 'https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wfs',
     wmsUrl: 'https://inspire-hessen.de/ows/services/org.2.07247d95-adc7-4c7d-9c7a-ed17af855317_wms',
@@ -77,6 +108,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Niedersachsen', stateCode: 'DE-NI',
+    schema: 'INSPIRE',
     aliases: ['niedersachsen', 'lower saxony', 'de-ni'],
     wfsUrl: 'https://www.inspire.niedersachsen.de/doorman/noauth/alkis-dls-cp',
     wmsUrl: 'https://www.inspire.niedersachsen.de/doorman/noauth/alkis-vs-cp',
@@ -88,6 +120,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Nordrhein-Westfalen', stateCode: 'DE-NW',
+    schema: 'INSPIRE',
     aliases: ['nordrhein-westfalen', 'north rhine-westphalia', 'north rhine westphalia', 'de-nw'],
     wfsUrl: 'https://www.wfs.nrw.de/geobasis/wfs_nw_inspire-flurstuecke_alkis',
     wmsUrl: 'https://www.wms.nrw.de/geobasis/wms_nw_inspire-flurstuecke_alkis',
@@ -99,6 +132,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Sachsen-Anhalt', stateCode: 'DE-ST',
+    schema: 'INSPIRE',
     aliases: ['sachsen-anhalt', 'saxony-anhalt', 'de-st'],
     wfsUrl: 'https://geodatenportal.sachsen-anhalt.de/ows_INSPIRE_LVermGeo_ALKIS_CP_WFS',
     wmsUrl: 'https://geodatenportal.sachsen-anhalt.de/ows_INSPIRE_LVermGeo_ALKIS_CP_WMS',
@@ -110,6 +144,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Schleswig-Holstein', stateCode: 'DE-SH',
+    schema: 'INSPIRE',
     aliases: ['schleswig-holstein', 'schleswig holstein', 'de-sh'],
     wfsUrl: 'https://service.gdi-sh.de/SH_INSPIREDOWNLOAD_AI_CP_ALKIS',
     wmsUrl: 'https://service.gdi-sh.de/SH_INSPIREVIEW_AI_CP_ALKIS',
@@ -121,6 +156,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Mecklenburg-Vorpommern', stateCode: 'DE-MV',
+    schema: 'INSPIRE',
     aliases: ['mecklenburg-vorpommern', 'mecklenburg western pomerania', 'de-mv'],
     wfsUrl: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_download',
     wmsUrl: 'https://www.geodaten-mv.de/dienste/inspire_cp_alkis_view',
@@ -157,14 +193,43 @@ function pointInRing(lat: number, lng: number, ring: [number, number][]): boolea
   }
   return inside;
 }
-function extractMembers(xml: string) {
-  return [...xml.matchAll(/<(?:[A-Za-z0-9_.-]+:)?CadastralParcel\b[\s\S]*?<\/(?:[A-Za-z0-9_.-]+:)?CadastralParcel>/g)].map(match => {
+function extractMembers(xml: string, profile: GermanyCadastreProfile) {
+  const featureName = profile.schema === 'INSPIRE' ? 'CadastralParcel' : 'flurstuecke';
+  const featurePattern = new RegExp(`<(?:(?:[A-Za-z0-9_.-]+):)?${featureName}\\b[\\s\\S]*?<\\/(?:(?:[A-Za-z0-9_.-]+):)?${featureName}>`, 'gi');
+  const readTag = (member: string, names: string[]) => {
+    for (const name of names) {
+      const match = member.match(new RegExp(`<(?:[A-Za-z0-9_.-]+:)?${name}[^>]*>([^<]+)<\\/(?:[A-Za-z0-9_.-]+:)?${name}>`, 'i'));
+      const value = text(match?.[1]);
+      if (value) return value;
+    }
+    return null;
+  };
+  return [...xml.matchAll(featurePattern)].map(match => {
     const member = match[0];
-    const label = text(member.match(/<(?:[A-Za-z0-9_.-]+:)?label>([^<]+)<\/(?:[A-Za-z0-9_.-]+:)?label>/)?.[1]);
-    const ref = text(member.match(/<(?:[A-Za-z0-9_.-]+:)?nationalCadastralReference>([^<]+)<\/(?:[A-Za-z0-9_.-]+:)?nationalCadastralReference>/)?.[1]);
-    const area = numberValue(member.match(/<(?:[A-Za-z0-9_.-]+:)?areaValue[^>]*>([^<]+)<\/(?:[A-Za-z0-9_.-]+:)?areaValue>/)?.[1]);
-    const exterior = member.match(/<gml:exterior>([\s\S]*?)<\/gml:exterior>/)?.[1] || '';
-    const positions = [...exterior.matchAll(/<gml:posList>([^<]+)<\/gml:posList>/g)].flatMap(match => match[1].trim().split(/\s+/).map(Number));
+    const label = profile.schema === 'INSPIRE'
+      ? readTag(member, ['label'])
+      : profile.schema === 'BERLIN'
+      ? (() => {
+          const numerator = readTag(member, ['zae']);
+          const denominator = readTag(member, ['nen']);
+          return numerator ? `${numerator}${denominator ? '/' + denominator : ''}` : null;
+        })()
+      : (() => {
+          const numerator = readTag(member, ['flstnrzae']);
+          const denominator = readTag(member, ['flstnrnen']);
+          return numerator ? `${numerator}${denominator ? '/' + denominator : ''}` : null;
+        })();
+    const ref = profile.schema === 'INSPIRE'
+      ? readTag(member, ['nationalCadastralReference'])
+      : profile.schema === 'BERLIN'
+      ? readTag(member, ['fsko'])
+      : readTag(member, ['flstkennz']);
+    const area = numberValue(profile.schema === 'INSPIRE'
+      ? readTag(member, ['areaValue'])
+      : profile.schema === 'BERLIN'
+      ? readTag(member, ['afl'])
+      : readTag(member, ['flaeche']));
+    const positions = [...member.matchAll(/<gml:posList>([^<]+)<\/gml:posList>/g)].flatMap(match => match[1].trim().split(/\s+/).map(Number));
     const ring: [number, number][] = [];
     for (let i = 0; i + 1 < positions.length; i += 2) {
       const a = positions[i], b = positions[i + 1];
@@ -202,7 +267,7 @@ export async function queryGermanyCadastre(lat: number, lng: number, state: stri
   }
   const e = 0.00012;
   const bbox = [lat - e, lng - e, lat + e, lng + e, 'urn:ogc:def:crs:EPSG::4326'].join(',');
-  const params = new URLSearchParams({ service: 'WFS', version: '2.0.0', request: 'GetFeature', typeNames: 'cp:CadastralParcel', srsName: 'EPSG:4326', bbox, count: '100' });
+  const params = new URLSearchParams({ service: 'WFS', version: profile.wfsVersion || '2.0.0', request: 'GetFeature', typeNames: profile.wfsTypeName || 'cp:CadastralParcel', srsName: 'EPSG:4326', bbox, count: '100' });
   const serviceUrl = new URL(profile.wfsUrl);
   params.forEach((value, key) => serviceUrl.searchParams.set(key, value));
   const url = serviceUrl.toString();
@@ -214,7 +279,7 @@ export async function queryGermanyCadastre(lat: number, lng: number, state: stri
   } catch {
     return unavailable('SOURCE_UNAVAILABLE', `The official ${profile.state} ALKIS parcel service could not be reached.`, profile, url);
   }
-  const candidates = extractMembers(xml);
+  const candidates = extractMembers(xml, profile);
   if (!candidates.length) return unavailable('NO_DATA', `The official ${profile.state} ALKIS parcel service returned no parcel geometry for the selected coordinate.`, profile, url);
   const selected = candidates.find(candidate => pointInRing(lat, lng, candidate.ring));
   if (!selected || !selected.label) return unavailable('MALFORMED_DATA', `The official ${profile.state} ALKIS service returned parcel data, but no single containing parcel could be resolved.`, profile, url);
