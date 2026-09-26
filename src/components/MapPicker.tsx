@@ -844,7 +844,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       <div
         id="leaflet-map-canvas"
         ref={mapContainerRef}
-        className="h-80 sm:h-96 w-full z-0 cursor-crosshair"
+        className="h-[26rem] sm:h-[31rem] lg:h-[34rem] w-full z-0 cursor-crosshair"
       />
     </div>
   );

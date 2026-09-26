@@ -333,34 +333,35 @@ export const GroundSurfApp: React.FC = () => {
                 <div className="text-[11px] text-slate-500">Get to know the land.</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <Globe2 className="h-3.5 w-3.5" />
-              <label className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-slate-500">{copy('menuLanguage')}</span>
-                <select value={language} onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-semibold text-slate-700" aria-label={copy('menuLanguage')}>
-                  {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
-                </select>
-              </label>
-            </div>
+            <div className="h-9 w-9" aria-hidden="true" />
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-5 py-10 lg:py-14">
+        <main className="mx-auto max-w-7xl px-5 py-7 lg:py-9">
           <div className="mx-auto max-w-4xl text-center">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
               <Sparkles className="h-3.5 w-3.5" />
               {copy('badge')}
             </div>
-            <h1 className="text-4xl font-black tracking-[-0.03em] text-slate-950 sm:text-6xl">
+            <h1 className="text-4xl font-black tracking-[-0.03em] text-slate-950 sm:text-5xl lg:text-[3.25rem]">
               {copy('heroTitle')}
               <span className="block text-slate-500">{copy('heroSubTitle')}</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600">
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">
               {copy('heroText')}
             </p>
+            <div className="mt-5 flex justify-center">
+              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
+                <Globe2 className="h-3.5 w-3.5" />
+                <span className="font-bold">{copy('menuLanguage')}</span>
+                <select value={language} onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-black text-slate-800 outline-none" aria-label={copy('menuLanguage')}>
+                  {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
+                </select>
+              </label>
+            </div>
           </div>
 
-          <div className="mt-10 grid gap-6 lg:grid-cols-[1.45fr_0.8fr]">
+          <div className="mt-7 grid gap-6 lg:grid-cols-[1.6fr_0.72fr]">
             <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
