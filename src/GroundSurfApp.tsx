@@ -336,7 +336,7 @@ export const GroundSurfApp: React.FC = () => {
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <Globe2 className="h-3.5 w-3.5" />
               <label className="flex items-center gap-1.5">
-                <span className="sr-only">{copy('menuLanguage')}</span>
+                <span className="text-[11px] font-bold text-slate-500">{copy('menuLanguage')}</span>
                 <select value={language} onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-semibold text-slate-700" aria-label={copy('menuLanguage')}>
                   {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
                 </select>
