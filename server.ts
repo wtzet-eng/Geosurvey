@@ -39,7 +39,9 @@ import { getUKVerificationChecklist } from './server/services/ukRecommendationsS
 import { buildGroundSamplingLayout, sampleSoilGridsVariability } from './server/services/groundContextService';
 import { enrichEuropeanLandValuation, queryEuropeanLandValuationEvidence } from './server/services/europeLandValuationService';
 import { getAiInterpretationRuntimeConfig, interpretSurveyLandEvidence } from './server/services/aiInterpretationService';
+import { queryLocalHelp } from './server/services/localHelpService';
 import { compareSitesWithAi } from './server/services/aiComparisonService';
+import { answerGroundSurfQuestion } from './server/services/groundSurfAdvisorService';
 import { verifyFirebaseAuthorization } from './server/services/firebaseAuthService';
 import { createCanonicalReport } from './server/reporting/canonicalReport';
 import { renderLocalizedReport } from './server/reporting/localizedReport';
@@ -837,6 +839,53 @@ app.post('/api/ai/interpret', async (req, res) => {
     const message = String(error?.message || '');
     if (/valid LandSurf report|too large/i.test(message)) return res.status(400).json({ error: message });
     return res.status(502).json({ error: 'AI interpretation is temporarily unavailable.', diagnostic_id: diagnosticId });
+  }
+});
+
+app.post('/api/ai/ask', async (req, res) => {
+  const diagnosticId = randomUUID();
+  const config = getAiInterpretationRuntimeConfig();
+  if (!config.configured) return res.status(503).json({ error: 'The GroundSurf adviser is not configured on this deployment.' });
+
+  let rateLimitKey = req.ip || 'anonymous';
+  if (!config.allowAnonymous) {
+    const auth = await verifyFirebaseAuthorization(req.headers.authorization);
+    if (!auth.ok) {
+      if (auth.reason === 'AUTH_NOT_CONFIGURED') return res.status(503).json({ error: 'Sign-in is not configured on this deployment.' });
+      if (auth.reason === 'USER_DISABLED') return res.status(403).json({ error: 'This user account cannot access the GroundSurf adviser.' });
+      return res.status(401).json({ error: 'Please sign in to use the GroundSurf adviser.' });
+    }
+    rateLimitKey = auth.user.uid;
+  }
+
+  if (!consumeAiRateLimit(rateLimitKey)) return res.status(429).json({ error: 'GroundSurf adviser rate limit reached. Please try again shortly.' });
+  const report = req.body?.report;
+  const question = typeof req.body?.question === 'string' ? req.body.question : '';
+  if (!report?.report_data) return res.status(400).json({ error: 'A valid GroundSurf land record is required.' });
+  if (!question.trim()) return res.status(400).json({ error: 'Please ask a question about the land.' });
+
+  try {
+    const answer = await answerGroundSurfQuestion(report, question);
+    return res.json(answer);
+  } catch (error: any) {
+    console.error(`[${diagnosticId}] GroundSurf adviser failed:`, error);
+    const message = String(error?.message || '');
+    if (/valid GroundSurf land record|Please ask|configured|requires the configured/i.test(message)) return res.status(400).json({ error: message });
+    return res.status(502).json({ error: 'The GroundSurf adviser is temporarily unavailable.', diagnostic_id: diagnosticId });
+  }
+});
+
+app.get('/api/local-help', async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  const query = typeof req.query.q === 'string' ? req.query.q : '';
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Valid latitude and longitude are required.' });
+  try {
+    const businesses = await queryLocalHelp(lat, lng, query);
+    return res.json({ businesses });
+  } catch (error) {
+    console.error('Local help lookup failed:', error);
+    return res.json({ businesses: [] });
   }
 });
 

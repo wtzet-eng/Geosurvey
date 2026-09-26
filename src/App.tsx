@@ -28,6 +28,7 @@ import { ReportView } from './components/ReportView';
 import { SavedReportsModal } from './components/SavedReportsModal';
 import { EmbedModal } from './components/EmbedModal';
 import { SiteComparisonModal } from './components/SiteComparisonModal';
+import { GroundSurfApp } from './GroundSurfApp';
 
 const SELECTABLE_COUNTRIES = EUROPEAN_COUNTRIES
   .filter((country) => Object.values(getCountrySupport(country.code).capabilities).some(Boolean))
@@ -130,7 +131,7 @@ const uiText = (language: string, en: string, nl: string, cs: string, sv: string
   return language === 'nl' ? nl : language === 'cs' ? cs : language === 'sv' ? sv : language === 'no' ? no : language === 'sk' ? sk : en;
 };
 
-export default function App() {
+export function LegacyReportApp() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
   const [shape, setShape] = useState<BoundaryShape | null>(null);
   const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number } | null>(null);
@@ -450,4 +451,9 @@ export default function App() {
       <EmbedModal isOpen={isEmbedModalOpen} onClose={() => setIsEmbedModalOpen(false)} defaultCountry={countryCode} defaultLanguage={languageCode} />
     </div>
   );
+}
+export default function App() {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+  if (pathname === '/report' || pathname.startsWith('/report/')) return <LegacyReportApp />;
+  return <GroundSurfApp />;
 }

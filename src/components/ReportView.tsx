@@ -1,4 +1,5 @@
 import React from 'react';
+import { MessageCircle } from 'lucide-react';
 import { ReportViewEvidenceV2 } from './ReportViewEvidenceV2';
 import { ReportViewSlovak } from './ReportViewSlovak';
 import { ReportViewCzech } from './ReportViewCzech';
@@ -34,6 +35,12 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
 
   return (
     <div className="flex w-full flex-col">
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur">
+        <div className="text-xs font-semibold text-slate-500">Detailed evidence report</div>
+        <a href={window.location.origin + '/groundsurf?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800">
+          <MessageCircle className="h-3.5 w-3.5" /> Ask GroundSurf about this land
+        </a>
+      </div>
       <div className="order-1 w-full">{reportView}</div>
       <div className="order-2 w-full">
         <AIInterpretationPanel report={report} />

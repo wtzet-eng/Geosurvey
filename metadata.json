@@ -1,6 +1,6 @@
 {
-  "name": "Geo Survey",
-  "description": "Evidence-driven European land and building site evaluation system featuring automated cadastral parcel retrieval (GUGiK ULDK / ALKIS), 9-point DEM terrain analysis, geological survey grounding (PIG-PIB / BGR / BRGM), and transparent evidence certainty auditing.",
+  "name": "GroundSurf",
+  "description": "Interactive European land intelligence: gathers public cadastral, ground, water, planning, environmental and local evidence so people can explore a place, ask questions and follow the evidence to the next useful step.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

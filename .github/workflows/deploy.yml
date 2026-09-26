@@ -67,6 +67,20 @@ jobs:
             FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
             AI_INTERPRETATION_PROVIDER=mistral
 
+      - name: Ensure GroundSurf custom domain mapping
+        shell: bash
+        run: |
+          if ! gcloud run domain-mappings describe groundsurf.net --region="${REGION}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
+            gcloud run domain-mappings create groundsurf.net \
+              --service="${SERVICE_NAME}" \
+              --region="${REGION}" \
+              --project="${PROJECT_ID}"
+          fi
+          gcloud run domain-mappings describe groundsurf.net \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}" \
+            --format='yaml(status.resourceRecords,status.certificateStatus,status.conditions)'
+
       # Deploy runtime secrets for AI and Firebase authentication.
       - name: Show Cloud Run service URL
         shell: bash
