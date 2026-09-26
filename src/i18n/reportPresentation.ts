@@ -95,6 +95,10 @@ const unavailableLabels: Record<PresentationLanguage, string> = { en: 'No data',
 /** Maps only presentation enums, known land-use classes and missing-value sentinels; scientific values pass through unchanged. */
 export function localizePresentationValue(value: unknown, language: string): string {
   const locale = presentationLocale(language);
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const localized = (value as Record<string, unknown>)[locale] ?? (value as Record<string, unknown>).en;
+    if (typeof localized === 'string') return localized;
+  }
   if (isUnavailablePresentationValue(value)) return unavailableLabels[locale];
   const text = String(value).trim();
   const enumLabel = enumLabels[locale][text.toUpperCase() as keyof typeof enumLabels.en];

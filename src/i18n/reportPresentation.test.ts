@@ -229,3 +229,10 @@ test('Polish and Spanish localization covers the remaining report phrases seen i
   assert.equal(localizePresentationValue('Regional and municipal spatial planning / zoning instrument', 'es'), 'Instrumento regional y municipal de planeamiento y zonificación');
   assert.match(localizePresentationValue('No generic land-price fallback — calibrated country-specific land evidence required', 'pl'), /Brak ogólnego zastępczego modelu cen gruntu/);
 });
+
+test('multilingual presentation values resolve to the selected language instead of rendering objects', () => {
+  const value = { en: 'Planning must be confirmed', de: 'Die Planung muss bestätigt werden', pl: 'Planowanie wymaga potwierdzenia', nl: 'De planning moet worden bevestigd', fr: 'L’urbanisme doit être confirmé', es: 'La planificación debe confirmarse', fi: 'Kaavoitus on vahvistettava', hr: 'Planiranje treba potvrditi', cs: 'Plánování je třeba potvrdit', sk: 'Plánovanie treba potvrdiť', da: 'Planlægningen skal bekræftes', sv: 'Planeringen måste bekräftas', no: 'Planleggingen må bekreftes' };
+  assert.equal(localizePresentationValue(value, 'de'), 'Die Planung muss bestätigt werden');
+  assert.equal(localizePresentationValue(value, 'pl'), 'Planowanie wymaga potwierdzenia');
+  assert.equal(localizePresentationValue(value, 'en'), 'Planning must be confirmed');
+});
