@@ -879,9 +879,10 @@ app.get('/api/local-help', async (req, res) => {
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);
   const query = typeof req.query.q === 'string' ? req.query.q : '';
+  const category = typeof req.query.category === 'string' ? req.query.category : '';
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Valid latitude and longitude are required.' });
   try {
-    const businesses = await queryLocalHelp(lat, lng, query);
+    const businesses = await queryLocalHelp(lat, lng, category || query);
     return res.json({ businesses });
   } catch (error) {
     console.error('Local help lookup failed:', error);

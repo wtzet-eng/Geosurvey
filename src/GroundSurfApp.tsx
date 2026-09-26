@@ -21,6 +21,7 @@ type ChatTurn = {
     unknowns: string[];
     nextQuestions: string[];
     sourceIds: string[];
+    actions: Array<{ kind: 'official_source' | 'field_investigation' | 'local_professional'; title: string; reason: string; professionalCategory?: 'surveyor' | 'architect' | 'engineering' | 'environment' | 'planning' | 'geotechnical' }>;
     localBusinesses?: Array<{ name: string; category: string; distanceM: number; website?: string; phone?: string; address?: string; source: string }>;
   };
   error?: string;
@@ -165,16 +166,25 @@ export const GroundSurfApp: React.FC = () => {
         throw new Error(payload?.error || 'The land adviser could not answer right now.');
       }
       const answer = await response.json();
-      const needsLocalHelp = /who can help|professional|engineer|surveyor|architect|planner|planning|contamin|geotechn|site investigation/i.test(cleaned);
-      if (needsLocalHelp) {
-        const helpUrl = '/api/local-help?lat=' + encodeURIComponent(report.latitude) +
-          '&lng=' + encodeURIComponent(report.longitude) +
-          '&q=' + encodeURIComponent(cleaned);
-        const helpResponse = await apiFetch(helpUrl).catch(() => null);
-        if (helpResponse?.ok) {
+      answer.actions = Array.isArray(answer?.actions) ? answer.actions : [];
+      const localCategories = Array.isArray(answer?.actions)
+        ? [...new Set(answer.actions
+            .filter((action: any) => action?.kind === 'local_professional' && action?.professionalCategory)
+            .map((action: any) => action.professionalCategory as string))]
+        : [];
+      if (localCategories.length > 0) {
+        const lookups = await Promise.all(localCategories.map(async (category) => {
+          const helpUrl = '/api/local-help?lat=' + encodeURIComponent(report.latitude) +
+            '&lng=' + encodeURIComponent(report.longitude) +
+            '&category=' + encodeURIComponent(String(category));
+          const helpResponse = await apiFetch(helpUrl).catch(() => null);
+          if (!helpResponse?.ok) return [];
           const help = await helpResponse.json().catch(() => null);
-          if (Array.isArray(help?.businesses)) answer.localBusinesses = help.businesses;
-        }
+          return Array.isArray(help?.businesses) ? help.businesses : [];
+        }));
+        answer.localBusinesses = lookups.flat().filter((business: any, index: number, all: any[]) =>
+          all.findIndex((item: any) => item.name === business.name && item.category === business.category) === index
+        ).slice(0, 8);
       }
       setChat((prev) => {
         const next = [...prev];
@@ -501,6 +511,25 @@ export const GroundSurfApp: React.FC = () => {
                           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-900 text-white"><Sparkles className="h-3.5 w-3.5" /></div>
                           <div className="text-[15px] leading-7 text-slate-700 whitespace-pre-line">{turn.answer.answer}</div>
                         </div>
+                        {turn.answer.actions.length > 0 && (
+                          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-700"><Target className="h-3.5 w-3.5" /> What would move this forward?</div>
+                            <div className="mt-3 space-y-2">
+                              {turn.answer.actions.map((action, i) => (
+                                <div key={i} className="rounded-xl bg-white p-3">
+                                  <div className="flex items-start gap-3">
+                                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black">{action.kind === 'local_professional' ? 'P' : action.kind === 'field_investigation' ? 'F' : 'S'}</span>
+                                    <div>
+                                      <div className="text-xs font-black text-slate-800">{action.title}</div>
+                                      <div className="mt-1 text-[11px] leading-5 text-slate-500">{action.reason}</div>
+                                      {action.professionalCategory && <div className="mt-1 text-[10px] font-bold capitalize text-slate-400">Useful local professional: {action.professionalCategory}</div>}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {turn.answer.unknowns.length > 0 && (
                           <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-amber-800"><CircleHelp className="h-3.5 w-3.5" /> Still open</div>

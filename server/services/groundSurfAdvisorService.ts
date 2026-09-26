@@ -2,12 +2,22 @@ import { buildAiEvidencePackage, AiInterpretationRuntimeConfig, getAiInterpretat
 
 type FetchLike = typeof fetch;
 
+export type GroundSurfActionKind = 'official_source' | 'field_investigation' | 'local_professional';
+
+export interface GroundSurfAction {
+  kind: GroundSurfActionKind;
+  title: string;
+  reason: string;
+  professionalCategory?: 'surveyor' | 'architect' | 'engineering' | 'environment' | 'planning' | 'geotechnical';
+}
+
 export interface GroundSurfAnswer {
   answer: string;
   evidenceIds: string[];
   unknowns: string[];
   nextQuestions: string[];
   sourceIds: string[];
+  actions: GroundSurfAction[];
 }
 
 const ASK_SCHEMA = {
@@ -18,9 +28,22 @@ const ASK_SCHEMA = {
     evidenceIds: { type: 'array', maxItems: 8, items: { type: 'string' } },
     unknowns: { type: 'array', maxItems: 6, items: { type: 'string' } },
     nextQuestions: { type: 'array', maxItems: 5, items: { type: 'string' } },
-    sourceIds: { type: 'array', maxItems: 8, items: { type: 'string' } }
+    sourceIds: { type: 'array', maxItems: 8, items: { type: 'string' } },
+    actions: {
+      type: 'array', maxItems: 4,
+      items: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          kind: { type: 'string', enum: ['official_source', 'field_investigation', 'local_professional'] },
+          title: { type: 'string' },
+          reason: { type: 'string' },
+          professionalCategory: { type: 'string', enum: ['surveyor', 'architect', 'engineering', 'environment', 'planning', 'geotechnical'] }
+        },
+        required: ['kind', 'title', 'reason']
+      }
+    }
   },
-  required: ['answer', 'evidenceIds', 'unknowns', 'nextQuestions', 'sourceIds']
+  required: ['answer', 'evidenceIds', 'unknowns', 'nextQuestions', 'sourceIds', 'actions']
 } as const;
 
 const SYSTEM_PROMPT = 'You are the GroundSurf land adviser.\n' +
@@ -33,6 +56,10 @@ const SYSTEM_PROMPT = 'You are the GroundSurf land adviser.\n' +
   'Do not invent engineering values or parcel-specific conditions from regional/modelled evidence.\n' +
   'When evidence is absent, say what is unknown and what would resolve it.\n' +
   'Use source and evidence IDs from the package when they support the answer.\n' +
+  'When something important is unresolved, create one or more actions describing what would resolve it.\n' +
+  'Use kind official_source when an official authority or source should be checked, field_investigation when site-specific testing is needed, and local_professional when a professional can help obtain or interpret the missing evidence.\n' +
+  'For local_professional, use only one of these categories: surveyor, architect, engineering, environment, planning, geotechnical.\n' +
+  'Keep action titles and reasons concrete and practical.\n' +
   'Keep the answer practical and plain-language.\n' +
   'Return JSON only matching this schema: ' + JSON.stringify(ASK_SCHEMA);
 
@@ -50,12 +77,21 @@ function validateAnswer(value: unknown): GroundSurfAnswer {
   for (const key of arrays) {
     if (!Array.isArray(data[key])) throw new Error('GroundSurf adviser returned an invalid response.');
   }
+  const actions = Array.isArray(data.actions) ? data.actions : [];
   return {
     answer,
     evidenceIds: data.evidenceIds.slice(0, 8).map((v: any) => clean(v, 200)).filter(Boolean),
     unknowns: data.unknowns.slice(0, 6).map((v: any) => clean(v, 1000)).filter(Boolean),
     nextQuestions: data.nextQuestions.slice(0, 5).map((v: any) => clean(v, 500)).filter(Boolean),
-    sourceIds: data.sourceIds.slice(0, 8).map((v: any) => clean(v, 300)).filter(Boolean)
+    sourceIds: data.sourceIds.slice(0, 8).map((v: any) => clean(v, 300)).filter(Boolean),
+    actions: actions.slice(0, 4).map((v: any) => ({
+      kind: ['official_source', 'field_investigation', 'local_professional'].includes(v?.kind) ? v.kind : 'official_source',
+      title: clean(v?.title, 300),
+      reason: clean(v?.reason, 700),
+      ...(v?.professionalCategory && ['surveyor', 'architect', 'engineering', 'environment', 'planning', 'geotechnical'].includes(v.professionalCategory)
+        ? { professionalCategory: v.professionalCategory }
+        : {})
+    })).filter((v: any) => v.title && v.reason)
   };
 }
 
