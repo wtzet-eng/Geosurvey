@@ -22,7 +22,7 @@ function classify(tags: Record<string, string>): LocalHelpBusiness['category'] {
 export async function queryLocalHelp(lat: number, lng: number, query = ''): Promise<LocalHelpBusiness[]> {
   const radius = 3500;
   const overpass = '[out:json][timeout:12];(' +
-    'nwr["office"~"architect|engineer|consulting|environmental_consultant|planning"](around:' + radius + ',' + lat + ',' + lng + ');' +
+    'nwr["office"~"surveyor|architect|engineer|consulting|environmental_consultant|planning|geotechnical_engineer|geologist"](around:' + radius + ',' + lat + ',' + lng + ');' +
     'nwr["craft"~"surveyor|land_surveyor"](around:' + radius + ',' + lat + ',' + lng + ');' +
     'nwr["office"="geotechnical_engineer"](around:' + radius + ',' + lat + ',' + lng + ');' +
     ');out center 40;';
