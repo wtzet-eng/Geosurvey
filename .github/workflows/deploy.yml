@@ -71,18 +71,47 @@ jobs:
       - name: Ensure GroundSurf custom domain mapping
         shell: bash
         run: |
-          if ! gcloud beta run domain-mappings describe --domain="groundsurf.net" --region="${REGION}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
-            gcloud beta run domain-mappings create \
+          if ! gcloud --quiet beta run domain-mappings describe --domain="groundsurf.net" --region="${REGION}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
+            gcloud --quiet beta run domain-mappings create \
               --service="${SERVICE_NAME}" \
               --domain="groundsurf.net" \
               --region="${REGION}" \
               --project="${PROJECT_ID}" || echo "GroundSurf domain mapping could not be created yet; deployment itself remains valid."
           fi
-          gcloud beta run domain-mappings describe \
+          gcloud --quiet beta run domain-mappings describe \
             --domain="groundsurf.net" \
             --region="${REGION}" \
             --project="${PROJECT_ID}" \
             --format='yaml(status.resourceRecords,status.certificateStatus,status.conditions)' || true
+
+          if ! gcloud --quiet beta run domain-mappings describe --domain="www.groundsurf.net" --region="${REGION}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
+            gcloud --quiet beta run domain-mappings create \
+              --service="${SERVICE_NAME}" \
+              --domain="www.groundsurf.net" \
+              --region="${REGION}" \
+              --project="${PROJECT_ID}" || echo "GroundSurf www domain mapping could not be created yet; deployment itself remains valid."
+          fi
+
+          for DOMAIN in groundsurf.net www.groundsurf.net; do
+            RECORDS_JSON="$(gcloud --quiet beta run domain-mappings describe --domain="${DOMAIN}" --region="${REGION}" --project="${PROJECT_ID}" --format=json(status.resourceRecords) 2>/dev/null || true)"
+            if [ -z "${RECORDS_JSON}" ]; then
+              echo "No DNS records available yet for ${DOMAIN}."
+              continue
+            fi
+            echo "Applying Cloud Run DNS records for ${DOMAIN} to Cloud DNS zone groundsurf-net."
+            echo "${RECORDS_JSON}" | jq -c '.status.resourceRecords // [] | group_by(.name, .type)[] | {name: .[0].name, type: .[0].type, rrdatas: map(.rrdata)}' | while read -r RECORD; do
+              NAME="$(echo "${RECORD}" | jq -r '.name')"
+              TYPE="$(echo "${RECORD}" | jq -r '.type')"
+              RRDATAS="$(echo "${RECORD}" | jq -r '.rrdatas | join(",")')"
+              if [ -z "${RRDATAS}" ] || [ "${RRDATAS}" = "null" ]; then continue; fi
+              EXISTING="$(gcloud dns record-sets list --zone="groundsurf-net" --project="${PROJECT_ID}" --name="${NAME}" --type="${TYPE}" --format='value(name)' 2>/dev/null || true)"
+              if [ -n "${EXISTING}" ]; then
+                gcloud dns record-sets update "${NAME}" --zone="groundsurf-net" --project="${PROJECT_ID}" --type="${TYPE}" --ttl=300 --rrdatas="${RRDATAS}"
+              else
+                gcloud dns record-sets create "${NAME}" --zone="groundsurf-net" --project="${PROJECT_ID}" --type="${TYPE}" --ttl=300 --rrdatas="${RRDATAS}"
+              fi
+            done
+          done
 
       # Deploy runtime secrets for AI and Firebase authentication.
       - name: Show Cloud Run service URL
