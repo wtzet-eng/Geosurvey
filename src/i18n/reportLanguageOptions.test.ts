@@ -15,38 +15,39 @@ test('report languages put the selected country native language first and Englis
   assert.equal(codes('MT', 'mt').includes('mt'), false);
 });
 
-test('country-specific report packs remain limited to their own countries', () => {
-  const sweden = codes('SE', 'sv');
-  assert.deepEqual(sweden.slice(0, 2), ['sv', 'en']);
-  assert.equal(sweden.includes('sv'), true);
-  assert.equal(sweden.includes('sk'), false);
-  assert.equal(sweden.includes('cs'), false);
-  assert.equal(sweden.includes('da'), false);
-  assert.equal(sweden.includes('no'), false);
-
-  const switzerland = codes('CH', 'de');
-  for (const code of ['sk', 'cs', 'da', 'no', 'sv']) assert.equal(switzerland.includes(code), false);
+test('all available report languages remain selectable regardless of screened country', () => {
+  const languages = codes('DE', 'de');
+  for (const code of ['cs', 'sk', 'hr', 'da', 'no', 'sv', 'fr', 'es', 'fi', 'nl', 'pl']) {
+    assert.equal(languages.includes(code), true);
+  }
+  assert.deepEqual(languages.slice(0, 2), ['de', 'en']);
 });
 
-test('remaining compatible languages use a neutral alphabetical order instead of development order', () => {
+test('all compatible languages use a neutral alphabetical order after the native language and English', () => {
   const switzerland = getAvailableReportLanguages('CH', 'de');
   assert.deepEqual(switzerland.map(language => language.label), [
     'Deutsch (German)',
     'English',
+    'Čeština (Czech)',
+    'Dansk (Danish)',
     'Español (Spanish)',
     'Français (French)',
+    'Hrvatski (Croatian)',
     'Nederlands (Dutch)',
+    'Norsk bokmål (Norwegian)',
     'Polski (Polish)',
-    'Suomi (Finnish)'
+    'Slovenčina (Slovak)',
+    'Suomi (Finnish)',
+    'Svenska (Swedish)'
   ]);
 });
 
-test('normalization continues to reject country-specific languages outside their country', () => {
-  assert.equal(normalizeReportLanguage('sv', 'SE'), 'sv');
-  assert.equal(normalizeReportLanguage('sv', 'CH'), 'en');
-  assert.equal(normalizeReportLanguage('nb-NO', 'NO'), 'no');
+test('normalization accepts supported languages independently of country', () => {
+  assert.equal(normalizeReportLanguage('sv', 'CH'), 'sv');
+  assert.equal(normalizeReportLanguage('nb-NO', 'DE'), 'no');
   assert.equal(normalizeReportLanguage('de-CH', 'CH'), 'de');
-  assert.equal(normalizeReportLanguage('hr', 'HR'), 'hr');
-  assert.equal(normalizeReportLanguage('hr', 'DE'), 'en');
+  assert.equal(normalizeReportLanguage('hr', 'DE'), 'hr');
+  assert.equal(normalizeReportLanguage('cs', 'DE'), 'cs');
+  assert.equal(normalizeReportLanguage('sk', 'DE'), 'sk');
   assert.deepEqual(codes('HR', 'hr').slice(0, 2), ['hr', 'en']);
 });

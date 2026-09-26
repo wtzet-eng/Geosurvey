@@ -33,12 +33,12 @@ test('support CTA is localized for report languages', () => {
 });
 
 
-test('Ko-fi shortcut is stackable below the AI action at the same width', () => {
+test('interactive-page Ko-fi shortcut uses the SurveyLand destination', () => {
   const html = renderToStaticMarkup(React.createElement(FloatingSupportLandSurf));
   assert.match(html, /Support GroundSurf/);
-  assert.match(html, /https:\/\/ko-fi\.com\/groundsurf/);
+  assert.match(html, /https:\/\/ko-fi\.com\/surveyland/);
   assert.match(html, /#496931/i);
-  assert.match(html, /w-full/);
+  assert.match(html, /fixed bottom-5 right-5/);
   assert.doesNotMatch(html, /fixed bottom-4 left-4/);
   assert.match(html, /print:hidden/);
 });

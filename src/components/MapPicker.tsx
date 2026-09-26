@@ -193,7 +193,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           transparent: true,
           opacity: 0.8,
           version: '1.3.0',
-          attribution: view.attribution
+          attribution: view.attribution,
+          // Keep the cadastral overlay visible when the user zooms in past
+          // the service's native detail level; Leaflet will overzoom the last
+          // available WMS tiles instead of dropping the overlay.
+          maxNativeZoom: 18,
+          maxZoom: 22
         }).addTo(map);
       }
     } else if (countryCode.toUpperCase() === 'HR' && officialParcel) {
@@ -205,7 +210,9 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         opacity: 0.85,
         version: '1.3.0',
         crs: L.CRS.EPSG4326,
-        attribution: 'DGU cadastral parcels'
+        attribution: 'DGU cadastral parcels',
+        maxNativeZoom: 18,
+        maxZoom: 22
       }).addTo(map);
     }
   }, [tileType, countryCode, officialParcel]);
@@ -577,7 +584,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     if (mapRef.current) {
       mapRef.current.setView([lat, lon], 16);
       addressMarkerRef.current?.remove();
-      addressMarkerRef.current = L.marker([lat, lon])
+      addressMarkerRef.current = L.marker([lat, lon], { interactive: false, keyboard: false })
         .addTo(mapRef.current)
         .bindPopup(result.display_name)
         .openPopup();

@@ -131,6 +131,30 @@ const uiText = (language: string, en: string, nl: string, cs: string, sv: string
   return language === 'nl' ? nl : language === 'cs' ? cs : language === 'sv' ? sv : language === 'no' ? no : language === 'sk' ? sk : en;
 };
 
+class ReportRenderBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen bg-slate-50 px-4 py-12 text-slate-900">
+          <div className="mx-auto max-w-2xl rounded-3xl border border-rose-200 bg-white p-6 shadow-sm">
+            <h1 className="text-lg font-bold">The detailed report could not be displayed</h1>
+            <p className="mt-2 text-sm text-slate-600">The report was found, but something in the report view failed while rendering it.</p>
+            <pre className="mt-4 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-white">{this.state.error.message}</pre>
+            <button type="button" onClick={() => window.history.back()} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Back</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function LegacyReportApp() {
   const [mode, setMode] = useState<BoundaryType>('polygon');
   const [shape, setShape] = useState<BoundaryShape | null>(null);
@@ -152,6 +176,8 @@ export function LegacyReportApp() {
   const [isEmbeddedView, setIsEmbeddedView] = useState(false);
   const [hideHeaderInEmbed, setHideHeaderInEmbed] = useState(false);
   const [isAutoFitMode, setIsAutoFitMode] = useState(false);
+  const [reportLoadPending, setReportLoadPending] = useState(() => typeof window !== 'undefined' && Boolean(new URLSearchParams(window.location.search).get('report_id')));
+  const [reportLoadError, setReportLoadError] = useState('');
 
   const displayedCountries = detectedCountryCode
     ? [
@@ -182,14 +208,7 @@ export function LegacyReportApp() {
       if (lCode) {
         const normalized = normalizeReportLanguage(lCode, effectiveCountryCode);
         const explicitlySupported = REPORT_LANGUAGE_OPTIONS.some((language) => language.code === normalized);
-        const countrySpecificLanguageValid = !(
-          (normalized === 'sk' && effectiveCountryCode !== 'SK') ||
-          (normalized === 'cs' && effectiveCountryCode !== 'CZ') ||
-          (normalized === 'da' && effectiveCountryCode !== 'DK') ||
-          (normalized === 'no' && effectiveCountryCode !== 'NO') ||
-          (normalized === 'sv' && effectiveCountryCode !== 'SE')
-        );
-        if (explicitlySupported && countrySpecificLanguageValid) {
+        if (explicitlySupported) {
           setLanguageCode(normalized);
           setLanguageWasManuallySelected(true);
         }
@@ -200,7 +219,63 @@ export function LegacyReportApp() {
       if (areaParam && !isNaN(Number(areaParam))) setAreaSize(Math.max(50, Number(areaParam)));
       const repId = params.get('report_id');
       if (repId) {
-        apiFetch(`/api/reports/${repId}`).then((res) => (res.ok ? res.json() : null)).then((rep) => { if (rep) setActiveReport(rep); }).catch(() => {});
+        setReportLoadPending(true);
+        setReportLoadError('');
+        // GroundSurf saves the freshly generated report locally before opening this route.
+        // Read that copy first so the detailed report opens even when the API store is
+        // unavailable, cold, or has not yet received the POST.
+        let loadedLocal = false;
+        try {
+          const local = localStorage.getItem('groundsurf_report_' + repId);
+          if (local) {
+            const parsed = JSON.parse(local);
+            if (parsed?.report_data) {
+              setActiveReport(parsed);
+              setReportLoadPending(false);
+              loadedLocal = true;
+            }
+          }
+        } catch {}
+
+        // Keep the API lookup as the authoritative fallback / cross-session path.
+        apiFetch(`/api/reports/${repId}`)
+          .then(async (res) => res.ok ? res.json() : null)
+          .then((rep) => {
+            if (rep?.report_data) {
+              setActiveReport(rep);
+              setReportLoadPending(false);
+              return;
+            }
+            if (!loadedLocal) {
+              try {
+                const saved = localStorage.getItem('saved_site_reports');
+                const reports = saved ? JSON.parse(saved) : [];
+                const match = Array.isArray(reports) ? reports.find((item) => item?.id === repId) : null;
+                if (match?.report_data) {
+                  setActiveReport(match);
+                  setReportLoadPending(false);
+                  return;
+                }
+              } catch {}
+              setReportLoadPending(false);
+              setReportLoadError(`Report ${repId} could not be found.`);
+            }
+          })
+          .catch((error) => {
+            if (loadedLocal) return;
+            try {
+              const saved = localStorage.getItem('saved_site_reports');
+              const reports = saved ? JSON.parse(saved) : [];
+              const match = Array.isArray(reports) ? reports.find((item) => item?.id === repId) : null;
+              if (match?.report_data) {
+                setActiveReport(match);
+                setReportLoadPending(false);
+                return;
+              }
+            } catch {}
+            setReportLoadPending(false);
+            setReportLoadError(error instanceof Error ? error.message : 'The report could not be loaded.');
+          });
       }
     } catch (e) {
       console.warn('Error reading URL search params:', e);
@@ -284,16 +359,6 @@ export function LegacyReportApp() {
     setOfficialParcel(null);
     if (!languageWasManuallySelected && nextCountry) {
       setLanguageCode(normalizeReportLanguage(nextCountry.language, nextCountry.code));
-    } else if (
-      (newCode !== 'SK' && languageCode === 'sk') ||
-      (newCode !== 'CZ' && languageCode === 'cs') ||
-      (newCode !== 'DK' && languageCode === 'da') ||
-      (newCode !== 'NO' && languageCode === 'no') ||
-      (newCode !== 'SE' && languageCode === 'sv') ||
-      (newCode !== 'HR' && languageCode === 'hr')
-    ) {
-      setLanguageCode('en');
-      setLanguageWasManuallySelected(false);
     }
   };
 
@@ -373,7 +438,37 @@ export function LegacyReportApp() {
     } finally { setIsAnalyzing(false); }
   };
 
-  if (activeReport) return <ReportView report={activeReport} onBack={() => setActiveReport(null)} />;
+  if (activeReport) {
+    return (
+      <ReportRenderBoundary>
+        <ReportView report={activeReport} onBack={() => setActiveReport(null)} />
+      </ReportRenderBoundary>
+    );
+  }
+
+  const hasReportId = typeof window !== 'undefined' && Boolean(new URLSearchParams(window.location.search).get('report_id'));
+  if (hasReportId && reportLoadPending) {
+    return (
+      <div className="min-h-screen bg-slate-50 px-4 py-16 text-slate-900">
+        <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
+          <h1 className="mt-5 text-xl font-bold">Opening the detailed report…</h1>
+          <p className="mt-2 text-sm text-slate-500">The report is being loaded. This should only take a moment.</p>
+        </div>
+      </div>
+    );
+  }
+  if (hasReportId && reportLoadError) {
+    return (
+      <div className="min-h-screen bg-slate-50 px-4 py-16 text-slate-900">
+        <div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-white p-8 shadow-sm">
+          <h1 className="text-xl font-bold">The detailed report could not be opened</h1>
+          <p className="mt-2 text-sm text-slate-600">{reportLoadError}</p>
+          <button type="button" onClick={() => window.history.back()} className="mt-5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white">Back to the site</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-900 pb-16">

@@ -11,6 +11,7 @@ import { EUROPEAN_COUNTRIES } from './data/countries';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
 import { getAvailableReportLanguages, normalizeReportLanguage } from './utils/reportLanguageOptions';
 import { apiFetch } from './lib/apiClient';
+import { FloatingSupportLandSurf } from './components/SupportLandSurf';
 
 
 type ChatTurn = {
@@ -28,22 +29,22 @@ type ChatTurn = {
 };
 
 const COVERAGE = [
-  ['cadastre', 'Where is it?', ['cadastre', 'parcel', 'boundary']],
-  ['ground', 'What is beneath it?', ['geology', 'soil', 'ground', 'borehole']],
-  ['water', 'How does water behave?', ['water', 'flood', 'hydro', 'groundwater']],
-  ['history', 'What happened here before?', ['history', 'environment', 'contamination', 'land use']],
-  ['planning', 'What could affect development?', ['planning', 'zoning', 'building']],
-  ['access', 'What is around it?', ['infrastructure', 'access', 'amenity', 'utility']]
+  ['cadastre', 'Where is it?', 'Wo ist es?', ['cadastre', 'parcel', 'boundary']],
+  ['ground', 'What is beneath it?', 'Was befindet sich darunter?', ['geology', 'soil', 'ground', 'borehole']],
+  ['water', 'How does water behave?', 'Wie verhält sich das Wasser?', ['water', 'flood', 'hydro', 'groundwater']],
+  ['history', 'What happened here before?', 'Was geschah hier früher?', ['history', 'environment', 'contamination', 'land use']],
+  ['planning', 'What could affect development?', 'Was könnte die Entwicklung beeinflussen?', ['planning', 'zoning', 'building']],
+  ['access', 'What is around it?', 'Was befindet sich in der Umgebung?', ['infrastructure', 'access', 'amenity', 'utility']]
 ] as const;
 
-const starterQuestions = [
-  'Could this land flood?',
-  'What is underneath it?',
-  'Can I build here?',
-  'Could there be contamination?',
-  'What are the biggest unknowns?',
-  'What should I check before buying?'
-];
+const STARTER_QUESTIONS = {
+  en: ['Could this land flood?', 'What is underneath it?', 'Can I build here?', 'Could there be contamination?', 'What are the biggest unknowns?', 'What should I check before buying?'],
+  de: ['Könnte dieses Grundstück überflutet werden?', 'Was befindet sich unter dem Grundstück?', 'Kann ich hier bauen?', 'Könnte es Altlasten oder Verunreinigungen geben?', 'Was sind die größten offenen Fragen?', 'Was sollte ich vor dem Kauf prüfen?']
+} as const;
+
+function starterQuestions(language: string): readonly string[] {
+  return String(language || '').toLowerCase().startsWith('de') ? STARTER_QUESTIONS.de : STARTER_QUESTIONS.en;
+}
 
 const GROUND_SURF_COPY = {
   en: {
@@ -101,25 +102,70 @@ function groundSurfCopy(language: string, key: GroundSurfCopyKey): string {
   return GROUND_SURF_COPY[locale][key];
 }
 
-function findingSummary(report: SiteReport) {
+const APP_UI_COPY = {
+  en: {
+    evidenceGathered: 'Evidence gathered', detailedReport: 'Detailed report', adviser: 'GroundSurf adviser', askDirectly: 'Ask directly',
+    gathered: 'I gathered the public evidence.', askIntro: 'What would you like to know?', evidenceItems: 'Evidence items',
+    found: 'Here’s what I found.', orientation: 'A first orientation before you start asking questions.',
+    itemsGathered: 'evidence items gathered', detailedTrail: 'The detailed report keeps the full evidence trail, methodology and source record.',
+    openDetailed: 'Open detailed report', askAnything: 'Now ask anything.', promptsHint: 'These are prompts, not a menu. Ask in your own words too.',
+    where: 'Where it is', ground: 'Ground', water: 'Water', planning: 'Planning',
+    established: 'Established', mapped: 'Mapped', open: 'Open',
+    place: 'The place', area: 'Area', parcel: 'Parcel', official: 'Official', notConfirmed: 'Not confirmed',
+    evidenceMap: 'Evidence map', evidenceItem: 'evidence item', evidenceItemsPlural: 'evidence items', noMatching: 'No matching record found',
+    behindAnswer: 'Evidence behind this answer', goDeeper: 'Go deeper', landRecord: 'The evidence can become a land record.',
+    keepRecord: 'Keep the full screening report, sources and open questions together instead of printing a report and losing the trail.',
+    sources: 'Sources', searchAnything: 'Ask anything about this land…', looking: 'Looking through the evidence…',
+    stillOpen: 'Still open', whatNext: 'What would move this forward?', localHelp: 'Local help',
+    website: 'Website', noLocalListing: 'No mapped local listing found', nearbySearch: 'Search nearby professionals',
+    askNext: 'You could ask next'
+  },
+  de: {
+    evidenceGathered: 'Belege gesammelt', detailedReport: 'Detaillierter Bericht', adviser: 'GroundSurf-Berater', askDirectly: 'Direkt fragen',
+    gathered: 'Ich habe die öffentlichen Belege gesammelt.', askIntro: 'Was möchtest du wissen?', evidenceItems: 'Belege',
+    found: 'Das habe ich gefunden.', orientation: 'Eine erste Orientierung, bevor du Fragen stellst.',
+    itemsGathered: 'Belege gesammelt', detailedTrail: 'Der detaillierte Bericht bewahrt die vollständige Beweiskette, Methodik und Quellen.',
+    openDetailed: 'Detaillierten Bericht öffnen', askAnything: 'Jetzt kannst du fragen.', promptsHint: 'Dies sind Anregungen, kein Menü. Du kannst auch frei fragen.',
+    where: 'Wo es liegt', ground: 'Untergrund', water: 'Wasser', planning: 'Planung',
+    established: 'Bestätigt', mapped: 'Kartiert', open: 'Offen',
+    place: 'Der Ort', area: 'Fläche', parcel: 'Flurstück', official: 'Amtlich', notConfirmed: 'Nicht bestätigt',
+    evidenceMap: 'Evidenzkarte', evidenceItem: 'Beleg', evidenceItemsPlural: 'Belege', noMatching: 'Kein passender Nachweis gefunden',
+    behindAnswer: 'Belege hinter dieser Antwort', goDeeper: 'Weiter vertiefen', landRecord: 'Aus den Belegen kann ein Grundstücksdatensatz werden.',
+    keepRecord: 'Bewahre Vorprüfung, Quellen und offene Fragen gemeinsam auf, statt einen Bericht auszudrucken und die Beweiskette zu verlieren.',
+    sources: 'Quellen', searchAnything: 'Frage etwas über dieses Grundstück…', looking: 'Ich prüfe die Belege…',
+    stillOpen: 'Noch offen', whatNext: 'Was würde hier weiterhelfen?', localHelp: 'Hilfe vor Ort',
+    website: 'Website', noLocalListing: 'Kein passender lokaler Eintrag gefunden', nearbySearch: 'Fachleute in der Nähe suchen',
+    askNext: 'Das könntest du als Nächstes fragen'
+  }
+} as const;
+
+type AppUiCopyKey = keyof typeof APP_UI_COPY.en;
+
+function appUiCopy(language: string, key: AppUiCopyKey): string {
+  const locale = String(language || '').toLowerCase().startsWith('de') ? 'de' : 'en';
+  return APP_UI_COPY[locale][key];
+}
+
+function findingSummary(report: SiteReport, language: string) {
   const data = report.report_data;
   const ground = data.ground_context;
+  const locale = String(language || '').toLowerCase().startsWith('de');
   const parcel = report.is_official_parcel
-    ? 'Official parcel identified'
-    : 'Official parcel not confirmed';
+    ? (locale ? 'Amtliches Flurstück identifiziert' : 'Official parcel identified')
+    : (locale ? 'Amtliches Flurstück nicht bestätigt' : 'Official parcel not confirmed');
   const groundText = ground?.summary
     || data.geosurvey_context?.geological_unit_name
-    || 'Regional ground information available';
+    || (locale ? 'Regionale Informationen zum Untergrund verfügbar' : 'Regional ground information available');
   const waterText = data.flooding_risk?.summary
     || data.technical_parameters?.groundwater_notice
-    || 'Water conditions are partly open';
+    || (locale ? 'Wasserverhältnisse teilweise offen' : 'Water conditions are partly open');
   const planningText = data.zoning_and_land_use?.summary
-    || 'Planning information needs local confirmation';
+    || (locale ? 'Planungsinformationen müssen vor Ort bestätigt werden' : 'Planning information needs local confirmation');
   return [
-    { label: 'Where it is', value: parcel, tone: report.is_official_parcel ? 'established' : 'open' },
-    { label: 'Ground', value: groundText, tone: ground ? 'mapped' : 'open' },
-    { label: 'Water', value: waterText, tone: data.flooding_risk?.summary ? 'mapped' : 'open' },
-    { label: 'Planning', value: planningText, tone: data.zoning_and_land_use?.summary ? 'mapped' : 'open' }
+    { label: locale ? 'Wo es liegt' : 'Where it is', value: parcel, tone: report.is_official_parcel ? 'established' : 'open' },
+    { label: locale ? 'Untergrund' : 'Ground', value: groundText, tone: ground ? 'mapped' : 'open' },
+    { label: locale ? 'Wasser' : 'Water', value: waterText, tone: data.flooding_risk?.summary ? 'mapped' : 'open' },
+    { label: locale ? 'Planung' : 'Planning', value: planningText, tone: data.zoning_and_land_use?.summary ? 'mapped' : 'open' }
   ];
 }
 
@@ -187,12 +233,12 @@ export const GroundSurfApp: React.FC = () => {
 
   const coverage = useMemo(() => {
     if (!report) return [];
-    return COVERAGE.map(([key, label, terms]) => ({
+    return COVERAGE.map(([key, englishLabel, germanLabel, terms]) => ({
       key,
-      label,
+      label: String(language || '').toLowerCase().startsWith('de') ? germanLabel : englishLabel,
       count: categoryMatch(report, terms).length
     }));
-  }, [report]);
+  }, [report, language]);
 
   const handleCountryDetected = (detectedCode: string) => {
     const nextCountry = EUROPEAN_COUNTRIES.find((country) => country.code === String(detectedCode || '').toUpperCase());
@@ -304,6 +350,13 @@ export const GroundSurfApp: React.FC = () => {
         report_data: payload
       };
       setReport(nextReport);
+      try {
+        localStorage.setItem('groundsurf_report_' + nextReport.id, JSON.stringify(nextReport));
+        const saved = localStorage.getItem('saved_site_reports');
+        const reports = saved ? JSON.parse(saved) : [];
+        const updated = [nextReport, ...(Array.isArray(reports) ? reports.filter((item: any) => item?.id !== nextReport.id) : [])].slice(0, 20);
+        localStorage.setItem('saved_site_reports', JSON.stringify(updated));
+      } catch {}
       apiFetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -350,15 +403,6 @@ export const GroundSurfApp: React.FC = () => {
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">
               {copy('heroText')}
             </p>
-            <div className="mt-5 flex justify-center">
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
-                <Globe2 className="h-3.5 w-3.5" />
-                <span className="font-bold">{copy('menuLanguage')}</span>
-                <select value={language} onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-black text-slate-800 outline-none" aria-label={copy('menuLanguage')}>
-                  {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
-                </select>
-              </label>
-            </div>
           </div>
 
           <div className="mt-7 grid gap-6 lg:grid-cols-[1.6fr_0.72fr]">
@@ -405,7 +449,9 @@ export const GroundSurfApp: React.FC = () => {
 
             <section className="flex flex-col justify-between rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.16em] text-white/45">{copy('promiseLabel')}</div>
+                <div className="flex items-center gap-3">
+                  <div className="text-xs font-bold uppercase tracking-[0.16em] text-white/45">{copy('promiseLabel')}</div>
+                </div>
                 <div className="mt-5 text-2xl font-black leading-tight">
                   {copy('promiseMain')}
                   <span className="mt-2 block text-white/55">{copy('promiseQuestion')}</span>
@@ -414,6 +460,20 @@ export const GroundSurfApp: React.FC = () => {
                   <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('evidenceFirst')}</div>
                   <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('unknownsVisible')}</div>
                   <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('sourceTrail')}</div>
+                </div>
+                <div className="mt-9 flex justify-center">
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-[11px] font-bold text-white/75">
+                    <Globe2 className="h-3.5 w-3.5 text-white/55" />
+                    <span>{copy('menuLanguage')}</span>
+                    <select
+                      value={language}
+                      onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }}
+                      className="max-w-[150px] rounded-lg border border-white/15 bg-slate-900 px-2 py-1 font-black text-white outline-none"
+                      aria-label={copy('menuLanguage')}
+                    >
+                      {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
+                    </select>
+                  </label>
                 </div>
               </div>
               <div className="mt-8">
@@ -448,14 +508,14 @@ export const GroundSurfApp: React.FC = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <div className="text-sm font-black tracking-tight">GroundSurf</div>
-                <span className="hidden rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 sm:inline">Evidence gathered</span>
+                <span className="hidden rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 sm:inline">{appUiCopy(language, 'evidenceGathered')}</span>
               </div>
               <div className="truncate text-xs text-slate-500">{report.location_name} · {Math.round(report.area_size).toLocaleString()} m²</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-xs font-black text-white shadow-sm hover:bg-slate-800">
-              <FileText className="h-3.5 w-3.5" /> <span>Detailed report</span>
+              <FileText className="h-3.5 w-3.5" /> <span>{appUiCopy(language, 'detailedReport')}</span>
             </a>
           </div>
         </div>
@@ -468,19 +528,18 @@ export const GroundSurfApp: React.FC = () => {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-3xl">
                   <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-white/50">
-                    <Sparkles className="h-3.5 w-3.5 text-emerald-300" /> GroundSurf adviser
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] tracking-wide text-white/70">Ask directly</span>
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-300" /> {appUiCopy(language, 'adviser')}
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] tracking-wide text-white/70">{appUiCopy(language, 'askDirectly')}</span>
                   </div>
                   <h1 className="mt-3 text-3xl font-black tracking-[-0.025em] sm:text-4xl">
-                    I gathered the public evidence.
+                    {appUiCopy(language, 'gathered')}
                   </h1>
                   <p className="mt-2 text-base leading-7 text-white/65">
-                    {report.location_name}. Now the interface gets out of your way.
-                    <span className="font-semibold text-white"> What would you like to know?</span>
+                    {report.location_name}. {appUiCopy(language, 'askIntro')}
                   </p>
                 </div>
                 <div className="rounded-2xl bg-white/10 px-4 py-3 text-right ring-1 ring-inset ring-white/10">
-                  <div className="text-[10px] font-black uppercase tracking-wide text-white/45">Evidence items</div>
+                  <div className="text-[10px] font-black uppercase tracking-wide text-white/45">{appUiCopy(language, 'evidenceItems')}</div>
                   <div className="mt-1 text-2xl font-black text-white">{evidenceRecords(report).length}</div>
                 </div>
               </div>
@@ -492,10 +551,10 @@ export const GroundSurfApp: React.FC = () => {
                   <div className="rounded-[1.5rem] border border-slate-200 bg-[#fafcf9] p-5 sm:p-6">
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       <div>
-                        <div className="text-sm font-black text-slate-900">Here’s what I found.</div>
-                        <div className="mt-1 text-xs leading-5 text-slate-500">A first orientation before you start asking questions.</div>
+                        <div className="text-sm font-black text-slate-900">{appUiCopy(language, 'found')}</div>
+                        <div className="mt-1 text-xs leading-5 text-slate-500">{appUiCopy(language, 'orientation')}</div>
                       </div>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{evidenceRecords(report).length} evidence items gathered</div>
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{evidenceRecords(report).length} {appUiCopy(language, 'itemsGathered')}</div>
                     </div>
                     {report.report_data.summary && (
                       <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">{report.report_data.summary}</p>
@@ -506,7 +565,7 @@ export const GroundSurfApp: React.FC = () => {
                       </div>
                     )}
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      {findingSummary(report).map((item) => (
+                      {findingSummary(report, language).map((item) => (
                         <div key={item.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                           <div className="flex items-center justify-between gap-2">
                             <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">{item.label}</div>
@@ -515,7 +574,7 @@ export const GroundSurfApp: React.FC = () => {
                               item.tone === 'mapped' ? 'rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-black uppercase text-sky-700' :
                               'rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700'
                             }>
-                              {item.tone === 'established' ? 'Established' : item.tone === 'mapped' ? 'Mapped' : 'Open'}
+                              {item.tone === 'established' ? appUiCopy(language, 'established') : item.tone === 'mapped' ? appUiCopy(language, 'mapped') : appUiCopy(language, 'open')}
                             </span>
                           </div>
                           <div className="mt-2 text-sm font-semibold leading-5 text-slate-700">{item.value}</div>
@@ -523,18 +582,30 @@ export const GroundSurfApp: React.FC = () => {
                       ))}
                     </div>
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-xs text-slate-500">The detailed report keeps the full evidence trail, methodology and source record.</div>
+                      <div className="text-xs text-slate-500">{appUiCopy(language, 'detailedTrail')}</div>
                       <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-xs font-black text-white shadow-sm hover:bg-slate-800">
-                        <FileText className="h-3.5 w-3.5" /> Open detailed report
+                        <FileText className="h-3.5 w-3.5" /> {appUiCopy(language, 'openDetailed')}
                       </a>
                     </div>
                   </div>
 
-                  <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 sm:p-6">
-                    <div className="text-sm font-black text-slate-900">Now ask anything.</div>
-                    <div className="mt-1 text-xs leading-5 text-slate-500">These are prompts, not a menu. Ask in your own words too.</div>
+                  <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky top-20 z-20 rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-lg shadow-slate-200/30">
+                <div className="mb-2 px-3 text-sm font-black text-slate-700">{appUiCopy(language, 'askAnything')}</div>
+                <div className="flex items-end gap-2">
+                  <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={1} onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(question); }
+                  }} placeholder={appUiCopy(language, 'searchAnything')} aria-label={appUiCopy(language, 'searchAnything')} className="min-h-[52px] flex-1 resize-none bg-transparent px-3 py-3 text-base outline-none placeholder:text-slate-400" />
+                  <button disabled={!question.trim() || asking} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-900 text-white disabled:opacity-30">
+                    {asking ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                  </button>
+                </div>
+              </form>
+
+              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 sm:p-6">
+                    <div className="text-sm font-black text-slate-900">{appUiCopy(language, 'askAnything')}</div>
+                    <div className="mt-1 text-xs leading-5 text-slate-500">{appUiCopy(language, 'promptsHint')}</div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      {starterQuestions.map((item) => (
+                      {starterQuestions(language).map((item) => (
                         <button key={item} onClick={() => ask(item)} className="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:border-slate-300 hover:text-slate-950">
                           <span>{item}</span><ChevronRight className="h-4 w-4 text-slate-300 transition group-hover:text-slate-700" />
                         </button>
@@ -551,7 +622,7 @@ export const GroundSurfApp: React.FC = () => {
                     {turn.error ? (
                       <div className="text-sm text-red-700">{turn.error}</div>
                     ) : !turn.answer ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Looking through the evidence…</div>
+                      <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> {appUiCopy(language, 'looking')}</div>
                     ) : (
                       <>
                         <div className="flex gap-3">
@@ -560,7 +631,7 @@ export const GroundSurfApp: React.FC = () => {
                         </div>
                         {turn.answer.actions.length > 0 && (
                           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-700"><Target className="h-3.5 w-3.5" /> What would move this forward?</div>
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-700"><Target className="h-3.5 w-3.5" /> {appUiCopy(language, 'whatNext')}</div>
                             <div className="mt-3 space-y-2">
                               {turn.answer.actions.map((action, i) => (
                                 <div key={i} className="rounded-xl bg-white p-3">
@@ -579,14 +650,14 @@ export const GroundSurfApp: React.FC = () => {
                         )}
                         {turn.answer.unknowns.length > 0 && (
                           <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-amber-800"><CircleHelp className="h-3.5 w-3.5" /> Still open</div>
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-amber-800"><CircleHelp className="h-3.5 w-3.5" /> {appUiCopy(language, 'stillOpen')}</div>
                             <div className="mt-2 space-y-2 text-xs leading-5 text-amber-900">{turn.answer.unknowns.map((item, i) => <div key={i}>{item}</div>)}</div>
                           </div>
                         )}
                         {turn.answer.localBusinesses && turn.answer.localBusinesses.length > 0 && (
                           <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4">
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-sky-800"><Phone className="h-3.5 w-3.5" /> Local help</div>
-                            <div className="mt-1 text-[11px] leading-5 text-sky-900/70">Nearby services found in OpenStreetMap. This is a useful starting list, not a complete directory.</div>
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-sky-800"><Phone className="h-3.5 w-3.5" /> {appUiCopy(language, 'localHelp')}</div>
+                            <div className="mt-1 text-[11px] leading-5 text-sky-900/70">OpenStreetMap-Dienste in der Nähe. Dies ist eine erste Orientierung, kein vollständiges Verzeichnis.</div>
                             <div className="mt-3 space-y-2">
                               {turn.answer.localBusinesses.map((business, i) => (
                                 <div key={i} className="rounded-xl bg-white p-3">
@@ -598,7 +669,7 @@ export const GroundSurfApp: React.FC = () => {
                                     {business.phone && <a href={'tel:' + business.phone} className="shrink-0 text-[10px] font-bold text-sky-700">{business.phone}</a>}
                                   </div>
                                   {business.address && <div className="mt-1 text-[10px] text-slate-500">{business.address}</div>}
-                                  {business.website && <a href={business.website} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-sky-700">Website <SquareArrowOutUpRight className="h-3 w-3" /></a>}
+                                  {business.website && <a href={business.website} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-sky-700">{appUiCopy(language, 'website')} <SquareArrowOutUpRight className="h-3 w-3" /></a>}
                                 </div>
                               ))}
                             </div>
@@ -606,21 +677,21 @@ export const GroundSurfApp: React.FC = () => {
                         )}
                         {turn.answer.localBusinesses && turn.answer.localBusinesses.length === 0 && (
                           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="text-xs font-black uppercase tracking-wide text-slate-500">No mapped local listing found</div>
-                            <div className="mt-1 text-[11px] leading-5 text-slate-500">You can still search nearby professionals. GroundSurf does not treat an empty directory as evidence that no service exists.</div>
+                            <div className="text-xs font-black uppercase tracking-wide text-slate-500">{appUiCopy(language, 'noLocalListing')}</div>
+                            <div className="mt-1 text-[11px] leading-5 text-slate-500">Du kannst weiterhin nach Fachleuten in der Nähe suchen. Ein leeres Verzeichnis bedeutet nicht, dass es keinen passenden Dienst gibt.</div>
                             <a
                               href={'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('geotechnical engineer surveyor architect environmental consultant near ' + report.latitude + ',' + report.longitude)}
                               target="_blank"
                               rel="noreferrer"
                               className="mt-2 inline-flex items-center gap-1 text-[10px] font-black text-slate-700"
                             >
-                              Search nearby professionals <SquareArrowOutUpRight className="h-3 w-3" />
+                              {appUiCopy(language, 'nearbySearch')} <SquareArrowOutUpRight className="h-3 w-3" />
                             </a>
                           </div>
                         )}
                         {turn.answer.nextQuestions.length > 0 && (
                           <div className="mt-5">
-                            <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">You could ask next</div>
+                            <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">{appUiCopy(language, 'askNext')}</div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {turn.answer.nextQuestions.map((item, i) => <button key={i} onClick={() => ask(item)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-950">{item}</button>)}
                             </div>
@@ -636,7 +707,7 @@ export const GroundSurfApp: React.FC = () => {
                 <div className="flex items-end gap-2">
                   <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={1} onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(question); }
-                  }} placeholder="Ask anything about this land…" className="min-h-[46px] flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none placeholder:text-slate-400" />
+                  }} placeholder={appUiCopy(language, 'searchAnything')} className="min-h-[52px] flex-1 resize-none bg-transparent px-3 py-3 text-base outline-none placeholder:text-slate-400" />
                   <button disabled={!question.trim() || asking} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-900 text-white disabled:opacity-30">
                     {asking ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   </button>
@@ -648,7 +719,7 @@ export const GroundSurfApp: React.FC = () => {
           <aside className="space-y-4">
             <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-4 py-4">
-                <div className="flex items-center gap-2 text-sm font-black"><Map className="h-4 w-4 text-slate-400" /> The place</div>
+                <div className="flex items-center gap-2 text-sm font-black"><Map className="h-4 w-4 text-slate-400" /> {appUiCopy(language, 'place')}</div>
               </div>
               <MapPreview
                 lat={report.latitude}
@@ -660,17 +731,17 @@ export const GroundSurfApp: React.FC = () => {
                 language={report.language}
               />
               <div className="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100">
-                <div className="p-4"><div className="text-[10px] font-black uppercase tracking-wide text-slate-400">Area</div><div className="mt-1 text-sm font-black">{Math.round(report.area_size).toLocaleString()} m²</div></div>
-                <div className="p-4"><div className="text-[10px] font-black uppercase tracking-wide text-slate-400">Parcel</div><div className="mt-1 truncate text-sm font-black">{report.is_official_parcel ? 'Official' : 'Not confirmed'}</div></div>
+                <div className="p-4"><div className="text-[10px] font-black uppercase tracking-wide text-slate-400">{appUiCopy(language, 'area')}</div><div className="mt-1 text-sm font-black">{Math.round(report.area_size).toLocaleString()} m²</div></div>
+                <div className="p-4"><div className="text-[10px] font-black uppercase tracking-wide text-slate-400">{appUiCopy(language, 'parcel')}</div><div className="mt-1 truncate text-sm font-black">{report.is_official_parcel ? appUiCopy(language, 'official') : appUiCopy(language, 'notConfirmed')}</div></div>
               </div>
             </section>
 
             <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-black"><Target className="h-4 w-4 text-slate-400" /> Evidence map</div>
+              <div className="flex items-center gap-2 text-sm font-black"><Target className="h-4 w-4 text-slate-400" /> {appUiCopy(language, 'evidenceMap')}</div>
               <div className="mt-4 space-y-2">
                 {coverage.map((item) => (
                   <div key={item.key} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-3">
-                    <div><div className="text-xs font-bold text-slate-800">{item.label}</div><div className="mt-0.5 text-[10px] text-slate-400">{item.count ? item.count + ' evidence item' + (item.count === 1 ? '' : 's') : 'No matching record found'}</div></div>
+                    <div><div className="text-xs font-bold text-slate-800">{item.label}</div><div className="mt-0.5 text-[10px] text-slate-400">{item.count ? item.count + ' ' + (item.count === 1 ? appUiCopy(language, 'evidenceItem') : appUiCopy(language, 'evidenceItemsPlural')) : appUiCopy(language, 'noMatching')}</div></div>
                     <span className={"h-2.5 w-2.5 rounded-full " + (item.count ? "bg-emerald-500" : "bg-slate-300")} />
                   </div>
                 ))}
@@ -692,18 +763,18 @@ export const GroundSurfApp: React.FC = () => {
             )}
 
             <section className="rounded-[2rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
-              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">Go deeper</div>
-              <div className="mt-3 text-lg font-black">The evidence can become a land record.</div>
-              <p className="mt-2 text-xs leading-5 text-white/60">Keep the full screening report, sources and open questions together instead of printing a report and losing the trail.</p>
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">{appUiCopy(language, 'goDeeper')}</div>
+              <div className="mt-3 text-lg font-black">{appUiCopy(language, 'landRecord')}</div>
+              <p className="mt-2 text-xs leading-5 text-white/60">{appUiCopy(language, 'keepRecord')}</p>
               <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-white hover:text-white/80">
-                Open detailed report <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+                {appUiCopy(language, 'openDetailed')} <SquareArrowOutUpRight className="h-3.5 w-3.5" />
               </a>
             </section>
 
             {last?.error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-800">{last.error}</div>}
             {relevantSources.length > 0 && (
               <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="text-sm font-black">Sources</div>
+                <div className="text-sm font-black">{appUiCopy(language, 'sources')}</div>
                 <div className="mt-3 space-y-2">
                   {relevantSources.slice(0, 5).map((source, index) => (
                     <a key={index} href={source.url} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-950">
@@ -716,6 +787,7 @@ export const GroundSurfApp: React.FC = () => {
           </aside>
         </div>
       </main>
+      <FloatingSupportLandSurf language={report.language} destination="groundsurf" />
     </div>
   );
 };

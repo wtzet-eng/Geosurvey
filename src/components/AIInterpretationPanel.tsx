@@ -9,6 +9,7 @@ import { FloatingSupportLandSurf } from './SupportLandSurf';
 
 interface Props {
   report: SiteReport;
+  supportDestination?: 'surveyland' | 'groundsurf';
 }
 
 interface AiStatus {
@@ -121,7 +122,7 @@ const developmentCopy = (language: string) => {
 };
 const PENDING_TRANSACTION_KEY = 'surveyland_pending_paddle_transaction';
 
-export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
+export const AIInterpretationPanel: React.FC<Props> = ({ report, supportDestination = 'surveyland' }) => {
   const userIdRef = useRef<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -318,7 +319,7 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report }) => {
     <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] -translate-x-1/2 px-0 print:hidden sm:left-auto sm:right-4 sm:w-auto sm:translate-x-0">
       <div className="mx-auto flex w-full max-w-sm flex-col gap-2">
         {launcher('inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-indigo-950/10 hover:bg-indigo-700 sm:min-w-56')}
-        <FloatingSupportLandSurf language={report.language} />
+        <FloatingSupportLandSurf language={report.language} destination={supportDestination} />
       </div>
     </div>
 

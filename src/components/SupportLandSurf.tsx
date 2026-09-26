@@ -24,9 +24,11 @@ export const supportLandSurfCopy = (language = 'en'): SupportCopy => {
   return SUPPORT_COPY[code] || SUPPORT_COPY.en;
 };
 
-type Props = { language?: string };
+type Props = { language?: string; destination?: 'surveyland' | 'groundsurf' };
 
-export const SupportLandSurf: React.FC<Props> = ({ language = 'en' }) => {
+const supportUrl = (destination?: 'surveyland' | 'groundsurf') => destination === 'groundsurf' ? 'https://ko-fi.com/groundsurf' : 'https://ko-fi.com/surveyland';
+
+export const SupportLandSurf: React.FC<Props> = ({ language = 'en', destination = 'groundsurf' }) => {
   const copy = supportLandSurfCopy(language);
   return (
     <section className="mt-6 w-full bg-[#496931] px-4 py-8 sm:px-6" aria-label={copy.heading} data-testid="support-landsurf">
@@ -47,16 +49,16 @@ export const SupportLandSurf: React.FC<Props> = ({ language = 'en' }) => {
   );
 };
 
-export const FloatingSupportLandSurf: React.FC<Props> = ({ language = 'en' }) => {
+export const FloatingSupportLandSurf: React.FC<Props> = ({ language = 'en', destination = 'surveyland' }) => {
   const copy = supportLandSurfCopy(language);
   return (
     <a
-      href="https://ko-fi.com/groundsurf"
+      href={supportUrl(destination as 'surveyland' | 'groundsurf')}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={copy.heading}
       data-testid="floating-support-landsurf"
-      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#496931] px-4 py-3 text-sm font-bold text-white shadow-xl shadow-slate-950/15 transition hover:bg-[#3f5b2a] focus:outline-none focus:ring-2 focus:ring-[#496931]/40 focus:ring-offset-2 print:hidden sm:w-auto sm:px-4"
+      className="fixed bottom-5 right-5 z-50 inline-flex items-center justify-center gap-2 rounded-full bg-[#496931] px-4 py-3 text-sm font-bold text-white shadow-xl shadow-slate-950/20 transition hover:bg-[#3f5b2a] focus:outline-none focus:ring-2 focus:ring-[#496931]/40 focus:ring-offset-2 print:hidden sm:bottom-6 sm:right-6 sm:px-5"
     >
       <Heart className="h-4 w-4" />
       <span>{copy.heading}</span>
