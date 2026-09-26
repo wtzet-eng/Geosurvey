@@ -619,7 +619,7 @@ export const GroundSurfApp: React.FC = () => {
               <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">Go deeper</div>
               <div className="mt-3 text-lg font-black">The evidence can become a land record.</div>
               <p className="mt-2 text-xs leading-5 text-white/60">Keep the full screening report, sources and open questions together instead of printing a report and losing the trail.</p>
-              <a href={window.location.origin + '/?report_id=' + encodeURIComponent(report.id)} className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-white hover:text-white/80">
+              <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-white hover:text-white/80">
                 Open detailed report <SquareArrowOutUpRight className="h-3.5 w-3.5" />
               </a>
             </section>
