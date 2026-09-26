@@ -68,11 +68,16 @@ test('AI evidence package excludes raw boundary geometry and preserves evidence 
   assert.match(pkg.fixedScopeNotice, /LAND VALUE ONLY/);
 });
 
-test('Mistral runtime defaults to current Ministral 3 8B API model and is disabled without a key', () => {
+test('Mistral runtime defaults to the current Ministral 3 8B API model and allows anonymous use without a key', () => {
   const config = getAiInterpretationRuntimeConfig({} as NodeJS.ProcessEnv);
   assert.equal(config.provider, 'mistral');
   assert.equal(config.model, 'ministral-8b-2512');
   assert.equal(config.configured, false);
+  assert.equal(config.allowAnonymous, true);
+});
+
+test('Explicit anonymous opt-out can still require authentication', () => {
+  const config = getAiInterpretationRuntimeConfig({ AI_INTERPRETATION_ALLOW_ANONYMOUS: 'false' } as NodeJS.ProcessEnv);
   assert.equal(config.allowAnonymous, false);
 });
 

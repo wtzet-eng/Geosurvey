@@ -66,6 +66,7 @@ jobs:
             MISTRAL_API_KEY=${{ secrets.MISTRAL_API_KEY }}
             FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
             AI_INTERPRETATION_PROVIDER=mistral
+            AI_INTERPRETATION_ALLOW_ANONYMOUS=true
 
       - name: Ensure GroundSurf custom domain mapping
         shell: bash

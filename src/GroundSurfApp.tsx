@@ -11,7 +11,7 @@ import { EUROPEAN_COUNTRIES } from './data/countries';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
 import { getAvailableReportLanguages, normalizeReportLanguage } from './utils/reportLanguageOptions';
 import { apiFetch } from './lib/apiClient';
-import { getCurrentFirebaseIdToken, signInWithGoogle, subscribeToAuthState } from './lib/firebaseAuth';
+
 
 type ChatTurn = {
   question: string;
@@ -45,13 +45,61 @@ const starterQuestions = [
   'What should I check before buying?'
 ];
 
-const languageOptions = [
-  ['en', 'English'],
-  ['de', 'Deutsch'],
-  ['nl', 'Nederlands'],
-  ['fr', 'Français'],
-  ['es', 'Español']
-] as const;
+const GROUND_SURF_COPY = {
+  en: {
+    badge: 'Public evidence, gathered in one place',
+    heroTitle: 'First, I gather the evidence.',
+    heroSubTitle: 'Then you decide what to ask.',
+    heroText: 'GroundSurf searches the public evidence available for this land — cadastral records, ground, water, planning, environment and local context — and turns it into something you can explore.',
+    whereTitle: 'Where shall we look?',
+    whereHint: 'Search an address, or use the map to choose the land.',
+    addressFlow: 'Address → parcel → evidence',
+    promiseLabel: 'The promise',
+    promiseMain: 'I gather the public evidence I can find.',
+    promiseQuestion: 'What would you like to know?',
+    evidenceFirst: 'Evidence before explanation.',
+    unknownsVisible: 'Unknowns stay visible.',
+    sourceTrail: 'Every answer can lead back to its source.',
+    gatherButton: 'Gather the evidence',
+    screeningNote: 'This is screening evidence, not a legal or engineering certification.',
+    findingParcel: 'Finding the official parcel…',
+    officialParcel: 'Official parcel identified.',
+    landReady: 'Land selected and ready.',
+    chooseLand: 'Choose the land on the map.',
+    menuLanguage: 'Language',
+    gatheringEvidence: 'Gathering public evidence…'
+  },
+  de: {
+    badge: 'Öffentliche Daten an einem Ort',
+    heroTitle: 'Zuerst sammle ich die Belege.',
+    heroSubTitle: 'Dann entscheidest du, was du fragen möchtest.',
+    heroText: 'GroundSurf sucht die verfügbaren öffentlichen Informationen zu diesem Grundstück — Kataster, Untergrund, Wasser, Planung, Umwelt und das Umfeld — und macht sie gemeinsam erkundbar.',
+    whereTitle: 'Wo sollen wir suchen?',
+    whereHint: 'Adresse suchen oder das Grundstück auf der Karte auswählen.',
+    addressFlow: 'Adresse → Flurstück → Belege',
+    promiseLabel: 'Das Versprechen',
+    promiseMain: 'Ich sammle die öffentlichen Belege, die ich finden kann.',
+    promiseQuestion: 'Was möchtest du wissen?',
+    evidenceFirst: 'Erst Belege, dann Erklärung.',
+    unknownsVisible: 'Offene Punkte bleiben sichtbar.',
+    sourceTrail: 'Jede Antwort kann zu ihrer Quelle zurückführen.',
+    gatherButton: 'Belege sammeln',
+    screeningNote: 'Dies ist eine Vorprüfung, keine rechtliche oder ingenieurtechnische Bestätigung.',
+    findingParcel: 'Amtliches Flurstück wird gesucht…',
+    officialParcel: 'Amtliches Flurstück identifiziert.',
+    landReady: 'Grundstück ausgewählt und bereit.',
+    chooseLand: 'Grundstück auf der Karte auswählen.',
+    menuLanguage: 'Sprache',
+    gatheringEvidence: 'Öffentliche Daten werden gesammelt…'
+  }
+} as const;
+
+type GroundSurfCopyKey = keyof typeof GROUND_SURF_COPY.en;
+
+function groundSurfCopy(language: string, key: GroundSurfCopyKey): string {
+  const locale = String(language || '').toLowerCase().startsWith('de') ? 'de' : 'en';
+  return GROUND_SURF_COPY[locale][key];
+}
 
 function findingSummary(report: SiteReport) {
   const data = report.report_data;
@@ -109,23 +157,27 @@ export const GroundSurfApp: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [chat, setChat] = useState<ChatTurn[]>([]);
   const [asking, setAsking] = useState(false);
-  const [authUser, setAuthUser] = useState<any | null>(null);
-  const [authBusy, setAuthBusy] = useState(false);
+  const languageWasManuallySelected = React.useRef(false);
   const [error, setError] = useState('');
-
-  React.useEffect(() => subscribeToAuthState(setAuthUser), []);
 
   React.useEffect(() => {
     const reportId = new URLSearchParams(window.location.search).get('report_id');
     if (!reportId) return;
     apiFetch('/api/reports/' + encodeURIComponent(reportId))
       .then((res) => res.ok ? res.json() : null)
-      .then((saved) => { if (saved?.report_data) setReport(saved); })
+      .then((saved) => {
+        if (!saved?.report_data) return;
+        const savedCountry = EUROPEAN_COUNTRIES.find((c) => c.code === String(saved.country_code || '').toUpperCase());
+        if (savedCountry) setCountryCode(savedCountry.code);
+        setLanguage(normalizeReportLanguage(saved.language || savedCountry?.language || 'en', savedCountry?.code || countryCode));
+        setReport(saved);
+      })
       .catch(() => {});
   }, []);
 
   const currentCountry = EUROPEAN_COUNTRIES.find((c) => c.code === countryCode) || defaultCountry;
   const availableLanguages = getAvailableReportLanguages(countryCode, currentCountry.language);
+  const copy = (key: GroundSurfCopyKey) => groundSurfCopy(language, key);
   const isComplete = Boolean(shape && (
     shape.type === 'circle' ? shape.center :
     shape.type === 'rectangle' ? (shape.corners?.length || 0) >= 2 :
@@ -142,6 +194,19 @@ export const GroundSurfApp: React.FC = () => {
     }));
   }, [report]);
 
+  const handleCountryDetected = (detectedCode: string) => {
+    const nextCountry = EUROPEAN_COUNTRIES.find((country) => country.code === String(detectedCode || '').toUpperCase());
+    if (!nextCountry) return;
+    setCountryCode(nextCountry.code);
+    setShape(null);
+    setOfficialParcel(null);
+    if (!languageWasManuallySelected.current) {
+      setLanguage(normalizeReportLanguage(nextCountry.language, nextCountry.code));
+    } else {
+      setLanguage((current) => normalizeReportLanguage(current, nextCountry.code));
+    }
+  };
+
   const ask = async (text: string) => {
     const cleaned = text.trim();
     if (!cleaned || !report || asking) return;
@@ -150,17 +215,12 @@ export const GroundSurfApp: React.FC = () => {
     setAsking(true);
     setChat((prev) => [...prev, { question: cleaned }]);
     try {
-      let token = await getCurrentFirebaseIdToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = 'Bearer ' + token;
       let response = await apiFetch('/api/ai/ask', {
         method: 'POST',
         headers,
         body: JSON.stringify({ report, question: cleaned })
       });
-      if (response.status === 401 && !authUser) {
-        throw new Error('Please sign in to ask the land adviser.');
-      }
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.error || 'The land adviser could not answer right now.');
@@ -275,20 +335,12 @@ export const GroundSurfApp: React.FC = () => {
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <Globe2 className="h-3.5 w-3.5" />
-              <select value={language} onChange={(e) => setLanguage(normalizeReportLanguage(e.target.value, countryCode))} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-semibold text-slate-700">
-                {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
-              </select>
-              <select value={countryCode} onChange={(e) => {
-                const next = EUROPEAN_COUNTRIES.find((c) => c.code === e.target.value) || defaultCountry;
-                setCountryCode(next.code);
-                setLanguage(normalizeReportLanguage(next.language, next.code));
-                setShape(null);
-                setOfficialParcel(null);
-              }} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-semibold text-slate-700">
-                {[...EUROPEAN_COUNTRIES]
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-              </select>
+              <label className="flex items-center gap-1.5">
+                <span className="sr-only">{copy('menuLanguage')}</span>
+                <select value={language} onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-semibold text-slate-700" aria-label={copy('menuLanguage')}>
+                  {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
+                </select>
+              </label>
             </div>
           </div>
         </header>
@@ -297,14 +349,14 @@ export const GroundSurfApp: React.FC = () => {
           <div className="mx-auto max-w-4xl text-center">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
               <Sparkles className="h-3.5 w-3.5" />
-              Public evidence, gathered in one place
+              {copy('badge')}
             </div>
             <h1 className="text-4xl font-black tracking-[-0.03em] text-slate-950 sm:text-6xl">
-              First, I gather the evidence.
-              <span className="block text-slate-500">Then you decide what to ask.</span>
+              {copy('heroTitle')}
+              <span className="block text-slate-500">{copy('heroSubTitle')}</span>
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600">
-              GroundSurf searches the public evidence available for this land — cadastral records, ground, water, planning, environment and local context — and turns it into something you can explore.
+              {copy('heroText')}
             </p>
           </div>
 
@@ -312,11 +364,11 @@ export const GroundSurfApp: React.FC = () => {
             <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-black text-slate-900">Where shall we look?</div>
-                  <div className="mt-1 text-xs text-slate-500">Search an address, or use the map to choose the land.</div>
+                  <div className="text-sm font-black text-slate-900">{copy('whereTitle')}</div>
+                  <div className="mt-1 text-xs text-slate-500">{copy('whereHint')}</div>
                 </div>
-                <div className="hidden items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-500 sm:flex">
-                  <Search className="h-3.5 w-3.5" /> Address → parcel → evidence
+                  <div className="hidden items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-500 sm:flex">
+                  <Search className="h-3.5 w-3.5" /> {copy('addressFlow')}
                 </div>
               </div>
               <MapPicker
@@ -335,15 +387,16 @@ export const GroundSurfApp: React.FC = () => {
                 defaultZoom={currentCountry.defaultZoom}
                 language={language}
                 countryCode={countryCode}
+                onCountryDetected={handleCountryDetected}
                 onOfficialParcelSelected={setOfficialParcel}
                 onParcelLookupStateChange={setIsFindingParcel}
               />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  {isFindingParcel ? 'Finding the official parcel…' :
-                    officialParcel ? 'Official parcel identified.' :
-                    isComplete ? 'Land selected and ready.' : 'Choose the land on the map.'}
+                  {isFindingParcel ? copy('findingParcel') :
+                    officialParcel ? copy('officialParcel') :
+                    isComplete ? copy('landReady') : copy('chooseLand')}
                 </div>
                 {isComplete && <span className="font-black text-slate-800">{Math.round(area).toLocaleString()} m²</span>}
               </div>
@@ -351,23 +404,23 @@ export const GroundSurfApp: React.FC = () => {
 
             <section className="flex flex-col justify-between rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.16em] text-white/45">The promise</div>
+                <div className="text-xs font-bold uppercase tracking-[0.16em] text-white/45">{copy('promiseLabel')}</div>
                 <div className="mt-5 text-2xl font-black leading-tight">
-                  I gather the public evidence I can find.
-                  <span className="mt-2 block text-white/55">What would you like to know?</span>
+                  {copy('promiseMain')}
+                  <span className="mt-2 block text-white/55">{copy('promiseQuestion')}</span>
                 </div>
                 <div className="mt-6 space-y-3 text-sm leading-6 text-white/70">
-                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />Evidence before explanation.</div>
-                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />Unknowns stay visible.</div>
-                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />Every answer can lead back to its source.</div>
+                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('evidenceFirst')}</div>
+                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('unknownsVisible')}</div>
+                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('sourceTrail')}</div>
                 </div>
               </div>
               <div className="mt-8">
                 {error && <div className="mb-3 rounded-2xl border border-red-400/30 bg-red-400/10 p-3 text-xs text-red-100">{error}</div>}
                 <button onClick={gatherEvidence} disabled={!isComplete || isGathering} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3.5 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30">
-                  {isGathering ? <><Loader2 className="h-4 w-4 animate-spin" /> Gathering public evidence…</> : <>Gather the evidence <ArrowRight className="h-4 w-4" /></>}
+                  {isGathering ? <><Loader2 className="h-4 w-4 animate-spin" /> {copy('gatheringEvidence')}</> : <>{copy('gatherButton')} <ArrowRight className="h-4 w-4" /></>}
                 </button>
-                <div className="mt-3 text-center text-[11px] text-white/40">This is screening evidence, not a legal or engineering certification.</div>
+                <div className="mt-3 text-center text-[11px] text-white/40">{copy('screeningNote')}</div>
               </div>
             </section>
           </div>
@@ -400,17 +453,9 @@ export const GroundSurfApp: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:text-slate-950 sm:flex">
-              <FileText className="h-3.5 w-3.5" /> Detailed report
+            <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-xs font-black text-white shadow-sm hover:bg-slate-800">
+              <FileText className="h-3.5 w-3.5" /> <span>Detailed report</span>
             </a>
-            {!authUser && (
-              <button onClick={async () => {
-                setAuthBusy(true);
-                try { await signInWithGoogle(); } catch (e) { setError('Google sign-in could not be completed.'); } finally { setAuthBusy(false); }
-              }} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white">
-                {authBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} Sign in for adviser
-              </button>
-            )}
           </div>
         </div>
       </header>
@@ -418,23 +463,24 @@ export const GroundSurfApp: React.FC = () => {
       <main className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 sm:py-7">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_410px]">
           <section className="min-h-[650px] rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-5 sm:px-7">
+            <div className="rounded-t-[2rem] bg-slate-950 px-5 py-5 text-white sm:px-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-3xl">
-                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-                    <Sparkles className="h-3.5 w-3.5" /> GroundSurf adviser
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-white/50">
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-300" /> GroundSurf adviser
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] tracking-wide text-white/70">Ask directly</span>
                   </div>
-                  <h1 className="mt-3 text-3xl font-black tracking-[-0.025em] text-slate-950 sm:text-4xl">
+                  <h1 className="mt-3 text-3xl font-black tracking-[-0.025em] sm:text-4xl">
                     I gathered the public evidence.
                   </h1>
-                  <p className="mt-2 text-base leading-7 text-slate-600">
+                  <p className="mt-2 text-base leading-7 text-white/65">
                     {report.location_name}. Now the interface gets out of your way.
-                    <span className="font-semibold text-slate-900"> What would you like to know?</span>
+                    <span className="font-semibold text-white"> What would you like to know?</span>
                   </p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
-                  <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">Evidence items</div>
-                  <div className="mt-1 text-2xl font-black text-slate-950">{evidenceRecords(report).length}</div>
+                <div className="rounded-2xl bg-white/10 px-4 py-3 text-right ring-1 ring-inset ring-white/10">
+                  <div className="text-[10px] font-black uppercase tracking-wide text-white/45">Evidence items</div>
+                  <div className="mt-1 text-2xl font-black text-white">{evidenceRecords(report).length}</div>
                 </div>
               </div>
             </div>
@@ -477,7 +523,7 @@ export const GroundSurfApp: React.FC = () => {
                     </div>
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                       <div className="text-xs text-slate-500">The detailed report keeps the full evidence trail, methodology and source record.</div>
-                      <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:text-slate-950">
+                      <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-xs font-black text-white shadow-sm hover:bg-slate-800">
                         <FileText className="h-3.5 w-3.5" /> Open detailed report
                       </a>
                     </div>

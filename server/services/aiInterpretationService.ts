@@ -237,7 +237,7 @@ export function buildAiEvidencePackage(report: any) {
 export function getAiInterpretationRuntimeConfig(env: NodeJS.ProcessEnv = process.env): AiInterpretationRuntimeConfig {
   const requested = String(env.AI_INTERPRETATION_PROVIDER || 'mistral').trim().toLowerCase();
   const provider: AiInterpretationProvider = requested === 'ollama' ? 'ollama' : 'mistral';
-  const allowAnonymous = String(env.AI_INTERPRETATION_ALLOW_ANONYMOUS || '').toLowerCase() === 'true';
+  const allowAnonymous = String(env.AI_INTERPRETATION_ALLOW_ANONYMOUS ?? 'true').toLowerCase() !== 'false';
   if (provider === 'ollama') {
     const endpoint = String(env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
     return {
