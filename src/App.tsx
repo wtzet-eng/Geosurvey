@@ -132,6 +132,7 @@ const uiText = (language: string, en: string, nl: string, cs: string, sv: string
 };
 
 class ReportRenderBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  declare readonly props: { children: React.ReactNode };
   state: { error: Error | null } = { error: null };
 
   static getDerivedStateFromError(error: Error) {
