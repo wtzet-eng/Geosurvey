@@ -93,7 +93,7 @@ jobs:
           fi
 
           for DOMAIN in groundsurf.net www.groundsurf.net; do
-            RECORDS_JSON="$(gcloud --quiet beta run domain-mappings describe --domain="${DOMAIN}" --region="${REGION}" --project="${PROJECT_ID}" --format=json(status.resourceRecords) 2>/dev/null || true)"
+            RECORDS_JSON="$(gcloud --quiet beta run domain-mappings describe --domain="${DOMAIN}" --region="${REGION}" --project="${PROJECT_ID}" --format='json(status.resourceRecords)' 2>/dev/null || true)"
             if [ -z "${RECORDS_JSON}" ]; then
               echo "No DNS records available yet for ${DOMAIN}."
               continue
