@@ -61,6 +61,37 @@ export const BGS_SOURCE_ENDPOINTS: SourceEndpoint[] = [
   },
   {
     ...common,
+    id: 'bgs-engineering-geology',
+    logicalSourceId: 'BGS_ENGINEERING_GEOLOGY',
+    url: 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/engineering_geology/MapServer',
+    priority: 1,
+    evidenceTier: 2,
+    compatibilityGroup: 'bgs-engineering-geology',
+    expectedLayers: [2, 3],
+    requiredFieldGroups: [],
+    layerSchemaRequirements: [
+      { layer: 2, requiredFieldGroups: [['Superficial_EGWeb.ENG_DESC']] },
+      { layer: 3, requiredFieldGroups: [['ENG_DESC']] }
+    ],
+    provenance: 'BGS GeoIndex 1:1M superficial and bedrock engineering geology'
+  },
+  {
+    ...common,
+    id: 'bgs-urban-3d-models',
+    logicalSourceId: 'BGS_URBAN_3D_MODELS',
+    url: 'https://map.bgs.ac.uk/arcgis/rest/services/SDDS/Urban_Interactive_Models/MapServer',
+    priority: 1,
+    evidenceTier: 2,
+    compatibilityGroup: 'bgs-urban-3d-models',
+    expectedLayers: [0, 1],
+    requiredFieldGroups: [],
+    layerSchemaRequirements: [
+      { layer: 0, requiredFieldGroups: [['NAME', 'MODELID']] }
+    ],
+    provenance: 'BGS Urban Interactive 3D geological model coverage'
+  },
+  {
+    ...common,
     id: 'bgs-geoindex-hydrogeology',
     logicalSourceId: 'BGS_HYDROGEOLOGY',
     url: 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/hydrogeology/MapServer',

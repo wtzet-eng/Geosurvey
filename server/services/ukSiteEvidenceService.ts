@@ -22,6 +22,8 @@ const BGS_REGIONAL = 'https://map.bgs.ac.uk/arcgis/rest/services/SDDS/Geology_62
 const BGS_BOREHOLES = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/boreholes/MapServer';
 const BGS_HYDRO = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/hydrogeology/MapServer';
 const BGS_HEX = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/hex_grids/MapServer';
+const BGS_ENGINEERING = 'https://map.bgs.ac.uk/arcgis/rest/services/GeoIndex_Onshore/engineering_geology/MapServer';
+const BGS_URBAN_MODELS = 'https://map.bgs.ac.uk/arcgis/rest/services/SDDS/Urban_Interactive_Models/MapServer';
 const COAL_MINE_ENTRIES_WMS = 'https://map.bgs.ac.uk/arcgis/services/CoalAuthority/coalauthority_mine_entries/MapServer/WMSServer';
 const EA = 'Environment Agency';
 const EA_FLOOD = 'https://environment.data.gov.uk/KB6uNVj5ZcJr7jUP/ArcGIS/rest/services/Flood_Map_for_Planning/FeatureServer';
@@ -114,6 +116,80 @@ async function queryBgsBoreholes(lat: number, lng: number, fetcher: FetchLike = 
   return evidence('uk-bgs-boreholes-site', 'Boreholes', `BGS GeoIndex returned ${rows.length} borehole record(s) within 5 km; nearest returned record is approximately ${rows[0].distanceKm?.toFixed(2) ?? 'unknown'} km away.`, 'VERIFIED', BGS, `${BGS_BOREHOLES}/0`, 'ArcGIS REST 5 km radius query with WGS84 distance calculation', { searchRadiusKm: 5, count: rows.length, nearestDistanceKm: rows[0].distanceKm, nearestRecordId: rows[0].id, records: rows }, 'Nearby boreholes are contextual observations only and do not establish conditions beneath the selected parcel. Original logs/reports must be reviewed.', 'Medium');
 }
 
+async function queryBgsEngineeringGeology(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<UkSiteEvidence> {
+  const [superficial, bedrock] = await Promise.all([
+    pointQuery(BGS_ENGINEERING, 2, lat, lng, fetcher),
+    pointQuery(BGS_ENGINEERING, 3, lat, lng, fetcher)
+  ]);
+  if (!superficial || !bedrock) return evidence(
+    'uk-bgs-engineering-geology-unavailable',
+    'Engineering Geology',
+    'BGS engineering-geology service could not be queried reliably.',
+    'REQUIRES_VERIFICATION', BGS, BGS_ENGINEERING,
+    'ArcGIS REST point intersection against BGS 1:1M superficial and bedrock engineering-geology layers',
+    { reasonCode: 'SOURCE_UNAVAILABLE' },
+    'Source failure is not evidence that engineering-geology information is absent.', 'Low'
+  );
+  const superficialAttrs = firstAttrs(superficial);
+  const bedrockAttrs = firstAttrs(bedrock);
+  if (!superficialAttrs && !bedrockAttrs) return evidence(
+    'uk-bgs-engineering-geology-site', 'Engineering Geology',
+    'BGS engineering-geology mapping returned no mapped feature at the selected coordinate.',
+    'REQUIRES_VERIFICATION', BGS, BGS_ENGINEERING,
+    'ArcGIS REST point intersection against BGS 1:1M engineering-geology layers',
+    { reasonCode: 'NO_DATA', scale: '1:1,000,000' },
+    'No mapped feature is not proof that engineering-geology information is absent locally.', 'Medium'
+  );
+  const superficialType = superficialAttrs ? exact(superficialAttrs, 'Superficial_EGWeb.ENG_DESC', 'ENG_DESC') : null;
+  const superficialDescription = superficialAttrs ? exact(superficialAttrs, 'superficial_info.Description') : null;
+  const foundations = superficialAttrs ? exact(superficialAttrs, 'superficial_info.Foundations') : null;
+  const excavation = superficialAttrs ? exact(superficialAttrs, 'superficial_info.Excavation') : null;
+  const engineeredFill = superficialAttrs ? exact(superficialAttrs, 'superficial_info.Engineered_Fill') : null;
+  const siteInvestigation = superficialAttrs ? exact(superficialAttrs, 'superficial_info.Site_Investigation') : null;
+  const bedrockType = bedrockAttrs ? exact(bedrockAttrs, 'ENG_DESC') : null;
+  return evidence(
+    'uk-bgs-engineering-geology-site', 'Engineering Geology',
+    `BGS 1:1,000,000 engineering-geology mapping identifies${superficialType ? ` superficial ground as ${superficialType}` : ''}${bedrockType ? `${superficialType ? ' and' : ''} bedrock engineering behaviour as ${bedrockType}` : ''}.`,
+    'VERIFIED', BGS, BGS_ENGINEERING,
+    'ArcGIS REST point intersection against BGS 1:1M superficial and bedrock engineering-geology layers',
+    { scale: '1:1,000,000', superficialType, superficialDescription, foundations, excavation, engineeredFill, siteInvestigation, bedrockType },
+    'This is regional engineering-geology screening. The mapped engineering behaviour does not establish site-specific ground parameters or replace a ground investigation.',
+    'Medium'
+  );
+}
+
+async function queryBgsUrbanModel(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<UkSiteEvidence> {
+  const result = await pointQuery(BGS_URBAN_MODELS, 0, lat, lng, fetcher);
+  if (!result) return evidence(
+    'uk-bgs-urban-3d-unavailable', '3D Urban Geology',
+    'BGS Urban Interactive Models coverage service could not be queried.',
+    'REQUIRES_VERIFICATION', BGS, BGS_URBAN_MODELS,
+    'ArcGIS REST point intersection against BGS Urban Interactive Models coverage',
+    { reasonCode: 'SOURCE_UNAVAILABLE' },
+    'Service failure is not evidence that a 3D model is absent.', 'Low'
+  );
+  const attrs = firstAttrs(result);
+  if (!attrs) return evidence(
+    'uk-bgs-urban-3d-site', '3D Urban Geology',
+    'The selected coordinate is outside the BGS Urban Interactive Models coverage returned by the service.',
+    'REQUIRES_VERIFICATION', BGS, BGS_URBAN_MODELS,
+    'ArcGIS REST point intersection against BGS Urban Interactive Models coverage',
+    { available: false, model: null, modelsAvailable: ['London', 'Glasgow', 'Cardiff', 'Liverpool', 'Gateshead'] },
+    'No 3D urban model was returned for this coordinate. National BGS geology and borehole evidence remain separate sources.',
+    'High'
+  );
+  const model = exact(attrs, 'NAME', 'MODELID');
+  return evidence(
+    'uk-bgs-urban-3d-site', '3D Urban Geology',
+    `The selected coordinate is covered by the BGS Urban Interactive 3D model${model ? ` for ${model}` : ''}.`,
+    'MODELLED', BGS, BGS_URBAN_MODELS,
+    'ArcGIS REST point intersection against BGS Urban Interactive Models coverage',
+    { available: true, model, modelId: exact(attrs, 'MODELID'), qualityDate: exact(attrs, 'QL_DATE'), capabilities: ['synthetic borehole', 'cross-section', 'horizontal slice'], depthRange: '+300 m OD to -600 m OD' },
+    'The 3D model is interpreted/modelled geological context. BGS notes that modelled geology can differ from the geological map; it does not replace site investigation.',
+    'Medium'
+  );
+}
+
 async function queryBgsHydrogeology(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<UkSiteEvidence> {
   const result = await pointQuery(BGS_HYDRO, 0, lat, lng, fetcher);
   if (!result) return evidence('uk-bgs-hydrogeology-unavailable', 'Hydrogeology', 'BGS regional hydrogeology REST service could not be queried.', 'REQUIRES_VERIFICATION', BGS, `${BGS_HYDRO}/0`, 'ArcGIS REST point query', { reasonCode: 'SOURCE_UNAVAILABLE' }, 'Source failure is not evidence about groundwater conditions.', 'Low');
@@ -176,11 +252,11 @@ function authorityCodeFromValuation(item: any): string | null { const value = it
 export async function queryUKSiteEvidence(lat: number, lng: number): Promise<UkSiteEvidence[]> {
   const valuation = await queryUKLandValuationEvidence(lat, lng) as UkSiteEvidence;
   const authorityCode = authorityCodeFromValuation(valuation); const england = Boolean(authorityCode?.startsWith('E'));
-  const [geology, boreholes, hydro, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology] = await Promise.all([
-    queryBgsGeology(lat, lng), queryBgsBoreholes(lat, lng), queryBgsHydrogeology(lat, lng), queryEnglandFlood(lat, lng, england),
+  const [geology, engineeringGeology, urban3d, boreholes, hydro, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology] = await Promise.all([
+    queryBgsGeology(lat, lng), queryBgsEngineeringGeology(lat, lng), queryBgsUrbanModel(lat, lng), queryBgsBoreholes(lat, lng), queryBgsHydrogeology(lat, lng), queryEnglandFlood(lat, lng, england),
     queryGeoSure(lat, lng, 6, 'Shrink–swell'), queryGeoSure(lat, lng, 3, 'Compressible ground'), queryGeoSure(lat, lng, 4, 'Landslides'), queryGeoSure(lat, lng, 5, 'Running sand'), queryGeoSure(lat, lng, 7, 'Soluble rocks'), queryGeoSure(lat, lng, 2, 'Collapsible deposits'), queryGeoSure(lat, lng, 1, 'Non-coal mining'), queryCoalMineEntries(lat, lng), queryHistoricLandfill(lat, lng, england), queryArchaeology(lat, lng, england)
   ]);
-  return [geology, boreholes, hydro, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology, valuation];
+  return [geology, engineeringGeology, urban3d, boreholes, hydro, flood, shrinkSwell, compressible, landslides, runningSand, solubleRocks, collapsible, miningHazard, coalEntries, historicLandfill, archaeology, valuation];
 }
 
 function riskLevel(value: unknown): 'Low' | 'Moderate' | 'High' | null {
@@ -190,11 +266,13 @@ function riskLevel(value: unknown): 'Low' | 'Moderate' | 'High' | null {
 export function enrichGeologyFromBgs(report: any, items: UkSiteEvidence[]) {
   const valuation = items.find(item => item.id.startsWith('uk-mhclg-land-valuation')); if (valuation) enrichUKValuationFromEvidence(report, valuation as any);
   const geology = items.find(item => item.id === 'uk-bgs-geology-site' && item.status === 'VERIFIED');
+  const engineeringGeology = items.find(item => item.id === 'uk-bgs-engineering-geology-site' && item.status === 'VERIFIED');
+  const urban3d = items.find(item => item.id === 'uk-bgs-urban-3d-site');
   const boreholes = items.find(item => item.id === 'uk-bgs-boreholes-site' && item.status === 'VERIFIED');
   const hydro = items.find(item => item.id === 'uk-bgs-hydrogeology-site' && item.status === 'VERIFIED');
   const g = (geology?.value || {}) as any; const h = (hydro?.value || {}) as any; const b = (boreholes?.value || {}) as any;
-  if (geology || boreholes || hydro) {
-    report.geosurvey_context = { ...(report.geosurvey_context || {}), geological_unit_name: g.unitName || report.geosurvey_context?.geological_unit_name || null, lithology_type: g.lithology || g.superficialLithology || report.geosurvey_context?.lithology_type || null, geological_period_era: g.geologicalAge || report.geosurvey_context?.geological_period_era || null, groundwater_regime: h.descriptor || report.geosurvey_context?.groundwater_regime || null, bgs_evidence_status: geology ? 'VERIFIED' : 'REQUIRES_VERIFICATION', bgs_map_evidence_count: geology ? 1 : 0, bgs_borehole_count: b.count || 0, bgs_nearest_borehole_distance_km: b.nearestDistanceKm ?? null, bgs_nearest_borehole_id: b.nearestRecordId ?? null, bgs_sources: items.filter(item => item.sourceName === BGS).map(item => ({ category: item.category, url: item.sourceUrl, status: item.status, limitation: item.limitation })) };
+  if (geology || engineeringGeology || urban3d || boreholes || hydro) {
+    report.geosurvey_context = { ...(report.geosurvey_context || {}), geological_unit_name: g.unitName || report.geosurvey_context?.geological_unit_name || null, lithology_type: g.lithology || g.superficialLithology || report.geosurvey_context?.lithology_type || null, geological_period_era: g.geologicalAge || report.geosurvey_context?.geological_period_era || null, groundwater_regime: h.descriptor || report.geosurvey_context?.groundwater_regime || null, bgs_evidence_status: geology ? 'VERIFIED' : 'REQUIRES_VERIFICATION', bgs_map_evidence_count: geology ? 1 : 0, bgs_engineering_geology: engineeringGeology?.value || null, bgs_urban_3d_model: urban3d?.value || { available: false }, bgs_borehole_count: b.count || 0, bgs_nearest_borehole_distance_km: b.nearestDistanceKm ?? null, bgs_nearest_borehole_id: b.nearestRecordId ?? null, bgs_sources: items.filter(item => item.sourceName === BGS).map(item => ({ category: item.category, url: item.sourceUrl, status: item.status, limitation: item.limitation })) };
     if (geology) report.geosurvey_context.evidence_level = 'VERIFIED';
     if (hydro && report.soil) report.soil.groundwaterRegime = h.descriptor || null;
   }

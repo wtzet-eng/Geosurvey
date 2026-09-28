@@ -43,6 +43,20 @@ test('UK structured BGS geology, hydrogeology and borehole context populate repo
   assert.match(report.terrain.floodInundationRisk.sourceName, /Environment Agency/i);
 });
 
+test('UK BGS enrichment exposes engineering-geology and 3D model context without creating design parameters', () => {
+  const report: any = { geosurvey_context: {}, soil: {}, terrain: { floodInundationRisk: {}, geohazards: { landslideSusceptibility: {}, miningSubsidence: {} } } };
+  enrichGeologyFromBgs(report, [
+    base({ id: 'uk-bgs-engineering-geology-site', category: 'Engineering Geology', value: { scale: '1:1,000,000', superficialType: 'Fine Soil', foundations: 'Variable foundation conditions', excavation: 'Easy digging' } }),
+    base({ id: 'uk-bgs-urban-3d-site', category: '3D Urban Geology', status: 'MODELLED', value: { available: true, model: 'London and Thames Valley Model', capabilities: ['synthetic borehole', 'cross-section', 'horizontal slice'] } })
+  ]);
+  assert.equal(report.geosurvey_context.bgs_engineering_geology.superficialType, 'Fine Soil');
+  assert.equal(report.geosurvey_context.bgs_urban_3d_model.available, true);
+  assert.match(report.geosurvey_context.bgs_urban_3d_model.model, /London/);
+  assert.equal(report.soil.estimatedBearingCapacityKpa, undefined);
+  assert.equal(report.soil.effectiveFrictionAngleDeg, undefined);
+  assert.equal(report.soil.cohesionKpa, undefined);
+});
+
 test('UK BGS enrichment does not invent engineering design parameters', () => {
   const report: any = {
     geosurvey_context: {},
