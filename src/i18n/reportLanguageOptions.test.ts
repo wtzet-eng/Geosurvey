@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAvailableReportLanguages, normalizeReportLanguage } from '../utils/reportLanguageOptions';
+import { getAvailableReportLanguages, getDefaultReportLanguageForCountry, normalizeReportLanguage } from '../utils/reportLanguageOptions';
 
 const codes = (countryCode: string, nativeLanguage: string) =>
   getAvailableReportLanguages(countryCode, nativeLanguage).map(language => language.code);
@@ -50,4 +50,28 @@ test('normalization accepts supported languages independently of country', () =>
   assert.equal(normalizeReportLanguage('cs', 'DE'), 'cs');
   assert.equal(normalizeReportLanguage('sk', 'DE'), 'sk');
   assert.deepEqual(codes('HR', 'hr').slice(0, 2), ['hr', 'en']);
+});
+
+
+test('Netherlands defaults to Dutch independently of the browser language', () => {
+  assert.equal(normalizeReportLanguage('nl', 'NL'), 'nl');
+  assert.deepEqual(codes('NL', 'nl').slice(0, 2), ['nl', 'en']);
+});
+
+
+test('every country follows the same native-language default rule', async () => {
+  const { EUROPEAN_COUNTRIES } = await import('../data/countries');
+  for (const country of EUROPEAN_COUNTRIES) {
+    const expected = normalizeReportLanguage(country.language, country.code);
+    assert.equal(
+      getDefaultReportLanguageForCountry(country.code),
+      expected,
+      `${country.code} should default to its configured language when that language is supported, otherwise English`
+    );
+    assert.equal(
+      getAvailableReportLanguages(country.code, country.language)[0].code,
+      expected,
+      `${country.code} should show its effective default language first`
+    );
+  }
 });

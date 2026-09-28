@@ -19,7 +19,7 @@ import { EUROPEAN_COUNTRIES } from './data/countries';
 import { getCountrySupport } from './data/countrySupport';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
 import { getBrowserLanguage, getFrontPageI18n, getLocalizedTagline } from './utils/i18nTitle';
-import { getAvailableReportLanguages, normalizeReportLanguage, REPORT_LANGUAGE_OPTIONS } from './utils/reportLanguageOptions';
+import { getAvailableReportLanguages, getDefaultReportLanguageForCountry, normalizeReportLanguage, REPORT_LANGUAGE_OPTIONS } from './utils/reportLanguageOptions';
 import { getBoundaryStatusText } from './utils/boundaryStatusI18n';
 import { getActionText } from './utils/actionI18n';
 import { MapPicker } from './components/MapPicker';
@@ -164,7 +164,7 @@ export function LegacyReportApp() {
   const [areaSize, setAreaSize] = useState<number>(1000);
   const [countryCode, setCountryCode] = useState<string>('DE');
   const [detectedCountryCode, setDetectedCountryCode] = useState<string | null>(null);
-  const [languageCode, setLanguageCode] = useState<string>(() => normalizeReportLanguage(getBrowserLanguage(), 'DE'));
+  const [languageCode, setLanguageCode] = useState<string>(() => getDefaultReportLanguageForCountry('DE', getBrowserLanguage()));
   const [languageWasManuallySelected, setLanguageWasManuallySelected] = useState(false);
   const countryWasManuallySelected = useRef(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -214,7 +214,7 @@ export function LegacyReportApp() {
           setLanguageWasManuallySelected(true);
         }
       } else if (foundCountry) {
-        setLanguageCode(normalizeReportLanguage(foundCountry.language, foundCountry.code));
+        setLanguageCode(getDefaultReportLanguageForCountry(foundCountry.code, foundCountry.language));
       }
       const areaParam = params.get('area');
       if (areaParam && !isNaN(Number(areaParam))) setAreaSize(Math.max(50, Number(areaParam)));
@@ -303,7 +303,7 @@ export function LegacyReportApp() {
         setDetectedCountryCode(detectedCountry.code);
         if (!countryWasManuallySelected.current) {
           setCountryCode(detectedCountry.code);
-          if (!explicitLanguage) setLanguageCode(normalizeReportLanguage(getBrowserLanguage(), detectedCountry.code));
+          if (!explicitLanguage) setLanguageCode(getDefaultReportLanguageForCountry(detectedCountry.code, detectedCountry.language));
         }
       })
       .catch(() => {})
@@ -359,7 +359,7 @@ export function LegacyReportApp() {
     setShape(null);
     setOfficialParcel(null);
     if (!languageWasManuallySelected && nextCountry) {
-      setLanguageCode(normalizeReportLanguage(nextCountry.language, nextCountry.code));
+      setLanguageCode(getDefaultReportLanguageForCountry(nextCountry.code, nextCountry.language));
     }
   };
 
@@ -375,7 +375,7 @@ export function LegacyReportApp() {
     setDetectedCountryCode(nextCountry.code);
     setShape(null);
     setOfficialParcel(null);
-    if (!languageWasManuallySelected) setLanguageCode(normalizeReportLanguage(getBrowserLanguage(), nextCountry.code));
+    if (!languageWasManuallySelected) setLanguageCode(getDefaultReportLanguageForCountry(nextCountry.code, nextCountry.language));
   };
 
   const handleOfficialParcelSelected = (parcel: { parcelId?: string; areaM2?: number } | null) => {

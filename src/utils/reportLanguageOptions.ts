@@ -1,4 +1,4 @@
-import { REPORT_LANGUAGES } from '../data/countries';
+import { EUROPEAN_COUNTRIES, REPORT_LANGUAGES } from '../data/countries';
 import type { ReportLanguage } from '../types';
 
 const EXTRA_REPORT_LANGUAGES: ReportLanguage[] = [
@@ -24,6 +24,11 @@ const normalizeCode = (language: string): string => {
 export function normalizeReportLanguage(language: string, _countryCode = ''): string {
   const code = normalizeCode(language);
   return SUPPORTED_REPORT_LANGUAGE_CODES.has(code) ? code : 'en';
+}
+
+export function getDefaultReportLanguageForCountry(countryCode: string, nativeLanguage?: string): string {
+  const country = EUROPEAN_COUNTRIES.find(item => item.code === String(countryCode || '').toUpperCase());
+  return normalizeReportLanguage(nativeLanguage || country?.language || 'en', country?.code || countryCode);
 }
 
 export function getAvailableReportLanguages(_countryCode: string, nativeLanguage: string): ReportLanguage[] {

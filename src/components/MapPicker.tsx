@@ -214,6 +214,18 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           maxZoom: 22
         }).addTo(map);
       }
+    } else if (countryCode.toUpperCase() === 'NL') {
+      L.tileLayer.wms('https://service.pdok.nl/kadaster/brk-kadastrale-kaart/wms/v5_0', {
+        layers: 'Kadastralekaart',
+        styles: 'Default',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.85,
+        version: '1.3.0',
+        attribution: 'Kadaster / PDOK — Kadastrale kaart',
+        maxNativeZoom: 18,
+        maxZoom: 22
+      }).addTo(map);
     } else if (countryCode.toUpperCase() === 'HR' && officialParcel) {
       L.tileLayer.wms('https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms', {
         layers: 'CP.CadastralParcel',
@@ -297,7 +309,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // Find and select an official parcel at a clicked map location.
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
     const lookupCountry = countryCode.toUpperCase();
-    if (!['DE', 'HR'].includes(lookupCountry)) return false;
+    if (!['DE', 'HR', 'NL'].includes(lookupCountry)) return false;
     if (lookupCountry === 'DE' && !cadastralState) return false;
 
     if (parcelLookupPendingRef.current) return false;
@@ -608,7 +620,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     onOfficialParcelSelected?.(null);
 
     const searchCountryCode = detectedCountry || countryCode.toUpperCase();
-    if (['DE', 'PL', 'HR'].includes(searchCountryCode)) {
+    if (['DE', 'PL', 'HR', 'NL'].includes(searchCountryCode)) {
       parcelLookupPendingRef.current = true;
       setIsFindingParcel(true);
       onParcelLookupStateChange?.(true);

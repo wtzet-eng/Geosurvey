@@ -9,7 +9,7 @@ import { MapPreview } from './components/MapPreview';
 import { SiteReport, BoundaryShape } from './types';
 import { EUROPEAN_COUNTRIES } from './data/countries';
 import { calculateBoundaryArea, getBoundaryCenter } from './utils/geo';
-import { getAvailableReportLanguages, normalizeReportLanguage } from './utils/reportLanguageOptions';
+import { getAvailableReportLanguages, getDefaultReportLanguageForCountry, normalizeReportLanguage } from './utils/reportLanguageOptions';
 import { apiFetch } from './lib/apiClient';
 import { FloatingSupportLandSurf } from './components/SupportLandSurf';
 
@@ -466,7 +466,7 @@ export const GroundSurfApp: React.FC = () => {
     setShape(null);
     setOfficialParcel(null);
     if (!languageWasManuallySelected.current) {
-      setLanguage(normalizeReportLanguage(nextCountry.language, nextCountry.code));
+      setLanguage(getDefaultReportLanguageForCountry(nextCountry.code, nextCountry.language));
     } else {
       setLanguage((current) => normalizeReportLanguage(current, nextCountry.code));
     }

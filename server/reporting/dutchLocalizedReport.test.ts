@@ -5,7 +5,7 @@ import { renderDutchLocalizedReport } from './dutchLocalizedReport';
 function canonicalFixture(): any {
   return {
     countryCode: 'NL', countryName: 'Netherlands',
-    support: { countryCode: 'NL', maturity: 'LIMITED', capabilities: { nationalCadastre: false, nationalGeology: false, nationalBoreholes: false, nationalHydrogeology: false, nationalFlood: false, nationalPlanning: false, nationalValuation: false, nationalRadon: false, nationalMining: false } },
+    support: { countryCode: 'NL', maturity: 'LIMITED', capabilities: { nationalCadastre: true, nationalGeology: true, nationalBoreholes: false, nationalHydrogeology: false, nationalFlood: false, nationalPlanning: false, nationalValuation: false, nationalRadon: false, nationalMining: false } },
     authorities: { cadastre: 'Kadaster / PDOK', geology: 'TNO-GDN / BRO', flood: 'Rijkswaterstaat / LIWO', planning: 'Gemeente / DSO', valuation: 'Geen ondersteunde automatische bron' },
     geology: { unitName: null, lithology: null, geologicalAge: null, groundwaterRegime: null, status: 'REQUIRES_VERIFICATION', sourceName: 'TNO-GDN / BRO', sourceUrl: 'https://www.dinoloket.nl', reasonCode: 'NOT_SUPPORTED_FOR_COUNTRY' },
     groundContext: { mapped: null, soilVariability: null, status: 'REQUIRES_VERIFICATION', reasonCode: 'INSUFFICIENT_EVIDENCE' },
