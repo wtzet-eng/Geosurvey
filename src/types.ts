@@ -266,6 +266,7 @@ export interface ReportData {
   evidence_score?: EvidenceQualityScore;
   country_support?: CountrySupportPresentation;
   ground_context?: GroundContextPresentation;
+  geotop_profile?: unknown;
   canonical_evidence?: unknown;
   evidence_registry?: EvidenceItem[];
   verification_checklist?: VerificationRequirement[];

@@ -51,7 +51,7 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   PL: { countryCode: 'PL', maturity: 'SUPPORTED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } },
   GB: { countryCode: 'GB', maturity: 'SUPPORTED', capabilities: { ...NONE, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } },
   DE: { countryCode: 'DE', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalValuation: true } },
-  NL: { countryCode: 'NL', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true } },
+  NL: { countryCode: 'NL', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } },
   FR: { countryCode: 'FR', maturity: 'LIMITED', capabilities: { ...NONE, nationalGeology: true, nationalBoreholes: true, nationalValuation: true } },
   SK: { countryCode: 'SK', maturity: 'LIMITED', capabilities: { ...NONE, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true, nationalValuation: true } },
   CZ: { countryCode: 'CZ', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true, nationalRadon: true, nationalMining: true } },

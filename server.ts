@@ -17,6 +17,7 @@ import { queryCzechiaInspireCadastre } from './server/services/czechiaInspireCad
 import { enrichSwedenGroundEvidence, querySwedenGroundEvidence } from './server/services/swedenGroundEvidenceService';
 import { applyNorwayCadastreToReport, queryNorwayCadastre } from './server/services/norwayCadastreService';
 import { applyNetherlandsCadastreToReport, queryNetherlandsCadastre } from './server/services/netherlandsCadastreService';
+import { enrichNetherlandsGroundEvidence, queryNetherlandsGroundEvidence } from './server/services/netherlandsGroundEvidenceService';
 import { enrichNorwayGroundEvidence, queryNorwayGroundEvidence } from './server/services/norwayGroundEvidenceService';
 import { applyDenmarkCadastreToReport, queryDenmarkCadastre } from './server/services/denmarkCadastreService';
 import { enrichDenmarkGroundEvidence, queryDenmarkGroundEvidence } from './server/services/denmarkGroundEvidenceService';
@@ -186,6 +187,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let czechiaCadastre: any = null;
     let norwayCadastre: any = null;
     let netherlandsCadastre: any = null;
+    let netherlandsGroundEvidence: any[] = [];
     let denmarkCadastre: any = null;
     let irelandCadastre: any = null;
     let luxembourgCadastre: any = null;
@@ -306,6 +308,17 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: netherlandsCadastre.sourceName, organization: 'Kadaster / PDOK', url: netherlandsCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] PDOK Netherlands cadastre notice:`, e); }
+      stage = 'netherlands-geotop';
+      try {
+        netherlandsGroundEvidence = await queryNetherlandsGroundEvidence(lat, lng);
+        if (netherlandsGroundEvidence.length) evidenceReport.evidenceRegistry.push(...netherlandsGroundEvidence);
+        enrichNetherlandsGroundEvidence(evidenceReport, netherlandsGroundEvidence);
+        const geotopModelled = netherlandsGroundEvidence.some((item: any) => item.id === 'nl-geotop-profile' && item.status === 'MODELLED');
+        if (geotopModelled) {
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.name !== 'TNO Geological Survey of the Netherlands — BRO GeoTOP v1.6.1') : [];
+          evidenceReport.dataSourcesCited.push({ name: 'TNO Geological Survey of the Netherlands — BRO GeoTOP v1.6.1', organization: 'TNO / Geological Survey of the Netherlands', url: 'https://www.dinodata.nl/opendap/GeoTOP/geotop.nc.html', type: 'Geological Survey', status: 'MODELLED' });
+        }
+      } catch (e) { console.warn('[NL GeoTOP] DINOloket notice:', e); }
     } else if (!countryLocationMismatch && countryCode === 'NO' && support.capabilities.nationalCadastre) {
       stage = 'norway-cadastre';
       try {
@@ -744,6 +757,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       titles: presentation.titles,
       unavailable_reasons: presentation.unavailableReasons,
       geosurvey_context: { survey_authority: canonicalReport.geology.sourceName, geological_unit_name: canonicalReport.geology.unitName, lithology_type: canonicalReport.geology.lithology, geological_period_era: canonicalReport.geology.geologicalAge, groundwater_regime: canonicalReport.geology.groundwaterRegime, seismic_hazard_zone: canonicalReport.hazards.seismic.classification, radon_class: canonicalReport.hazards.radon.classification, official_portal_url: canonicalReport.geology.sourceUrl, evidence_level: canonicalReport.geology.status },
+      geotop_profile: evidenceReport.geosurvey_context?.geotop_profile || null,
       technical_parameters: { cadastral_id_format: support.capabilities.nationalCadastre ? evidenceReport.parcel?.cadastralSource : null, cadastral_parcel_id: support.capabilities.nationalCadastre ? evidenceReport.parcel?.parcelId || null : null, cadastral_teryt: support.capabilities.nationalCadastre ? evidenceReport.parcel?.teryt : null, cadastral_commune: support.capabilities.nationalCadastre ? evidenceReport.parcel?.commune : null, cadastral_county: support.capabilities.nationalCadastre ? evidenceReport.parcel?.county : null, cadastral_voivodeship: support.capabilities.nationalCadastre ? evidenceReport.parcel?.voivodeship : null, cadastre_evidence_level: support.capabilities.nationalCadastre ? evidenceReport.parcel?.status : 'REQUIRES_VERIFICATION', is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, elevation_amsl: canonicalReport.terrain.elevationM, min_elevation_amsl: canonicalReport.terrain.minElevationM, max_elevation_amsl: canonicalReport.terrain.maxElevationM, local_relief_m: canonicalReport.terrain.localReliefM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: null },
       valuation_metrics: { valuation_area_m2: valuationAreaM2, price_per_sqm_min: safePerSqm(canonicalReport.valuation.min), price_per_sqm_max: safePerSqm(canonicalReport.valuation.max), price_per_sqm_median: safePerSqm(canonicalReport.valuation.median), comparable_evidence_count: canonicalReport.valuation.comparableCount, feasibility_rating: canonicalReport.valuation.min === null ? undefined : evidenceReport.valuation?.uncertaintyRating, soil_bearing_capacity_kpa: null },
       soil_metrics: { usda_texture: evidenceReport.soil?.usdaTextureClass, topsoil_sand_pct: evidenceReport.soil?.topsoilSandPct, topsoil_silt_pct: evidenceReport.soil?.topsoilSiltPct, topsoil_clay_pct: evidenceReport.soil?.topsoilClayPct, subsoil_sand_pct: evidenceReport.soil?.subsoilSandPct, subsoil_silt_pct: evidenceReport.soil?.subsoilSiltPct, subsoil_clay_pct: evidenceReport.soil?.subsoilClayPct, mean_bulk_density: evidenceReport.soil?.meanBulkDensityGcm3, mean_ph: evidenceReport.soil?.meanPhH2O, mean_soc: evidenceReport.soil?.meanOrganicCarbonPct, bearing_capacity_kpa: null, friction_angle_deg: null, cohesion_kpa: null, hydraulic_conductivity: null, drainage_class: null, frost_class: evidenceReport.soil?.frostSusceptibilityClass, topsoil_stripping_cm: null, source_name: evidenceReport.soil?.sourceName },
@@ -769,6 +783,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       czechia_cadastre_evidence_count: Array.isArray(czechiaCadastre?.evidence) ? czechiaCadastre.evidence.length : 0,
       norway_ground_evidence_count: norwayGroundEvidence.length,
       sweden_ground_evidence_count: swedenGroundEvidence.length,
+      netherlands_ground_evidence_count: netherlandsGroundEvidence.length,
       denmark_ground_evidence_count: denmarkGroundEvidence.length,
       norway_cadastre_evidence_count: Array.isArray(norwayCadastre?.evidence) ? norwayCadastre.evidence.length : 0,
       denmark_cadastre_evidence_count: Array.isArray(denmarkCadastre?.evidence) ? denmarkCadastre.evidence.length : 0,

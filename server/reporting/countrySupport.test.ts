@@ -249,7 +249,7 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   const nl = getCountrySupport('NL');
   assert.equal(nl.maturity, 'LIMITED');
   assert.equal(nl.capabilities.nationalCadastre, true);
-  assert.equal(nl.capabilities.nationalGeology, false);
+  assert.equal(nl.capabilities.nationalGeology, true);
   assert.equal(nl.capabilities.nationalMining, false);
   const lu = getCountrySupport('LU');
   assert.equal(lu.maturity, 'LIMITED');
