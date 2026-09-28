@@ -85,7 +85,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<{ display_name: string; lat: string; lon: string; address?: { country_code?: string; state?: string; province?: string; region?: string; 'ISO3166-2-lvl4'?: string } }[]>([]);
-  const [tileType, setTileType] = useState<'osm' | 'satellite' | 'terrain'>('osm');
+  const [tileType, setTileType] = useState<'osm' | 'satellite' | 'satellite-labels' | 'terrain'>('satellite-labels');
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
   const [isLocating, setIsLocating] = useState(false);
   const [isFindingParcel, setIsFindingParcel] = useState(false);
@@ -169,6 +169,19 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Satellite Imagery &copy; Esri, Maxar, Earthstar Geographics',
         maxZoom: 18,
+      }).addTo(map);
+    } else if (tileType === 'satellite-labels') {
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Satellite Imagery &copy; Esri, Maxar, Earthstar Geographics',
+        maxZoom: 18,
+      }).addTo(map);
+      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Transportation reference &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map);
+      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Places & boundaries &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+        maxZoom: 19,
       }).addTo(map);
     } else if (tileType === 'terrain') {
       L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
@@ -712,6 +725,17 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               >
                 <Globe2 className="h-3.5 w-3.5 text-blue-600" />
                 <span className="hidden md:inline">{t.sat}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTileType('satellite-labels')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
+                  tileType === 'satellite-labels' ? 'bg-white text-slate-900 shadow-2xs dark:bg-slate-100 dark:text-slate-900' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+                }`}
+                title={`${t.satelliteTitle} + labels`}
+              >
+                <Globe2 className="h-3.5 w-3.5 text-sky-600" />
+                <span className="hidden md:inline">{t.sat} +</span>
               </button>
               <button
                 type="button"
