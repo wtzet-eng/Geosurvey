@@ -861,11 +861,12 @@ app.post('/api/ai/ask', async (req, res) => {
   if (!consumeAiRateLimit(rateLimitKey)) return res.status(429).json({ error: 'GroundSurf adviser rate limit reached. Please try again shortly.' });
   const report = req.body?.report;
   const question = typeof req.body?.question === 'string' ? req.body.question : '';
+  const language = typeof req.body?.language === 'string' ? req.body.language : (report?.language || 'en');
   if (!report?.report_data) return res.status(400).json({ error: 'A valid GroundSurf land record is required.' });
   if (!question.trim()) return res.status(400).json({ error: 'Please ask a question about the land.' });
 
   try {
-    const answer = await answerGroundSurfQuestion(report, question);
+    const answer = await answerGroundSurfQuestion(report, question, language);
     return res.json(answer);
   } catch (error: any) {
     console.error(`[${diagnosticId}] GroundSurf adviser failed:`, error);

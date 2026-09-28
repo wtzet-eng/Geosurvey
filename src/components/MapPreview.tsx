@@ -50,7 +50,8 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
     });
 
     baseTileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
     if (countryCode?.toUpperCase() === 'HR') {
@@ -152,7 +153,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
   const legend = getMapLegend(language);
 
   return (
-    <div className="relative h-56 w-full rounded-2xl overflow-hidden border border-slate-200 shadow-xs z-0">
+    <div className="relative h-56 w-full rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xs z-0 dark:border-slate-700 dark:bg-[#1b211d]">
       <div ref={containerRef} className="absolute inset-0" />
       {showOfficialBoundary && (
         <div className="absolute top-3 right-3 z-[1000] rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm text-[10px] font-medium text-slate-700 space-y-1.5">

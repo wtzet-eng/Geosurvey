@@ -1,6 +1,24 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+@custom-variant dark (&:where([data-groundsurf-theme="dark"], [data-groundsurf-theme="dark"] *));
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f5f7f4;
+  transition: background-color 300ms ease;
+}
+
+html[data-groundsurf-theme="dark"] body {
+  background: #121713;
+}
+
 /* Fix Leaflet tile z-index and controls */
 .leaflet-container {
   font-family: inherit;

@@ -633,9 +633,9 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   };
 
   return (
-    <div className="relative w-full rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-xs">
+    <div className="relative w-full rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-xs dark:border-slate-700 dark:bg-[#1b211d]">
       {/* Top Search, GPS & Layer Controls */}
-      <div className="p-3 border-b border-slate-100 bg-slate-50/90">
+      <div className="p-3 border-b border-slate-100 bg-slate-50/90 dark:border-slate-700 dark:bg-[#202722]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Search Form */}
           <form onSubmit={handleSearch} className="relative flex-1 min-w-[220px]">
@@ -645,7 +645,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="w-full pl-9 pr-20 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+              className="w-full pl-9 pr-20 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition dark:bg-[#171c18] dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500"
             />
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <button
@@ -682,7 +682,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               type="button"
               onClick={handleLocateMe}
               disabled={isLocating}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 transition shadow-2xs"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 transition shadow-2xs dark:bg-[#171c18] dark:border-slate-600 dark:text-slate-200 dark:hover:bg-[#222923]"
               title={t.locateTitle}
             >
               <Navigation className={`h-3.5 w-3.5 text-indigo-600 ${isLocating ? 'animate-spin' : ''}`} />
@@ -690,12 +690,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
             </button>
 
             {/* Base Layer Switcher */}
-            <div className="inline-flex rounded-xl bg-slate-200/80 p-0.5">
+            <div className="inline-flex rounded-xl bg-slate-200/80 p-0.5 dark:bg-slate-700/80">
               <button
                 type="button"
                 onClick={() => setTileType('osm')}
                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
-                  tileType === 'osm' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  tileType === 'osm' ? 'bg-white text-slate-900 shadow-2xs dark:bg-slate-100 dark:text-slate-900' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
                 }`}
                 title={t.streetTitle}
               >
@@ -706,7 +706,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
                 type="button"
                 onClick={() => setTileType('satellite')}
                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
-                  tileType === 'satellite' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  tileType === 'satellite' ? 'bg-white text-slate-900 shadow-2xs dark:bg-slate-100 dark:text-slate-900' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
                 }`}
                 title={t.satelliteTitle}
               >
@@ -717,7 +717,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
                 type="button"
                 onClick={() => setTileType('terrain')}
                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
-                  tileType === 'terrain' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  tileType === 'terrain' ? 'bg-white text-slate-900 shadow-2xs dark:bg-slate-100 dark:text-slate-900' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
                 }`}
                 title={t.terrainTitle}
               >
@@ -746,12 +746,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       {/* Simple, Step-by-Step Helper Status Bar */}
       <div className={`px-4 py-2.5 flex flex-wrap items-center justify-between text-xs gap-2 z-10 border-b transition ${
         officialParcel || isFindingParcel
-          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
+          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950 dark:bg-emerald-950/35 dark:border-emerald-800/70 dark:text-emerald-100'
           : drawingPoints.length > 0
-          ? 'bg-amber-50/90 border-amber-200 text-amber-950'
+          ? 'bg-amber-50/90 border-amber-200 text-amber-950 dark:bg-amber-950/35 dark:border-amber-800/70 dark:text-amber-100'
           : shape
-          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
-          : 'bg-slate-50 border-slate-200 text-slate-700'
+          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950 dark:bg-emerald-950/35 dark:border-emerald-800/70 dark:text-emerald-100'
+          : 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#202722] dark:border-slate-700 dark:text-slate-300'
       }`}>
         <div className="flex items-center gap-2 font-medium">
           {isFindingParcel ? (
@@ -851,7 +851,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       <div
         id="leaflet-map-canvas"
         ref={mapContainerRef}
-        className="h-[26rem] sm:h-[31rem] lg:h-[34rem] w-full z-0 cursor-crosshair"
+        className="h-[26rem] sm:h-[31rem] lg:h-[34rem] w-full z-0 cursor-crosshair border-y border-slate-200 dark:border-slate-700"
       />
     </div>
   );

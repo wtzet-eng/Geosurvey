@@ -435,7 +435,7 @@ export function LegacyReportApp() {
       saveReportToStore(newReport);
       setActiveReport(newReport);
     } catch (err: any) {
-      setErrorMessage(err.message || uiText(languageCode, 'An error occurred while generating the report.', 'Er is een fout opgetreden bij het maken van het rapport.', 'Při vytváření reportu došlo k chybě.', 'Ett fel uppstod när rapporten skapades.', 'Det oppstod en feil under opprettelsen av rapporten.', 'Pri vytváraní reportu sa vyskytla chyba.'));
+      setErrorMessage(err.message || (languageCode === 'pl' ? 'Wystąpił błąd podczas tworzenia raportu.' : uiText(languageCode, 'An error occurred while generating the report.', 'Er is een fout opgetreden bij het maken van het rapport.', 'Při vytváření reportu došlo k chybě.', 'Ett fel uppstod när rapporten skapades.', 'Det oppstod en feil under opprettelsen av rapporten.', 'Pri vytváraní reportu sa vyskytla chyba.')));
     } finally { setIsAnalyzing(false); }
   };
 
@@ -478,7 +478,7 @@ export function LegacyReportApp() {
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold"><Sparkles className="h-3.5 w-3.5" /><span>{fp.badge}</span></div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">{fp.heroTitle}</h1>
-          <p className="text-sm font-medium text-slate-700">{getLocalizedTagline(currentCountry.language)}</p>
+          <p className="text-sm font-medium text-slate-700">{getLocalizedTagline(languageCode)}</p>
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">{fp.heroSub}</p>
         </div>
 
@@ -495,9 +495,9 @@ export function LegacyReportApp() {
             <MapPicker mode={mode} shape={shape} onChange={handleShapeChange} circleRadius={circleRadius} onClear={() => { setShape(null); setOfficialParcel(null); }} defaultCenter={currentCountry.defaultCenter} defaultZoom={currentCountry.defaultZoom} language={languageCode} countryCode={currentCountry.code} onCountryDetected={handleCountryDetectedFromSearch} onOfficialParcelSelected={handleOfficialParcelSelected} onParcelLookupStateChange={setIsFindingParcel} />
             <div className="text-xs text-slate-500 bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
               {isFindingParcel ? (
-                <span className="text-emerald-700 font-medium">{languageCode === 'hr' ? 'Pronađena je lokacija. Molimo pričekajte dok identificiramo službenu katastarsku česticu…' : 'Location found. Please wait while we identify the official cadastral parcel…'}</span>
+                <span className="text-emerald-700 font-medium">{languageCode === 'hr' ? 'Pronađena je lokacija. Molimo pričekajte dok identificiramo službenu katastarsku česticu…' : languageCode === 'pl' ? 'Znaleziono lokalizację. Poczekaj, aż zidentyfikujemy oficjalną działkę katastralną…' : 'Location found. Please wait while we identify the official cadastral parcel…'}</span>
               ) : officialParcel ? (
-                <span className="text-emerald-700 font-medium">{languageCode === 'hr' ? 'Službena katastarska čestica je identificirana i spremna za provjeru lokacije.' : 'Official cadastral parcel identified and ready for site screening.'}</span>
+                <span className="text-emerald-700 font-medium">{languageCode === 'hr' ? 'Službena katastarska čestica je identificirana i spremna za provjeru lokacije.' : languageCode === 'pl' ? 'Oficjalna działka katastralna została zidentyfikowana i jest gotowa do sprawdzenia.' : 'Official cadastral parcel identified and ready for site screening.'}</span>
               ) : isBoundaryComplete ? (
                 <div className="flex items-center gap-1.5 text-slate-900 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{boundaryText.boundarySet} <strong className="text-primary font-bold">{Math.round(areaSize).toLocaleString()} m²</strong></span>{shape?.type === 'circle' && <span className="text-slate-400 text-[11px]">{boundaryText.adjustArea}</span>}</div>
               ) : (

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, ChevronRight, CircleHelp, FileText, Globe2,
   Layers3, Loader2, Map, Search, ShieldCheck, Sparkles, Phone,
-  SquareArrowOutUpRight, Target
+  SquareArrowOutUpRight, Sun, Moon, Target
 } from 'lucide-react';
 import { MapPicker } from './components/MapPicker';
 import { MapPreview } from './components/MapPreview';
@@ -29,21 +29,25 @@ type ChatTurn = {
 };
 
 const COVERAGE = [
-  ['cadastre', 'Where is it?', 'Wo ist es?', ['cadastre', 'parcel', 'boundary']],
-  ['ground', 'What is beneath it?', 'Was befindet sich darunter?', ['geology', 'soil', 'ground', 'borehole']],
-  ['water', 'How does water behave?', 'Wie verhält sich das Wasser?', ['water', 'flood', 'hydro', 'groundwater']],
-  ['history', 'What happened here before?', 'Was geschah hier früher?', ['history', 'environment', 'contamination', 'land use']],
-  ['planning', 'What could affect development?', 'Was könnte die Entwicklung beeinflussen?', ['planning', 'zoning', 'building']],
-  ['access', 'What is around it?', 'Was befindet sich in der Umgebung?', ['infrastructure', 'access', 'amenity', 'utility']]
+  ['cadastre', 'Where is it?', 'Wo ist es?', 'Gdzie znajduje się działka?', ['cadastre', 'parcel', 'boundary']],
+  ['ground', 'What is beneath it?', 'Was befindet sich darunter?', 'Co znajduje się pod działką?', ['geology', 'soil', 'ground', 'borehole']],
+  ['water', 'How does water behave?', 'Wie verhält sich das Wasser?', 'Jak zachowuje się woda?', ['water', 'flood', 'hydro', 'groundwater']],
+  ['history', 'What happened here before?', 'Was geschah hier früher?', 'Co było tutaj wcześniej?', ['history', 'environment', 'contamination', 'land use']],
+  ['planning', 'What could affect development?', 'Was könnte die Entwicklung beeinflussen?', 'Co może wpłynąć na możliwość zabudowy?', ['planning', 'zoning', 'building']],
+  ['access', 'What is around it?', 'Was befindet sich in der Umgebung?', 'Co znajduje się w okolicy?', ['infrastructure', 'access', 'amenity', 'utility']]
 ] as const;
 
 const STARTER_QUESTIONS = {
   en: ['Could this land flood?', 'What is underneath it?', 'Can I build here?', 'Could there be contamination?', 'What are the biggest unknowns?', 'What should I check before buying?'],
-  de: ['Könnte dieses Grundstück überflutet werden?', 'Was befindet sich unter dem Grundstück?', 'Kann ich hier bauen?', 'Könnte es Altlasten oder Verunreinigungen geben?', 'Was sind die größten offenen Fragen?', 'Was sollte ich vor dem Kauf prüfen?']
+  de: ['Könnte dieses Grundstück überflutet werden?', 'Was befindet sich unter dem Grundstück?', 'Kann ich hier bauen?', 'Könnte es Altlasten oder Verunreinigungen geben?', 'Was sind die größten offenen Fragen?', 'Was sollte ich vor dem Kauf prüfen?'],
+  pl: ['Czy ten teren może być zalewany?', 'Co znajduje się pod działką?', 'Czy można tutaj budować?', 'Czy mogą występować zanieczyszczenia?', 'Jakie są najważniejsze niewiadome?', 'Co należy sprawdzić przed zakupem?']
 } as const;
 
 function starterQuestions(language: string): readonly string[] {
-  return String(language || '').toLowerCase().startsWith('de') ? STARTER_QUESTIONS.de : STARTER_QUESTIONS.en;
+  const locale = String(language || '').toLowerCase().split('-')[0];
+  if (locale === 'de') return STARTER_QUESTIONS.de;
+  if (locale === 'pl') return STARTER_QUESTIONS.pl;
+  return STARTER_QUESTIONS.en;
 }
 
 const GROUND_SURF_COPY = {
@@ -68,6 +72,7 @@ const GROUND_SURF_COPY = {
     landReady: 'Land selected and ready.',
     chooseLand: 'Choose the land on the map.',
     menuLanguage: 'Language',
+    themeSystem: 'Follow browser', themeUseLight: 'Use light background', themeUseDark: 'Use dark background',
     gatheringEvidence: 'Gathering public evidence…'
   },
   de: {
@@ -91,15 +96,42 @@ const GROUND_SURF_COPY = {
     landReady: 'Grundstück ausgewählt und bereit.',
     chooseLand: 'Grundstück auf der Karte auswählen.',
     menuLanguage: 'Sprache',
+    themeSystem: 'Browser folgen', themeUseLight: 'Hellen Hintergrund verwenden', themeUseDark: 'Dunklen Hintergrund verwenden',
     gatheringEvidence: 'Öffentliche Daten werden gesammelt…'
+  },
+  pl: {
+    badge: 'Publiczne dane zebrane w jednym miejscu',
+    heroTitle: 'Najpierw zbieram dowody.',
+    heroSubTitle: 'Potem decydujesz, o co chcesz zapytać.',
+    heroText: 'GroundSurf zbiera dostępne publiczne dane o tej działce — kataster, podłoże, wodę, planowanie, środowisko i otoczenie — i przedstawia je w formie, którą możesz samodzielnie sprawdzać.',
+    whereTitle: 'Gdzie szukamy?',
+    whereHint: 'Wyszukaj adres lub wybierz działkę na mapie.',
+    addressFlow: 'Adres → działka → dowody',
+    promiseLabel: 'Obietnica',
+    promiseMain: 'Zbieram dostępne publiczne dowody.',
+    promiseQuestion: 'Czego chcesz się dowiedzieć?',
+    evidenceFirst: 'Najpierw dowody, potem wyjaśnienie.',
+    unknownsVisible: 'Niewiadome pozostają widoczne.',
+    sourceTrail: 'Każda odpowiedź może prowadzić do źródła.',
+    gatherButton: 'Zbierz dane',
+    screeningNote: 'To wstępna analiza danych, a nie potwierdzenie prawne ani inżynierskie.',
+    findingParcel: 'Wyszukiwanie oficjalnej działki…',
+    officialParcel: 'Oficjalna działka została zidentyfikowana.',
+    landReady: 'Działka wybrana i gotowa.',
+    chooseLand: 'Wybierz działkę na mapie.',
+    menuLanguage: 'Język',
+    themeSystem: 'Zgodnie z przeglądarką', themeUseLight: 'Użyj jasnego tła', themeUseDark: 'Użyj ciemnego tła',
+    gatheringEvidence: 'Zbieranie publicznych danych…'
   }
 } as const;
 
 type GroundSurfCopyKey = keyof typeof GROUND_SURF_COPY.en;
+type ThemePreference = 'system' | 'light' | 'dark';
 
 function groundSurfCopy(language: string, key: GroundSurfCopyKey): string {
-  const locale = String(language || '').toLowerCase().startsWith('de') ? 'de' : 'en';
-  return GROUND_SURF_COPY[locale][key];
+  const locale = String(language || '').toLowerCase().split('-')[0];
+  const selected = locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : 'en';
+  return GROUND_SURF_COPY[selected][key];
 }
 
 const APP_UI_COPY = {
@@ -136,36 +168,56 @@ const APP_UI_COPY = {
     stillOpen: 'Noch offen', whatNext: 'Was würde hier weiterhelfen?', localHelp: 'Hilfe vor Ort',
     website: 'Website', noLocalListing: 'Kein passender lokaler Eintrag gefunden', nearbySearch: 'Fachleute in der Nähe suchen',
     askNext: 'Das könntest du als Nächstes fragen'
+  },
+  pl: {
+    evidenceGathered: 'Dane zebrane', detailedReport: 'Szczegółowy raport', adviser: 'Doradca GroundSurf', askDirectly: 'Zapytaj bezpośrednio',
+    gathered: 'Zebrałem publiczne dane.', askIntro: 'Czego chcesz się dowiedzieć?', evidenceItems: 'Elementy dowodowe',
+    found: 'Oto, co znaleźliśmy.', orientation: 'Pierwsze rozeznanie przed zadaniem pytań.',
+    itemsGathered: 'elementów dowodowych zebrano', detailedTrail: 'Szczegółowy raport zachowuje pełną ścieżkę dowodową, metodologię i rejestr źródeł.',
+    openDetailed: 'Otwórz szczegółowy raport', askAnything: 'Zapytaj o cokolwiek.', promptsHint: 'To są przykładowe pytania, nie menu. Możesz też zapytać własnymi słowami.',
+    where: 'Gdzie się znajduje', ground: 'Podłoże', water: 'Woda', planning: 'Planowanie',
+    established: 'Ustalone', mapped: 'Zmapowane', open: 'Otwarte',
+    place: 'Miejsce', area: 'Powierzchnia', parcel: 'Działka', official: 'Oficjalne', notConfirmed: 'Niepotwierdzone',
+    evidenceMap: 'Mapa dowodów', evidenceItem: 'element dowodowy', evidenceItemsPlural: 'elementy dowodowe', noMatching: 'Nie znaleziono pasującego rekordu',
+    behindAnswer: 'Dowody stojące za tą odpowiedzią', goDeeper: 'Sprawdź dokładniej', landRecord: 'Z dowodów może powstać pełny zapis działki.',
+    keepRecord: 'Zachowaj pełną analizę, źródła i otwarte pytania razem, zamiast drukować raport i tracić ścieżkę dowodową.',
+    sources: 'Źródła', searchAnything: 'Zapytaj o tę działkę…', looking: 'Sprawdzam zebrane dowody…',
+    stillOpen: 'Nadal otwarte', whatNext: 'Co pomoże zrobić kolejny krok?', localHelp: 'Pomoc lokalna',
+    website: 'Strona internetowa', noLocalListing: 'Nie znaleziono lokalnego wpisu', nearbySearch: 'Znajdź specjalistów w pobliżu',
+    askNext: 'Możesz zapytać dalej'
   }
 } as const;
 
 type AppUiCopyKey = keyof typeof APP_UI_COPY.en;
 
 function appUiCopy(language: string, key: AppUiCopyKey): string {
-  const locale = String(language || '').toLowerCase().startsWith('de') ? 'de' : 'en';
-  return APP_UI_COPY[locale][key];
+  const locale = String(language || '').toLowerCase().split('-')[0];
+  const selected = locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : 'en';
+  return APP_UI_COPY[selected][key];
 }
 
 function findingSummary(report: SiteReport, language: string) {
   const data = report.report_data;
   const ground = data.ground_context;
-  const locale = String(language || '').toLowerCase().startsWith('de');
+  const locale = String(language || '').toLowerCase().split('-')[0];
+  const isGerman = locale === 'de';
+  const isPolish = locale === 'pl';
   const parcel = report.is_official_parcel
-    ? (locale ? 'Amtliches Flurstück identifiziert' : 'Official parcel identified')
-    : (locale ? 'Amtliches Flurstück nicht bestätigt' : 'Official parcel not confirmed');
+    ? (isGerman ? 'Amtliches Flurstück identifiziert' : isPolish ? 'Oficjalna działka została zidentyfikowana' : 'Official parcel identified')
+    : (isGerman ? 'Amtliches Flurstück nicht bestätigt' : isPolish ? 'Oficjalna działka nie została potwierdzona' : 'Official parcel not confirmed');
   const groundText = ground?.summary
     || data.geosurvey_context?.geological_unit_name
-    || (locale ? 'Regionale Informationen zum Untergrund verfügbar' : 'Regional ground information available');
+    || (isGerman ? 'Regionale Informationen zum Untergrund verfügbar' : isPolish ? 'Dostępne są regionalne informacje o podłożu' : 'Regional ground information available');
   const waterText = data.flooding_risk?.summary
     || data.technical_parameters?.groundwater_notice
-    || (locale ? 'Wasserverhältnisse teilweise offen' : 'Water conditions are partly open');
+    || (isGerman ? 'Wasserverhältnisse teilweise offen' : isPolish ? 'Warunki wodne są częściowo nieznane' : 'Water conditions are partly open');
   const planningText = data.zoning_and_land_use?.summary
-    || (locale ? 'Planungsinformationen müssen vor Ort bestätigt werden' : 'Planning information needs local confirmation');
+    || (isGerman ? 'Planungsinformationen müssen vor Ort bestätigt werden' : isPolish ? 'Informacje planistyczne wymagają potwierdzenia' : 'Planning information needs local confirmation');
   return [
-    { label: locale ? 'Wo es liegt' : 'Where it is', value: parcel, tone: report.is_official_parcel ? 'established' : 'open' },
-    { label: locale ? 'Untergrund' : 'Ground', value: groundText, tone: ground ? 'mapped' : 'open' },
-    { label: locale ? 'Wasser' : 'Water', value: waterText, tone: data.flooding_risk?.summary ? 'mapped' : 'open' },
-    { label: locale ? 'Planung' : 'Planning', value: planningText, tone: data.zoning_and_land_use?.summary ? 'mapped' : 'open' }
+    { label: isGerman ? 'Wo es liegt' : isPolish ? 'Gdzie się znajduje' : 'Where it is', value: parcel, tone: report.is_official_parcel ? 'established' : 'open' },
+    { label: isGerman ? 'Untergrund' : isPolish ? 'Podłoże' : 'Ground', value: groundText, tone: ground ? 'mapped' : 'open' },
+    { label: isGerman ? 'Wasser' : isPolish ? 'Woda' : 'Water', value: waterText, tone: data.flooding_risk?.summary ? 'mapped' : 'open' },
+    { label: isGerman ? 'Planung' : isPolish ? 'Planowanie' : 'Planning', value: planningText, tone: data.zoning_and_land_use?.summary ? 'mapped' : 'open' }
   ];
 }
 
@@ -184,13 +236,58 @@ function categoryMatch(report: SiteReport, terms: readonly string[]) {
   });
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: string, language = 'en') {
+  const locale = String(language || '').toLowerCase().split('-')[0];
+  if (locale === 'pl') {
+    if (status === 'VERIFIED') return 'Ustalone';
+    if (status === 'MODELLED') return 'Zmapowane / modelowane';
+    return 'Nadal otwarte';
+  }
+  if (locale === 'de') {
+    if (status === 'VERIFIED') return 'Bestätigt';
+    if (status === 'MODELLED') return 'Kartiert / modelliert';
+    return 'Noch offen';
+  }
   if (status === 'VERIFIED') return 'Established';
   if (status === 'MODELLED') return 'Mapped / modelled';
   return 'Still open';
 }
 
 export const GroundSurfApp: React.FC = () => {
+  const [themePreference, setThemePreference] = useState<ThemePreference>(() => {
+    try {
+      const stored = localStorage.getItem('groundsurf_theme');
+      return stored === 'light' || stored === 'dark' ? stored : 'system';
+    } catch {
+      return 'system';
+    }
+  });
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(() => (
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  ));
+  const isDarkTheme = themePreference === 'dark' || (themePreference === 'system' && systemTheme === 'dark');
+
+  React.useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (event: MediaQueryListEvent) => setSystemTheme(event.matches ? 'dark' : 'light');
+    media.addEventListener?.('change', handleChange);
+    return () => media.removeEventListener?.('change', handleChange);
+  }, []);
+
+  React.useEffect(() => {
+    document.documentElement.dataset.groundsurfTheme = isDarkTheme ? 'dark' : 'light';
+    try {
+      localStorage.setItem('groundsurf_theme', themePreference);
+    } catch {}
+  }, [isDarkTheme, themePreference]);
+
+  const toggleTheme = () => {
+    const next = themePreference === 'system'
+      ? (systemTheme === 'dark' ? 'light' : 'dark')
+      : 'system';
+    setThemePreference(next);
+  };
+
   const defaultCountry = EUROPEAN_COUNTRIES.find((c) => c.code === 'DE') || EUROPEAN_COUNTRIES[0];
   const [countryCode, setCountryCode] = useState(defaultCountry.code);
   const [language, setLanguage] = useState(normalizeReportLanguage(defaultCountry.language, defaultCountry.code));
@@ -224,6 +321,9 @@ export const GroundSurfApp: React.FC = () => {
   const currentCountry = EUROPEAN_COUNTRIES.find((c) => c.code === countryCode) || defaultCountry;
   const availableLanguages = getAvailableReportLanguages(countryCode, currentCountry.language);
   const copy = (key: GroundSurfCopyKey) => groundSurfCopy(language, key);
+  const themeControlLabel = themePreference === 'system'
+    ? (isDarkTheme ? copy('themeUseLight') : copy('themeUseDark'))
+    : copy('themeSystem');
   const isComplete = Boolean(shape && (
     shape.type === 'circle' ? shape.center :
     shape.type === 'rectangle' ? (shape.corners?.length || 0) >= 2 :
@@ -233,9 +333,10 @@ export const GroundSurfApp: React.FC = () => {
 
   const coverage = useMemo(() => {
     if (!report) return [];
-    return COVERAGE.map(([key, englishLabel, germanLabel, terms]) => ({
+    const locale = String(language || '').toLowerCase().split('-')[0];
+    return COVERAGE.map(([key, englishLabel, germanLabel, polishLabel, terms]) => ({
       key,
-      label: String(language || '').toLowerCase().startsWith('de') ? germanLabel : englishLabel,
+      label: locale === 'de' ? germanLabel : locale === 'pl' ? polishLabel : englishLabel,
       count: categoryMatch(report, terms).length
     }));
   }, [report, language]);
@@ -265,7 +366,7 @@ export const GroundSurfApp: React.FC = () => {
       let response = await apiFetch('/api/ai/ask', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ report, question: cleaned })
+        body: JSON.stringify({ report, question: cleaned, language })
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
@@ -374,8 +475,8 @@ export const GroundSurfApp: React.FC = () => {
 
   if (!report) {
     return (
-      <div className="min-h-screen bg-[#f5f7f4] text-slate-900">
-        <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
+      <div className="min-h-screen bg-[#f5f7f4] text-slate-900 transition-colors duration-300 dark:bg-[#121713] dark:text-slate-100">
+        <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-700/80 dark:bg-[#18201b]/90">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-2xl bg-slate-900 text-white">
@@ -383,36 +484,44 @@ export const GroundSurfApp: React.FC = () => {
               </div>
               <div>
                 <div className="text-sm font-black tracking-tight">GroundSurf</div>
-                <div className="text-xs text-slate-500">Get to know the land.</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Get to know the land.</div>
               </div>
             </div>
-            <div className="h-9 w-9" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="grid h-10 w-10 place-items-center rounded-full border border-slate-300/80 bg-white/90 text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-white hover:text-slate-950 dark:border-white/15 dark:bg-white/10 dark:text-slate-200 dark:hover:border-white/25 dark:hover:bg-white/15 dark:hover:text-white"
+              title={themeControlLabel}
+              aria-label={themeControlLabel}
+            >
+              {isDarkTheme ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
           </div>
         </header>
 
         <main className="mx-auto max-w-7xl px-5 py-7 lg:py-9">
           <div className="mx-auto max-w-4xl text-center">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-600 shadow-sm">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
               <Sparkles className="h-3.5 w-3.5" />
               {copy('badge')}
             </div>
-            <h1 className="text-4xl font-black tracking-[-0.03em] text-slate-950 sm:text-5xl lg:text-[3.25rem]">
+            <h1 className="text-4xl font-black tracking-[-0.03em] text-slate-950 sm:text-5xl lg:text-[3.25rem] dark:text-slate-100">
               {copy('heroTitle')}
-              <span className="block text-slate-500">{copy('heroSubTitle')}</span>
+              <span className="block text-slate-500 dark:text-slate-400">{copy('heroSubTitle')}</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
               {copy('heroText')}
             </p>
           </div>
 
           <div className="mt-7 grid gap-6 lg:grid-cols-[1.6fr_0.72fr]">
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm transition-colors sm:p-5 dark:border-slate-700/80 dark:bg-[#1a201c]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-black text-slate-900">{copy('whereTitle')}</div>
-                  <div className="mt-1 text-sm text-slate-500">{copy('whereHint')}</div>
+                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">{copy('whereTitle')}</div>
+                  <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy('whereHint')}</div>
                 </div>
-                  <div className="hidden items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 sm:flex">
+                  <div className="hidden items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 sm:flex dark:bg-[#232b26] dark:text-slate-400">
                   <Search className="h-3.5 w-3.5" /> {copy('addressFlow')}
                 </div>
               </div>
@@ -436,14 +545,14 @@ export const GroundSurfApp: React.FC = () => {
                 onOfficialParcelSelected={setOfficialParcel}
                 onParcelLookupStateChange={setIsFindingParcel}
               />
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm transition-colors dark:bg-[#232b26] dark:text-slate-200">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                   {isFindingParcel ? copy('findingParcel') :
                     officialParcel ? copy('officialParcel') :
                     isComplete ? copy('landReady') : copy('chooseLand')}
                 </div>
-                {isComplete && <span className="font-black text-slate-800">{Math.round(area).toLocaleString()} m²</span>}
+                {isComplete && <span className="font-black text-slate-800 dark:text-slate-100">{Math.round(area).toLocaleString()} m²</span>}
               </div>
             </section>
 
@@ -500,8 +609,8 @@ export const GroundSurfApp: React.FC = () => {
     : [];
 
   return (
-    <div className="min-h-screen bg-[#f5f7f4] text-slate-900">
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/92 backdrop-blur">
+    <div className="min-h-screen bg-[#f5f7f4] text-slate-900 transition-colors duration-300 dark:bg-[#121713] dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/92 backdrop-blur dark:border-slate-700/80 dark:bg-[#18201b]/92">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button onClick={() => { setReport(null); setChat([]); setError(''); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-950">
@@ -516,6 +625,15 @@ export const GroundSurfApp: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="grid h-10 w-10 place-items-center rounded-full border border-slate-300/80 bg-white/90 text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-white hover:text-slate-950 dark:border-white/15 dark:bg-white/10 dark:text-slate-200 dark:hover:border-white/25 dark:hover:bg-white/15 dark:hover:text-white"
+              title={themeControlLabel}
+              aria-label={themeControlLabel}
+            >
+              {isDarkTheme ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
             <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800">
               <FileText className="h-3.5 w-3.5" /> <span>{appUiCopy(language, 'detailedReport')}</span>
             </a>
@@ -642,7 +760,7 @@ export const GroundSurfApp: React.FC = () => {
                                     <div>
                                       <div className="text-sm font-black text-slate-800">{action.title}</div>
                                       <div className="mt-1 text-xs leading-5 text-slate-500">{action.reason}</div>
-                                      {action.professionalCategory && <div className="mt-1 text-xs font-bold capitalize text-slate-400">Useful local professional: {action.professionalCategory}</div>}
+                                      {action.professionalCategory && <div className="mt-1 text-xs font-bold capitalize text-slate-400">{String(language || '').toLowerCase().startsWith('pl') ? 'Przydatny lokalny specjalista' : String(language || '').toLowerCase().startsWith('de') ? 'Geeignete Fachkraft vor Ort' : 'Useful local professional'}: {action.professionalCategory}</div>}
                                     </div>
                                   </div>
                                 </div>
@@ -659,14 +777,14 @@ export const GroundSurfApp: React.FC = () => {
                         {turn.answer.localBusinesses && turn.answer.localBusinesses.length > 0 && (
                           <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4">
                             <div className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-sky-800"><Phone className="h-3.5 w-3.5" /> {appUiCopy(language, 'localHelp')}</div>
-                            <div className="mt-1 text-xs leading-5 text-sky-900/70">OpenStreetMap-Dienste in der Nähe. Dies ist eine erste Orientierung, kein vollständiges Verzeichnis.</div>
+                            <div className="mt-1 text-xs leading-5 text-sky-900/70">{String(language || '').toLowerCase().startsWith('pl') ? 'Usługi znalezione w OpenStreetMap w pobliżu. To wstępna orientacja, a nie pełny katalog.' : String(language || '').toLowerCase().startsWith('de') ? 'OpenStreetMap-Dienste in der Nähe. Dies ist eine erste Orientierung, kein vollständiges Verzeichnis.' : 'Nearby services found through OpenStreetMap. This is a first orientation, not a complete directory.'}</div>
                             <div className="mt-3 space-y-2">
                               {turn.answer.localBusinesses.map((business, i) => (
                                 <div key={i} className="rounded-xl bg-white p-3">
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                       <div className="text-sm font-black text-slate-800">{business.name}</div>
-                                      <div className="mt-0.5 text-xs capitalize text-slate-400">{business.category} · {Math.round(business.distanceM).toLocaleString()} m away</div>
+                                      <div className="mt-0.5 text-xs capitalize text-slate-400">{business.category} · {Math.round(business.distanceM).toLocaleString()} m {String(language || '').toLowerCase().startsWith('pl') ? 'stąd' : String(language || '').toLowerCase().startsWith('de') ? 'entfernt' : 'away'}</div>
                                     </div>
                                     {business.phone && <a href={'tel:' + business.phone} className="shrink-0 text-xs font-bold text-sky-700">{business.phone}</a>}
                                   </div>
@@ -680,7 +798,7 @@ export const GroundSurfApp: React.FC = () => {
                         {turn.answer.localBusinesses && turn.answer.localBusinesses.length === 0 && (
                           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <div className="text-sm font-black uppercase tracking-wide text-slate-500">{appUiCopy(language, 'noLocalListing')}</div>
-                            <div className="mt-1 text-xs leading-5 text-slate-500">Du kannst weiterhin nach Fachleuten in der Nähe suchen. Ein leeres Verzeichnis bedeutet nicht, dass es keinen passenden Dienst gibt.</div>
+                            <div className="mt-1 text-xs leading-5 text-slate-500">{String(language || '').toLowerCase().startsWith('pl') ? 'Możesz nadal wyszukać specjalistów w pobliżu. Pusty katalog nie oznacza, że nie ma odpowiedniej usługi.' : String(language || '').toLowerCase().startsWith('de') ? 'Du kannst weiterhin nach Fachleuten in der Nähe suchen. Ein leeres Verzeichnis bedeutet nicht, dass es keinen passenden Dienst gibt.' : 'You can still search for professionals nearby. An empty directory does not mean that no suitable service exists.'}</div>
                             <a
                               href={'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('geotechnical engineer surveyor architect environmental consultant near ' + report.latitude + ',' + report.longitude)}
                               target="_blank"
@@ -752,11 +870,11 @@ export const GroundSurfApp: React.FC = () => {
 
             {relevantEvidence.length > 0 && (
               <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2 text-sm font-black"><ShieldCheck className="h-4 w-4 text-slate-400" /> Evidence behind this answer</div>
+                <div className="flex items-center gap-2 text-sm font-black"><ShieldCheck className="h-4 w-4 text-slate-400" /> {String(language || '').toLowerCase().startsWith('pl') ? 'Dowody stojące za tą odpowiedzią' : String(language || '').toLowerCase().startsWith('de') ? 'Belege hinter dieser Antwort' : 'Evidence behind this answer'}</div>
                 <div className="mt-4 space-y-2">
                   {relevantEvidence.map((item) => (
                     <div key={item.id} className="rounded-2xl border border-slate-100 p-3">
-                      <div className="flex items-start justify-between gap-2"><div className="text-sm font-bold text-slate-800">{item.sourceName}</div><span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs font-black uppercase text-slate-400">{statusLabel(item.status)}</span></div>
+                      <div className="flex items-start justify-between gap-2"><div className="text-sm font-bold text-slate-800">{item.sourceName}</div><span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs font-black uppercase text-slate-400">{statusLabel(item.status, language)}</span></div>
                       <div className="mt-1 text-xs leading-5 text-slate-500">{item.claim}</div>
                     </div>
                   ))}

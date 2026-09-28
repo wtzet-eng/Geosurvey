@@ -47,6 +47,24 @@ test('Slovak AI interpretation shell is localized', () => {
 });
 
 
+test('Polish AI interpretation shell is localized', () => {
+  const copy = aiPanelCopy('pl');
+  const text = Object.values(copy).join('\n');
+  assert.equal(copy.brand, 'Interpretacja AI GroundSurf');
+  assert.equal(copy.title, 'Interpretuj zebrane dane');
+  assert.equal(copy.observations, 'Bezpośrednie obserwacje');
+  assert.equal(copy.interpretation, 'Interpretacja');
+  assert.equal(copy.limitations, 'Ograniczenia');
+  assert.equal(copy.verifyNext, 'Co sprawdzić dalej');
+  assert.equal(copy.runAgain, 'Uruchom ponownie');
+  assert.equal(copy.confidence, 'Pewność');
+  assert.equal(copy.high, 'Wysoka');
+  assert.equal(copy.medium, 'Średnia');
+  assert.equal(copy.low, 'Niska');
+  assert.doesNotMatch(text, /Interpret the collected evidence|AI interpretation|Signed in|Interpretation completed|Direct observations|What to verify next|Run again|Confidence/i);
+});
+
+
 test('German AI interpretation shell is localized', () => {
   const copy = aiPanelCopy('de');
   const text = Object.values(copy).join('\n');

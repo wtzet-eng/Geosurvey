@@ -21,8 +21,8 @@ test('homepage decision tagline is localized for every non-English report langua
   assert.match(getLocalizedTagline('no'), /Forstå tomten/i);
 });
 
-test('homepage tagline follows the selected country language rather than a preserved report language', () => {
+test('homepage tagline follows the selected report language', () => {
   const appSource = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
-  assert.match(appSource, /getLocalizedTagline\(currentCountry\.language\)/);
-  assert.doesNotMatch(appSource, /getLocalizedTagline\(languageCode\)/);
+  assert.match(appSource, /getLocalizedTagline\(languageCode\)/);
+  assert.doesNotMatch(appSource, /getLocalizedTagline\(currentCountry\.language\)/);
 });

@@ -98,6 +98,7 @@ function validateAnswer(value: unknown): GroundSurfAnswer {
 async function callMistral(
   evidencePackage: unknown,
   question: string,
+  language: string,
   config: AiInterpretationRuntimeConfig,
   fetcher: FetchLike,
   apiKey: string
@@ -115,7 +116,7 @@ async function callMistral(
       safe_prompt: true,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: SYSTEM_PROMPT + '\nAnswer entirely in the requested language. Language code: ' + language + '. Do not switch to English unless the requested language is English.' },
         {
           role: 'user',
           content: 'Question: ' + question + '\n\nGroundSurf evidence package:\n' + JSON.stringify(evidencePackage)
@@ -139,6 +140,7 @@ async function callMistral(
 export async function answerGroundSurfQuestion(
   report: any,
   question: string,
+  language = 'en',
   options: { fetcher?: FetchLike; env?: NodeJS.ProcessEnv } = {}
 ): Promise<GroundSurfAnswer & { provider: string; model: string; generatedAt: string }> {
   const fetcher = options.fetcher || fetch;
@@ -149,7 +151,7 @@ export async function answerGroundSurfQuestion(
   if (!normalizedQuestion) throw new Error('Please ask a question about the land.');
   const evidencePackage = buildAiEvidencePackage(report);
   if (config.provider !== 'mistral') throw new Error('The GroundSurf adviser currently requires the configured Mistral provider.');
-  const raw = await callMistral(evidencePackage, normalizedQuestion, config, fetcher, String(env.MISTRAL_API_KEY || ''));
+  const raw = await callMistral(evidencePackage, normalizedQuestion, language, config, fetcher, String(env.MISTRAL_API_KEY || ''));
   return {
     provider: config.provider,
     model: config.model,
