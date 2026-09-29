@@ -74,19 +74,25 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
     if (countryCode?.toUpperCase() === 'GB') {
       L.tileLayer.wms('https://inspire.landregistry.gov.uk/inspire/ows', {
         layers: 'inspire:CP.CadastralParcel',
+        styles: '',
         format: 'image/png',
         transparent: true,
-        opacity: 0.8,
-        version: '1.3.0',
+        opacity: 0.85,
+        version: '1.1.1',
+        crs: L.CRS.EPSG3857,
+        zIndex: 20,
         attribution: 'HM Land Registry INSPIRE Index Polygons'
       }).addTo(map);
 
       L.tileLayer.wms('https://ros-inspire.themapcloud.com/maps/wms', {
         layers: 'CP.CadastralParcel',
+        styles: '',
         format: 'image/png',
         transparent: true,
-        opacity: 0.8,
-        version: '1.3.0',
+        opacity: 0.85,
+        version: '1.1.1',
+        crs: L.CRS.EPSG3857,
+        zIndex: 20,
         attribution: 'Registers of Scotland INSPIRE Cadastral Parcels'
       }).addTo(map);
     }
