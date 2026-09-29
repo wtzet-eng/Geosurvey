@@ -12,51 +12,37 @@ function today(): string {
 
 /** Convert WGS84 latitude/longitude to British National Grid (EPSG:27700). */
 function wgs84ToBng(lat: number, lon: number): [number, number] {
-  const a = 6377563.396;
-  const b = 6356256.909;
-  const F0 = 0.9996012717;
-  const lat0 = 49 * Math.PI / 180;
-  const lon0 = -2 * Math.PI / 180;
-  const N0 = -100000;
-  const E0 = 400000;
-  const e2 = 1 - (b * b) / (a * a);
-  const ePrime2 = e2 / (1 - e2);
-  const phi = lat * Math.PI / 180;
-  const lambda = lon * Math.PI / 180;
-  const sinPhi = Math.sin(phi);
-  const cosPhi = Math.cos(phi);
-  const tanPhi = Math.tan(phi);
-  const nu = a * F0 / Math.sqrt(1 - e2 * sinPhi * sinPhi);
-  const rho = a * F0 * (1 - e2) / Math.pow(1 - e2 * sinPhi * sinPhi, 1.5);
-  const eta2 = nu / rho - 1;
+  // WGS84 -> OSGB36 Helmert transform, then British National Grid.
+  const phi = lat * Math.PI / 180, lambda = lon * Math.PI / 180;
+  const aW = 6378137, bW = 6356752.3141, aO = 6377563.396, bO = 6356256.909;
+  const e2W = 1 - (bW*bW)/(aW*aW);
+  const nuW = aW / Math.sqrt(1 - e2W*Math.sin(phi)**2);
+  const x = nuW*Math.cos(phi)*Math.cos(lambda);
+  const y = nuW*Math.cos(phi)*Math.sin(lambda);
+  const z = (1-e2W)*nuW*Math.sin(phi);
+  const tx=446.448, ty=-125.157, tz=542.060;
+  const rx=0.1502*Math.PI/(180*3600), ry=0.2470*Math.PI/(180*3600), rz=0.8421*Math.PI/(180*3600);
+  const scale=1+20.4894e-6;
+  const xO=tx+scale*x-rz*y+ry*z, yO=ty+rz*x+scale*y-rx*z, zO=tz-ry*x+rx*y+scale*z;
+  const e2O=1-(bO*bO)/(aO*aO), p=Math.sqrt(xO*xO+yO*yO);
+  let phiO=Math.atan2(zO,p*(1-e2O));
+  for(let i=0;i<10;i++){ const nu=aO/Math.sqrt(1-e2O*Math.sin(phiO)**2); const next=Math.atan2(zO+e2O*nu*Math.sin(phiO),p); if(Math.abs(next-phiO)<1e-12){phiO=next;break;} phiO=next; }
+  return osgb36ToBng(phiO, Math.atan2(yO,xO), aO, bO);
+}
 
-  const M = b * F0 * (
-    (1 + n + (5 / 4) * n2(e2) + (5 / 4) * n3(e2)) * (phi - lat0)
-  );
-  // Use the standard OSGB36 meridional arc formula directly.
-  const n = (a - b) / (a + b);
-  const Ma = (1 + n + (5 / 4) * n * n + (5 / 4) * n * n * n) * (phi - lat0);
-  const Mb = (3 * n + 3 * n * n + (21 / 8) * n * n * n) * Math.sin(phi - lat0) * Math.cos(phi + lat0);
-  const Mc = ((15 / 8) * n * n + (15 / 8) * n * n * n) * Math.sin(2 * (phi - lat0)) * Math.cos(2 * (phi + lat0));
-  const Md = (35 / 24) * n * n * n * Math.sin(3 * (phi - lat0)) * Math.cos(3 * (phi + lat0));
-  const meridionalArc = b * F0 * (Ma - Mb + Mc - Md);
-
-  const dLambda = lambda - lon0;
-  const I = meridionalArc + N0;
-  const II = (nu / 2) * sinPhi * cosPhi;
-  const III = (nu / 24) * sinPhi * Math.pow(cosPhi, 3) * (5 - tanPhi * tanPhi + 9 * eta2);
-  const IIIA = (nu / 720) * sinPhi * Math.pow(cosPhi, 5) * (61 - 58 * tanPhi * tanPhi + Math.pow(tanPhi, 4));
-  const IV = nu * cosPhi;
-  const V = (nu / 6) * Math.pow(cosPhi, 3) * (nu / rho - tanPhi * tanPhi);
-  const VI = (nu / 120) * Math.pow(cosPhi, 5) * (5 - 18 * tanPhi * tanPhi + Math.pow(tanPhi, 4) + 14 * eta2 - 58 * tanPhi * tanPhi * eta2);
-
-  const northing = I + II * dLambda * dLambda + III * Math.pow(dLambda, 4) + IIIA * Math.pow(dLambda, 6);
-  const easting = E0 + IV * dLambda + V * Math.pow(dLambda, 3) + VI * Math.pow(dLambda, 5);
-  void M; // retained only to make the ellipsoid constants explicit.
-  return [easting, northing];
-
-  function n2(_e2: number): number { return 0; }
-  function n3(_e2: number): number { return 0; }
+function osgb36ToBng(phi:number, lambda:number, a:number, b:number):[number,number] {
+  const F0=0.9996012717, lat0=49*Math.PI/180, lon0=-2*Math.PI/180, N0=-100000, E0=400000;
+  const e2=1-(b*b)/(a*a), n=(a-b)/(a+b), sin=Math.sin(phi), cos=Math.cos(phi), tan=Math.tan(phi);
+  const nu=a*F0/Math.sqrt(1-e2*sin*sin), rho=a*F0*(1-e2)/Math.pow(1-e2*sin*sin,1.5), eta2=nu/rho-1;
+  const ma=(1+n+5*n*n/4+5*n*n*n/4)*(phi-lat0);
+  const mb=(3*n+3*n*n+21*n*n*n/8)*Math.sin(phi-lat0)*Math.cos(phi+lat0);
+  const mc=(15*n*n/8+15*n*n*n/8)*Math.sin(2*(phi-lat0))*Math.cos(2*(phi+lat0));
+  const md=35*n*n*n/24*Math.sin(3*(phi-lat0))*Math.cos(3*(phi+lat0));
+  const M=b*F0*(ma-mb+mc-md), dL=lambda-lon0;
+  return [
+    E0+nu*cos*dL+nu*cos**3/6*(nu/rho-tan*tan)*dL**3+nu*cos**5/120*(5-18*tan*tan+tan**4+14*eta2-58*tan*tan*eta2)*dL**5,
+    M+N0+nu*sin*cos/2*dL**2+nu*sin*cos**3/24*(5-tan*tan+9*eta2)*dL**4+nu*sin*cos**5/720*(61-58*tan*tan+tan**4)*dL**6
+  ];
 }
 
 function parseNumbers(text: string): number[] {
@@ -246,33 +232,24 @@ export async function queryUKCadastre(lat: number, lng: number): Promise<UkCadas
 
 // Inverse OSGB36/British National Grid transform. Accuracy is appropriate for map screening;
 // HMLR notes that reprojection can introduce small positional differences.
-function bngToWgs84(easting: number, northing: number): [number, number] {
-  const a = 6377563.396, b = 6356256.909, F0 = 0.9996012717;
-  const lat0 = 49 * Math.PI / 180, lon0 = -2 * Math.PI / 180, N0 = -100000, E0 = 400000;
-  const e2 = 1 - (b * b) / (a * a), n = (a - b) / (a + b);
-  let lat = lat0 + (northing - N0) / (a * F0);
-  let M = 0;
-  do {
-    lat = (northing - N0 - M) / (a * F0) + lat;
-    const Ma = (1 + n + 5*n*n/4 + 5*n*n*n/4) * (lat - lat0);
-    const Mb = (3*n + 3*n*n + 21*n*n*n/8) * Math.sin(lat-lat0) * Math.cos(lat+lat0);
-    const Mc = (15*n*n/8 + 15*n*n*n/8) * Math.sin(2*(lat-lat0)) * Math.cos(2*(lat+lat0));
-    const Md = 35*n*n*n/24 * Math.sin(3*(lat-lat0)) * Math.cos(3*(lat+lat0));
-    M = b * F0 * (Ma - Mb + Mc - Md);
-  } while (Math.abs(northing - N0 - M) >= 0.00001);
-
-  const sinLat = Math.sin(lat), cosLat = Math.cos(lat), tanLat = Math.tan(lat);
-  const nu = a * F0 / Math.sqrt(1 - e2*sinLat*sinLat);
-  const rho = a * F0 * (1-e2) / Math.pow(1-e2*sinLat*sinLat, 1.5);
-  const eta2 = nu/rho - 1;
-  const VII = tanLat/(2*rho*nu);
-  const VIII = tanLat/(24*rho*nu**3) * (5 + 3*tanLat*tanLat + eta2 - 9*tanLat*tanLat*eta2);
-  const IX = tanLat/(720*rho*nu**5) * (61 + 90*tanLat*tanLat + 45*Math.pow(tanLat,4));
-  const X = 1/(cosLat*nu);
-  const XI = 1/(cosLat*6*nu**3) * (nu/rho + 2*tanLat*tanLat);
-  const XII = 1/(cosLat*120*nu**5) * (5 + 28*tanLat*tanLat + 24*Math.pow(tanLat,4));
-  const dE = easting - E0;
-  const phi = lat - VII*dE*dE + VIII*Math.pow(dE,4) - IX*Math.pow(dE,6);
-  const lambda = lon0 + X*dE - XI*Math.pow(dE,3) + XII*Math.pow(dE,5);
-  return [phi*180/Math.PI, lambda*180/Math.PI];
+function bngToWgs84(easting:number,northing:number):[number,number] {
+  const a=6377563.396,b=6356256.909,F0=0.9996012717,lat0=49*Math.PI/180,lon0=-2*Math.PI/180,N0=-100000,E0=400000;
+  const e2=1-(b*b)/(a*a),n=(a-b)/(a+b); let phi=lat0;
+  for(let i=0;i<10;i++){
+    const ma=(1+n+5*n*n/4+5*n*n*n/4)*(phi-lat0);
+    const mb=(3*n+3*n*n+21*n*n*n/8)*Math.sin(phi-lat0)*Math.cos(phi+lat0);
+    const mc=(15*n*n/8+15*n*n*n/8)*Math.sin(2*(phi-lat0))*Math.cos(2*(phi+lat0));
+    const md=35*n*n*n/24*Math.sin(3*(phi-lat0))*Math.cos(3*(phi+lat0));
+    const M=b*F0*(ma-mb+mc-md), next=phi+(northing-N0-M)/(a*F0);
+    if(Math.abs(next-phi)<1e-12){phi=next;break;} phi=next;
+  }
+  const sin=Math.sin(phi),cos=Math.cos(phi),tan=Math.tan(phi),nu=a*F0/Math.sqrt(1-e2*sin*sin),rho=a*F0*(1-e2)/Math.pow(1-e2*sin*sin,1.5),eta2=nu/rho-1,dE=easting-E0;
+  const phiO=phi-tan/(2*rho*nu)*dE*dE+tan/(24*rho*nu**3)*(5+3*tan*tan+eta2-9*tan*tan*eta2)*dE**4-tan/(720*rho*nu**5)*(61+90*tan*tan+45*tan**4)*dE**6;
+  const lambdaO=lon0+dE/(cos*nu)-dE**3/(cos*6*nu**3)*(nu/rho+2*tan*tan)+dE**5/(cos*120*nu**5)*(5+28*tan*tan+24*tan**4);
+  const nuO=a/Math.sqrt(1-e2*Math.sin(phiO)**2), x=(nuO)*Math.cos(phiO)*Math.cos(lambdaO), y=nuO*Math.cos(phiO)*Math.sin(lambdaO), z=(1-e2)*nuO*Math.sin(phiO);
+  const tx=-446.448,ty=125.157,tz=-542.060,rx=-0.1502*Math.PI/(180*3600),ry=-0.2470*Math.PI/(180*3600),rz=-0.8421*Math.PI/(180*3600),scale=1-20.4894e-6;
+  const xW=tx+scale*x-rz*y+ry*z,yW=ty+rz*x+scale*y-rx*z,zW=tz-ry*x+rx*y+scale*z;
+  const aW=6378137,bW=6356752.3141,e2W=1-(bW*bW)/(aW*aW),p=Math.sqrt(xW*xW+yW*yW); let phiW=Math.atan2(zW,p*(1-e2W));
+  for(let i=0;i<10;i++){const nuW=aW/Math.sqrt(1-e2W*Math.sin(phiW)**2),next=Math.atan2(zW+e2W*nuW*Math.sin(phiW),p);if(Math.abs(next-phiW)<1e-12){phiW=next;break;}phiW=next;}
+  return [phiW*180/Math.PI,Math.atan2(yW,xW)*180/Math.PI];
 }
