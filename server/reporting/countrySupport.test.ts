@@ -213,10 +213,10 @@ function clearFranceValuation(report: any): void {
   report.evidenceScore.breakdown.planningAndMarket.score = 0;
 }
 
-test('country support maturity exposes calibrated valuation and validated Czech, Norway and Denmark capabilities', () => {
+test('country support maturity exposes calibrated valuation and validated Czech, Norway, Denmark and UK capabilities', () => {
   const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const de = getCountrySupport('DE'); const fr = getCountrySupport('FR');
   assert.equal(pl.maturity, 'SUPPORTED'); assert.equal(pl.capabilities.nationalCadastre, true); assert.equal(pl.capabilities.nationalGeology, true);
-  assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, false);
+  assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, true);
   assert.equal(de.maturity, 'LIMITED'); assert.equal(de.capabilities.nationalValuation, true); assert.equal(de.capabilities.nationalCadastre, true); assert.equal(de.capabilities.nationalPlanning, false);
   assert.equal(fr.maturity, 'LIMITED'); assert.equal(fr.capabilities.nationalGeology, true); assert.equal(fr.capabilities.nationalBoreholes, true); assert.equal(fr.capabilities.nationalValuation, true);
   for (const code of ['SK', 'AT', 'ES', 'FI']) {
