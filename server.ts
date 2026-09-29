@@ -9,6 +9,7 @@ import { getCountryProfile } from './server/adapters/countries';
 import { enrichGeologyFromPgi, queryPolandSiteEvidence } from './server/services/pgiSiteEvidenceService';
 import { queryPolandHydroAndHazards } from './server/services/pgiSupplementEvidenceService';
 import { queryUKSiteEvidence, enrichGeologyFromBgs } from './server/services/ukSiteEvidenceService';
+import { queryUKCadastre } from './server/services/ukCadastreService';
 import { enrichGeologyFromBrgm, queryFranceSiteEvidence } from './server/services/franceSiteEvidenceService';
 import { enrichSlovakiaGroundEvidence, querySlovakiaGroundEvidence } from './server/services/slovakiaGroundEvidenceService';
 import { enrichCzechiaGroundEvidence, queryCzechiaGroundEvidence } from './server/services/czechiaGroundEvidenceService';
@@ -102,6 +103,8 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'HR') return res.json(await queryCroatiaCadastre(lat, lng));
   if (country === 'DE') return res.json(await queryGermanyCadastre(lat, lng, state));
+  if (country === 'GB') return res.json(await queryUKCadastre(lat, lng));
+
   if (support.capabilities.nationalCadastre && country === 'CZ') {
     const national = await queryCzechiaCadastre(lat, lng);
     const inspire = national.success && national.parcel?.geometryPoints?.length
@@ -442,6 +445,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     } catch (e) { console.warn(`[${diagnosticId}] SoilGrids spatial variability notice:`, e); }
     let pgiSiteEvidence: any[] = [];
     let ukSiteEvidence: any[] = [];
+    let ukCadastre: any = null;
     let franceSiteEvidence: any[] = [];
     let slovakiaGroundEvidence: any[] = [];
     let czechiaGroundEvidence: any[] = [];
@@ -462,6 +466,30 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       stage = 'pgi-report-enrichment'; if (pgiSiteEvidence.length) evidenceReport.evidenceRegistry.push(...pgiSiteEvidence); enrichGeologyFromPgi(evidenceReport, pgiSiteEvidence);
     } else if (!countryLocationMismatch && countryCode === 'GB' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
+      stage = 'uk-cadastre';
+      try {
+        ukCadastre = await queryUKCadastre(lat, lng);
+        if (ukCadastre?.evidence?.length) evidenceReport.evidenceRegistry.push(...ukCadastre.evidence);
+        if (ukCadastre?.success && ukCadastre.parcel) {
+          evidenceReport.parcel = {
+            ...evidenceReport.parcel,
+            status: 'VERIFIED',
+            parcelId: ukCadastre.parcel.parcelId,
+            countryCode: 'GB',
+            geometryPoints: ukCadastre.parcel.geometryPoints,
+            isOfficialGeometry: true,
+            areaCalculatedM2: evidenceReport.parcel?.areaCalculatedM2 || areaSize,
+            officialAreaM2: ukCadastre.parcel.officialAreaM2,
+            cadastralSource: ukCadastre.sourceName,
+            datasetDate: ukCadastre.datasetDate,
+            limitation: 'HM Land Registry INSPIRE polygons show the indicative position and extent of registered property. They do not establish the legal extent of a registered title; that requires the individual title plan.'
+          };
+          evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+          evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'HM Land Registry INSPIRE returned a registered-property polygon intersecting the selected coordinate. The polygon is indicative and is not a legal title boundary.';
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: ukCadastre.sourceName, organization: 'HM Land Registry', url: ukCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] UK cadastral evidence notice:`, e); }
       stage = 'uk-site-evidence'; try { ukSiteEvidence = await queryUKSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] UK national evidence notice:`, e); }
       stage = 'uk-report-enrichment'; if (ukSiteEvidence.length) evidenceReport.evidenceRegistry.push(...ukSiteEvidence);
       try { enrichGeologyFromBgs(evidenceReport, ukSiteEvidence); } catch (e) { console.warn(`[${diagnosticId}] BGS geology enrichment notice:`, e); }
