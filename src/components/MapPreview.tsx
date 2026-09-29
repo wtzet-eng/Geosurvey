@@ -67,6 +67,30 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
       }).addTo(map);
     }
 
+    // The UK has separate official cadastral sources. Both overlays are added
+    // because they are jurisdiction-specific: HM Land Registry covers
+    // England and Wales, while Registers of Scotland covers Scotland.
+    // Each service naturally returns no parcels outside its own coverage.
+    if (countryCode?.toUpperCase() === 'GB') {
+      L.tileLayer.wms('https://inspire.landregistry.gov.uk/inspire/ows', {
+        layers: 'CP.CadastralParcel',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.8,
+        version: '1.3.0',
+        attribution: 'HM Land Registry INSPIRE Index Polygons'
+      }).addTo(map);
+
+      L.tileLayer.wms('https://ros-inspire.themapcloud.com/maps/wms', {
+        layers: 'CP.CadastralParcel',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.8,
+        version: '1.3.0',
+        attribution: 'Registers of Scotland INSPIRE Cadastral Parcels'
+      }).addTo(map);
+    }
+
     mapRef.current = map;
 
     const timer = setTimeout(() => map.invalidateSize(), 150);
