@@ -73,7 +73,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
     // Each service naturally returns no parcels outside its own coverage.
     if (countryCode?.toUpperCase() === 'GB') {
       L.tileLayer.wms('https://inspire.landregistry.gov.uk/inspire/ows', {
-        layers: 'CP.CadastralParcel',
+        layers: 'inspire:CP.CadastralParcel',
         format: 'image/png',
         transparent: true,
         opacity: 0.8,
