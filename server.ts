@@ -103,7 +103,10 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'PL') return res.json(await fetchPolandCadastralParcel(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'HR') return res.json(await queryCroatiaCadastre(lat, lng));
   if (country === 'DE') return res.json(await queryGermanyCadastre(lat, lng, state));
-  if (country === 'GB') return res.json(await queryUKCadastre(lat, lng));
+  if (country === 'GB') {
+    const resolved = await resolveSiteLocation(lat, lng, 'United Kingdom');
+    return res.json(await queryUKCadastre(lat, lng, resolved.municipality));
+  }
 
   if (support.capabilities.nationalCadastre && country === 'CZ') {
     const national = await queryCzechiaCadastre(lat, lng);
@@ -468,7 +471,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     } else if (!countryLocationMismatch && countryCode === 'GB' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
       stage = 'uk-cadastre';
       try {
-        ukCadastre = await queryUKCadastre(lat, lng);
+        ukCadastre = await queryUKCadastre(lat, lng, municipality);
         if (ukCadastre?.evidence?.length) evidenceReport.evidenceRegistry.push(...ukCadastre.evidence);
         if (ukCadastre?.success && ukCadastre.parcel) {
           evidenceReport.parcel = {
@@ -479,13 +482,13 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             geometryPoints: ukCadastre.parcel.geometryPoints,
             isOfficialGeometry: true,
             areaCalculatedM2: evidenceReport.parcel?.areaCalculatedM2 || areaSize,
-            officialAreaM2: ukCadastre.parcel.officialAreaM2,
             cadastralSource: ukCadastre.sourceName,
+            inspireMappedAreaM2: ukCadastre.parcel.mappedAreaM2,
             datasetDate: ukCadastre.datasetDate,
             limitation: 'HM Land Registry INSPIRE polygons show the indicative position and extent of registered property. They do not establish the legal extent of a registered title; that requires the individual title plan.'
           };
           evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
-          evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'HM Land Registry INSPIRE returned a registered-property polygon intersecting the selected coordinate. The polygon is indicative and is not a legal title boundary.';
+          evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'HM Land Registry INSPIRE returned a registered-property polygon containing the selected coordinate. The polygon is indicative and is not a legal title boundary; its mapped area is not used as the valuation area.';
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
           evidenceReport.dataSourcesCited.push({ name: ukCadastre.sourceName, organization: 'HM Land Registry', url: ukCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
@@ -786,7 +789,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       unavailable_reasons: presentation.unavailableReasons,
       geosurvey_context: { survey_authority: canonicalReport.geology.sourceName, geological_unit_name: canonicalReport.geology.unitName, lithology_type: canonicalReport.geology.lithology, geological_period_era: canonicalReport.geology.geologicalAge, groundwater_regime: canonicalReport.geology.groundwaterRegime, seismic_hazard_zone: canonicalReport.hazards.seismic.classification, radon_class: canonicalReport.hazards.radon.classification, official_portal_url: canonicalReport.geology.sourceUrl, evidence_level: canonicalReport.geology.status },
       geotop_profile: evidenceReport.geosurvey_context?.geotop_profile || null,
-      technical_parameters: { cadastral_id_format: support.capabilities.nationalCadastre ? evidenceReport.parcel?.cadastralSource : null, cadastral_parcel_id: support.capabilities.nationalCadastre ? evidenceReport.parcel?.parcelId || null : null, cadastral_teryt: support.capabilities.nationalCadastre ? evidenceReport.parcel?.teryt : null, cadastral_commune: support.capabilities.nationalCadastre ? evidenceReport.parcel?.commune : null, cadastral_county: support.capabilities.nationalCadastre ? evidenceReport.parcel?.county : null, cadastral_voivodeship: support.capabilities.nationalCadastre ? evidenceReport.parcel?.voivodeship : null, cadastre_evidence_level: support.capabilities.nationalCadastre ? evidenceReport.parcel?.status : 'REQUIRES_VERIFICATION', is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, elevation_amsl: canonicalReport.terrain.elevationM, min_elevation_amsl: canonicalReport.terrain.minElevationM, max_elevation_amsl: canonicalReport.terrain.maxElevationM, local_relief_m: canonicalReport.terrain.localReliefM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: null },
+      technical_parameters: { uk_inspire_mapped_area_m2: countryCode === 'GB' ? evidenceReport.parcel?.inspireMappedAreaM2 ?? null : null, cadastral_id_format: support.capabilities.nationalCadastre ? evidenceReport.parcel?.cadastralSource : null, cadastral_parcel_id: support.capabilities.nationalCadastre ? evidenceReport.parcel?.parcelId || null : null, cadastral_teryt: support.capabilities.nationalCadastre ? evidenceReport.parcel?.teryt : null, cadastral_commune: support.capabilities.nationalCadastre ? evidenceReport.parcel?.commune : null, cadastral_county: support.capabilities.nationalCadastre ? evidenceReport.parcel?.county : null, cadastral_voivodeship: support.capabilities.nationalCadastre ? evidenceReport.parcel?.voivodeship : null, cadastre_evidence_level: support.capabilities.nationalCadastre ? evidenceReport.parcel?.status : 'REQUIRES_VERIFICATION', is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, elevation_amsl: canonicalReport.terrain.elevationM, min_elevation_amsl: canonicalReport.terrain.minElevationM, max_elevation_amsl: canonicalReport.terrain.maxElevationM, local_relief_m: canonicalReport.terrain.localReliefM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: null },
       valuation_metrics: { valuation_area_m2: valuationAreaM2, price_per_sqm_min: safePerSqm(canonicalReport.valuation.min), price_per_sqm_max: safePerSqm(canonicalReport.valuation.max), price_per_sqm_median: safePerSqm(canonicalReport.valuation.median), comparable_evidence_count: canonicalReport.valuation.comparableCount, feasibility_rating: canonicalReport.valuation.min === null ? undefined : evidenceReport.valuation?.uncertaintyRating, soil_bearing_capacity_kpa: null },
       soil_metrics: { usda_texture: evidenceReport.soil?.usdaTextureClass, topsoil_sand_pct: evidenceReport.soil?.topsoilSandPct, topsoil_silt_pct: evidenceReport.soil?.topsoilSiltPct, topsoil_clay_pct: evidenceReport.soil?.topsoilClayPct, subsoil_sand_pct: evidenceReport.soil?.subsoilSandPct, subsoil_silt_pct: evidenceReport.soil?.subsoilSiltPct, subsoil_clay_pct: evidenceReport.soil?.subsoilClayPct, mean_bulk_density: evidenceReport.soil?.meanBulkDensityGcm3, mean_ph: evidenceReport.soil?.meanPhH2O, mean_soc: evidenceReport.soil?.meanOrganicCarbonPct, bearing_capacity_kpa: null, friction_angle_deg: null, cohesion_kpa: null, hydraulic_conductivity: null, drainage_class: null, frost_class: evidenceReport.soil?.frostSusceptibilityClass, topsoil_stripping_cm: null, source_name: evidenceReport.soil?.sourceName },
       stratigraphy: (evidenceReport.soil?.stratigraphyLayers || []).map((l: any) => ({ depth_range: l.depthRange, soil_type: l.soilType, bearing_capacity: presentation.unavailableReasons.engineeringParameter, description: presentation.unavailableReasons.engineeringParameter, sand_pct: l.sandPct, silt_pct: l.siltPct, clay_pct: l.clayPct, bulk_density: l.bulkDensity, ph: l.ph, soc: l.soc })),
