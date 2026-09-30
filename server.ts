@@ -212,6 +212,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let belgiumCadastre: any = null;
     let switzerlandCadastre: any = null;
     let maltaCadastre: any = null;
+    let finlandCadastre: any = null;
     let germanyCadastre: any = null;
     let germanyMvEvidence: any[] = [];
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
@@ -491,7 +492,6 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let croatiaNationalEvidence: any[] = [];
     let austriaGroundEvidence: any[] = [];
     let finlandNationalEvidence: any[] = [];
-    let finlandCadastre: any = null;
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
