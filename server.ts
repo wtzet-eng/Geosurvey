@@ -780,6 +780,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       belgium_region: evidenceReport.belgium_region || null,
       canonical_evidence: canonicalReport,
       official_geometry: hasOfficialParcel && evidenceReport.parcel?.geometryPoints?.length >= 3 ? evidenceReport.parcel.geometryPoints : null,
+      mapped_geometry: countryCode === 'GB' && evidenceReport.parcel?.geometryPoints?.length >= 3 ? evidenceReport.parcel.geometryPoints : null,
       is_official_parcel: hasOfficialParcel,
       official_area_m2: registeredAreaM2,
       evidence_registry: evidenceDisplayRecords,
@@ -831,7 +832,10 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const officialGeometry = hasOfficialParcel && Array.isArray(evidenceReport.parcel?.geometryPoints) && evidenceReport.parcel.geometryPoints.length >= 3
       ? { type: 'polygon', points: evidenceReport.parcel.geometryPoints }
       : null;
-    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: officialGeometry || shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: officialGeometry?.points || null, is_official_parcel: hasVerifiedParcel, official_area_m2: registeredAreaM2, report_data: reportData };
+    const mappedGeometry = countryCode === 'GB' && Array.isArray(evidenceReport.parcel?.geometryPoints) && evidenceReport.parcel.geometryPoints.length >= 3
+      ? evidenceReport.parcel.geometryPoints
+      : null;
+    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: officialGeometry || shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: officialGeometry?.points || null, mapped_geometry: mappedGeometry, is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, report_data: reportData };
     reportsStore[finalReport.id] = finalReport;
     res.json(finalReport);
   } catch (error: any) {
