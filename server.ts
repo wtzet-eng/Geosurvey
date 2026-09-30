@@ -486,7 +486,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             name: scotlandCadastre.sourceName,
             organization: 'Registers of Scotland',
             url: scotlandCadastre.sourceUrl,
-            type: 'Official National Cadastre',
+            type: 'Official Land Register Mapping',
             status: scotlandCadastre.success ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
           });
           if (scotlandCadastre.success && evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
@@ -503,7 +503,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           name: 'Northern Ireland Land Registry / Land & Property Services',
           organization: 'Department of Finance Northern Ireland',
           url: 'https://www.finance-ni.gov.uk/articles/land-registry-map',
-          type: 'Official National Cadastre',
+          type: 'Official Land Registry',
           status: 'REQUIRES_VERIFICATION'
         });
       } else {
