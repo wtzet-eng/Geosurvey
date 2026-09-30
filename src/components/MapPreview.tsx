@@ -12,8 +12,9 @@ interface MapPreviewProps {
   language?: string;
 }
 
-const getMapLegend = (language?: string) => {
+const getMapLegend = (language?: string, countryCode?: string) => {
   const lang = language?.toLowerCase().slice(0, 2);
+  const isUk = countryCode?.toUpperCase() === 'GB';
   const labels: Record<string, { official: string; selected: string }> = {
     de: { official: 'Amtliche Flurstücksgrenze', selected: 'Ihre Auswahl' },
     hr: { official: 'Službena katastarska granica', selected: 'Vaš odabir' },
@@ -21,8 +22,18 @@ const getMapLegend = (language?: string) => {
     fr: { official: 'Limite cadastrale officielle', selected: 'Votre sélection' },
     es: { official: 'Límite catastral oficial', selected: 'Su selección' },
     nl: { official: 'Officiële kadastrale grens', selected: 'Uw selectie' },
+    en: { official: 'Official cadastral boundary', selected: 'Your selection' },
   };
-  return labels[lang || 'en'] || { official: 'Official cadastral boundary', selected: 'Your selection' };
+  if (isUk) {
+    const ukLabels: Record<string, { official: string; selected: string }> = {
+      en: { official: 'HMLR registered-property outline (indicative)', selected: 'Your selection' },
+      de: { official: 'HMLR-Grenze des registrierten Grundstücks (Richtwert)', selected: 'Ihre Auswahl' },
+      hr: { official: 'HMLR okvir registrirane nekretnine (indikativno)', selected: 'Vaš odabir' },
+      pl: { official: 'Orientacyjny obrys zarejestrowanej nieruchomości HMLR', selected: 'Wybrany obszar' },
+    };
+    return ukLabels[lang || 'en'] || ukLabels.en;
+  }
+  return labels[lang || 'en'] || labels.en;
 };
 
 export const MapPreview: React.FC<MapPreviewProps> = ({
@@ -180,12 +191,13 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
   }, [lat, lng, areaSize, boundary, officialGeometry]);
 
   const showOfficialBoundary = Boolean(officialGeometry && officialGeometry.length >= 3);
-  const legend = getMapLegend(language);
+  const isUk = countryCode?.toUpperCase() === 'GB';
+  const legend = getMapLegend(language, countryCode);
 
   return (
     <div className="relative h-56 w-full rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xs z-0 dark:border-slate-700 dark:bg-[#1b211d]">
       <div ref={containerRef} className="absolute inset-0" />
-      {showOfficialBoundary && (
+      {(showOfficialBoundary || isUk) && (
         <div className="absolute top-3 right-3 z-[1000] rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm text-[10px] font-medium text-slate-700 space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="w-6 border-t-[3px] border-dashed border-slate-900" aria-hidden="true" />
