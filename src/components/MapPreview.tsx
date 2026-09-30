@@ -100,6 +100,19 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
     // because they are jurisdiction-specific: HM Land Registry covers
     // England and Wales, while Registers of Scotland covers Scotland.
     // Each service naturally returns no parcels outside its own coverage.
+    if (countryCode?.toUpperCase() === 'EE') {
+      L.tileLayer.wms('https://gsavalik.envir.ee/geoserver/kataster/ows', {
+        layers: 'kataster:ky_kehtiv',
+        styles: '',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.85,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3857,
+        attribution: 'Estonian Land and Spatial Development Board — Cadastre'
+      }).addTo(map);
+    }
+
     if (countryCode?.toUpperCase() === 'GB') {
       if (ukJurisdiction !== 'SCOTLAND' && ukJurisdiction !== 'NORTHERN_IRELAND') L.tileLayer.wms('https://inspire.landregistry.gov.uk/inspire/ows', {
         layers: 'inspire:CP.CadastralParcel',

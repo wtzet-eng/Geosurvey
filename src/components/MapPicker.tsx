@@ -32,6 +32,13 @@ const FINLAND_CADASTRAL_CONTEXT = {
   attribution: '© National Land Survey of Finland — INSPIRE Cadastral Parcels'
 };
 
+const ESTONIA_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://gsavalik.envir.ee/geoserver/kataster/ows',
+  viewLayer: 'kataster:ky_kehtiv',
+  viewStyle: '',
+  attribution: '© Estonian Land and Spatial Development Board — Cadastre'
+};
+
 // Keep the site marker inside the selected cadastral parcel rather than at the
 // original search point, which can sit near a parcel edge and obscure controls.
 const getPolygonCentroid = (points: [number, number][]): L.LatLng => {
@@ -207,6 +214,20 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         attribution: FINLAND_CADASTRAL_CONTEXT.attribution
       }).addTo(map);
     }
+    if (countryCode.toUpperCase() === 'EE') {
+      L.tileLayer.wms(ESTONIA_CADASTRAL_CONTEXT.viewServiceUrl, {
+        layers: ESTONIA_CADASTRAL_CONTEXT.viewLayer,
+        styles: ESTONIA_CADASTRAL_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.78,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3857,
+        attribution: ESTONIA_CADASTRAL_CONTEXT.attribution,
+        maxNativeZoom: 18,
+        maxZoom: 22
+      }).addTo(map);
+    }
     if (countryCode.toUpperCase() === 'DE') {
       const view = officialParcel?.viewServiceUrl
         ? {
@@ -327,7 +348,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // Find and select an official parcel at a clicked map location.
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
     const lookupCountry = countryCode.toUpperCase();
-    if (!['DE', 'HR', 'NL', 'FI'].includes(lookupCountry)) return false;
+    if (!['DE', 'HR', 'NL', 'FI', 'EE'].includes(lookupCountry)) return false;
     if (lookupCountry === 'DE' && !cadastralState) return false;
 
     if (parcelLookupPendingRef.current) return false;
@@ -343,8 +364,8 @@ export const MapPicker: React.FC<MapPickerProps> = ({
 
       if (Array.isArray(parcel.geometryPoints) && parcel.geometryPoints.length >= 3) {
         const selectedParcel = {
-          parcelId: parcel.parcel?.parcelNumber || parcel.parcelId,
-          areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2,
+          parcelId: parcel.parcel?.parcelNumber || parcel.parcel?.parcelId || parcel.parcelId,
+          areaM2: parcel.parcel?.areaM2 ?? parcel.parcel?.officialAreaM2 ?? parcel.areaM2 ?? parcel.officialAreaM2,
           state: parcel.parcel?.state,
           stateCode: parcel.parcel?.stateCode,
           viewServiceUrl: parcel.viewServiceUrl,
@@ -638,7 +659,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     onOfficialParcelSelected?.(null);
 
     const searchCountryCode = detectedCountry || countryCode.toUpperCase();
-    if (['DE', 'PL', 'HR', 'NL'].includes(searchCountryCode)) {
+    if (['DE', 'PL', 'HR', 'NL', 'FI', 'EE'].includes(searchCountryCode)) {
       parcelLookupPendingRef.current = true;
       setIsFindingParcel(true);
       onParcelLookupStateChange?.(true);
@@ -649,7 +670,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         const parcel = await response.json();
 
         if (parcel.success) {
-          const selectedParcel = { parcelId: parcel.parcel?.parcelNumber || parcel.parcelId, areaM2: parcel.parcel?.officialAreaM2 || parcel.officialAreaM2, state: parcel.parcel?.state, stateCode: parcel.parcel?.stateCode, viewServiceUrl: parcel.viewServiceUrl, viewLayer: parcel.viewLayer, viewStyle: parcel.viewStyle, viewAttribution: parcel.viewAttribution };
+          const selectedParcel = { parcelId: parcel.parcel?.parcelNumber || parcel.parcel?.parcelId || parcel.parcelId, areaM2: parcel.parcel?.areaM2 ?? parcel.parcel?.officialAreaM2 ?? parcel.areaM2 ?? parcel.officialAreaM2, state: parcel.parcel?.state, stateCode: parcel.parcel?.stateCode, viewServiceUrl: parcel.viewServiceUrl, viewLayer: parcel.viewLayer, viewStyle: parcel.viewStyle, viewAttribution: parcel.viewAttribution };
           setOfficialParcel(selectedParcel);
           setCadastralContext(null);
           onOfficialParcelSelected?.(selectedParcel);

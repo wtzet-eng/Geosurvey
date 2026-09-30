@@ -214,10 +214,11 @@ function clearFranceValuation(report: any): void {
 }
 
 test('country support maturity exposes calibrated valuation and validated Czech, Norway, Denmark and UK capabilities', () => {
-  const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const de = getCountrySupport('DE'); const fr = getCountrySupport('FR');
+  const pl = getCountrySupport('PL'); const gb = getCountrySupport('GB'); const de = getCountrySupport('DE'); const fr = getCountrySupport('FR'); const ee = getCountrySupport('EE');
   assert.equal(pl.maturity, 'SUPPORTED'); assert.equal(pl.capabilities.nationalCadastre, true); assert.equal(pl.capabilities.nationalGeology, true);
   assert.equal(gb.maturity, 'SUPPORTED'); assert.equal(gb.capabilities.nationalGeology, true); assert.equal(gb.capabilities.nationalCadastre, true);
   assert.equal(de.maturity, 'LIMITED'); assert.equal(de.capabilities.nationalValuation, true); assert.equal(de.capabilities.nationalCadastre, true); assert.equal(de.capabilities.nationalPlanning, false);
+  assert.equal(ee.maturity, 'LIMITED'); assert.equal(ee.capabilities.nationalCadastre, true); assert.equal(ee.capabilities.nationalGeology, true); assert.equal(ee.capabilities.nationalBoreholes, true); assert.equal(ee.capabilities.nationalHydrogeology, true); assert.equal(ee.capabilities.nationalValuation, false);
   assert.equal(fr.maturity, 'LIMITED'); assert.equal(fr.capabilities.nationalGeology, true); assert.equal(fr.capabilities.nationalBoreholes, true); assert.equal(fr.capabilities.nationalValuation, true);
   for (const code of ['SK', 'AT', 'ES']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.equal(support.capabilities.nationalValuation, true); assert.equal(support.capabilities.nationalCadastre, false);
@@ -280,7 +281,7 @@ test('country support maturity exposes calibrated valuation and validated Czech,
   assert.equal(hr.capabilities.nationalFlood, true);
   assert.equal(hr.capabilities.nationalCadastre, true); assert.equal(hr.capabilities.nationalGeology, true);
   assert.equal(hr.capabilities.nationalPlanning, false); assert.equal(hr.capabilities.nationalValuation, false);
-  for (const code of ['IT', 'PT', 'HU', 'RO', 'GR', 'EE', 'LV', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  for (const code of ['IT', 'PT', 'HU', 'RO', 'GR', 'LV', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });

@@ -68,6 +68,8 @@ import { getCountrySupport } from './src/data/countrySupport';
 import { queryAustriaGroundEvidence } from './server/services/austriaGroundEvidenceService';
 import { applyFinlandCadastreToReport, queryFinlandCadastre } from './server/services/finlandCadastreService';
 import { queryFinlandNationalEvidence } from './server/services/finlandNationalEvidenceService';
+import { applyEstoniaCadastreToReport, queryEstoniaCadastre } from './server/services/estoniaCadastreService';
+import { queryEstoniaNationalEvidence } from './server/services/estoniaNationalEvidenceService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -123,6 +125,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'NO') return res.json(await queryNorwayCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'NL') return res.json(await queryNetherlandsCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'DK') return res.json(await queryDenmarkCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'EE') return res.json(await queryEstoniaCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'FI') {
     const finland = await queryFinlandCadastre(lat, lng);
     return res.json({ ...finland, geometryPoints: finland.geometryPoints, viewServiceUrl: 'https://inspire-wms.maanmittauslaitos.fi/inspire-wms/CP/ows', viewLayer: 'CP.CadastralParcel', viewStyle: '', viewAttribution: '© National Land Survey of Finland' });
@@ -213,6 +216,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let switzerlandCadastre: any = null;
     let maltaCadastre: any = null;
     let finlandCadastre: any = null;
+    let estoniaCadastre: any = null;
     let germanyCadastre: any = null;
     let germanyMvEvidence: any[] = [];
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
@@ -352,6 +356,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: finlandCadastre.sourceName, organization: 'National Land Survey of Finland', url: finlandCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] National Land Survey Finland cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'EE' && support.capabilities.nationalCadastre) {
+      stage = 'estonia-cadastre';
+      try {
+        estoniaCadastre = await queryEstoniaCadastre(lat, lng);
+        applyEstoniaCadastreToReport(evidenceReport, estoniaCadastre, areaSize);
+        if (estoniaCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = 18;
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Estonian national cadastral units returned the current mapped cadastral unit containing the selected coordinate. The map supports parcel screening; certified cadastral documentation remains the reference for legal boundary questions.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: estoniaCadastre.sourceName, organization: 'Estonian Land and Spatial Development Board', url: estoniaCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Estonian cadastral evidence notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'NO' && support.capabilities.nationalCadastre) {
       stage = 'norway-cadastre';
       try {
@@ -492,6 +510,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let croatiaNationalEvidence: any[] = [];
     let austriaGroundEvidence: any[] = [];
     let finlandNationalEvidence: any[] = [];
+    let estoniaNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -594,6 +613,19 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'Geological Survey of Finland (GTK)') : [];
       evidenceReport.dataSourcesCited.push({ name: 'Geological Survey of Finland (GTK) — bedrock / soil / ground investigations', organization: 'Geological Survey of Finland (GTK)', url: 'https://www.gtk.fi/en/services/data-sets-and-online-services-geo-fi/interface-services/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+    } else if (!countryLocationMismatch && countryCode === 'EE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
+      stage = 'estonia-national-evidence';
+      try { estoniaNationalEvidence = (await queryEstoniaNationalEvidence(lat, lng)).evidence; } catch (e) { console.warn(`[${diagnosticId}] Estonian Geological Survey evidence notice:`, e); }
+      stage = 'estonia-report-enrichment';
+      if (estoniaNationalEvidence.length) evidenceReport.evidenceRegistry.push(...estoniaNationalEvidence);
+      const verifiedGround = estoniaNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['ee-egt-superficial-geology', 'ee-egt-bedrock-exposure'].includes(item.id));
+      const verifiedHydro = estoniaNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['ee-egt-hydrogeology', 'ee-egt-groundwater-vulnerability'].includes(item.id));
+      if ((verifiedGround || verifiedHydro) && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Estonian Geological Survey mapping returned verified national geological and/or hydrogeological context at the selected coordinate. The evidence is screening context and does not establish parcel-scale stratigraphy or engineering parameters.';
+      }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'Estonian Geological Survey (EGT)') : [];
+      evidenceReport.dataSourcesCited.push({ name: 'Estonian Geological Survey — 1:50,000 geology, hydrogeology and boreholes', organization: 'Estonian Geological Survey (EGT)', url: 'https://www.egt.ee/en/geoportal', type: 'Geological Survey', status: (verifiedGround || verifiedHydro) ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'FR' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'france-site-evidence'; try { franceSiteEvidence = await queryFranceSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] BRGM France evidence notice:`, e); }
       stage = 'france-report-enrichment'; if (franceSiteEvidence.length) evidenceReport.evidenceRegistry.push(...franceSiteEvidence);
