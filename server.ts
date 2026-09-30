@@ -10,6 +10,8 @@ import { enrichGeologyFromPgi, queryPolandSiteEvidence } from './server/services
 import { queryPolandHydroAndHazards } from './server/services/pgiSupplementEvidenceService';
 import { queryUKSiteEvidence, enrichGeologyFromBgs } from './server/services/ukSiteEvidenceService';
 import { queryUKCadastre } from './server/services/ukCadastreService';
+import { queryScotlandCadastre } from './server/services/scotlandCadastreService';
+import { getNorthernIrelandLandRegistryEvidence } from './server/services/northernIrelandLandRegistryService';
 import { enrichGeologyFromBrgm, queryFranceSiteEvidence } from './server/services/franceSiteEvidenceService';
 import { enrichSlovakiaGroundEvidence, querySlovakiaGroundEvidence } from './server/services/slovakiaGroundEvidenceService';
 import { enrichCzechiaGroundEvidence, queryCzechiaGroundEvidence } from './server/services/czechiaGroundEvidenceService';
@@ -179,6 +181,9 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let roadName = resolvedLocation.road;
     let resolvedCountryCode = resolvedLocation.countryCode;
     const resolvedRegionCode = resolvedLocation.regionCode;
+    const ukJurisdiction = countryCode === 'GB'
+      ? (/scotland/i.test(`${stateName || ''} ${locationName || ''}`) ? 'SCOTLAND' : /northern ireland/i.test(`${stateName || ''} ${locationName || ''}`) ? 'NORTHERN_IRELAND' : 'ENGLAND_WALES')
+      : null;
 
     const locationCountryConfirmed = Boolean(resolvedCountryCode && (resolvedCountryCode === countryCode || (countryCode === 'GB' && resolvedCountryCode === 'UK')));
     const countryLocationUnresolved = !resolvedCountryCode;
@@ -449,6 +454,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let pgiSiteEvidence: any[] = [];
     let ukSiteEvidence: any[] = [];
     let ukCadastre: any = null;
+    let scotlandCadastre: any = null;
+    let northernIrelandLandRegistryEvidence: any[] = [];
     let franceSiteEvidence: any[] = [];
     let slovakiaGroundEvidence: any[] = [];
     let czechiaGroundEvidence: any[] = [];
@@ -469,30 +476,62 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       stage = 'pgi-report-enrichment'; if (pgiSiteEvidence.length) evidenceReport.evidenceRegistry.push(...pgiSiteEvidence); enrichGeologyFromPgi(evidenceReport, pgiSiteEvidence);
     } else if (!countryLocationMismatch && countryCode === 'GB' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
-      stage = 'uk-cadastre';
-      try {
-        ukCadastre = await queryUKCadastre(lat, lng, municipality);
-        if (ukCadastre?.evidence?.length) evidenceReport.evidenceRegistry.push(...ukCadastre.evidence);
-        if (ukCadastre?.success && ukCadastre.parcel) {
-          evidenceReport.parcel = {
-            ...evidenceReport.parcel,
-            status: 'VERIFIED',
-            parcelId: ukCadastre.parcel.parcelId,
-            countryCode: 'GB',
-            geometryPoints: ukCadastre.parcel.geometryPoints,
-            isOfficialGeometry: false,
-            areaCalculatedM2: evidenceReport.parcel?.areaCalculatedM2 || areaSize,
-            cadastralSource: ukCadastre.sourceName,
-            inspireMappedAreaM2: ukCadastre.parcel.mappedAreaM2,
-            datasetDate: ukCadastre.datasetDate,
-            limitation: 'HM Land Registry INSPIRE polygons show the indicative position and extent of registered property. They do not establish the legal extent of a registered title; that requires the individual title plan.'
-          };
-          evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
-          evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'HM Land Registry INSPIRE returned a registered-property polygon containing the selected coordinate. The polygon is indicative and is not a legal title boundary; its mapped area is not used as the valuation area.';
-          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
-          evidenceReport.dataSourcesCited.push({ name: ukCadastre.sourceName, organization: 'HM Land Registry', url: ukCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
-        }
-      } catch (e) { console.warn(`[${diagnosticId}] UK cadastral evidence notice:`, e); }
+      if (ukJurisdiction === 'SCOTLAND') {
+        stage = 'scotland-cadastre';
+        try {
+          scotlandCadastre = await queryScotlandCadastre(lat, lng);
+          if (scotlandCadastre?.evidence?.length) evidenceReport.evidenceRegistry.push(...scotlandCadastre.evidence);
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          evidenceReport.dataSourcesCited.push({
+            name: scotlandCadastre.sourceName,
+            organization: 'Registers of Scotland',
+            url: scotlandCadastre.sourceUrl,
+            type: 'Official National Cadastre',
+            status: scotlandCadastre.success ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+          });
+          if (scotlandCadastre.success && evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Registers of Scotland INSPIRE returned a cadastral parcel at the selected coordinate. The open parcel is treated as indicative cadastral map evidence, not as a complete legal statement of title rights.';
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Scotland cadastral evidence notice:`, e); }
+      } else if (ukJurisdiction === 'NORTHERN_IRELAND') {
+        stage = 'northern-ireland-land-registry';
+        northernIrelandLandRegistryEvidence = getNorthernIrelandLandRegistryEvidence();
+        evidenceReport.evidenceRegistry.push(...northernIrelandLandRegistryEvidence);
+        evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+        evidenceReport.dataSourcesCited.push({
+          name: 'Northern Ireland Land Registry / Land & Property Services',
+          organization: 'Department of Finance Northern Ireland',
+          url: 'https://www.finance-ni.gov.uk/articles/land-registry-map',
+          type: 'Official National Cadastre',
+          status: 'REQUIRES_VERIFICATION'
+        });
+      } else {
+        stage = 'uk-cadastre';
+        try {
+          ukCadastre = await queryUKCadastre(lat, lng, municipality);
+          if (ukCadastre?.evidence?.length) evidenceReport.evidenceRegistry.push(...ukCadastre.evidence);
+          if (ukCadastre?.success && ukCadastre.parcel) {
+            evidenceReport.parcel = {
+              ...evidenceReport.parcel,
+              status: 'VERIFIED',
+              parcelId: ukCadastre.parcel.parcelId,
+              countryCode: 'GB',
+              geometryPoints: ukCadastre.parcel.geometryPoints,
+              isOfficialGeometry: false,
+              areaCalculatedM2: evidenceReport.parcel?.areaCalculatedM2 || areaSize,
+              cadastralSource: ukCadastre.sourceName,
+              inspireMappedAreaM2: ukCadastre.parcel.mappedAreaM2,
+              datasetDate: ukCadastre.datasetDate,
+              limitation: 'HM Land Registry INSPIRE polygons show the indicative position and extent of registered property. They do not establish the legal extent of a registered title; that requires the individual title plan.'
+            };
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'HM Land Registry INSPIRE returned a registered-property polygon containing the selected coordinate. The polygon is indicative and is not a legal title boundary; its mapped area is not used as the valuation area.';
+            evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+            evidenceReport.dataSourcesCited.push({ name: ukCadastre.sourceName, organization: 'HM Land Registry', url: ukCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] UK cadastral evidence notice:`, e); }
+      }
       stage = 'uk-site-evidence'; try { ukSiteEvidence = await queryUKSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] UK national evidence notice:`, e); }
       stage = 'uk-report-enrichment'; if (ukSiteEvidence.length) evidenceReport.evidenceRegistry.push(...ukSiteEvidence);
       try { enrichGeologyFromBgs(evidenceReport, ukSiteEvidence); } catch (e) { console.warn(`[${diagnosticId}] BGS geology enrichment notice:`, e); }
@@ -808,6 +847,9 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       language,
       pgi_site_evidence_count: pgiSiteEvidence.length,
       uk_site_evidence_count: ukSiteEvidence.length,
+      scotland_cadastre_evidence_count: Array.isArray(scotlandCadastre?.evidence) ? scotlandCadastre.evidence.length : 0,
+      northern_ireland_land_registry_evidence_count: northernIrelandLandRegistryEvidence.length,
+      uk_jurisdiction: ukJurisdiction,
       france_site_evidence_count: franceSiteEvidence.length,
       germany_mv_evidence_count: germanyMvEvidence.length,
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
@@ -826,7 +868,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       malta_cadastre_evidence_count: Array.isArray(maltaCadastre?.evidence) ? maltaCadastre.evidence.length : 0,
       malta_national_evidence_count: maltaNationalEvidence.length,
       europe_valuation_evidence: europeValuationEvidence ? { id: europeValuationEvidence.id, status: europeValuationEvidence.status, source: europeValuationEvidence.sourceName } : null,
-      country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null
+      country_location_mismatch: countryLocationMismatch ? { selected_country_code: countryCode, resolved_country_code: resolvedCountryCode } : null,
+      uk_jurisdiction: ukJurisdiction
     };
 
     const officialGeometry = hasOfficialParcel && Array.isArray(evidenceReport.parcel?.geometryPoints) && evidenceReport.parcel.geometryPoints.length >= 3
@@ -835,7 +878,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const mappedGeometry = countryCode === 'GB' && Array.isArray(evidenceReport.parcel?.geometryPoints) && evidenceReport.parcel.geometryPoints.length >= 3
       ? evidenceReport.parcel.geometryPoints
       : null;
-    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: officialGeometry || shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: officialGeometry?.points || null, mapped_geometry: mappedGeometry, is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, report_data: reportData };
+    const finalReport = { id: evidenceReport.id, created_at: evidenceReport.generatedAt, location_name: locationName, country: cProfile.countryName, country_code: countryCode, language, latitude: lat, longitude: lng, area_size: areaSize, boundary: officialGeometry || shape || { type: 'circle', center: [lat, lng], radius: Math.sqrt(areaSize / Math.PI) }, official_geometry: officialGeometry?.points || null, mapped_geometry: mappedGeometry, is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, uk_jurisdiction: ukJurisdiction, report_data: reportData };
     reportsStore[finalReport.id] = finalReport;
     res.json(finalReport);
   } catch (error: any) {
