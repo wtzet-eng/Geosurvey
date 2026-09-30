@@ -70,6 +70,7 @@ import { applyFinlandCadastreToReport, queryFinlandCadastre } from './server/ser
 import { queryFinlandNationalEvidence } from './server/services/finlandNationalEvidenceService';
 import { applyPortugalCadastreToReport, queryPortugalCadastre } from './server/services/portugalCadastreService';
 import { enrichPortugalNationalEvidence, queryPortugalNationalEvidence } from './server/services/portugalNationalEvidenceService';
+import { enrichLisbonUrbanEvidence, queryLisbonUrbanGeology } from './server/services/lisbonUrbanGeologyService';
 import { applyEstoniaCadastreToReport, queryEstoniaCadastre } from './server/services/estoniaCadastreService';
 import { applyLatviaCadastreToReport, queryLatviaCadastre } from './server/services/latviaCadastreService';
 import { applyLatviaNationalEvidenceToReport, queryLatviaNationalEvidence } from './server/services/latviaNationalEvidenceService';
@@ -547,6 +548,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let austriaGroundEvidence: any[] = [];
     let finlandNationalEvidence: any[] = [];
     let portugalNationalEvidence: any[] = [];
+    let portugalLisbonUrbanEvidence: any[] = [];
     let estoniaNationalEvidence: any[] = [];
     let latviaNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
@@ -652,6 +654,25 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'Laboratório Nacional de Energia e Geologia (LNEG)') : [];
       evidenceReport.dataSourcesCited.push({ name: 'LNEG — national geology, Sondabase and hydrogeological resources', organization: 'Laboratório Nacional de Energia e Geologia (LNEG)', url: 'https://geoportal.lneg.pt/', type: 'Geological Survey', status: (verifiedGeology || verifiedHydro) ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+      stage = 'lisbon-urban-geology';
+      try {
+        const lisbonUrban = await queryLisbonUrbanGeology(lat, lng);
+        portugalLisbonUrbanEvidence = lisbonUrban.evidence;
+      } catch (e) {
+        console.warn(`[${diagnosticId}] Lisbon urban geology notice:`, e);
+      }
+      stage = 'lisbon-urban-report-enrichment';
+      if (portugalLisbonUrbanEvidence.length) evidenceReport.evidenceRegistry.push(...portugalLisbonUrbanEvidence);
+      enrichLisbonUrbanEvidence(evidenceReport, portugalLisbonUrbanEvidence);
+      const verifiedLisbonUrban = portugalLisbonUrbanEvidence.some((item: any) => item.status === 'VERIFIED');
+      const verifiedLisbonGeology = portugalLisbonUrbanEvidence.some((item: any) => item.id === 'pt-lisbon-geology-10k' && item.status === 'VERIFIED');
+      if (verifiedLisbonGeology && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(19, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Lisbon municipal 1:10,000 geology and urban geotechnical mapping returned verified city-scale context at the selected coordinate. This is higher-resolution screening evidence and does not establish parcel-scale engineering parameters.';
+      }
+      if (verifiedLisbonUrban) {
+        evidenceReport.dataSourcesCited.push({ name: 'Câmara Municipal de Lisboa — urban geology, geotechnics, EC8 and hydrogeology', organization: 'Câmara Municipal de Lisboa', url: 'https://sigservices.cm-lisboa.pt/arcgis/rest/services/APP_Resist/App_Resist_Layers_Resist/MapServer', type: 'Urban Geotechnical Survey', status: 'VERIFIED' });
+      }
     } else if (!countryLocationMismatch && countryCode === 'FI' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'finland-national-evidence';
       try { finlandNationalEvidence = (await queryFinlandNationalEvidence(lat, lng, municipality)).evidence; } catch (e) { console.warn(`[${diagnosticId}] GTK Finland evidence notice:`, e); }
@@ -920,6 +941,22 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
                   ? renderFrEsFiLocalizedReport(canonicalReport, language as 'fr' | 'es' | 'fi')
                   : renderLocalizedReport(canonicalReport, language);
     if (!isCroatianPresentation && !isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
+    if (countryCode === 'PT' && portugalLisbonUrbanEvidence.some((item: any) => item.status === 'VERIFIED')) {
+      const urban = evidenceReport.geosurvey_context || {};
+      const urbanParts = [
+        urban.urban_geology_unit_name ? `Lisbon municipal 1:10,000 mapping identifies ${urban.urban_geology_unit_name}.` : '',
+        urban.urban_geotechnical_unit ? `The city geotechnical zoning places the site in unit ${urban.urban_geotechnical_unit}.` : '',
+        urban.ec8_soil_class ? `The urban EC8 soil map assigns class ${urban.ec8_soil_class}${urban.ec8_smax !== null && urban.ec8_smax !== undefined ? ` (Smax ${urban.ec8_smax})` : ''}.` : '',
+        urban.urban_groundwater_depth_class ? `Nearby mapped groundwater observations include a nearest depth class of ${urban.urban_groundwater_depth_class}.` : '',
+        urban.urban_alluvium_depth_class ? `Nearby alluvium-depth observations include a nearest class of ${urban.urban_alluvium_depth_class}.` : '',
+        urban.urban_fill_depth_class ? `Nearby fill-depth observations include a nearest class of ${urban.urban_fill_depth_class}.` : ''
+      ].filter(Boolean).join(' ');
+      if (urbanParts) {
+        presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} Lisbon urban geology adds higher-resolution municipal screening context: ${urbanParts} These mapped classes and nearby observations help identify what should be checked during site investigation; they do not establish parcel-scale engineering parameters.`.trim();
+        const existingSource = presentation.sections.soil_and_ground.source_cited;
+        presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, 'Câmara Municipal de Lisboa — urban geology, geotechnics and hydrogeology'].filter((source): source is string => Boolean(source)))].join('; ');
+      }
+    }
     const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
     if (franceGroundPresentation) {
       presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${franceGroundPresentation.narrative}`.trim();
@@ -991,6 +1028,18 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       titles: presentation.titles,
       unavailable_reasons: presentation.unavailableReasons,
       geosurvey_context: { survey_authority: canonicalReport.geology.sourceName, geological_unit_name: canonicalReport.geology.unitName, lithology_type: canonicalReport.geology.lithology, geological_period_era: canonicalReport.geology.geologicalAge, groundwater_regime: canonicalReport.geology.groundwaterRegime, seismic_hazard_zone: canonicalReport.hazards.seismic.classification, radon_class: canonicalReport.hazards.radon.classification, official_portal_url: canonicalReport.geology.sourceUrl, evidence_level: canonicalReport.geology.status },
+      lisbon_urban_context: countryCode === 'PT' ? {
+        urban_geology_unit_name: evidenceReport.geosurvey_context?.urban_geology_unit_name || null,
+        urban_geological_age: evidenceReport.geosurvey_context?.urban_geological_age || null,
+        urban_geotechnical_unit: evidenceReport.geosurvey_context?.urban_geotechnical_unit || null,
+        ec8_soil_class: evidenceReport.geosurvey_context?.ec8_soil_class || null,
+        ec8_smax: evidenceReport.geosurvey_context?.ec8_smax ?? null,
+        mass_movement_susceptibility: evidenceReport.geosurvey_context?.urban_mass_movement_susceptibility || null,
+        groundwater_depth_class: evidenceReport.geosurvey_context?.urban_groundwater_depth_class || null,
+        alluvium_depth_class: evidenceReport.geosurvey_context?.urban_alluvium_depth_class || null,
+        fill_depth_class: evidenceReport.geosurvey_context?.urban_fill_depth_class || null,
+        evidence_level: evidenceReport.geosurvey_context?.urban_evidence_level || null
+      } : null,
       geotop_profile: evidenceReport.geosurvey_context?.geotop_profile || null,
       technical_parameters: { uk_inspire_mapped_area_m2: countryCode === 'GB' ? evidenceReport.parcel?.inspireMappedAreaM2 ?? null : null, cadastral_id_format: support.capabilities.nationalCadastre ? evidenceReport.parcel?.cadastralSource : null, cadastral_parcel_id: support.capabilities.nationalCadastre ? evidenceReport.parcel?.parcelId || null : null, cadastral_teryt: support.capabilities.nationalCadastre ? evidenceReport.parcel?.teryt : null, cadastral_commune: support.capabilities.nationalCadastre ? evidenceReport.parcel?.commune : null, cadastral_county: support.capabilities.nationalCadastre ? evidenceReport.parcel?.county : null, cadastral_voivodeship: support.capabilities.nationalCadastre ? evidenceReport.parcel?.voivodeship : null, cadastre_evidence_level: support.capabilities.nationalCadastre ? evidenceReport.parcel?.status : 'REQUIRES_VERIFICATION', is_official_parcel: hasOfficialParcel, official_area_m2: registeredAreaM2, elevation_amsl: canonicalReport.terrain.elevationM, min_elevation_amsl: canonicalReport.terrain.minElevationM, max_elevation_amsl: canonicalReport.terrain.maxElevationM, local_relief_m: canonicalReport.terrain.localReliefM, slope_degrees: canonicalReport.terrain.slopeDegrees, slope_percent: canonicalReport.terrain.slopePercent, slope_category: evidenceReport.terrain?.slopeCategory, aspect_direction: canonicalReport.terrain.aspectCode, ...presentation.technicalNarrative, soil_bearing_capacity_kpa: canonicalReport.soil.bearingCapacity, frost_depth_m: evidenceReport.soil?.frostSusceptibilityClass, radon_index: canonicalReport.hazards.radon.classification, setback_m: null },
       valuation_metrics: { valuation_area_m2: valuationAreaM2, price_per_sqm_min: safePerSqm(canonicalReport.valuation.min), price_per_sqm_max: safePerSqm(canonicalReport.valuation.max), price_per_sqm_median: safePerSqm(canonicalReport.valuation.median), comparable_evidence_count: canonicalReport.valuation.comparableCount, feasibility_rating: canonicalReport.valuation.min === null ? undefined : evidenceReport.valuation?.uncertaintyRating, soil_bearing_capacity_kpa: null },
@@ -1017,6 +1066,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       austria_ground_evidence_count: austriaGroundEvidence.length,
       portugal_cadastre_evidence_count: Array.isArray(portugalCadastre?.evidence) ? portugalCadastre.evidence.length : 0,
       portugal_national_evidence_count: portugalNationalEvidence.length,
+      portugal_lisbon_urban_evidence_count: portugalLisbonUrbanEvidence.length,
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
       czechia_ground_evidence_count: czechiaGroundEvidence.length,
       czechia_cadastre_evidence_count: Array.isArray(czechiaCadastre?.evidence) ? czechiaCadastre.evidence.length : 0,
