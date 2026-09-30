@@ -25,6 +25,13 @@ const BAVARIA_CADASTRAL_CONTEXT = {
   attribution: '© Bayerische Vermessungsverwaltung — ALKIS-Parzellarkarte, Stand 01.01.2026'
 };
 
+const FINLAND_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://inspire-wms.maanmittauslaitos.fi/inspire-wms/CP/ows',
+  viewLayer: 'CP.CadastralParcel',
+  viewStyle: '',
+  attribution: '© National Land Survey of Finland — INSPIRE Cadastral Parcels'
+};
+
 // Keep the site marker inside the selected cadastral parcel rather than at the
 // original search point, which can sit near a parcel edge and obscure controls.
 const getPolygonCentroid = (points: [number, number][]): L.LatLng => {
@@ -189,6 +196,17 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         maxZoom: 17,
       }).addTo(map);
     }
+    if (countryCode.toUpperCase() === 'FI') {
+      L.tileLayer.wms(FINLAND_CADASTRAL_CONTEXT.viewServiceUrl, {
+        layers: FINLAND_CADASTRAL_CONTEXT.viewLayer,
+        styles: FINLAND_CADASTRAL_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.78,
+        version: '1.3.0',
+        attribution: FINLAND_CADASTRAL_CONTEXT.attribution
+      }).addTo(map);
+    }
     if (countryCode.toUpperCase() === 'DE') {
       const view = officialParcel?.viewServiceUrl
         ? {
@@ -309,7 +327,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // Find and select an official parcel at a clicked map location.
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
     const lookupCountry = countryCode.toUpperCase();
-    if (!['DE', 'HR', 'NL'].includes(lookupCountry)) return false;
+    if (!['DE', 'HR', 'NL', 'FI'].includes(lookupCountry)) return false;
     if (lookupCountry === 'DE' && !cadastralState) return false;
 
     if (parcelLookupPendingRef.current) return false;
@@ -367,7 +385,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       // Germany and Croatia: a map click can select the official cadastral parcel
       // instead of forcing the user to redraw a boundary manually. If no official
       // parcel is found, fall back to the existing drawing behaviour.
-      if (['DE', 'HR'].includes(countryCode.toUpperCase()) && mode === 'polygon' && drawingPoints.length === 0) {
+      if (['DE', 'HR', 'FI'].includes(countryCode.toUpperCase()) && mode === 'polygon' && drawingPoints.length === 0) {
         // While cadastral lookup is in progress, keep map clicks in parcel-selection
         // mode. Do not accidentally turn a parcel click into a manual polygon point.
         if (parcelLookupPendingRef.current || isFindingParcel) return;
