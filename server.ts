@@ -580,7 +580,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       });
     } else if (!countryLocationMismatch && countryCode === 'FI' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'finland-national-evidence';
-      try { finlandNationalEvidence = (await queryFinlandNationalEvidence(lat, lng)).evidence; } catch (e) { console.warn(`[${diagnosticId}] GTK Finland evidence notice:`, e); }
+      try { finlandNationalEvidence = (await queryFinlandNationalEvidence(lat, lng, municipality)).evidence; } catch (e) { console.warn(`[${diagnosticId}] GTK Finland evidence notice:`, e); }
       stage = 'finland-report-enrichment';
       if (finlandNationalEvidence.length) evidenceReport.evidenceRegistry.push(...finlandNationalEvidence);
       const verifiedGround = finlandNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['fi-gtk-bedrock', 'fi-gtk-soil'].includes(item.id));
