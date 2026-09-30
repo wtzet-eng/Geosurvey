@@ -971,6 +971,7 @@ export const GroundSurfApp: React.FC = () => {
                 mappedGeometry={report.mapped_geometry}
                 countryCode={report.country_code}
                 language={report.language}
+                ukJurisdiction={report.uk_jurisdiction}
               />
               <div className="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100">
                 <div className="p-4"><div className="text-xs font-black uppercase tracking-wide text-slate-400">{appUiCopy(language, 'area')}</div><div className="mt-1 text-sm font-black">{Math.round(report.area_size).toLocaleString()} m²</div></div>
