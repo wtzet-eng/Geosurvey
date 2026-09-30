@@ -317,6 +317,7 @@ export interface SiteReport {
   boundary: BoundaryShape;
   official_geometry?: [number, number][] | null;
   mapped_geometry?: [number, number][] | null;
+  uk_jurisdiction?: 'ENGLAND_WALES' | 'SCOTLAND' | 'NORTHERN_IRELAND' | null;
   selected_boundary?: BoundaryShape;
   is_official_parcel?: boolean;
   official_area_m2?: number | null;
