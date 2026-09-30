@@ -191,7 +191,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [20, 20] });
     }
-  }, [lat, lng, areaSize, boundary, officialGeometry]);
+  }, [lat, lng, areaSize, boundary, officialGeometry, mappedGeometry]);
 
   const showOfficialBoundary = Boolean((officialGeometry && officialGeometry.length >= 3) || (mappedGeometry && mappedGeometry.length >= 3));
   const isUk = countryCode?.toUpperCase() === 'GB';
