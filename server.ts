@@ -849,7 +849,6 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       uk_site_evidence_count: ukSiteEvidence.length,
       scotland_cadastre_evidence_count: Array.isArray(scotlandCadastre?.evidence) ? scotlandCadastre.evidence.length : 0,
       northern_ireland_land_registry_evidence_count: northernIrelandLandRegistryEvidence.length,
-      uk_jurisdiction: ukJurisdiction,
       france_site_evidence_count: franceSiteEvidence.length,
       germany_mv_evidence_count: germanyMvEvidence.length,
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
