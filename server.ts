@@ -75,6 +75,7 @@ import { applyEstoniaCadastreToReport, queryEstoniaCadastre } from './server/ser
 import { applyLatviaCadastreToReport, queryLatviaCadastre } from './server/services/latviaCadastreService';
 import { applyLatviaNationalEvidenceToReport, queryLatviaNationalEvidence } from './server/services/latviaNationalEvidenceService';
 import { applyEstoniaNationalEvidenceToReport, queryEstoniaNationalEvidence } from './server/services/estoniaNationalEvidenceService';
+import { enrichEstoniaUrbanEvidence, queryEstoniaUrbanGeology } from './server/services/estoniaUrbanGeologyService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -550,6 +551,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let portugalNationalEvidence: any[] = [];
     let portugalLisbonUrbanEvidence: any[] = [];
     let estoniaNationalEvidence: any[] = [];
+    let estoniaUrbanEvidence: any[] = [];
     let latviaNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
@@ -703,6 +705,15 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'Estonian Geological Survey (EGT)') : [];
       evidenceReport.dataSourcesCited.push({ name: 'Estonian Geological Survey — 1:50,000 geology, hydrogeology and boreholes', organization: 'Estonian Geological Survey (EGT)', url: 'https://www.egt.ee/en/geoportal', type: 'Geological Survey', status: (verifiedGround || verifiedHydro) ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+      stage = 'estonia-urban-geology';
+      try { estoniaUrbanEvidence = (await queryEstoniaUrbanGeology(lat, lng)).evidence; } catch (e) { console.warn(`[${diagnosticId}] Estonia urban geology notice:`, e); }
+      stage = 'estonia-urban-report-enrichment';
+      if (estoniaUrbanEvidence.length) evidenceReport.evidenceRegistry.push(...estoniaUrbanEvidence);
+      enrichEstoniaUrbanEvidence(evidenceReport, estoniaUrbanEvidence);
+      const verifiedUrban = estoniaUrbanEvidence.some((item: any) => item.status === 'VERIFIED');
+      if (verifiedUrban) {
+        evidenceReport.dataSourcesCited.push({ name: 'Estonian official building-geology survey and local specialist layers', organization: 'Maa- ja Ruumiamet / Estonian Geological Survey (EGT)', url: 'https://geoportaal.maaamet.ee/index.php?lang_id=1&page_id=417', type: 'Urban Geological / Ground Investigation Survey', status: 'VERIFIED' });
+      }
     } else if (!countryLocationMismatch && countryCode === 'LV' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology || support.capabilities.nationalFlood)) {
       stage = 'latvia-national-evidence';
       try { latviaNationalEvidence = await queryLatviaNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Latvian national evidence notice:`, e); }
@@ -956,6 +967,26 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         const existingSource = presentation.sections.soil_and_ground.source_cited;
         presentation.sections.soil_and_ground.source_cited = [...new Set([existingSource, 'Câmara Municipal de Lisboa — urban geology, geotechnics and hydrogeology'].filter((source): source is string => Boolean(source)))].join('; ');
       }
+    }
+    if (countryCode === 'EE') {
+      const urban = evidenceReport.geosurvey_context || {};
+      const surveyCount = Number(urban.urban_building_geology_survey_count);
+      const nearestSurveyM = Number(urban.urban_building_geology_nearest_distance_m);
+      const surveyAsOf = urban.urban_building_geology_as_of;
+      const hasSurvey = Number.isFinite(surveyCount) && surveyCount > 0;
+      const surveyText = language === 'de'
+        ? `Das estnische amtliche Archiv für Baugrunduntersuchungen liefert ${surveyCount >= 100 ? 'mindestens ' : ''}${Number.isFinite(surveyCount) ? surveyCount : 'mehrere'} kartierte Untersuchungsflächen im Umkreis von 5 km; die nächste ausgewählte Untersuchung liegt etwa ${Number.isFinite(nearestSurveyM) ? nearestSurveyM : '—'} m entfernt. Datenstand: ${surveyAsOf || '10.12.2024'}.`
+        : language === 'pl'
+          ? `Estońskie urzędowe archiwum badań podłoża budowlanego zwraca ${surveyCount >= 100 ? 'co najmniej ' : ''}${Number.isFinite(surveyCount) ? surveyCount : 'kilka'} kartowanych obszarów badań w promieniu 5 km; najbliższe wybrane badanie znajduje się około ${Number.isFinite(nearestSurveyM) ? nearestSurveyM : '—'} m od lokalizacji. Stan danych: ${surveyAsOf || '10.12.2024'}.`
+          : `Estonia's official building-geology archive returns ${surveyCount >= 100 ? 'at least ' : ''}${Number.isFinite(surveyCount) ? surveyCount : 'several'} mapped survey areas within 5 km; the nearest selected survey is about ${Number.isFinite(nearestSurveyM) ? nearestSurveyM : '—'} m away. Dataset snapshot: ${surveyAsOf || '2024-12-10'}.`;
+      const specialistParts = [
+        urban.urban_landslide_dataset_class ? (language === 'de' ? `Die Pärnu-Spezialkarte erfasst den Punkt als ${urban.urban_landslide_dataset_class}.` : language === 'pl' ? `Specjalistyczna mapa Pärnu wskazuje ten punkt jako ${urban.urban_landslide_dataset_class}.` : `The Pärnu specialist layer maps the point as ${urban.urban_landslide_dataset_class}.`) : '',
+        urban.urban_landslide_dataset_soil ? (language === 'de' ? `Der zugehörige kartierte Bodenkontext ist ${urban.urban_landslide_dataset_soil}.` : language === 'pl' ? `Powiązany kartowany kontekst gruntu to ${urban.urban_landslide_dataset_soil}.` : `The associated mapped soil context is ${urban.urban_landslide_dataset_soil}.`) : '',
+        urban.urban_water_level_rise_modelled ? (language === 'de' ? 'Für Tartu liegt zusätzlich ein theoretisches +1,75-m-Wasserstandsanstiegsmodell vor.' : language === 'pl' ? 'Dla Tartu dostępny jest również teoretyczny model wzrostu poziomu wody o +1,75 m.' : 'For Tartu, an additional theoretical +1.75 m water-level-rise model is available.') : ''
+      ].filter(Boolean).join(' ');
+      if (hasSurvey) presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${surveyText} ${language === 'de' ? 'Nahe Untersuchungen sind Kontext und kein Ersatz für eine standortbezogene Baugrunduntersuchung.' : language === 'pl' ? 'Pobliskie badania są jedynie kontekstem i nie zastępują badań podłoża w miejscu działki.' : 'Nearby surveys are contextual evidence and do not replace a site-specific ground investigation.'}`.trim();
+      if (specialistParts) presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${specialistParts}`.trim();
+      if (hasSurvey) presentation.sections.soil_and_ground.source_cited = [...new Set([presentation.sections.soil_and_ground.source_cited, 'Maa- ja Ruumiamet / EGT — Ehitusgeoloogia']).filter(Boolean)].join('; ');
     }
     const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
     if (franceGroundPresentation) {
