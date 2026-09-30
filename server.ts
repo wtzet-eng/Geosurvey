@@ -69,6 +69,8 @@ import { queryAustriaGroundEvidence } from './server/services/austriaGroundEvide
 import { applyFinlandCadastreToReport, queryFinlandCadastre } from './server/services/finlandCadastreService';
 import { queryFinlandNationalEvidence } from './server/services/finlandNationalEvidenceService';
 import { applyEstoniaCadastreToReport, queryEstoniaCadastre } from './server/services/estoniaCadastreService';
+import { applyLatviaCadastreToReport, queryLatviaCadastre } from './server/services/latviaCadastreService';
+import { applyLatviaNationalEvidenceToReport, queryLatviaNationalEvidence } from './server/services/latviaNationalEvidenceService';
 import { applyEstoniaNationalEvidenceToReport, queryEstoniaNationalEvidence } from './server/services/estoniaNationalEvidenceService';
 
 const app = express();
@@ -126,6 +128,7 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'NL') return res.json(await queryNetherlandsCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'DK') return res.json(await queryDenmarkCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'EE') return res.json(await queryEstoniaCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'LV') return res.json(await queryLatviaCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'FI') {
     const finland = await queryFinlandCadastre(lat, lng);
     return res.json({ ...finland, geometryPoints: finland.geometryPoints, viewServiceUrl: 'https://inspire-wms.maanmittauslaitos.fi/inspire-wms/CP/ows', viewLayer: 'CP.CadastralParcel', viewStyle: '', viewAttribution: '© National Land Survey of Finland' });
@@ -217,6 +220,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let maltaCadastre: any = null;
     let finlandCadastre: any = null;
     let estoniaCadastre: any = null;
+    let latviaCadastre: any = null;
     let germanyCadastre: any = null;
     let germanyMvEvidence: any[] = [];
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
@@ -370,6 +374,17 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: estoniaCadastre.sourceName, organization: 'Estonian Land and Spatial Development Board', url: estoniaCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Estonian cadastral evidence notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'LV' && support.capabilities.nationalCadastre) {
+      stage = 'latvia-cadastre';
+      try {
+        latviaCadastre = await queryLatviaCadastre(lat, lng);
+        applyLatviaCadastreToReport(evidenceReport, latviaCadastre, areaSize);
+        if (latviaCadastre.success && evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+          evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = 18;
+          evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Latvian national INSPIRE cadastral service returned the current cadastral parcel containing the selected coordinate. Certified cadastral documentation remains the reference for legal boundary questions.';
+        }
+        if (latviaCadastre.success) evidenceReport.dataSourcesCited.push({ name: latviaCadastre.sourceName, organization: 'Valsts zemes dienests', url: latviaCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+      } catch (e) { console.warn(`[${diagnosticId}] Latvian cadastral evidence notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'NO' && support.capabilities.nationalCadastre) {
       stage = 'norway-cadastre';
       try {
@@ -511,6 +526,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let austriaGroundEvidence: any[] = [];
     let finlandNationalEvidence: any[] = [];
     let estoniaNationalEvidence: any[] = [];
+    let latviaNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -627,6 +643,23 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'Estonian Geological Survey (EGT)') : [];
       evidenceReport.dataSourcesCited.push({ name: 'Estonian Geological Survey — 1:50,000 geology, hydrogeology and boreholes', organization: 'Estonian Geological Survey (EGT)', url: 'https://www.egt.ee/en/geoportal', type: 'Geological Survey', status: (verifiedGround || verifiedHydro) ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+    } else if (!countryLocationMismatch && countryCode === 'LV' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology || support.capabilities.nationalFlood)) {
+      stage = 'latvia-national-evidence';
+      try { latviaNationalEvidence = await queryLatviaNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Latvian national evidence notice:`, e); }
+      stage = 'latvia-report-enrichment';
+      if (latviaNationalEvidence.length) evidenceReport.evidenceRegistry.push(...latviaNationalEvidence);
+      applyLatviaNationalEvidenceToReport(evidenceReport, latviaNationalEvidence);
+      const verifiedGround = latviaNationalEvidence.some((item: any) => item.id === 'lv-lvgmc-quaternary-geology' && item.status === 'VERIFIED');
+      const verifiedHydro = latviaNationalEvidence.some((item: any) => ['lv-lvgmc-aquifer', 'lv-lvgmc-groundwater-body'].includes(item.id) && item.status === 'VERIFIED');
+      if ((verifiedGround || verifiedHydro) && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'LVĢMC national geological and/or hydrogeological mapping returned verified context at the selected coordinate. This is screening evidence and does not establish parcel-scale stratigraphy or engineering parameters.';
+      }
+      if (latviaNationalEvidence.some((item: any) => item.id === 'lv-geolatvija-flood' && item.status === 'VERIFIED') && evidenceReport.evidenceScore?.breakdown?.environmentalAndFlood) {
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score = Math.max(8, Number(evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score) || 0);
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'Latvian national flood-risk mapping returned a verified flood-risk management polygon containing the selected coordinate. This does not provide parcel-specific flood depth or return-period design values.';
+      }
+      evidenceReport.dataSourcesCited.push({ name: 'LVĢMC / ĢEOLatvija — geology, hydrogeology and flood-risk services', organization: 'Latvian Environment, Geology and Meteorology Centre (LVĢMC)', url: 'https://geolatvija.lv/', type: 'National Geological and Flood Services', status: (verifiedGround || verifiedHydro || latviaNationalEvidence.some((item: any) => item.id === 'lv-geolatvija-flood' && item.status === 'VERIFIED')) ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'FR' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'france-site-evidence'; try { franceSiteEvidence = await queryFranceSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] BRGM France evidence notice:`, e); }
       stage = 'france-report-enrichment'; if (franceSiteEvidence.length) evidenceReport.evidenceRegistry.push(...franceSiteEvidence);

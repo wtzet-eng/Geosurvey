@@ -113,6 +113,12 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
       }).addTo(map);
     }
 
+    if (countryCode?.toUpperCase() === 'LV') {
+      L.tileLayer.wms('https://grafws.kadastrs.lv/geoserver/cp/wms', {
+        layers: 'cp:CadastralParcel', styles: '', format: 'image/png', transparent: true, opacity: 0.82, version: '1.3.0', crs: L.CRS.EPSG3857, attribution: 'Valsts zemes dienests — Cadastral parcels'
+      }).addTo(map);
+    }
+
     if (countryCode?.toUpperCase() === 'GB') {
       if (ukJurisdiction !== 'SCOTLAND' && ukJurisdiction !== 'NORTHERN_IRELAND') L.tileLayer.wms('https://inspire.landregistry.gov.uk/inspire/ows', {
         layers: 'inspire:CP.CadastralParcel',

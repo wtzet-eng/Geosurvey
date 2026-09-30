@@ -1,0 +1,4 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { applyLatviaCadastreToReport, queryLatviaCadastre } from './latviaCadastreService';
+test('selects a Latvian cadastral parcel from the INSPIRE polygon', async()=>{const mock=async()=>new Response(JSON.stringify({features:[{geometry:{type:'Polygon',coordinates:[[[24.1,56.9],[24.1,56.91],[24.11,56.91],[24.11,56.9],[24.1,56.9]]]},properties:{label:'0100 001 0001',areaValue:812.5}}]}));const r=await queryLatviaCadastre(56.905,24.105,mock as any);assert.equal(r.success,true);assert.equal(r.parcel?.parcelId,'0100 001 0001');assert.equal(r.parcel?.areaM2,812.5);assert.equal(r.parcel?.geometryPoints?.length,5);const report:any={evidenceRegistry:[],parcel:{}};applyLatviaCadastreToReport(report,r,500);assert.equal(report.parcel.status,'VERIFIED');assert.equal(report.parcel.isOfficialGeometry,true);assert.equal(report.parcel.officialAreaM2,812.5);});

@@ -39,6 +39,13 @@ const ESTONIA_CADASTRAL_CONTEXT = {
   attribution: '© Estonian Land and Spatial Development Board — Cadastre'
 };
 
+const LATVIA_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://grafws.kadastrs.lv/geoserver/cp/wms',
+  viewLayer: 'cp:CadastralParcel',
+  viewStyle: '',
+  attribution: '© Valsts zemes dienests — Cadastral parcels'
+};
+
 // Keep the site marker inside the selected cadastral parcel rather than at the
 // original search point, which can sit near a parcel edge and obscure controls.
 const getPolygonCentroid = (points: [number, number][]): L.LatLng => {
@@ -228,6 +235,15 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         maxZoom: 22
       }).addTo(map);
     }
+    if (countryCode.toUpperCase() === 'LV') {
+      L.tileLayer.wms(LATVIA_CADASTRAL_CONTEXT.viewServiceUrl, {
+        layers: LATVIA_CADASTRAL_CONTEXT.viewLayer,
+        styles: LATVIA_CADASTRAL_CONTEXT.viewStyle,
+        format: 'image/png', transparent: true, opacity: 0.82, version: '1.3.0',
+        crs: L.CRS.EPSG3857, attribution: LATVIA_CADASTRAL_CONTEXT.attribution, maxNativeZoom: 18, maxZoom: 22
+      }).addTo(map);
+    }
+
     if (countryCode.toUpperCase() === 'DE') {
       const view = officialParcel?.viewServiceUrl
         ? {
@@ -348,7 +364,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // Find and select an official parcel at a clicked map location.
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
     const lookupCountry = countryCode.toUpperCase();
-    if (!['DE', 'HR', 'NL', 'FI', 'EE'].includes(lookupCountry)) return false;
+    if (!['DE', 'HR', 'NL', 'FI', 'EE', 'LV'].includes(lookupCountry)) return false;
     if (lookupCountry === 'DE' && !cadastralState) return false;
 
     if (parcelLookupPendingRef.current) return false;
@@ -659,7 +675,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     onOfficialParcelSelected?.(null);
 
     const searchCountryCode = detectedCountry || countryCode.toUpperCase();
-    if (['DE', 'PL', 'HR', 'NL', 'FI', 'EE'].includes(searchCountryCode)) {
+    if (['DE', 'PL', 'HR', 'NL', 'FI', 'EE', 'LV'].includes(searchCountryCode)) {
       parcelLookupPendingRef.current = true;
       setIsFindingParcel(true);
       onParcelLookupStateChange?.(true);
