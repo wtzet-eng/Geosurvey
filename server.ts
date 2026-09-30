@@ -65,6 +65,7 @@ import { renderCzechiaCadastrePresentation } from './server/reporting/czechiaCad
 import { applySiteSpecificCountryEvidence, buildEvidenceDisplayRecords, enrichValuationPresentation } from './server/reporting/evidenceDisplay';
 import { applyValuationAreaGuard } from './server/reporting/valuationAreaGuard';
 import { getCountrySupport } from './src/data/countrySupport';
+import { queryAustriaGroundEvidence } from './server/services/austriaGroundEvidenceService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -468,6 +469,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let switzerlandNationalEvidence: any[] = [];
     let maltaNationalEvidence: any[] = [];
     let croatiaNationalEvidence: any[] = [];
+    let austriaGroundEvidence: any[] = [];
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -536,6 +538,24 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'uk-report-enrichment'; if (ukSiteEvidence.length) evidenceReport.evidenceRegistry.push(...ukSiteEvidence);
       try { enrichGeologyFromBgs(evidenceReport, ukSiteEvidence); } catch (e) { console.warn(`[${diagnosticId}] BGS geology enrichment notice:`, e); }
       evidenceReport.verificationChecklist = getUKVerificationChecklist(municipality, stateName);
+    } else if (!countryLocationMismatch && countryCode === 'AT' && support.capabilities.nationalGeology) {
+      stage = 'austria-ground-evidence';
+      try { austriaGroundEvidence = (await queryAustriaGroundEvidence(lat, lng)).evidence; } catch (e) { console.warn(`[${diagnosticId}] GeoSphere Austria evidence notice:`, e); }
+      stage = 'austria-report-enrichment';
+      if (austriaGroundEvidence.length) evidenceReport.evidenceRegistry.push(...austriaGroundEvidence);
+      const verifiedGround = austriaGroundEvidence.some((item: any) => item.id === 'at-geosphere-geology-site' && item.status === 'VERIFIED');
+      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(16, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'GeoSphere Austria 1:50,000 geological mapping returned verified regional geology at the selected coordinate. It is credited as screening evidence without inferring parcel-scale stratigraphy or engineering parameters.';
+      }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'GeoSphere Austria') : [];
+      evidenceReport.dataSourcesCited.push({
+        name: 'GeoSphere Austria — INSPIRE Geological Units 1:50,000',
+        organization: 'GeoSphere Austria',
+        url: 'https://gis.geologie.ac.at/maps.html',
+        type: 'Geological Survey',
+        status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+      });
     } else if (!countryLocationMismatch && countryCode === 'FR' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'france-site-evidence'; try { franceSiteEvidence = await queryFranceSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] BRGM France evidence notice:`, e); }
       stage = 'france-report-enrichment'; if (franceSiteEvidence.length) evidenceReport.evidenceRegistry.push(...franceSiteEvidence);
@@ -851,6 +871,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       northern_ireland_land_registry_evidence_count: northernIrelandLandRegistryEvidence.length,
       france_site_evidence_count: franceSiteEvidence.length,
       germany_mv_evidence_count: germanyMvEvidence.length,
+      austria_ground_evidence_count: austriaGroundEvidence.length,
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
       czechia_ground_evidence_count: czechiaGroundEvidence.length,
       czechia_cadastre_evidence_count: Array.isArray(czechiaCadastre?.evidence) ? czechiaCadastre.evidence.length : 0,
