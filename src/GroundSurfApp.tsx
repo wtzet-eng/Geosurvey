@@ -290,7 +290,7 @@ function findingSummary(report: SiteReport, language: string) {
   const planningText = data.zoning_and_land_use?.summary
     || (isGerman ? 'Planungsinformationen müssen vor Ort bestätigt werden' : isPolish ? 'Informacje planistyczne wymagają potwierdzenia' : summaryCopy?.planning || 'Planning information needs local confirmation');
   return [
-    { label: isGerman ? 'Wo es liegt' : isPolish ? 'Gdzie się znajduje' : summaryCopy?.where || 'Where it is', value: parcel, tone: report.is_official_parcel ? 'established' : 'open' },
+    { label: isGerman ? 'Wo es liegt' : isPolish ? 'Gdzie się znajduje' : summaryCopy?.where || 'Where it is', value: parcel, tone: report.is_official_parcel || (report.country_code === 'GB' && ukMappedOutline) ? 'mapped' : 'open' },
     { label: isGerman ? 'Untergrund' : isPolish ? 'Podłoże' : summaryCopy?.groundLabel || 'Ground', value: groundText, tone: ground ? 'mapped' : 'open' },
     { label: isGerman ? 'Wasser' : isPolish ? 'Woda' : summaryCopy?.waterLabel || 'Water', value: waterText, tone: data.flooding_risk?.summary ? 'mapped' : 'open' },
     { label: isGerman ? 'Planung' : isPolish ? 'Planowanie' : summaryCopy?.planningLabel || 'Planning', value: planningText, tone: data.zoning_and_land_use?.summary ? 'mapped' : 'open' }
