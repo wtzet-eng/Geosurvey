@@ -24,6 +24,7 @@ const getMapLegend = (language?: string, countryCode?: string, ukJurisdiction?: 
     fr: { official: 'Limite cadastrale officielle', selected: 'Votre sélection' },
     es: { official: 'Límite catastral oficial', selected: 'Su selección' },
     nl: { official: 'Officiële kadastrale grens', selected: 'Uw selectie' },
+    fi: { official: 'Virallinen kiinteistöraja', selected: 'Valittu alue' },
     en: { official: 'Official cadastral boundary', selected: 'Your selection' },
   };
   if (isUk) {
@@ -79,6 +80,19 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
         version: '1.3.0',
         crs: L.CRS.EPSG4326,
         attribution: 'DGU cadastral parcels'
+      }).addTo(map);
+    }
+
+    if (countryCode?.toUpperCase() === 'FI') {
+      L.tileLayer.wms('https://inspire-wms.maanmittauslaitos.fi/inspire-wms/CP/ows', {
+        layers: 'CP.CadastralParcel',
+        styles: '',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.85,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3067,
+        attribution: 'National Land Survey of Finland — INSPIRE Cadastral Parcels'
       }).addTo(map);
     }
 
