@@ -11,9 +11,10 @@ interface MapPreviewProps {
   mappedGeometry?: [number, number][] | null;
   countryCode?: string;
   language?: string;
+  ukJurisdiction?: 'ENGLAND_WALES' | 'SCOTLAND' | 'NORTHERN_IRELAND' | null;
 }
 
-const getMapLegend = (language?: string, countryCode?: string) => {
+const getMapLegend = (language?: string, countryCode?: string, ukJurisdiction?: 'ENGLAND_WALES' | 'SCOTLAND' | 'NORTHERN_IRELAND' | null) => {
   const lang = language?.toLowerCase().slice(0, 2);
   const isUk = countryCode?.toUpperCase() === 'GB';
   const labels: Record<string, { official: string; selected: string }> = {
@@ -27,10 +28,10 @@ const getMapLegend = (language?: string, countryCode?: string) => {
   };
   if (isUk) {
     const ukLabels: Record<string, { official: string; selected: string }> = {
-      en: { official: 'HMLR registered-property outline (indicative)', selected: 'Your selection' },
-      de: { official: 'HMLR-Grenze des registrierten Grundstücks (Richtwert)', selected: 'Ihre Auswahl' },
-      hr: { official: 'HMLR okvir registrirane nekretnine (indikativno)', selected: 'Vaš odabir' },
-      pl: { official: 'Orientacyjny obrys zarejestrowanej nieruchomości HMLR', selected: 'Wybrany obszar' },
+      en: { official: ukJurisdiction === 'SCOTLAND' ? 'Registers of Scotland cadastral parcel (indicative)' : ukJurisdiction === 'NORTHERN_IRELAND' ? 'Northern Ireland Land Registry map (reference)' : 'HMLR registered-property outline (indicative)', selected: 'Your selection' },
+      de: { official: ukJurisdiction === 'SCOTLAND' ? 'Registers-of-Scotland-Katasterparzelle (Richtwert)' : ukJurisdiction === 'NORTHERN_IRELAND' ? 'Karte des nordirischen Grundbuchs (Referenz)' : 'HMLR-Grenze des registrierten Grundstücks (Richtwert)', selected: 'Ihre Auswahl' },
+      hr: { official: ukJurisdiction === 'SCOTLAND' ? 'Katastarska čestica Registers of Scotland (indikativno)' : ukJurisdiction === 'NORTHERN_IRELAND' ? 'Karta sjevernoirskog zemljišnog registra (referenca)' : 'HMLR okvir registrirane nekretnine (indikativno)', selected: 'Vaš odabir' },
+      pl: { official: ukJurisdiction === 'SCOTLAND' ? 'Orientacyjny obrys działki Registers of Scotland' : ukJurisdiction === 'NORTHERN_IRELAND' ? 'Mapa północnoirlandzkiego rejestru gruntów (referencja)' : 'Orientacyjny obrys zarejestrowanej nieruchomości HMLR', selected: 'Wybrany obszar' },
     };
     return ukLabels[lang || 'en'] || ukLabels.en;
   }
@@ -45,7 +46,8 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
   officialGeometry,
   mappedGeometry,
   countryCode,
-  language
+  language,
+  ukJurisdiction
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -85,7 +87,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
     // England and Wales, while Registers of Scotland covers Scotland.
     // Each service naturally returns no parcels outside its own coverage.
     if (countryCode?.toUpperCase() === 'GB') {
-      L.tileLayer.wms('https://inspire.landregistry.gov.uk/inspire/ows', {
+      if (ukJurisdiction !== 'SCOTLAND' && ukJurisdiction !== 'NORTHERN_IRELAND') L.tileLayer.wms('https://inspire.landregistry.gov.uk/inspire/ows', {
         layers: 'inspire:CP.CadastralParcel',
         styles: '',
         format: 'image/png',
@@ -97,7 +99,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
         attribution: 'HM Land Registry INSPIRE Index Polygons'
       }).addTo(map);
 
-      L.tileLayer.wms('https://ros-inspire.themapcloud.com/maps/wms', {
+      if (ukJurisdiction === 'SCOTLAND') L.tileLayer.wms('https://ros-inspire.themapcloud.com/maps/wms', {
         layers: 'CP.CadastralParcel',
         styles: '',
         format: 'image/png',
@@ -127,7 +129,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
       map.remove();
       mapRef.current = null;
     };
-  }, [lat, lng, countryCode]);
+  }, [lat, lng, countryCode, ukJurisdiction]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -195,7 +197,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
 
   const showOfficialBoundary = Boolean((officialGeometry && officialGeometry.length >= 3) || (mappedGeometry && mappedGeometry.length >= 3));
   const isUk = countryCode?.toUpperCase() === 'GB';
-  const legend = getMapLegend(language, countryCode);
+  const legend = getMapLegend(language, countryCode, ukJurisdiction);
 
   return (
     <div className="relative h-56 w-full rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xs z-0 dark:border-slate-700 dark:bg-[#1b211d]">
