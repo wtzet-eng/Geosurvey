@@ -91,7 +91,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
         transparent: true,
         opacity: 0.85,
         version: '1.3.0',
-        crs: L.CRS.EPSG3067,
+        crs: L.CRS.EPSG3857,
         attribution: 'National Land Survey of Finland — INSPIRE Cadastral Parcels'
       }).addTo(map);
     }
