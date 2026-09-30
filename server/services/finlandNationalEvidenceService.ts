@@ -69,8 +69,22 @@ function sourceEvidence(id: string, category: string, claim: string, sourceUrl: 
   };
 }
 
-export async function queryFinlandNationalEvidence(lat: number, lng: number, fetcher: FetchLike = fetch): Promise<FinlandNationalEvidenceResult> {
+export async function queryFinlandNationalEvidence(lat: number, lng: number, municipality: string | null = null, fetcher: FetchLike = fetch): Promise<FinlandNationalEvidenceResult> {
   const evidence: EvidenceItem[] = [];
+  const municipalityName = text(municipality);
+  if (municipalityName && /^(Helsinki)$/i.test(municipalityName.trim())) {
+    evidence.push(sourceEvidence(
+      'fi-gtk-helsinki-geochemical-baseline',
+      'Environmental / soil chemistry context',
+      'GTK and the City of Helsinki have published a dedicated Helsinki soil-geochemical baseline covering natural and urban soil materials; the study is intended as regional background context when soil contamination and remediation needs are assessed.',
+      'https://gtkdata.gtk.fi/TapirEN/pages_en/paakaupunkiseutu.html',
+      'Helsinki municipal study area',
+      'Published GTK Helsinki metropolitan geochemical baseline study; not a parcel-specific concentration measurement',
+      'Medium',
+      { studyArea: 'Helsinki', samplingYears: '1996–2009', media: ['humus', 'topsoil 0–40 cm'], materials: ['sand', 'till', 'clay', 'silt', 'peat', 'mineral soil rich in organic matter'], analytes: ['metals and metalloids', 'PAH/PCB in part of the study'] },
+      'This is regional background information, not a soil sample from the selected parcel. Actual contamination or remediation needs require site-specific sampling and comparison with the applicable Finnish assessment framework.'
+    ));
+  }
 
   const [bedrock, soil20k, acidSulphate, pressureSoundings, rockDrillings, groundwaterWells] = await Promise.all([
     pointQuery(GTK_BEDROCK, 51, lat, lng, undefined, fetcher),
