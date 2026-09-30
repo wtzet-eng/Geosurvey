@@ -58,7 +58,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
     <div className="flex w-full flex-col">
       <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur">
         <div className="text-xs font-semibold text-slate-500">{shellCopy.report}</div>
-        <a href={window.location.origin + '/groundsurf?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800">
+        <a href={window.location.origin + '/?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800">
           <MessageCircle className="h-3.5 w-3.5" /> {shellCopy.ask}
         </a>
       </div>
