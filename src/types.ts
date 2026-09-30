@@ -299,6 +299,7 @@ export interface ReportData {
   location_name?: string;
   language?: string;
   official_geometry?: [number, number][];
+  mapped_geometry?: [number, number][] | null;
   is_official_parcel?: boolean;
   official_area_m2?: number;
 }
