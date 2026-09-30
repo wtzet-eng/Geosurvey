@@ -217,7 +217,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           countyName = czechiaCadastre.parcel?.district || countyName;
           stateName = czechiaCadastre.parcel?.region || stateName;
           if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
-            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = Math.max(12, Number(evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score) || 0);
             evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'ČÚZK RÚIAN returned a registered parcel identifier and polygon at the selected coordinate; legal title and boundary conclusiveness still require KN/ISKN verification.';
           }
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
@@ -480,7 +480,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             parcelId: ukCadastre.parcel.parcelId,
             countryCode: 'GB',
             geometryPoints: ukCadastre.parcel.geometryPoints,
-            isOfficialGeometry: true,
+            isOfficialGeometry: false,
             areaCalculatedM2: evidenceReport.parcel?.areaCalculatedM2 || areaSize,
             cadastralSource: ukCadastre.sourceName,
             inspireMappedAreaM2: ukCadastre.parcel.mappedAreaM2,
