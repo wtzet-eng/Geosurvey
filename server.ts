@@ -69,7 +69,7 @@ import { queryAustriaGroundEvidence } from './server/services/austriaGroundEvide
 import { applyFinlandCadastreToReport, queryFinlandCadastre } from './server/services/finlandCadastreService';
 import { queryFinlandNationalEvidence } from './server/services/finlandNationalEvidenceService';
 import { applyEstoniaCadastreToReport, queryEstoniaCadastre } from './server/services/estoniaCadastreService';
-import { queryEstoniaNationalEvidence } from './server/services/estoniaNationalEvidenceService';
+import { applyEstoniaNationalEvidenceToReport, queryEstoniaNationalEvidence } from './server/services/estoniaNationalEvidenceService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -618,6 +618,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       try { estoniaNationalEvidence = (await queryEstoniaNationalEvidence(lat, lng)).evidence; } catch (e) { console.warn(`[${diagnosticId}] Estonian Geological Survey evidence notice:`, e); }
       stage = 'estonia-report-enrichment';
       if (estoniaNationalEvidence.length) evidenceReport.evidenceRegistry.push(...estoniaNationalEvidence);
+      applyEstoniaNationalEvidenceToReport(evidenceReport, estoniaNationalEvidence);
       const verifiedGround = estoniaNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['ee-egt-superficial-geology', 'ee-egt-bedrock-exposure'].includes(item.id));
       const verifiedHydro = estoniaNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['ee-egt-hydrogeology', 'ee-egt-groundwater-vulnerability'].includes(item.id));
       if ((verifiedGround || verifiedHydro) && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {

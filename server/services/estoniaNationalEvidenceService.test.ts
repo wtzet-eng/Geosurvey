@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { queryEstoniaNationalEvidence } from './estoniaNationalEvidenceService';
+import { applyEstoniaNationalEvidenceToReport, queryEstoniaNationalEvidence } from './estoniaNationalEvidenceService';
 
 function jsonResponse(body: any): Response { return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }); }
 const polygon = (props: any) => ({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[24.9, 59.4], [24.9, 59.41], [24.91, 59.41], [24.91, 59.4], [24.9, 59.4]]] }, properties: props });
@@ -24,6 +24,12 @@ test('maps Estonian superficial geology and hydrogeology and preserves borehole 
   assert.equal(ids.includes('ee-egt-groundwater-vulnerability'), true);
   assert.equal(ids.includes('ee-egt-borehole-context'), true);
   assert.equal(result.evidence.find(item => item.id === 'ee-egt-superficial-geology')?.status, 'VERIFIED');
+  const report: any = { geosurvey_context: { lithology_type: 'Sandy Loam', evidence_level: 'MODELLED' } };
+  applyEstoniaNationalEvidenceToReport(report, result.evidence);
+  assert.equal(report.geosurvey_context.survey_authority, 'Estonian Geological Survey (EGT)');
+  assert.equal(report.geosurvey_context.lithology_type, 'Peenliiv');
+  assert.equal(report.geosurvey_context.geological_unit_name, 'Peenliiv (LtQ2)');
+  assert.equal(report.geosurvey_context.evidence_level, 'VERIFIED');
 });
 
 test('missing Estonian mapped data does not become a negative finding', async () => {

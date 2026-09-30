@@ -110,4 +110,43 @@ export async function queryEstoniaNationalEvidence(lat: number, lng: number, fet
   return { evidence: records, sourceCount: records.length };
 }
 
+
+export function applyEstoniaNationalEvidenceToReport(report: any, evidence: EvidenceItem[]): void {
+  if (!report) return;
+  const existing = report.geosurvey_context && typeof report.geosurvey_context === 'object' ? report.geosurvey_context : {};
+  const surface = evidence.find(item => item.id === 'ee-egt-superficial-geology' && item.status === 'VERIFIED');
+  const bedrock = evidence.find(item => item.id === 'ee-egt-bedrock-exposure' && item.status === 'VERIFIED');
+  const hydro = evidence.find(item => item.id === 'ee-egt-hydrogeology' && item.status === 'VERIFIED');
+  const vulnerability = evidence.find(item => item.id === 'ee-egt-groundwater-vulnerability' && item.status === 'VERIFIED');
+  const surfaceValue = surface?.value && typeof surface.value === 'object' ? surface.value as Record<string, unknown> : {};
+  const bedrockValue = bedrock?.value && typeof bedrock.value === 'object' ? bedrock.value as Record<string, unknown> : {};
+  const hydroValue = hydro?.value && typeof hydro.value === 'object' ? hydro.value as Record<string, unknown> : {};
+  const vulnerabilityValue = vulnerability?.value && typeof vulnerability.value === 'object' ? vulnerability.value as Record<string, unknown> : {};
+  const surfaceLithology = text(surfaceValue.lithology);
+  const surfaceStratigraphy = text(surfaceValue.stratigraphy);
+  const bedrockIndex = text(bedrockValue.index);
+  const hydroType = text(hydroValue.type);
+  const hydroAquifer = text(hydroValue.aquifer);
+  const vulnerabilityClass = text(vulnerabilityValue.classification);
+  const vulnerabilityCharacter = text(vulnerabilityValue.character);
+  const geologicalUnitName = surfaceLithology
+    ? `${surfaceLithology}${surfaceStratigraphy ? ` (${surfaceStratigraphy})` : ''}`
+    : bedrockIndex ? `Bedrock exposure ${bedrockIndex}` : existing.geological_unit_name;
+  const groundwaterRegime = hydroType
+    ? `${hydroType}${hydroAquifer ? `; aquifer: ${hydroAquifer}` : ''}`
+    : existing.groundwater_regime;
+  report.geosurvey_context = {
+    ...existing,
+    survey_authority: 'Estonian Geological Survey (EGT)',
+    source_name: 'Estonian Geological Survey (EGT) — 1:50,000 geology and hydrogeology',
+    source_url: EGT_PORTAL,
+    geological_unit_name: geologicalUnitName,
+    lithology_type: surfaceLithology || existing.lithology_type,
+    geological_period_era: surfaceStratigraphy || existing.geological_period_era,
+    groundwater_regime: groundwaterRegime,
+    groundwater_protection_class: vulnerabilityClass ? `${vulnerabilityClass}${vulnerabilityCharacter ? ` (${vulnerabilityCharacter})` : ''}` : existing.groundwater_protection_class,
+    evidence_level: (surface || bedrock || hydro || vulnerability) ? 'VERIFIED' : existing.evidence_level
+  };
+}
+
 export const ESTONIA_GEOLOGY_SOURCES = { geologyWfs: K50_WFS, boreholeWfs: FAKTIKA_WFS, portal: EGT_PORTAL };
