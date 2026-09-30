@@ -755,7 +755,21 @@ export const GroundSurfApp: React.FC = () => {
             >
               {isDarkTheme ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800">
+            <a
+              href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)}
+              onClick={(event) => {
+                if (window.matchMedia('(min-width: 768px)').matches) {
+                  event.preventDefault();
+                  const opened = window.open(
+                    window.location.origin + '/report?report_id=' + encodeURIComponent(report.id),
+                    '_blank',
+                    'noopener,noreferrer'
+                  );
+                  if (!opened) window.location.assign(window.location.origin + '/report?report_id=' + encodeURIComponent(report.id));
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800"
+            >
               <FileText className="h-3.5 w-3.5" /> <span>{appUiCopy(language, 'detailedReport')}</span>
             </a>
           </div>
@@ -824,7 +838,21 @@ export const GroundSurfApp: React.FC = () => {
                     </div>
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                       <div className="text-sm text-slate-500">{appUiCopy(language, 'detailedTrail')}</div>
-                      <a href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800">
+                      <a
+                        href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)}
+                        onClick={(event) => {
+                          if (window.matchMedia('(min-width: 768px)').matches) {
+                            event.preventDefault();
+                            const opened = window.open(
+                              window.location.origin + '/report?report_id=' + encodeURIComponent(report.id),
+                              '_blank',
+                              'noopener,noreferrer'
+                            );
+                            if (!opened) window.location.assign(window.location.origin + '/report?report_id=' + encodeURIComponent(report.id));
+                          }
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800"
+                      >
                         <FileText className="h-3.5 w-3.5" /> {appUiCopy(language, 'openDetailed')}
                       </a>
                     </div>
