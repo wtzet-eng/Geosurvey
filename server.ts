@@ -986,7 +986,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       ].filter(Boolean).join(' ');
       if (hasSurvey) presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${surveyText} ${language === 'de' ? 'Nahe Untersuchungen sind Kontext und kein Ersatz für eine standortbezogene Baugrunduntersuchung.' : language === 'pl' ? 'Pobliskie badania są jedynie kontekstem i nie zastępują badań podłoża w miejscu działki.' : 'Nearby surveys are contextual evidence and do not replace a site-specific ground investigation.'}`.trim();
       if (specialistParts) presentation.sections.soil_and_ground.detail = `${presentation.sections.soil_and_ground.detail} ${specialistParts}`.trim();
-      if (hasSurvey) presentation.sections.soil_and_ground.source_cited = [...new Set([presentation.sections.soil_and_ground.source_cited, 'Maa- ja Ruumiamet / EGT — Ehitusgeoloogia']).filter(Boolean)].join('; ');
+      if (hasSurvey) presentation.sections.soil_and_ground.source_cited = [...new Set([presentation.sections.soil_and_ground.source_cited, 'Maa- ja Ruumiamet / EGT — Ehitusgeoloogia'].filter(Boolean))].join('; ');
     }
     const franceGroundPresentation = renderFranceGroundPresentation(canonicalReport, presentation.language);
     if (franceGroundPresentation) {
