@@ -25,6 +25,7 @@ const getMapLegend = (language?: string, countryCode?: string, ukJurisdiction?: 
     es: { official: 'Límite catastral oficial', selected: 'Su selección' },
     nl: { official: 'Officiële kadastrale grens', selected: 'Uw selectie' },
     fi: { official: 'Virallinen kiinteistöraja', selected: 'Valittu alue' },
+    pt: { official: 'Limite cadastral oficial', selected: 'Área selecionada' },
     en: { official: 'Official cadastral boundary', selected: 'Your selection' },
   };
   if (isUk) {
@@ -80,6 +81,12 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
         version: '1.3.0',
         crs: L.CRS.EPSG4326,
         attribution: 'DGU cadastral parcels'
+      }).addTo(map);
+    }
+
+    if (countryCode?.toUpperCase() === 'PT') {
+      L.tileLayer.wms('https://snicws.dgterritorio.gov.pt/geoserver/inspire/ows', {
+        layers: 'cadastralparcel', styles: 'generic', format: 'image/png', transparent: true, opacity: 0.85, version: '1.3.0', crs: L.CRS.EPSG3857, attribution: 'Direção-Geral do Território — Cadastro Predial', maxNativeZoom: 18, maxZoom: 22
       }).addTo(map);
     }
 

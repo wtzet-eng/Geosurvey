@@ -32,6 +32,13 @@ const FINLAND_CADASTRAL_CONTEXT = {
   attribution: '© National Land Survey of Finland — INSPIRE Cadastral Parcels'
 };
 
+const PORTUGAL_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://snicws.dgterritorio.gov.pt/geoserver/inspire/ows',
+  viewLayer: 'cadastralparcel',
+  viewStyle: 'generic',
+  attribution: '© Direção-Geral do Território — Cadastro Predial'
+};
+
 const ESTONIA_CADASTRAL_CONTEXT = {
   viewServiceUrl: 'https://gsavalik.envir.ee/geoserver/kataster/ows',
   viewLayer: 'kataster:ky_kehtiv',
@@ -208,6 +215,20 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
         attribution: 'Topography & Relief: &copy; OpenTopoMap',
         maxZoom: 17,
+      }).addTo(map);
+    }
+    if (countryCode.toUpperCase() === 'PT') {
+      L.tileLayer.wms(PORTUGAL_CADASTRAL_CONTEXT.viewServiceUrl, {
+        layers: PORTUGAL_CADASTRAL_CONTEXT.viewLayer,
+        styles: PORTUGAL_CADASTRAL_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.8,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3857,
+        attribution: PORTUGAL_CADASTRAL_CONTEXT.attribution,
+        maxNativeZoom: 18,
+        maxZoom: 22
       }).addTo(map);
     }
     if (countryCode.toUpperCase() === 'FI') {

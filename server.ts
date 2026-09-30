@@ -68,6 +68,8 @@ import { getCountrySupport } from './src/data/countrySupport';
 import { queryAustriaGroundEvidence } from './server/services/austriaGroundEvidenceService';
 import { applyFinlandCadastreToReport, queryFinlandCadastre } from './server/services/finlandCadastreService';
 import { queryFinlandNationalEvidence } from './server/services/finlandNationalEvidenceService';
+import { applyPortugalCadastreToReport, queryPortugalCadastre } from './server/services/portugalCadastreService';
+import { enrichPortugalNationalEvidence, queryPortugalNationalEvidence } from './server/services/portugalNationalEvidenceService';
 import { applyEstoniaCadastreToReport, queryEstoniaCadastre } from './server/services/estoniaCadastreService';
 import { applyLatviaCadastreToReport, queryLatviaCadastre } from './server/services/latviaCadastreService';
 import { applyLatviaNationalEvidenceToReport, queryLatviaNationalEvidence } from './server/services/latviaNationalEvidenceService';
@@ -132,6 +134,10 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'FI') {
     const finland = await queryFinlandCadastre(lat, lng);
     return res.json({ ...finland, geometryPoints: finland.geometryPoints, viewServiceUrl: 'https://inspire-wms.maanmittauslaitos.fi/inspire-wms/CP/ows', viewLayer: 'CP.CadastralParcel', viewStyle: '', viewAttribution: '© National Land Survey of Finland' });
+  }
+  if (support.capabilities.nationalCadastre && country === 'PT') {
+    const portugal = await queryPortugalCadastre(lat, lng);
+    return res.json({ ...portugal, geometryPoints: portugal.geometryPoints, viewServiceUrl: 'https://snicws.dgterritorio.gov.pt/geoserver/inspire/ows', viewLayer: 'cadastralparcel', viewStyle: 'generic', viewAttribution: '© Direção-Geral do Território — Cadastro Predial' });
   }
   if (support.capabilities.nationalCadastre && country === 'IE') return res.json(await queryIrelandCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'LU') return res.json(await queryLuxembourgCadastre(lat, lng));
@@ -219,6 +225,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let switzerlandCadastre: any = null;
     let maltaCadastre: any = null;
     let finlandCadastre: any = null;
+    let portugalCadastre: any = null;
     let estoniaCadastre: any = null;
     let latviaCadastre: any = null;
     let germanyCadastre: any = null;
@@ -346,6 +353,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: 'TNO Geological Survey of the Netherlands — BRO GeoTOP v1.6.1', organization: 'TNO / Geological Survey of the Netherlands', url: 'https://www.dinodata.nl/opendap/GeoTOP/geotop.nc.html', type: 'Geological Survey', status: 'MODELLED' });
         }
       } catch (e) { console.warn('[NL GeoTOP] DINOloket notice:', e); }
+    } else if (!countryLocationMismatch && countryCode === 'PT' && support.capabilities.nationalCadastre) {
+      stage = 'portugal-cadastre';
+      try {
+        portugalCadastre = await queryPortugalCadastre(lat, lng);
+        applyPortugalCadastreToReport(evidenceReport, portugalCadastre, areaSize);
+        if (portugalCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = 18;
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'DGT Cadastro Predial returned a published cadastral parcel for the selected coordinate. Portugal cadastral coverage is incomplete, so an empty query is not treated as evidence that no property exists.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: portugalCadastre.sourceName, organization: 'Direção-Geral do Território (DGT)', url: portugalCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] DGT Portugal cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'FI' && support.capabilities.nationalCadastre) {
       stage = 'finland-cadastre';
       try {
@@ -525,6 +546,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let croatiaNationalEvidence: any[] = [];
     let austriaGroundEvidence: any[] = [];
     let finlandNationalEvidence: any[] = [];
+    let portugalNationalEvidence: any[] = [];
     let estoniaNationalEvidence: any[] = [];
     let latviaNationalEvidence: any[] = [];
     let europeValuationEvidence: any = null;
@@ -613,6 +635,23 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         type: 'Geological Survey',
         status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
       });
+    } else if (!countryLocationMismatch && countryCode === 'PT' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
+      stage = 'portugal-national-evidence';
+      try { portugalNationalEvidence = await queryPortugalNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] LNEG Portugal evidence notice:`, e); }
+      stage = 'portugal-report-enrichment';
+      if (portugalNationalEvidence.length) evidenceReport.evidenceRegistry.push(...portugalNationalEvidence);
+      enrichPortugalNationalEvidence(evidenceReport, portugalNationalEvidence);
+      const verifiedGeology = portugalNationalEvidence.some((item: any) => ['pt-lneg-geology-200k', 'pt-lneg-geology-1m'].includes(item.id) && item.status === 'VERIFIED');
+      const verifiedHydro = portugalNationalEvidence.some((item: any) => item.id === 'pt-lneg-aquifer-system' && item.status === 'VERIFIED');
+      if (verifiedGeology && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'LNEG national geological mapping returned a mapped unit at the selected coordinate. This is screening evidence and does not establish parcel-scale stratigraphy or engineering parameters.';
+      }
+      if (verifiedHydro && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+      }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'Laboratório Nacional de Energia e Geologia (LNEG)') : [];
+      evidenceReport.dataSourcesCited.push({ name: 'LNEG — national geology, Sondabase and hydrogeological resources', organization: 'Laboratório Nacional de Energia e Geologia (LNEG)', url: 'https://geoportal.lneg.pt/', type: 'Geological Survey', status: (verifiedGeology || verifiedHydro) ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'FI' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'finland-national-evidence';
       try { finlandNationalEvidence = (await queryFinlandNationalEvidence(lat, lng, municipality)).evidence; } catch (e) { console.warn(`[${diagnosticId}] GTK Finland evidence notice:`, e); }
@@ -976,6 +1015,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       france_site_evidence_count: franceSiteEvidence.length,
       germany_mv_evidence_count: germanyMvEvidence.length,
       austria_ground_evidence_count: austriaGroundEvidence.length,
+      portugal_cadastre_evidence_count: Array.isArray(portugalCadastre?.evidence) ? portugalCadastre.evidence.length : 0,
+      portugal_national_evidence_count: portugalNationalEvidence.length,
       slovakia_ground_evidence_count: slovakiaGroundEvidence.length,
       czechia_ground_evidence_count: czechiaGroundEvidence.length,
       czechia_cadastre_evidence_count: Array.isArray(czechiaCadastre?.evidence) ? czechiaCadastre.evidence.length : 0,
