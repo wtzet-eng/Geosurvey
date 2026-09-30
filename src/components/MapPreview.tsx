@@ -8,6 +8,7 @@ interface MapPreviewProps {
   areaSize: number;
   boundary?: BoundaryShape;
   officialGeometry?: [number, number][] | null;
+  mappedGeometry?: [number, number][] | null;
   countryCode?: string;
   language?: string;
 }
@@ -42,6 +43,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
   areaSize,
   boundary,
   officialGeometry,
+  mappedGeometry,
   countryCode,
   language
 }) => {
@@ -180,8 +182,9 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
       bounds.extend(marker.getLatLng());
     }
 
-    if (officialGeometry && officialGeometry.length >= 3) {
-      const official = L.polygon(officialGeometry, officialStyle).addTo(map);
+    const outlineGeometry = officialGeometry && officialGeometry.length >= 3 ? officialGeometry : mappedGeometry;
+    if (outlineGeometry && outlineGeometry.length >= 3) {
+      const official = L.polygon(outlineGeometry, officialStyle).addTo(map);
       bounds.extend(official.getBounds());
     }
 
@@ -190,7 +193,7 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
     }
   }, [lat, lng, areaSize, boundary, officialGeometry]);
 
-  const showOfficialBoundary = Boolean(officialGeometry && officialGeometry.length >= 3);
+  const showOfficialBoundary = Boolean((officialGeometry && officialGeometry.length >= 3) || (mappedGeometry && mappedGeometry.length >= 3));
   const isUk = countryCode?.toUpperCase() === 'GB';
   const legend = getMapLegend(language, countryCode);
 
