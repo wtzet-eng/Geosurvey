@@ -442,7 +442,27 @@ export function LegacyReportApp() {
   if (activeReport) {
     return (
       <ReportRenderBoundary>
-        <ReportView report={activeReport} onBack={() => setActiveReport(null)} />
+        <ReportView
+          report={activeReport}
+          onBack={() => {
+            const referrer = document.referrer;
+            try {
+              const referrerUrl = referrer ? new URL(referrer) : null;
+              const cameFromGroundSurf = Boolean(
+                referrerUrl &&
+                referrerUrl.origin === window.location.origin &&
+                !referrerUrl.pathname.startsWith('/report')
+              );
+              if (cameFromGroundSurf && window.history.length > 1) {
+                window.history.back();
+                return;
+              }
+            } catch {}
+            window.location.assign(
+              window.location.origin + '/?report_id=' + encodeURIComponent(activeReport.id)
+            );
+          }}
+        />
       </ReportRenderBoundary>
     );
   }
