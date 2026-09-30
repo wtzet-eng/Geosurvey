@@ -82,38 +82,6 @@ function projectedArea(ring: Point[]): number {
   return Math.abs(sum) / 2;
 }
 
-function inside(point: [number, number], ring: Point[]): boolean {
-  let hit = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    const crosses = (yi > point[1]) !== (yj > point[1]);
-    if (crosses && point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi) hit = !hit;
-  }
-  return hit;
-}
-
-function extractId(xml: string): string | null {
-  const match = xml.match(/(?:gml:id|fid|id)\s*=\s*["']([^"']+)["']/i);
-  return match?.[1] || null;
-}
-
-async function fetchText(url: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 9000);
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'GroundSurf/1.0 UK cadastral evidence', Accept: 'application/vnd.ogc.gml, application/xml, text/xml' },
-      signal: controller.signal
-    });
-    return response.ok ? await response.text() : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 const DOWNLOAD_PAGE_URL = 'https://use-land-property-data.service.gov.uk/datasets/inspire/download';
 const GML_FILE_NAME = 'Land_Registry_Cadastral_Parcels.gml';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
