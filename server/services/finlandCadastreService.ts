@@ -92,7 +92,7 @@ function distanceSq(a: [number, number], b: [number, number]): number {
 }
 
 function queryUrl(lat: number, lng: number): string {
-  const delta = 0.00025;
+  const delta = 0.001;
   const params = new URLSearchParams({
     SERVICE: 'WFS',
     VERSION: '2.0.0',
