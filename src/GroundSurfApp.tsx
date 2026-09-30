@@ -276,7 +276,9 @@ function findingSummary(report: SiteReport, language: string) {
     sv: { parcel: 'Officiell fastighet identifierad', parcelOpen: 'Officiell fastighet inte bekräftad', ground: 'Regional information om markförhållanden finns tillgänglig', water: 'Vattenförhållandena är delvis öppna', planning: 'Planeringsuppgifter behöver bekräftas lokalt', where: 'Var den ligger', groundLabel: 'Markförhållanden', waterLabel: 'Vatten', planningLabel: 'Planering' }
   }[locale as 'cs' | 'da' | 'nl' | 'hr' | 'es' | 'fr' | 'no' | 'fi' | 'sv'] || null;
   const parcel = report.is_official_parcel
-    ? (isGerman ? 'Amtliches Flurstück identifiziert' : isPolish ? 'Oficjalna działka została zidentyfikowana' : summaryCopy?.parcel || 'Official parcel identified')
+    ? (countryCode === 'GB'
+      ? 'HMLR registered-property outline identified'
+      : isGerman ? 'Amtliches Flurstück identifiziert' : isPolish ? 'Oficjalna działka została zidentyfikowana' : summaryCopy?.parcel || 'Official parcel identified')
     : (isGerman ? 'Amtliches Flurstück nicht bestätigt' : isPolish ? 'Oficjalna działka nie została potwierdzona' : summaryCopy?.parcelOpen || 'Official parcel not confirmed');
   const groundText = ground?.summary
     || data.geosurvey_context?.geological_unit_name
