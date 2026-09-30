@@ -1,4 +1,5 @@
-import type { CadastralParcelInfo, EvidenceItem } from '../types';
+import { inflateRawSync } from 'node:zlib';
+import type { EvidenceItem } from '../types';
 
 const SOURCE = 'HM Land Registry INSPIRE Index Polygons';
 const SOURCE_URL = 'https://inspire.landregistry.gov.uk/inspire/ows';
@@ -113,26 +114,201 @@ async function fetchText(url: string): Promise<string | null> {
   }
 }
 
-function getFeatureInfoUrl(lat: number, lng: number): string {
-  const [easting, northing] = wgs84ToBng(lat, lng);
-  const half = 50;
-  const params = new URLSearchParams({
-    SERVICE: 'WMS',
-    VERSION: '1.1.1',
-    REQUEST: 'GetFeatureInfo',
-    LAYERS: 'inspire:CP.CadastralParcel',
-    QUERY_LAYERS: 'inspire:CP.CadastralParcel',
-    STYLES: '',
-    SRS: 'EPSG:27700',
-    BBOX: `${easting - half},${northing - half},${easting + half},${northing + half}`,
-    WIDTH: '101',
-    HEIGHT: '101',
-    X: '50',
-    Y: '50',
-    INFO_FORMAT: 'application/vnd.ogc.gml',
-    FEATURE_COUNT: '10'
-  });
-  return `${SOURCE_URL}?${params}`;
+const DOWNLOAD_PAGE_URL = 'https://use-land-property-data.service.gov.uk/datasets/inspire/download';
+const GML_FILE_NAME = 'Land_Registry_Cadastral_Parcels.gml';
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const MAX_ZIP_CACHE_ENTRIES = 3;
+
+type AuthorityDownload = { name: string; url: string; cookies: string[] };
+const authorityCache = new Map<string, { expiresAt: number; download: AuthorityDownload }>();
+const zipCache = new Map<string, { expiresAt: number; data: Buffer }>();
+const zipInFlight = new Map<string, Promise<Buffer>>();
+
+function normalizeAuthorityName(value: string): string {
+  return value.replace(/&amp;/gi, '&').toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(city|metropolitan|district|borough|county|unitary|royal|council)\b/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function extractSetCookies(response: Response): string[] {
+  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+  const raw = typeof headers.getSetCookie === 'function'
+    ? headers.getSetCookie()
+    : (response.headers.get('set-cookie') ? [response.headers.get('set-cookie') as string] : []);
+  return raw.map(function(cookie) { return cookie.split(';', 1)[0].trim(); }).filter(Boolean);
+}
+
+function cookieHeader(cookies: string[]): string { return cookies.join('; '); }
+
+async function fetchDownloadPage(): Promise<{ html: string; cookies: string[] }> {
+  const first = await fetch(DOWNLOAD_PAGE_URL, { redirect: 'manual', headers: { 'User-Agent': 'GroundSurf/1.0 UK cadastral evidence' } });
+  let cookies = extractSetCookies(first);
+  const location = first.headers.get('location');
+  if (first.status >= 300 && first.status < 400 && location) {
+    const second = await fetch(new URL(location, DOWNLOAD_PAGE_URL), {
+      headers: { 'User-Agent': 'GroundSurf/1.0 UK cadastral evidence', Cookie: cookieHeader(cookies) }
+    });
+    cookies = [...new Set(cookies.concat(extractSetCookies(second)))];
+    if (!second.ok) throw new Error('HMLR download page HTTP ' + second.status);
+    return { html: await second.text(), cookies: cookies };
+  }
+  if (first.ok) return { html: await first.text(), cookies: cookies };
+  throw new Error('HMLR download page HTTP ' + first.status);
+}
+
+function parseAuthorityDownloads(html: string): AuthorityDownload[] {
+  const rows = [...html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)];
+  return rows.map(function(row) {
+    const content = row[1];
+    const nameMatch = content.match(/<th\b[^>]*>([\s\S]*?)<\/th>/i);
+    const hrefMatch = content.match(/<a\b[^>]*href=["']([^"']+\.zip)["']/i);
+    if (!nameMatch || !hrefMatch) return null;
+    const name = nameMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return name ? { name: name, url: new URL(hrefMatch[1], DOWNLOAD_PAGE_URL).toString(), cookies: [] } : null;
+  }).filter(function(item): item is AuthorityDownload { return Boolean(item); });
+}
+
+function chooseAuthority(downloads: AuthorityDownload[], municipality?: string): AuthorityDownload | null {
+  const needle = normalizeAuthorityName(municipality || '');
+  if (!needle) return null;
+  const scored = downloads.map(function(item) {
+    const hay = normalizeAuthorityName(item.name);
+    let score = 0;
+    if (hay === needle) score = 100;
+    else if (hay.indexOf(needle + ' ') === 0 || needle.indexOf(hay + ' ') === 0) score = 80;
+    else if (hay.indexOf(needle) >= 0 || needle.indexOf(hay) >= 0) score = 60;
+    return { item: item, score: score };
+  }).filter(function(item) { return item.score > 0; }).sort(function(a, b) { return b.score - a.score; });
+  return scored[0] ? scored[0].item : null;
+}
+
+async function resolveAuthorityDownload(municipality?: string): Promise<AuthorityDownload | null> {
+  const key = normalizeAuthorityName(municipality || '');
+  if (!key) return null;
+  const cached = authorityCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.download;
+  const page = await fetchDownloadPage();
+  const selected = chooseAuthority(parseAuthorityDownloads(page.html), municipality);
+  if (!selected) return null;
+  const download = { name: selected.name, url: selected.url, cookies: page.cookies };
+  authorityCache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, download: download });
+  return download;
+}
+
+function findEndOfCentralDirectory(zip: Buffer): number {
+  const min = Math.max(0, zip.length - 0x10000 - 22);
+  for (let i = zip.length - 22; i >= min; i--) if (zip.readUInt32LE(i) === 0x06054b50) return i;
+  throw new Error('HMLR ZIP central directory not found');
+}
+
+function extractGmlFromZip(zip: Buffer): Buffer {
+  const eocd = findEndOfCentralDirectory(zip);
+  const count = zip.readUInt16LE(eocd + 10);
+  const centralOffset = zip.readUInt32LE(eocd + 16);
+  let cursor = centralOffset;
+  for (let i = 0; i < count; i++) {
+    if (zip.readUInt32LE(cursor) !== 0x02014b50) break;
+    const method = zip.readUInt16LE(cursor + 10);
+    const compressedSize = zip.readUInt32LE(cursor + 20);
+    const nameLength = zip.readUInt16LE(cursor + 28);
+    const extraLength = zip.readUInt16LE(cursor + 30);
+    const commentLength = zip.readUInt16LE(cursor + 32);
+    const localOffset = zip.readUInt32LE(cursor + 42);
+    const fileName = zip.toString('utf8', cursor + 46, cursor + 46 + nameLength);
+    cursor += 46 + nameLength + extraLength + commentLength;
+    if (!fileName.endsWith(GML_FILE_NAME)) continue;
+    const localNameLength = zip.readUInt16LE(localOffset + 26);
+    const localExtraLength = zip.readUInt16LE(localOffset + 28);
+    const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+    const compressed = zip.subarray(dataStart, dataStart + compressedSize);
+    if (method === 0) return Buffer.from(compressed);
+    if (method === 8) return inflateRawSync(compressed);
+    throw new Error('Unsupported HMLR ZIP compression method ' + method);
+  }
+  throw new Error('HMLR ZIP does not contain ' + GML_FILE_NAME);
+}
+
+async function downloadAuthorityZip(authority: AuthorityDownload): Promise<Buffer> {
+  const cached = zipCache.get(authority.url);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  const active = zipInFlight.get(authority.url);
+  if (active) return active;
+  const promise = fetch(authority.url, {
+    headers: { 'User-Agent': 'GroundSurf/1.0 UK cadastral evidence', Accept: 'application/zip, application/octet-stream', Cookie: cookieHeader(authority.cookies) }
+  }).then(async function(response) {
+    if (!response.ok) throw new Error('HMLR ' + authority.name + ' download HTTP ' + response.status);
+    const data = Buffer.from(await response.arrayBuffer());
+    zipCache.set(authority.url, { expiresAt: Date.now() + CACHE_TTL_MS, data: data });
+    while (zipCache.size > MAX_ZIP_CACHE_ENTRIES) {
+      const oldest = zipCache.keys().next().value;
+      if (!oldest) break;
+      zipCache.delete(oldest);
+    }
+    return data;
+  }).finally(function() { zipInFlight.delete(authority.url); });
+  zipInFlight.set(authority.url, promise);
+  return promise;
+}
+
+function parseFeatureRing(featureXml: string): Point[] {
+  const exterior = featureXml.match(/<[^>]*exterior[^>]*>[\s\S]*?<[^>]*posList[^>]*>([\s\S]*?)<\/[^>]*posList>/i);
+  const source = exterior ? exterior[1] : (featureXml.match(/<[^>]*posList[^>]*>([\s\S]*?)<\/[^>]*posList>/i) || [])[1];
+  if (!source) return [];
+  const nums = parseNumbers(source);
+  return nums.length >= 6 ? pairCoordinates(nums) : [];
+}
+
+function extractInspireId(featureXml: string): string | null {
+  const match = featureXml.match(/<[^>]*INSPIREID[^>]*>([^<]+)<\//i);
+  return match ? match[1].trim() : null;
+}
+
+function extractDatasetDate(gml: Buffer): string {
+  const header = gml.toString('utf8', 0, Math.min(gml.length, 4096));
+  const match = header.match(/timeStamp=["'](\d{4}-\d{2}-\d{2})/i);
+  return match ? match[1] : today();
+}
+
+function pointOnSegment(point: Point, a: Point, b: Point): boolean {
+  const cross = (point[1] - a[1]) * (b[0] - a[0]) - (point[0] - a[0]) * (b[1] - a[1]);
+  if (Math.abs(cross) > 0.05) return false;
+  return point[0] >= Math.min(a[0], b[0]) - 0.05 && point[0] <= Math.max(a[0], b[0]) + 0.05 && point[1] >= Math.min(a[1], b[1]) - 0.05 && point[1] <= Math.max(a[1], b[1]) + 0.05;
+}
+
+function inside(point: Point, ring: Point[]): boolean {
+  let hit = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    if (pointOnSegment(point, ring[j], ring[i])) return true;
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if ((yi > point[1]) !== (yj > point[1]) && point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+
+function extractMappedFeature(gml: Buffer, point: Point): { parcelId: string; ring: Point[]; area: number } | null {
+  const open = Buffer.from('<LR:PREDEFINED');
+  const close = Buffer.from('</LR:PREDEFINED>');
+  let cursor = 0;
+  while (cursor < gml.length) {
+    const start = gml.indexOf(open, cursor);
+    if (start < 0) break;
+    const closeStart = gml.indexOf(close, start);
+    if (closeStart < 0) break;
+    const end = closeStart + close.length;
+    const feature = gml.toString('utf8', start, end);
+    const ring = parseFeatureRing(feature);
+    cursor = end;
+    if (ring.length < 3) continue;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of ring) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+    if (point[0] < minX || point[0] > maxX || point[1] < minY || point[1] > maxY) continue;
+    if (!inside(point, ring)) continue;
+    const parcelId = extractInspireId(feature);
+    if (!parcelId) continue;
+    return { parcelId: parcelId, ring: ring, area: projectedArea(ring) };
+  }
+  return null;
 }
 
 export interface UkCadastreResult {
@@ -140,96 +316,60 @@ export interface UkCadastreResult {
   sourceName: string;
   sourceUrl: string;
   datasetDate: string;
-  parcel?: {
-    parcelId: string;
-    geometryPoints: Point[];
-    officialAreaM2: number;
-  };
+  parcel?: { parcelId: string; geometryPoints: Point[]; mappedAreaM2: number };
+  authorityName?: string;
+  authorityDownloadUrl?: string;
   evidence: EvidenceItem[];
   reasonCode?: string;
 }
 
-export async function queryUKCadastre(lat: number, lng: number): Promise<UkCadastreResult> {
-  const url = getFeatureInfoUrl(lat, lng);
-  const xml = await fetchText(url);
-  if (!xml) {
-    return {
-      success: false, sourceName: SOURCE, sourceUrl: SOURCE_URL, datasetDate: today(), reasonCode: 'SOURCE_UNAVAILABLE',
-      evidence: [{
-        id: 'uk-hmlr-inspire-cadastre-unavailable',
-        category: 'Cadastre & identification',
-        claim: 'HM Land Registry INSPIRE parcel service could not be queried at the selected coordinate.',
-        status: 'REQUIRES_VERIFICATION',
-        sourceName: SOURCE, sourceUrl: SOURCE_URL, datasetDate: today(),
-        spatialRelationship: 'Selected site coordinate',
-        calculationMethod: 'HM Land Registry WMS GetFeatureInfo using British National Grid (EPSG:27700)',
-        confidence: 'Low',
-        value: { reasonCode: 'SOURCE_UNAVAILABLE' },
-        limitation: 'Service failure is not evidence that the property is unregistered.'
-      }]
-    };
-  }
-
-  const ringProjected = parseGmlPolygon(xml);
-  if (ringProjected.length < 3) {
-    return {
-      success: false, sourceName: SOURCE, sourceUrl: SOURCE_URL, datasetDate: today(), reasonCode: 'NO_DATA',
-      evidence: [{
-        id: 'uk-hmlr-inspire-cadastre-site',
-        category: 'Cadastre & identification',
-        claim: 'HM Land Registry INSPIRE returned no usable parcel polygon at the selected coordinate.',
-        status: 'REQUIRES_VERIFICATION',
-        sourceName: SOURCE, sourceUrl: SOURCE_URL, datasetDate: today(),
-        spatialRelationship: 'Selected site coordinate',
-        calculationMethod: 'HM Land Registry WMS GetFeatureInfo using British National Grid (EPSG:27700)',
-        confidence: 'Medium',
-        value: { reasonCode: 'NO_DATA' },
-        limitation: 'The INSPIRE dataset covers registered freehold properties in England and Wales; no returned polygon does not by itself establish that the land is unregistered.'
-      }]
-    };
-  }
-
+export async function queryUKCadastre(lat: number, lng: number, municipality?: string): Promise<UkCadastreResult> {
   const point = wgs84ToBng(lat, lng);
-  const containsPoint = inside(point, ringProjected);
-  const area = projectedArea(ringProjected);
-  if (!containsPoint) {
-    return {
-      success: false, sourceName: SOURCE, sourceUrl: SOURCE_URL, datasetDate: today(), reasonCode: 'POINT_NOT_IN_POLYGON',
-      evidence: [{
-        id: 'uk-hmlr-inspire-cadastre-nearby',
-        category: 'Cadastre & identification',
-        claim: 'HM Land Registry returned parcel geometry near the selected coordinate, but the returned geometry did not contain the selected point.',
-        status: 'REQUIRES_VERIFICATION',
-        sourceName: SOURCE, sourceUrl: SOURCE_URL, datasetDate: today(),
-        spatialRelationship: 'Returned WMS feature around selected coordinate',
-        calculationMethod: 'WMS GetFeatureInfo geometry parsing and point-in-polygon check in EPSG:27700',
-        confidence: 'Medium',
-        value: { areaM2: area },
-        limitation: LIMITATION
-      }]
-    };
+  const authority = await resolveAuthorityDownload(municipality);
+  if (!authority) {
+    return { success: false, sourceName: SOURCE, sourceUrl: DOWNLOAD_PAGE_URL, datasetDate: today(), reasonCode: 'AUTHORITY_NOT_RESOLVED', evidence: [{
+      id: 'uk-hmlr-inspire-authority-unresolved', category: 'Cadastre & identification',
+      claim: 'HM Land Registry INSPIRE data could not be matched to the resolved UK local authority.',
+      status: 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: DOWNLOAD_PAGE_URL, datasetDate: today(),
+      spatialRelationship: 'Selected site coordinate',
+      calculationMethod: 'HMLR local-authority download selection followed by EPSG:27700 point-in-polygon search',
+      confidence: 'Medium', value: { municipality: municipality || null, reasonCode: 'AUTHORITY_NOT_RESOLVED' },
+      limitation: 'No authority file was selected; this is not evidence that the property is unregistered.'
+    }] };
   }
-
-  const parcelId = extractId(xml) || 'HMLR INSPIRE parcel';
-  const geometryPoints = ringProjected.map(([easting, northing]) => bngToWgs84(easting, northing));
-  return {
-    success: true, sourceName: SOURCE, sourceUrl: SOURCE_URL, datasetDate: today(),
-    parcel: { parcelId, geometryPoints, officialAreaM2: area },
-    evidence: [{
-      id: 'uk-hmlr-inspire-cadastre',
-      category: 'Cadastre & identification',
-      claim: `HM Land Registry INSPIRE returned a registered-property polygon at the selected coordinate with an indicative mapped area of ${Math.round(area).toLocaleString()} m².`,
-      status: 'VERIFIED',
-      sourceName: SOURCE, sourceUrl: SOURCE_URL, datasetDate: today(),
-      spatialRelationship: 'Selected coordinate intersects the returned HMLR INSPIRE polygon',
-      calculationMethod: 'HM Land Registry WMS GetFeatureInfo geometry parsed in EPSG:27700; area calculated from returned polygon coordinates',
-      confidence: 'High',
-      value: { inspireId: parcelId, areaM2: area },
+  try {
+    const gml = extractGmlFromZip(await downloadAuthorityZip(authority));
+    const datasetDate = extractDatasetDate(gml);
+    const match = extractMappedFeature(gml, point);
+    if (!match) return { success: false, sourceName: SOURCE, sourceUrl: authority.url, datasetDate: datasetDate, reasonCode: 'NO_DATA', authorityName: authority.name, authorityDownloadUrl: authority.url, evidence: [{
+      id: 'uk-hmlr-inspire-cadastre-site', category: 'Cadastre & identification',
+      claim: 'HM Land Registry INSPIRE returned no polygon containing the selected coordinate in the ' + authority.name + ' dataset.',
+      status: 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: authority.url, datasetDate: datasetDate,
+      spatialRelationship: 'Selected coordinate', calculationMethod: 'HMLR local-authority GML download; EPSG:27700 point-in-polygon search',
+      confidence: 'Medium', value: { authority: authority.name, reasonCode: 'NO_DATA' },
+      limitation: 'The INSPIRE dataset covers registered freehold properties in England and Wales. No matching polygon does not by itself establish that the land is unregistered.'
+    }] };
+    const geometryPoints = match.ring.map(function(p) { return bngToWgs84(p[0], p[1]); });
+    return { success: true, sourceName: SOURCE, sourceUrl: authority.url, datasetDate: datasetDate, authorityName: authority.name, authorityDownloadUrl: authority.url, parcel: { parcelId: match.parcelId, geometryPoints: geometryPoints, mappedAreaM2: match.area }, evidence: [{
+      id: 'uk-hmlr-inspire-cadastre', category: 'Cadastre & identification',
+      claim: 'HM Land Registry INSPIRE identified registered-property polygon ' + match.parcelId + ' containing the selected coordinate; the indicative mapped polygon area is ' + Math.round(match.area).toLocaleString() + ' m².',
+      status: 'VERIFIED', sourceName: SOURCE, sourceUrl: authority.url, datasetDate: datasetDate,
+      spatialRelationship: 'Selected coordinate inside HMLR INSPIRE polygon ' + match.parcelId,
+      calculationMethod: 'HMLR local-authority GML download in EPSG:27700; polygon area calculated from supplied coordinates',
+      confidence: 'High', value: { inspireId: match.parcelId, mappedAreaM2: match.area, authority: authority.name },
       limitation: LIMITATION
-    }]
-  };
+    }] };
+  } catch (error) {
+    return { success: false, sourceName: SOURCE, sourceUrl: authority.url, datasetDate: today(), reasonCode: 'SOURCE_UNAVAILABLE', authorityName: authority.name, authorityDownloadUrl: authority.url, evidence: [{
+      id: 'uk-hmlr-inspire-cadastre-unavailable', category: 'Cadastre & identification',
+      claim: 'HM Land Registry INSPIRE data for ' + authority.name + ' could not be downloaded or read for this query.',
+      status: 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: authority.url, datasetDate: today(),
+      spatialRelationship: 'Selected site coordinate', calculationMethod: 'HMLR local-authority GML download and EPSG:27700 spatial search',
+      confidence: 'Low', value: { authority: authority.name, reasonCode: 'SOURCE_UNAVAILABLE', error: error instanceof Error ? error.message : String(error) },
+      limitation: 'A download or parsing failure is not evidence that the property is unregistered.'
+    }] };
+  }
 }
-
 // Inverse OSGB36/British National Grid transform. Accuracy is appropriate for map screening;
 // HMLR notes that reprojection can introduce small positional differences.
 function bngToWgs84(easting:number,northing:number):[number,number] {
