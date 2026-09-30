@@ -275,11 +275,12 @@ function findingSummary(report: SiteReport, language: string) {
     fi: { parcel: 'Virallinen kiinteistö tunnistettu', parcelOpen: 'Virallista kiinteistöä ei ole vahvistettu', ground: 'Alueellisesta maaperästä on saatavilla tietoa', water: 'Vesiolosuhteet ovat osittain avoimia', planning: 'Kaavoitustiedot on vahvistettava paikallisesti', where: 'Missä se sijaitsee', groundLabel: 'Maaperä', waterLabel: 'Vesi', planningLabel: 'Kaavoitus' },
     sv: { parcel: 'Officiell fastighet identifierad', parcelOpen: 'Officiell fastighet inte bekräftad', ground: 'Regional information om markförhållanden finns tillgänglig', water: 'Vattenförhållandena är delvis öppna', planning: 'Planeringsuppgifter behöver bekräftas lokalt', where: 'Var den ligger', groundLabel: 'Markförhållanden', waterLabel: 'Vatten', planningLabel: 'Planering' }
   }[locale as 'cs' | 'da' | 'nl' | 'hr' | 'es' | 'fr' | 'no' | 'fi' | 'sv'] || null;
-  const parcel = report.is_official_parcel
-    ? (report.country_code === 'GB'
-      ? 'HMLR registered-property outline identified'
-      : isGerman ? 'Amtliches Flurstück identifiziert' : isPolish ? 'Oficjalna działka została zidentyfikowana' : summaryCopy?.parcel || 'Official parcel identified')
-    : (isGerman ? 'Amtliches Flurstück nicht bestätigt' : isPolish ? 'Oficjalna działka nie została potwierdzona' : summaryCopy?.parcelOpen || 'Official parcel not confirmed');
+  const ukMappedOutline = report.country_code === 'GB' && Array.isArray(report.mapped_geometry) && report.mapped_geometry.length >= 3;
+  const parcel = report.country_code === 'GB'
+    ? (ukMappedOutline ? 'HMLR registered-property outline identified' : 'HMLR registered-property outline not confirmed')
+    : report.is_official_parcel
+      ? (isGerman ? 'Amtliches Flurstück identifiziert' : isPolish ? 'Oficjalna działka została zidentyfikowana' : summaryCopy?.parcel || 'Official parcel identified')
+      : (isGerman ? 'Amtliches Flurstück nicht bestätigt' : isPolish ? 'Oficjalna działka nie została potwierdzona' : summaryCopy?.parcelOpen || 'Official parcel not confirmed');
   const groundText = ground?.summary
     || data.geosurvey_context?.geological_unit_name
     || (isGerman ? 'Regionale Informationen zum Untergrund verfügbar' : isPolish ? 'Dostępne są regionalne informacje o podłożu' : summaryCopy?.ground || 'Regional ground information available');
@@ -967,6 +968,7 @@ export const GroundSurfApp: React.FC = () => {
                 areaSize={report.area_size}
                 boundary={report.boundary}
                 officialGeometry={report.official_geometry}
+                mappedGeometry={report.mapped_geometry}
                 countryCode={report.country_code}
                 language={report.language}
               />
