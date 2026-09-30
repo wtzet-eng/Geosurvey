@@ -66,6 +66,8 @@ import { applySiteSpecificCountryEvidence, buildEvidenceDisplayRecords, enrichVa
 import { applyValuationAreaGuard } from './server/reporting/valuationAreaGuard';
 import { getCountrySupport } from './src/data/countrySupport';
 import { queryAustriaGroundEvidence } from './server/services/austriaGroundEvidenceService';
+import { applyFinlandCadastreToReport, queryFinlandCadastre } from './server/services/finlandCadastreService';
+import { queryFinlandNationalEvidence } from './server/services/finlandNationalEvidenceService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -121,6 +123,10 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'NO') return res.json(await queryNorwayCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'NL') return res.json(await queryNetherlandsCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'DK') return res.json(await queryDenmarkCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'FI') {
+    const finland = await queryFinlandCadastre(lat, lng);
+    return res.json({ ...finland, geometryPoints: finland.geometryPoints, viewServiceUrl: 'https://inspire-wms.maanmittauslaitos.fi/inspire-wms/CP/ows', viewLayer: 'CP.CadastralParcel', viewStyle: '', viewAttribution: '© National Land Survey of Finland' });
+  }
   if (support.capabilities.nationalCadastre && country === 'IE') return res.json(await queryIrelandCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'LU') return res.json(await queryLuxembourgCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'BE') return res.json(await queryBelgiumCadastre(lat, lng));
@@ -331,6 +337,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: 'TNO Geological Survey of the Netherlands — BRO GeoTOP v1.6.1', organization: 'TNO / Geological Survey of the Netherlands', url: 'https://www.dinodata.nl/opendap/GeoTOP/geotop.nc.html', type: 'Geological Survey', status: 'MODELLED' });
         }
       } catch (e) { console.warn('[NL GeoTOP] DINOloket notice:', e); }
+    } else if (!countryLocationMismatch && countryCode === 'FI' && support.capabilities.nationalCadastre) {
+      stage = 'finland-cadastre';
+      try {
+        finlandCadastre = await queryFinlandCadastre(lat, lng);
+        applyFinlandCadastreToReport(evidenceReport, finlandCadastre, areaSize);
+        if (finlandCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = 18;
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'National Land Survey INSPIRE Cadastral Parcels returned an official mapped parcel containing the selected coordinate. The geometry is cadastral map evidence, not a substitute for cadastral survey documents or title verification.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: finlandCadastre.sourceName, organization: 'National Land Survey of Finland', url: finlandCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] National Land Survey Finland cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'NO' && support.capabilities.nationalCadastre) {
       stage = 'norway-cadastre';
       try {
@@ -470,6 +490,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let maltaNationalEvidence: any[] = [];
     let croatiaNationalEvidence: any[] = [];
     let austriaGroundEvidence: any[] = [];
+    let finlandNationalEvidence: any[] = [];
+    let finlandCadastre: any = null;
     let europeValuationEvidence: any = null;
     if (!countryLocationMismatch && countryCode === 'PL' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
@@ -556,6 +578,22 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         type: 'Geological Survey',
         status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
       });
+    } else if (!countryLocationMismatch && countryCode === 'FI' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
+      stage = 'finland-national-evidence';
+      try { finlandNationalEvidence = (await queryFinlandNationalEvidence(lat, lng)).evidence; } catch (e) { console.warn(`[${diagnosticId}] GTK Finland evidence notice:`, e); }
+      stage = 'finland-report-enrichment';
+      if (finlandNationalEvidence.length) evidenceReport.evidenceRegistry.push(...finlandNationalEvidence);
+      const verifiedGround = finlandNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['fi-gtk-bedrock', 'fi-gtk-soil'].includes(item.id));
+      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'GTK Finland returned verified national mapped bedrock and/or detailed soil context at the selected coordinate. These sources are credited as screening evidence without inferring parcel-scale stratigraphy or engineering parameters.';
+      }
+      if (finlandNationalEvidence.some((item: any) => item.id === 'fi-gtk-acid-sulphate-soils' && item.status === 'VERIFIED') && evidenceReport.evidenceScore?.breakdown?.environmentalAndFlood) {
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score = Math.max(6, Number(evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score) || 0);
+        evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'GTK acid sulphate soil mapping returned a mapped screening overlap at the selected coordinate. This is not a site-specific soil chemistry or excavation assessment.';
+      }
+      evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'Geological Survey of Finland (GTK)') : [];
+      evidenceReport.dataSourcesCited.push({ name: 'Geological Survey of Finland (GTK) — bedrock / soil / ground investigations', organization: 'Geological Survey of Finland (GTK)', url: 'https://www.gtk.fi/en/services/data-sets-and-online-services-geo-fi/interface-services/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'FR' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'france-site-evidence'; try { franceSiteEvidence = await queryFranceSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] BRGM France evidence notice:`, e); }
       stage = 'france-report-enrichment'; if (franceSiteEvidence.length) evidenceReport.evidenceRegistry.push(...franceSiteEvidence);
