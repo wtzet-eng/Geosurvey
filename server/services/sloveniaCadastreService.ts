@@ -19,7 +19,7 @@ export interface SloveniaCadastreResult {
   limitation: string;
 }
 
-function wgs84ToD96TM(lat: number, lon: number): [number, number] {
+export function wgs84ToD96TM(lat: number, lon: number): [number, number] {
   // EPSG:3794 / D96-TM: Transverse Mercator on GRS80, central meridian 15°E,
   // scale 0.9999, false easting 500000 m. For screening, the small datum
   // transformation between WGS84 and D96 is below the parcel-query tolerance.
