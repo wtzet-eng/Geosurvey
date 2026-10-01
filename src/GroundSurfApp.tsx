@@ -642,6 +642,17 @@ export const GroundSurfApp: React.FC = () => {
                   <div className="text-sm font-black text-slate-900 dark:text-slate-100">{copy('whereTitle')}</div>
                   <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy('whereHint')}</div>
                 </div>
+                <label className="flex shrink-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 shadow-sm dark:border-slate-600 dark:bg-[#232b26] dark:text-slate-100">
+                  <Globe2 className="h-5 w-5 text-slate-600 dark:text-slate-200" />
+                  <select
+                    value={language}
+                    onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }}
+                    className="bg-transparent text-sm font-black outline-none"
+                    aria-label={copy('menuLanguage')}
+                  >
+                    {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
+                  </select>
+                </label>
               </div>
               <div className="relative">
                 <MapPicker
@@ -664,17 +675,6 @@ export const GroundSurfApp: React.FC = () => {
                   onOfficialParcelSelected={setOfficialParcel}
                   onParcelLookupStateChange={setIsFindingParcel}
                 />
-                <label className="absolute right-3 top-3 z-[500] flex items-center gap-2 rounded-xl border border-white/70 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-lg backdrop-blur dark:border-white/20 dark:bg-slate-900/95 dark:text-slate-100">
-                  <Globe2 className="h-4 w-4 text-slate-600 dark:text-slate-200" />
-                  <select
-                    value={language}
-                    onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }}
-                    className="max-w-[9rem] bg-transparent text-sm font-black outline-none"
-                    aria-label={copy('menuLanguage')}
-                  >
-                    {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
-                  </select>
-                </label>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm transition-colors dark:bg-[#232b26] dark:text-slate-200">
                 <div className="flex items-center gap-2">
