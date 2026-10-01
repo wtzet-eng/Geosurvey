@@ -24,6 +24,7 @@ import { queryCroatiaCadastre } from '../services/croatiaCadastreService';
 import { enrichCroatiaGroundwaterEvidence, fetchCroatiaGroundwaterEvidence } from '../services/croatiaHydrogeologyService';
 import { enrichCroatiaBrownfieldEvidence, fetchCroatiaBrownfieldEvidence } from '../services/croatiaBrownfieldService';
 import { queryUkraineCadastre } from '../services/ukraineCadastreService';
+import { querySloveniaCadastre } from '../services/sloveniaCadastreService';
 
 export interface AnalysisInput {
   lat: number;
@@ -47,7 +48,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -57,13 +58,33 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'HR' ? queryCroatiaCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaGroundwaterEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaBrownfieldEvidence(lat, lng) : Promise.resolve(null),
-    countryCode === 'UA' ? queryUkraineCadastre(lat, lng) : Promise.resolve(null)
+    countryCode === 'UA' ? queryUkraineCadastre(lat, lng) : Promise.resolve(null),
+    countryCode === 'SI' ? querySloveniaCadastre(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
 
   if (countryCode === 'HR' && croatiaGroundwater) evidenceRegistry.push(croatiaGroundwater);
   if (countryCode === 'HR' && croatiaBrownfield) evidenceRegistry.push(croatiaBrownfield);
+  if (countryCode === 'SI') {
+    evidenceRegistry.push({
+      id: 'si-geozs-national-geology', category: 'Mapped geology',
+      claim: 'Slovenia has extensive official geological information through the Geological Survey of Slovenia (GeoZS), including the Basic Geological Map at 1:100,000 and eGeologija services covering regional geology, hydrogeology, engineering geology and geohazards.',
+      status: 'REQUIRES_VERIFICATION', sourceName: 'Geological Survey of Slovenia (GeoZS) — eGeologija', sourceUrl: 'https://www.geo-zs.si/egeologija/', datasetDate: todayStr,
+      spatialRelationship: 'National geological source available; site-specific layer intersection is not yet automated in this version',
+      calculationMethod: 'Official GeoZS eGeologija and geological-map service review', confidence: 'Medium',
+      limitation: 'GeoZS provides many detailed and thematic datasets, but GroundSurf still needs to match the relevant geological, engineering-geological and hazard layers to the selected site before treating them as site-specific evidence.'
+    });
+    evidenceRegistry.push({
+      id: 'si-engineering-geology', category: 'Urban / engineering geology',
+      claim: 'GeoZS explicitly provides engineering-geological and geohazard information, alongside hydrogeology, geophysics and regional geology. These sources can support development screening where the relevant local dataset or study area is matched.',
+      status: 'REQUIRES_VERIFICATION', sourceName: 'Geological Survey of Slovenia (GeoZS) — eGeologija', sourceUrl: 'https://www.geo-zs.si/egeologija/', datasetDate: todayStr,
+      spatialRelationship: 'Engineering-geology source available nationally; local study match not yet automated',
+      calculationMethod: 'Official GeoZS eGeologija catalogue review', confidence: 'Medium',
+      limitation: 'Engineering-geological information is not one uniform parcel-scale national layer. Site-specific conclusions require the relevant local map, boreholes, investigations or professional study.'
+    });
+  }
+
   if (countryCode === 'UA') {
     evidenceRegistry.push({
       id: 'ua-geology-national-map', category: 'Mapped geology',
@@ -86,7 +107,17 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
 
-  if (countryCode === 'UA' && ukraineCadastre?.success && ukraineCadastre.parcel) {
+  if (countryCode === 'SI' && sloveniaCadastre?.success && sloveniaCadastre.parcel) {
+    const p = sloveniaCadastre.parcel;
+    parcelInfo = {
+      status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'SI',
+      geometryPoints: p.geometryPoints, isOfficialGeometry: Boolean(p.geometryPoints?.length),
+      areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2 ?? null,
+      cadastralSource: sloveniaCadastre.sourceName, datasetDate: todayStr,
+      limitation: sloveniaCadastre.limitation
+    };
+    evidenceRegistry.push(...sloveniaCadastre.evidence);
+  } else   if (countryCode === 'UA' && ukraineCadastre?.success && ukraineCadastre.parcel) {
     const p = ukraineCadastre.parcel;
     parcelInfo = {
       status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'UA', geometryPoints: p.geometryPoints,
