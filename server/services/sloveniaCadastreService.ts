@@ -75,12 +75,12 @@ function pointInRing(point: [number, number], ring: [number, number][]): boolean
 
 function geometryToLatLngRing(geometry: any, lat: number, lng: number): [number, number][] | undefined {
   const polygons = geometry?.type === 'Polygon' ? [geometry.coordinates] : geometry?.type === 'MultiPolygon' ? geometry.coordinates : [];
+  const [qx, qy] = wgs84ToD96TM(lat, lng);
   for (const polygon of polygons) {
     const ring = polygon?.[0];
     if (!Array.isArray(ring) || ring.length < 3) continue;
-    const converted = ring.map(([x, y]: [number, number]) => d96ToWgs84(Number(x), Number(y)));
-    const point = d96ToWgs84(...wgs84ToD96(lat, lng));
-    if (pointInRing([point[1], point[0]], converted.map(([la, lo]) => [lo, la] as [number, number]))) return converted;
+    const projectedRing = ring.map(([x, y]: [number, number]) => [Number(x), Number(y)] as [number, number]);
+    if (pointInRing([qx, qy], projectedRing)) return projectedRing.map(([x, y]) => d96ToWgs84(x, y));
   }
   return undefined;
 }
