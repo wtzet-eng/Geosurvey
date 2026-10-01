@@ -92,7 +92,8 @@ const labels = {
   fr: { SUPPORTED: 'Pris en charge', LIMITED: 'Couverture limitée' },
   es: { SUPPORTED: 'Compatible', LIMITED: 'Cobertura limitada' },
   uk: { SUPPORTED: 'Підтримується', LIMITED: 'Обмежене покриття' },
-  fi: { SUPPORTED: 'Tuettu', LIMITED: 'Rajoitettu kattavuus' }
+  fi: { SUPPORTED: 'Tuettu', LIMITED: 'Rajoitettu kattavuus' },
+  it: { SUPPORTED: 'Supportato', LIMITED: 'Copertura limitata' }
 } as const;
 
 const notices = {
@@ -130,6 +131,11 @@ const notices = {
     SUPPORTED: 'Hay integraciones de fuentes nacionales disponibles para determinadas categorías. Las categorías no compatibles siguen requiriendo verificación oficial.',
     LIMITED: 'Cobertura limitada: las integraciones nacionales de catastro, geología, planeamiento, inundación y valoración no están todas automatizadas para este país. El informe también utiliza datos transfronterizos validados de terreno, OpenStreetMap y SoilGrids cuando están disponibles y remite a las autoridades competentes para su verificación.',
     PARTIAL: 'Cobertura limitada: algunas fuentes nacionales están integradas, mientras que otras categorías siguen requiriendo verificación oficial. El informe conserva además datos transfronterizos validados de terreno, OpenStreetMap y SoilGrids cuando están disponibles.'
+  },
+  it: {
+    SUPPORTED: 'Per alcune categorie sono disponibili integrazioni con fonti nazionali.',
+    LIMITED: 'Copertura limitata: per l’Italia sono state integrate la cartografia catastale dell’Agenzia delle Entrate e il contesto geologico nazionale ISPRA/CARG; altre categorie nazionali richiedono ancora una verifica ufficiale.',
+    PARTIAL: 'Copertura limitata: sono disponibili integrazioni nazionali selezionate, mentre le altre categorie richiedono ancora una verifica ufficiale. Il rapporto conserva inoltre dati validati di terreno, OpenStreetMap e SoilGrids quando disponibili.'
   },
   fi: {
     SUPPORTED: 'Valituissa luokissa on käytettävissä kansallisia lähdeintegraatioita. Tukemattomat luokat on edelleen tarkistettava virallisista lähteistä.',
