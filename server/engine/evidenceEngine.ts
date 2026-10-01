@@ -107,8 +107,6 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
 
-  if (countryCode === 'IT' && italyCadastre) evidenceRegistry.push(...italyCadastre.evidence);
-
   if (countryCode === 'IT' && italyCadastre?.success && italyCadastre.parcel) {
     const p = italyCadastre.parcel;
     parcelInfo = {
