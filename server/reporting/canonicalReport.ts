@@ -5,7 +5,7 @@ import { GroundContextSummary, PedologicalVariabilitySummary } from '../services
 import { calculateGermanyLandValue } from '../services/germanyValuationBenchmark';
 import { calculateSlovakiaLandValue } from '../services/slovakiaValuationBenchmark';
 
-export type ReportLanguage = 'en' | 'de' | 'pl' | 'uk' | 'sl';
+export type ReportLanguage = 'en' | 'de' | 'pl' | 'uk' | 'sl' | 'bg';
 export type AvailabilityReason = 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA' | 'PARAMETER_NOT_PROVIDED' | 'INSUFFICIENT_EVIDENCE' | 'NOT_SUPPORTED_FOR_COUNTRY' | 'AUTHORITATIVE_DATA_REQUIRED';
 export type RiskClassification = 'NEGLIGIBLE' | 'LOW' | 'MODERATE' | 'HIGH' | null;
 
@@ -445,5 +445,5 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
 }
 
 export function normalizeReportLanguage(language: string): ReportLanguage {
-  return language === 'pl' || language === 'de' || language === 'uk' || language === 'sl' ? language : 'en';
+  return language === 'pl' || language === 'de' || language === 'uk' || language === 'sl' || language === 'bg' ? language : 'en';
 }

@@ -85,6 +85,33 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     });
   }
 
+  if (countryCode === 'BG') {
+    evidenceRegistry.push({
+      id: 'bg-cadastre-kais', category: 'Cadastre & Identification',
+      claim: 'Българската Агенция по геодезия, картография и кадастър поддържа КАИС с кадастрална карта и услуги за достъп до кадастрални данни чрез WFS/WMS. В тази версия GroundSurf не извлича автоматично парцела от защитената услуга.',
+      status: 'REQUIRES_VERIFICATION', sourceName: 'Агенция по геодезия, картография и кадастър (АГКК) — КАИС', sourceUrl: 'https://kais.cadastre.bg/', datasetDate: todayStr,
+      spatialRelationship: 'Официалният кадастрален портал е наличен, но автоматизираното извличане на парцел по координати не е активирано',
+      calculationMethod: 'Преглед на официалните услуги на АГКК; услугите 8000/8001 предоставят WFS/WMS достъп при приложимите условия', confidence: 'Medium',
+      limitation: 'КАИС предоставя официални кадастрални данни, но достъпът до WFS/WMS услуги е регулиран. GroundSurf не трябва да представя липсата на автоматично извлечен парцел като липса на кадастрални данни.'
+    });
+    evidenceRegistry.push({
+      id: 'bg-geology-national', category: 'Mapped geology',
+      claim: 'България разполага с официална геоложка информация, включително геоложки, хидрогеоложки, инженерногеоложки и карти на геоложката опасност; публикувани са карти в мащаби 1:100 000, 1:200 000 и 1:500 000, както и по-подробни листове.',
+      status: 'REQUIRES_VERIFICATION', sourceName: 'Геологически институт при БАН', sourceUrl: 'https://www.geology.bas.bg/', datasetDate: todayStr,
+      spatialRelationship: 'Национален геоложки източник; конкретната геоложка единица за избраната точка все още не се извлича автоматично',
+      calculationMethod: 'Преглед на официалните геоложки и инженерногеоложки карти и информационни ресурси', confidence: 'Medium',
+      limitation: 'Националните карти са ценен регионален контекст, но за конкретния имот са необходими правилният картен лист, локални данни и при нужда инженерногеоложко проучване.'
+    });
+    evidenceRegistry.push({
+      id: 'bg-engineering-geology', category: 'Urban / engineering geology',
+      claim: 'Българският геоложки институт има дългогодишни инженерногеоложки изследвания и национални карти на инженерната геология и геоложката опасност. Това е полезен източник за строителна оценка, но не представлява автоматично имотно ниво.',
+      status: 'REQUIRES_VERIFICATION', sourceName: 'Геологически институт при БАН', sourceUrl: 'https://www.geology.bas.bg/', datasetDate: todayStr,
+      spatialRelationship: 'Национален инженерногеоложки контекст; локалното проучване не е автоматизирано',
+      calculationMethod: 'Официален преглед на инженерногеоложките и геоложко-опасностните източници', confidence: 'Medium',
+      limitation: 'Градските и инженерногеоложките условия могат да се променят в малък мащаб. Необходима е проверка на местните карти, сондажи и инженерни проучвания.'
+    });
+  }
+
   if (countryCode === 'UA') {
     evidenceRegistry.push({
       id: 'ua-geology-national-map', category: 'Mapped geology',
