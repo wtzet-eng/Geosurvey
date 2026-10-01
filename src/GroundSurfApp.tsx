@@ -622,10 +622,6 @@ export const GroundSurfApp: React.FC = () => {
 
         <main className="mx-auto max-w-7xl px-5 py-7 lg:py-9">
           <div className="mx-auto max-w-4xl text-center">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
-              <Sparkles className="h-3.5 w-3.5" />
-              {copy('badge')}
-            </div>
             <h1 className="text-4xl font-black tracking-[-0.03em] text-slate-950 sm:text-5xl lg:text-[3.25rem] dark:text-slate-100">
               {copy('heroTitle')}
               <span className="block text-slate-500 dark:text-slate-400">{copy('heroSubTitle')}</span>
