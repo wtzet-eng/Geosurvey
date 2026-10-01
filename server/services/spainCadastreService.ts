@@ -54,7 +54,7 @@ function xmlText(block: string, names: string[]): string | null {
     const escaped = name.replace(/[.*+?^{}()|[\]\\]/g, '\\$&');
     const match = block.match(new RegExp('<(?:[\\w.-]+:)?' + escaped + '(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w.-]+:)?' + escaped + '>', 'i'));
     if (match) {
-      const value = match[1].replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\\s+/g, ' ').trim();
+      const value = match[1].replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim();
       if (value) return value;
     }
   }
@@ -64,7 +64,7 @@ function xmlText(block: string, names: string[]): string | null {
 function xmlNumber(block: string, names: string[]): number | null {
   const value = xmlText(block, names);
   if (!value) return null;
-  const normalized = value.replace(/\\./g, '').replace(',', '.');
+  const normalized = value.replace(/\./g, '').replace(',', '.');
   const number = Number(normalized);
   return Number.isFinite(number) ? number : null;
 }
@@ -72,7 +72,7 @@ function xmlNumber(block: string, names: string[]): number | null {
 function firstOuterRing(block: string): [number, number][] | undefined {
   const posList = block.match(/<(?:[\\w.-]+:)?posList(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w.-]+:)?posList>/i);
   if (!posList) return undefined;
-  const values = posList[1].trim().split(/\\s+/).map(Number).filter(Number.isFinite);
+  const values = posList[1].trim().split(/\s+/).map(Number).filter(Number.isFinite);
   if (values.length < 6) return undefined;
 
   // Catastro examples use EPSG:4326 when requested with srsName=EPSG::4326.
