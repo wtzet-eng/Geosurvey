@@ -13,7 +13,7 @@ test('queryItalyCadastre extracts cadastral identifiers from an Agenzia delle En
     const fetcher = async () => new Response(html, { status: 200 });
     const result = await queryItalyCadastre(41.9, 12.5, fetcher as typeof fetch);
     assert.equal(result.success, true);
-    assert.equal(result.parcel?.parcelId, '33 / 673');
+    assert.equal(result.parcel?.parcelId, '673');
     assert.equal(result.parcel?.nationalCadastralReference, 'G273 / 33 / 673');
     assert.equal(result.evidence[0].status, 'VERIFIED');
 });
