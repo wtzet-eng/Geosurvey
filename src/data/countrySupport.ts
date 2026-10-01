@@ -59,7 +59,7 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   SE: { countryCode: 'SE', maturity: 'LIMITED', capabilities: { ...NONE, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } },
   NO: { countryCode: 'NO', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalRadon: true } },
   AT: { countryCode: 'AT', maturity: 'LIMITED', capabilities: { ...NONE, nationalGeology: true, nationalValuation: true } },
-  ES: valuationOnly('ES'),
+  ES: { countryCode: 'ES', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } },
   FI: { countryCode: 'FI', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalValuation: true } },
   PT: { countryCode: 'PT', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } },
   EE: { countryCode: 'EE', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } },

@@ -60,6 +60,20 @@ const FRANCE_CADASTRAL_CONTEXT = {
   attribution: '© IGN / DGFiP — Parcellaire Express (PCI)'
 };
 
+const SPAIN_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://ovc.catastro.meh.es/cartografia/INSPIRE/spadgcwms.aspx',
+  viewLayer: 'CP.CadastralParcel',
+  viewStyle: 'BoundariesOnly',
+  attribution: '© Dirección General del Catastro — INSPIRE'
+};
+
+const SPAIN_GEOLOGY_CONTEXT = {
+  viewServiceUrl: 'https://mapas.igme.es/gis/services/Cartografia_Geologica/IGME_Geode_50/MapServer/WMSServer',
+  viewLayer: 'Recintos geología',
+  viewStyle: '',
+  attribution: '© IGME-CSIC — GEODE 1:50.000'
+};
+
 // Keep the site marker inside the selected cadastral parcel rather than at the
 // original search point, which can sit near a parcel edge and obscure controls.
 const getPolygonCentroid = (points: [number, number][]): L.LatLng => {
@@ -271,6 +285,33 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         crs: L.CRS.EPSG3857, attribution: LATVIA_CADASTRAL_CONTEXT.attribution, maxNativeZoom: 18, maxZoom: 22
       }).addTo(map);
     }
+    if (countryCode.toUpperCase() === 'ES') {
+      L.tileLayer.wms(SPAIN_CADASTRAL_CONTEXT.viewServiceUrl, {
+        layers: SPAIN_CADASTRAL_CONTEXT.viewLayer,
+        styles: SPAIN_CADASTRAL_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.82,
+        version: '1.1.1',
+        crs: L.CRS.EPSG3857,
+        attribution: SPAIN_CADASTRAL_CONTEXT.attribution,
+        maxNativeZoom: 17,
+        maxZoom: 22
+      }).addTo(map);
+      L.tileLayer.wms(SPAIN_GEOLOGY_CONTEXT.viewServiceUrl, {
+        layers: SPAIN_GEOLOGY_CONTEXT.viewLayer,
+        styles: SPAIN_GEOLOGY_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.42,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3857,
+        attribution: SPAIN_GEOLOGY_CONTEXT.attribution,
+        minZoom: 8,
+        maxZoom: 17
+      }).addTo(map);
+    }
+
     if (countryCode.toUpperCase() === 'FR') {
       L.tileLayer.wms(FRANCE_CADASTRAL_CONTEXT.viewServiceUrl, {
         layers: FRANCE_CADASTRAL_CONTEXT.viewLayer,
@@ -406,7 +447,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // Find and select an official parcel at a clicked map location.
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
     const lookupCountry = countryCode.toUpperCase();
-    if (!['DE', 'HR', 'NL', 'FI', 'EE', 'LV'].includes(lookupCountry)) return false;
+    if (!['DE', 'HR', 'NL', 'FI', 'EE', 'LV', 'ES'].includes(lookupCountry)) return false;
     if (lookupCountry === 'DE' && !cadastralState) return false;
 
     if (parcelLookupPendingRef.current) return false;
@@ -464,7 +505,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       // Germany and Croatia: a map click can select the official cadastral parcel
       // instead of forcing the user to redraw a boundary manually. If no official
       // parcel is found, fall back to the existing drawing behaviour.
-      if (['DE', 'HR', 'FI'].includes(countryCode.toUpperCase()) && mode === 'polygon' && drawingPoints.length === 0) {
+      if (['DE', 'HR', 'FI', 'ES'].includes(countryCode.toUpperCase()) && mode === 'polygon' && drawingPoints.length === 0) {
         // While cadastral lookup is in progress, keep map clicks in parcel-selection
         // mode. Do not accidentally turn a parcel click into a manual polygon point.
         if (parcelLookupPendingRef.current || isFindingParcel) return;

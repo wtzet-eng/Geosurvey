@@ -69,6 +69,7 @@ import { queryAustriaGroundEvidence } from './server/services/austriaGroundEvide
 import { applyFinlandCadastreToReport, queryFinlandCadastre } from './server/services/finlandCadastreService';
 import { queryFinlandNationalEvidence } from './server/services/finlandNationalEvidenceService';
 import { applyPortugalCadastreToReport, queryPortugalCadastre } from './server/services/portugalCadastreService';
+import { applySpainCadastreToReport, querySpainCadastre } from './server/services/spainCadastreService';
 import { enrichPortugalNationalEvidence, queryPortugalNationalEvidence } from './server/services/portugalNationalEvidenceService';
 import { enrichLisbonUrbanEvidence, queryLisbonUrbanGeology } from './server/services/lisbonUrbanGeologyService';
 import { applyEstoniaCadastreToReport, queryEstoniaCadastre } from './server/services/estoniaCadastreService';
@@ -140,6 +141,9 @@ app.get('/api/cadastre/query', async (req, res) => {
   if (support.capabilities.nationalCadastre && country === 'PT') {
     const portugal = await queryPortugalCadastre(lat, lng);
     return res.json({ ...portugal, geometryPoints: portugal.geometryPoints, viewServiceUrl: 'https://snicws.dgterritorio.gov.pt/geoserver/inspire/ows', viewLayer: 'cadastralparcel', viewStyle: 'generic', viewAttribution: '© Direção-Geral do Território — Cadastro Predial' });
+  }
+  if (support.capabilities.nationalCadastre && country === 'ES') {
+    return res.json(await querySpainCadastre(lat, lng));
   }
   if (support.capabilities.nationalCadastre && country === 'IE') return res.json(await queryIrelandCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'LU') return res.json(await queryLuxembourgCadastre(lat, lng));
@@ -228,6 +232,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let maltaCadastre: any = null;
     let finlandCadastre: any = null;
     let portugalCadastre: any = null;
+    let spainCadastre: any = null;
     let estoniaCadastre: any = null;
     let latviaCadastre: any = null;
     let germanyCadastre: any = null;
@@ -369,6 +374,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: portugalCadastre.sourceName, organization: 'Direção-Geral do Território (DGT)', url: portugalCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] DGT Portugal cadastre notice:`, e); }
+    } else if (!countryLocationMismatch && countryCode === 'ES' && support.capabilities.nationalCadastre) {
+      stage = 'spain-cadastre';
+      try {
+        spainCadastre = await querySpainCadastre(lat, lng);
+        applySpainCadastreToReport(evidenceReport, spainCadastre, areaSize);
+        if (spainCadastre.success) {
+          if (evidenceReport.evidenceScore?.breakdown?.cadastreAndGeometry) {
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.score = 18;
+            evidenceReport.evidenceScore.breakdown.cadastreAndGeometry.rationale = 'Dirección General del Catastro INSPIRE returned an official cadastral parcel containing the selected coordinate. The mapped geometry supports parcel screening but does not replace surveyed boundary or land-register verification.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Official National Cadastre') : [];
+          evidenceReport.dataSourcesCited.push({ name: spainCadastre.sourceName, organization: 'Dirección General del Catastro — Ministerio de Hacienda', url: spainCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Spanish Catastro cadastre notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'FI' && support.capabilities.nationalCadastre) {
       stage = 'finland-cadastre';
       try {
@@ -1283,3 +1302,5 @@ async function startServer() {
 }
 
 startServer().catch(err => { console.error('Failed to start server:', err); process.exit(1); });
+
+
