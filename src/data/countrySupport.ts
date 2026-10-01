@@ -70,6 +70,7 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   CH: { countryCode: 'CH', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true } },
   MT: { countryCode: 'MT', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
   HR: { countryCode: 'HR', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
+  SI: { countryCode: 'SI', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } },
   UA: { countryCode: 'UA', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } }
 };
 
@@ -91,7 +92,8 @@ const labels = {
   fr: { SUPPORTED: 'Pris en charge', LIMITED: 'Couverture limitée' },
   es: { SUPPORTED: 'Compatible', LIMITED: 'Cobertura limitada' },
   uk: { SUPPORTED: 'Підтримується', LIMITED: 'Обмежене покриття' },
-  fi: { SUPPORTED: 'Tuettu', LIMITED: 'Rajoitettu kattavuus' }
+  fi: { SUPPORTED: 'Tuettu', LIMITED: 'Rajoitettu kattavuus' },
+  sl: { SUPPORTED: 'Podprto', LIMITED: 'Omejena pokritost' }
 } as const;
 
 const notices = {
@@ -130,6 +132,11 @@ const notices = {
     LIMITED: 'Cobertura limitada: las integraciones nacionales de catastro, geología, planeamiento, inundación y valoración no están todas automatizadas para este país. El informe también utiliza datos transfronterizos validados de terreno, OpenStreetMap y SoilGrids cuando están disponibles y remite a las autoridades competentes para su verificación.',
     PARTIAL: 'Cobertura limitada: algunas fuentes nacionales están integradas, mientras que otras categorías siguen requiriendo verificación oficial. El informe conserva además datos transfronterizos validados de terreno, OpenStreetMap y SoilGrids cuando están disponibles.'
   },
+  sl: {
+    SUPPORTED: 'Za izbrane kategorije so na voljo povezave z nacionalnimi viri. Nepodprte kategorije je treba še vedno preveriti pri pristojnih organih.',
+    LIMITED: 'Omejena pokritost: za Slovenijo so vključeni uradni katastrski in geološki viri, druge nacionalne kategorije pa še zahtevajo uradno preverjanje.',
+    PARTIAL: 'Omejena pokritost: vključeni so izbrani nacionalni viri, druge kategorije pa še zahtevajo uradno preverjanje. Poročilo uporablja tudi preverjene podatke o terenu, OpenStreetMap in SoilGrids, kjer so na voljo.'
+  },
   fi: {
     SUPPORTED: 'Valituissa luokissa on käytettävissä kansallisia lähdeintegraatioita. Tukemattomat luokat on edelleen tarkistettava virallisista lähteistä.',
     LIMITED: 'Rajoitettu kattavuus: kansallisia kiinteistörekisteri-, geologia-, kaavoitus-, tulva- ja maan arvon lähteitä ei ole kaikilta osin automatisoitu tälle maalle. Raportti käyttää lisäksi validoituja rajat ylittäviä maasto-, OpenStreetMap- ja SoilGrids-aineistoja niiden ollessa saatavilla ja ohjaa viranomaislähteisiin tarkistusta varten.',
@@ -140,7 +147,7 @@ const notices = {
 type SupportLanguage = keyof typeof labels;
 const normalizeLanguage = (language: string): SupportLanguage => {
   const code = String(language || '').toLowerCase().split('-')[0];
-  return (['de', 'pl', 'sk', 'da', 'fr', 'es', 'fi'] as SupportLanguage[]).includes(code as SupportLanguage) ? code as SupportLanguage : 'en';
+  return (['de', 'pl', 'sk', 'da', 'fr', 'es', 'fi', 'sl'] as SupportLanguage[]).includes(code as SupportLanguage) ? code as SupportLanguage : 'en';
 };
 
 export function getCountrySupportLabel(countryCode: string, language = 'en'): string {
