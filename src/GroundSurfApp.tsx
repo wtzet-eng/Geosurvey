@@ -254,14 +254,38 @@ const APP_UI_COPY = {
     stillOpen: 'Nadal otwarte', whatNext: 'Co pomoże zrobić kolejny krok?', localHelp: 'Pomoc lokalna',
     website: 'Strona internetowa', noLocalListing: 'Nie znaleziono lokalnego wpisu', nearbySearch: 'Znajdź specjalistów w pobliżu',
     askNext: 'Możesz zapytać dalej'
-  }
+  },
+  uk: {
+    badge: 'Публічні дані зібрано в одному місці',
+    heroTitle: 'Спочатку я збираю докази.',
+    heroSubTitle: 'Потім ви вирішуєте, що хочете запитати.',
+    heroText: 'GroundSurf шукає доступну публічну інформацію про землю, яка вас цікавить — кадастр, ґрунти, воду, планування, довкілля та місцевий контекст — і робить її доступною для дослідження.',
+    whereTitle: 'Де шукати?',
+    whereHint: 'Знайдіть адресу або виберіть ділянку на карті.',
+    addressFlow: 'Адреса → ділянка → докази',
+    promiseLabel: 'Обіцянка',
+    promiseMain: 'Я збираю доступні публічні докази.',
+    promiseQuestion: 'Що ви хочете дізнатися?',
+    evidenceFirst: 'Спочатку докази, потім пояснення.',
+    unknownsVisible: 'Невідоме залишається видимим.',
+    sourceTrail: 'Кожна відповідь може вести назад до свого джерела.',
+    gatherButton: 'Зібрати дані',
+    screeningNote: 'Це попередня перевірка, а не юридичне чи інженерне підтвердження.',
+    findingParcel: 'Шукаємо офіційну кадастрову ділянку…',
+    officialParcel: 'Офіційну кадастрову ділянку ідентифіковано.',
+    landReady: 'Ділянку вибрано й підготовлено.',
+    chooseLand: 'Виберіть ділянку на карті.',
+    menuLanguage: 'Мова',
+    themeSystem: 'Як у браузері', themeUseLight: 'Світлий фон', themeUseDark: 'Темний фон',
+    gatheringEvidence: 'Збираємо публічні дані…'
+  },
 } as const;
 
 type AppUiCopyKey = keyof typeof APP_UI_COPY.en;
 
 function appUiCopy(language: string, key: AppUiCopyKey): string {
   const locale = String(language || '').toLowerCase().split('-')[0];
-  const selected = locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : locale === 'cs' ? 'cs' : locale === 'da' ? 'da' : locale === 'nl' ? 'nl' : locale === 'hr' ? 'hr' : locale === 'es' ? 'es' : locale === 'fr' ? 'fr' : locale === 'no' ? 'no' : locale === 'fi' ? 'fi' : locale === 'sv' ? 'sv' : 'en';
+  const selected = locale === 'uk' ? 'uk' : locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : locale === 'cs' ? 'cs' : locale === 'da' ? 'da' : locale === 'nl' ? 'nl' : locale === 'hr' ? 'hr' : locale === 'es' ? 'es' : locale === 'fr' ? 'fr' : locale === 'no' ? 'no' : locale === 'fi' ? 'fi' : locale === 'sv' ? 'sv' : 'en';
   return APP_UI_COPY[selected][key];
 }
 

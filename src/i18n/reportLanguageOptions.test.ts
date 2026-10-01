@@ -21,7 +21,7 @@ test('report languages put the selected country native language first and Englis
 
 test('all available report languages remain selectable regardless of screened country', () => {
   const languages = codes('DE', 'de');
-  for (const code of ['cs', 'sk', 'hr', 'da', 'no', 'sv', 'fr', 'es', 'fi', 'nl', 'pl', 'pt', 'et', 'lv', 'lt']) {
+  for (const code of ['cs', 'sk', 'hr', 'da', 'no', 'sv', 'fr', 'es', 'fi', 'nl', 'pl', 'pt', 'et', 'lv', 'lt', 'uk']) {
     assert.equal(languages.includes(code), true);
   }
   assert.deepEqual(languages.slice(0, 2), ['de', 'en']);
@@ -46,7 +46,8 @@ test('all compatible languages use a neutral alphabetical order after the native
     'Português (Portuguese)',
     'Slovenčina (Slovak)',
     'Suomi (Finnish)',
-    'Svenska (Swedish)'
+    'Svenska (Swedish)',
+    'Українська (Ukrainian)'
   ]);
 });
 

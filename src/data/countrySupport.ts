@@ -69,7 +69,8 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   BE: { countryCode: 'BE', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } },
   CH: { countryCode: 'CH', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true } },
   MT: { countryCode: 'MT', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
-  HR: { countryCode: 'HR', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } }
+  HR: { countryCode: 'HR', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
+  UA: { countryCode: 'UA', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } }
 };
 
 export function getCountrySupport(countryCode: string): CountrySupportProfile {
@@ -89,6 +90,7 @@ const labels = {
   da: { SUPPORTED: 'Understøttet', LIMITED: 'Begrænset dækning' },
   fr: { SUPPORTED: 'Pris en charge', LIMITED: 'Couverture limitée' },
   es: { SUPPORTED: 'Compatible', LIMITED: 'Cobertura limitada' },
+  uk: { SUPPORTED: 'Підтримується', LIMITED: 'Обмежене покриття' },
   fi: { SUPPORTED: 'Tuettu', LIMITED: 'Rajoitettu kattavuus' }
 } as const;
 
