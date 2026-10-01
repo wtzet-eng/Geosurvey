@@ -677,30 +677,30 @@ export const GroundSurfApp: React.FC = () => {
               </div>
             </section>
 
-            <section className="flex flex-col justify-between rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
+            <section className="flex flex-col justify-between rounded-[2rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
               <div>
                 <div className="flex items-center gap-3">
                   <div className="text-sm font-bold uppercase tracking-[0.16em] text-white/45">{copy('promiseLabel')}</div>
                 </div>
-                <div className="mt-5 text-2xl font-black leading-tight">
+                <div className="mt-4 text-xl font-black leading-tight">
                   {copy('promiseMain')}
-                  <span className="mt-2 block text-white/55">{copy('promiseQuestion')}</span>
+                  <span className="mt-1 block text-white/55">{copy('promiseQuestion')}</span>
                 </div>
-                <div className="mt-6 space-y-3 text-sm leading-6 text-white/70">
+                <div className="mt-5 space-y-2.5 text-sm leading-5 text-white/70">
                   <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('evidenceFirst')}</div>
                   <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('unknownsVisible')}</div>
                   <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('sourceTrail')}</div>
                 </div>
-                <div className="mt-9 flex justify-center">
-                  <label className="flex w-full max-w-sm flex-col gap-2.5 rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 text-sm font-bold text-white shadow-sm">
-                    <span className="flex items-center gap-2 text-base font-black tracking-tight text-white">
+                <div className="mt-6 flex justify-center">
+                  <label className="flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 px-3.5 py-3 text-sm font-bold text-white shadow-sm">
+                    <span className="flex items-center gap-2 text-sm font-black tracking-tight text-white">
                       <Globe2 className="h-5 w-5 text-white/75" />
                       <span>{copy('menuLanguage')}</span>
                     </span>
                     <select
                       value={language}
                       onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }}
-                      className="w-full rounded-xl border border-white/20 bg-slate-900 px-3 py-2.5 text-base font-black text-white outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20"
+                      className="w-full rounded-xl border border-white/20 bg-slate-900 px-3 py-2 text-sm font-black text-white outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20"
                       aria-label={copy('menuLanguage')}
                     >
                       {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
@@ -708,9 +708,9 @@ export const GroundSurfApp: React.FC = () => {
                   </label>
                 </div>
               </div>
-              <div className="mt-8">
+              <div className="mt-6">
                 {error && <div className="mb-3 rounded-2xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}
-                <button onClick={gatherEvidence} disabled={!isComplete || isGathering} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3.5 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30">
+                <button onClick={gatherEvidence} disabled={!isComplete || isGathering} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30">
                   {isGathering ? <><Loader2 className="h-4 w-4 animate-spin" /> {copy('gatheringEvidence')}</> : <>{copy('gatherButton')} <ArrowRight className="h-4 w-4" /></>}
                 </button>
                 <div className="mt-3 text-center text-xs text-white/40">{copy('screeningNote')}</div>
