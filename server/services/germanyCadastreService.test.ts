@@ -126,6 +126,11 @@ test('Germany cadastral adapter resolves Bremen ALKIS field mappings and geometr
   assert.equal(result.viewStyle, 'cp_cadastralparcel');
 });
 
+
+const hamburgUtmXml = `<?xml version="1.0"?>
+<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:cp="http://inspire.ec.europa.eu/schemas/cp/4.0">
+<wfs:member><cp:CadastralParcel gml:id="hh-test"><cp:nationalCadastralReference>HH123456789</cp:nationalCadastralReference><cp:label>7</cp:label><cp:areaValue uom="m2">1000</cp:areaValue><cp:geometry><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>831248 5940077 831250 5940077 831250 5940079 831248 5940079 831248 5940077</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></cp:geometry></cp:CadastralParcel></wfs:member></wfs:FeatureCollection>`;
+
 test('Germany cadastral profiles route every currently activated INSPIRE state service', async () => {
   const states = [
     ['Baden-Württemberg', 'DE-BW'], ['Brandenburg', 'DE-BB'], ['Hamburg', 'DE-HH'], ['Hessen', 'DE-HE'],
@@ -136,7 +141,7 @@ test('Germany cadastral profiles route every currently activated INSPIRE state s
     let requestedUrl = '';
     const result = await queryGermanyCadastre(53.505043, 13.996212, state, async (input: RequestInfo | URL) => {
       requestedUrl = String(input);
-      return new Response(xml, { status: 200 });
+      return new Response(state === 'Hamburg' ? hamburgUtmXml : xml, { status: 200 });
     });
     assert.equal(result.success, true, state);
     assert.equal(result.parcel?.stateCode, stateCode, state);

@@ -603,7 +603,7 @@ export const GroundSurfApp: React.FC = () => {
 
   if (!report) {
     return (
-      <div className="min-h-screen bg-[#f5f7f4] text-slate-900 transition-colors duration-300 dark:bg-[#121713] dark:text-slate-100">
+      <div className="min-h-screen bg-[#f5f7f4] text-slate-900 dark:text-slate-100 transition-colors duration-300 dark:bg-[#121713] dark:text-slate-100">
         <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-700/80 dark:bg-[#18201b]/90">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
             <div className="flex items-center gap-3">
@@ -618,7 +618,7 @@ export const GroundSurfApp: React.FC = () => {
             <button
               type="button"
               onClick={toggleTheme}
-              className="grid h-10 w-10 place-items-center rounded-full border border-slate-300/80 bg-white/90 text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-white hover:text-slate-950 dark:border-white/15 dark:bg-white/10 dark:text-slate-200 dark:hover:border-white/25 dark:hover:bg-white/15 dark:hover:text-white"
+              className="grid h-10 w-10 place-items-center rounded-full border border-slate-300/80 bg-white/90 text-slate-700 dark:text-slate-200 shadow-sm transition hover:border-slate-400 hover:bg-white hover:text-slate-950 dark:border-white/15 dark:bg-white/10 dark:text-slate-200 dark:hover:border-white/25 dark:hover:bg-white/15 dark:hover:text-white"
               title={themeControlLabel}
               aria-label={themeControlLabel}
             >
@@ -639,13 +639,13 @@ export const GroundSurfApp: React.FC = () => {
           </div>
 
           <div className="mt-7">
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm transition-colors sm:p-5 dark:border-slate-700/80 dark:bg-[#1a201c]">
+            <section className="rounded-[2rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] p-4 shadow-sm transition-colors sm:p-5 dark:border-slate-700/80 dark:bg-[#1a201c]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{copy('whereTitle')}</div>
                   <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy('whereHint')}</div>
                 </div>
-                <label className="flex shrink-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100">
+                <label className="flex shrink-0 items-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-[#161b18] px-3.5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100">
                   <Globe2 className="h-5 w-5 text-slate-600 dark:text-slate-200" />
                   <select
                     value={language}
@@ -679,7 +679,7 @@ export const GroundSurfApp: React.FC = () => {
                   onParcelLookupStateChange={setIsFindingParcel}
                 />
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm transition-colors dark:bg-slate-100 dark:bg-slate-800/80 dark:text-slate-200">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 dark:bg-[#161b18] px-4 py-3 text-sm transition-colors dark:bg-slate-100 dark:bg-slate-800/80 dark:text-slate-200">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
                   <span>{isFindingParcel ? copy('findingParcel') :
@@ -708,11 +708,11 @@ export const GroundSurfApp: React.FC = () => {
     : [];
 
   return (
-    <div className="min-h-screen bg-[#f5f7f4] text-slate-900 transition-colors duration-300 dark:bg-[#121713] dark:text-slate-100">
+    <div className="min-h-screen bg-[#f5f7f4] text-slate-900 dark:text-slate-100 transition-colors duration-300 dark:bg-[#121713] dark:text-slate-100">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/92 backdrop-blur dark:border-slate-700/80 dark:bg-[#18201b]/92">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <button onClick={() => { setReport(null); setChat([]); setError(''); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-950">
+            <button onClick={() => { setReport(null); setChat([]); setError(''); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white text-slate-600 dark:text-slate-300 hover:text-slate-950">
               <ArrowLeft className="h-4 w-4" />
             </button>
             <div className="min-w-0">
@@ -720,14 +720,14 @@ export const GroundSurfApp: React.FC = () => {
                 <div className="text-sm font-medium tracking-tight">GroundSurf</div>
                 <span className="hidden rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 sm:inline">{appUiCopy(language, 'evidenceGathered')}</span>
               </div>
-              <div className="truncate text-sm text-slate-500">{report.location_name} · {Math.round(report.area_size).toLocaleString()} m²</div>
+              <div className="truncate text-sm text-slate-500 dark:text-slate-400">{report.location_name} · {Math.round(report.area_size).toLocaleString()} m²</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={toggleTheme}
-              className="grid h-10 w-10 place-items-center rounded-full border border-slate-300/80 bg-white/90 text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-white hover:text-slate-950 dark:border-white/15 dark:bg-white/10 dark:text-slate-200 dark:hover:border-white/25 dark:hover:bg-white/15 dark:hover:text-white"
+              className="grid h-10 w-10 place-items-center rounded-full border border-slate-300/80 bg-white/90 text-slate-700 dark:text-slate-200 shadow-sm transition hover:border-slate-400 hover:bg-white hover:text-slate-950 dark:border-white/15 dark:bg-white/10 dark:text-slate-200 dark:hover:border-white/25 dark:hover:bg-white/15 dark:hover:text-white"
               title={themeControlLabel}
               aria-label={themeControlLabel}
             >
@@ -756,7 +756,7 @@ export const GroundSurfApp: React.FC = () => {
 
       <main className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 sm:py-7">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_410px]">
-          <section className="min-h-[650px] rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+          <section className="min-h-[650px] rounded-[2rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#151a17] shadow-sm">
             <div className="rounded-t-[2rem] bg-slate-950 px-5 py-5 text-white sm:px-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-3xl">
@@ -781,25 +781,25 @@ export const GroundSurfApp: React.FC = () => {
             <div className="grid gap-4 p-4 sm:p-5">
               {chat.length === 0 && (
                 <>
-                  <div className="rounded-[1.5rem] border border-slate-200 bg-[#fafcf9] p-5 sm:p-6">
+                  <div className="rounded-[1.5rem] border border-slate-200 dark:border-slate-700/80 bg-[#fafcf9] dark:bg-[#1b211d] p-5 sm:p-6">
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium text-slate-900">{appUiCopy(language, 'found')}</div>
-                        <div className="mt-1 text-sm leading-5 text-slate-500">{appUiCopy(language, 'orientation')}</div>
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{appUiCopy(language, 'found')}</div>
+                        <div className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">{appUiCopy(language, 'orientation')}</div>
                       </div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{evidenceRecords(report).length} {appUiCopy(language, 'itemsGathered')}</div>
                     </div>
                     {report.report_data.summary && (
-                      <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">{report.report_data.summary}</p>
+                      <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{report.report_data.summary}</p>
                     )}
                     {report.report_data.country_support?.notice && (
-                      <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-5 text-slate-600">
-                        <span className="font-medium text-slate-800">{report.report_data.country_support.label}</span> · {report.report_data.country_support.notice}
+                      <div className="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] px-4 py-3 text-sm leading-5 text-slate-600 dark:text-slate-300">
+                        <span className="font-medium text-slate-800 dark:text-slate-200">{report.report_data.country_support.label}</span> · {report.report_data.country_support.notice}
                       </div>
                     )}
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
                       {findingSummary(report, language).map((item) => (
-                        <div key={item.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                        <div key={item.label} className="rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] px-4 py-3">
                           <div className="flex items-center justify-between gap-2">
                             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{item.label}</div>
                             <span className={
@@ -810,12 +810,12 @@ export const GroundSurfApp: React.FC = () => {
                               {item.tone === 'established' ? appUiCopy(language, 'established') : item.tone === 'mapped' ? appUiCopy(language, 'mapped') : appUiCopy(language, 'open')}
                             </span>
                           </div>
-                          <div className="mt-2 text-sm font-medium leading-5 text-slate-700">{item.value}</div>
+                          <div className="mt-2 text-sm font-medium leading-5 text-slate-700 dark:text-slate-200">{item.value}</div>
                         </div>
                       ))}
                     </div>
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-sm text-slate-500">{appUiCopy(language, 'detailedTrail')}</div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400">{appUiCopy(language, 'detailedTrail')}</div>
                       <a
                         href={window.location.origin + '/report?report_id=' + encodeURIComponent(report.id)}
                         onClick={(event) => {
@@ -836,8 +836,8 @@ export const GroundSurfApp: React.FC = () => {
                     </div>
                   </div>
 
-                  <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky top-20 z-20 rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-lg shadow-slate-200/30">
-                <div className="mb-2 px-3 text-sm font-medium text-slate-700">{appUiCopy(language, 'askAnything')}</div>
+                  <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky top-20 z-20 rounded-[1.5rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] p-3 shadow-lg shadow-slate-200/30">
+                <div className="mb-2 px-3 text-sm font-medium text-slate-700 dark:text-slate-200">{appUiCopy(language, 'askAnything')}</div>
                 <div className="flex items-end gap-2">
                   <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={1} onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(question); }
@@ -848,13 +848,13 @@ export const GroundSurfApp: React.FC = () => {
                 </div>
               </form>
 
-              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 sm:p-6">
-                    <div className="text-sm font-medium text-slate-900">{appUiCopy(language, 'askAnything')}</div>
-                    <div className="mt-1 text-sm leading-5 text-slate-500">{appUiCopy(language, 'promptsHint')}</div>
+              <div className="rounded-[1.5rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#222923] p-5 sm:p-6">
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{appUiCopy(language, 'askAnything')}</div>
+                    <div className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">{appUiCopy(language, 'promptsHint')}</div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
                       {starterQuestions(language).map((item) => (
-                        <button key={item} onClick={() => ask(item)} className="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 hover:border-slate-300 hover:text-slate-950">
-                          <span>{item}</span><ChevronRight className="h-4 w-4 text-slate-300 transition group-hover:text-slate-700" />
+                        <button key={item} onClick={() => ask(item)} className="group flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:border-slate-300 hover:text-slate-950">
+                          <span>{item}</span><ChevronRight className="h-4 w-4 text-slate-300 transition group-hover:text-slate-700 dark:text-slate-200" />
                         </button>
                       ))}
                     </div>
@@ -865,28 +865,28 @@ export const GroundSurfApp: React.FC = () => {
               {chat.map((turn, index) => (
                 <div key={index} className="space-y-3">
                   <div className="ml-auto max-w-2xl rounded-3xl rounded-br-md bg-slate-950 px-5 py-4 text-sm leading-6 text-white shadow-sm">{turn.question}</div>
-                  <div className="max-w-3xl rounded-3xl rounded-bl-md border border-slate-200 bg-white px-5 py-5 shadow-sm">
+                  <div className="max-w-3xl rounded-3xl rounded-bl-md border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] px-5 py-5 shadow-sm">
                     {turn.error ? (
                       <div className="text-sm text-red-700">{turn.error}</div>
                     ) : !turn.answer ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> {appUiCopy(language, 'looking')}</div>
+                      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> {appUiCopy(language, 'looking')}</div>
                     ) : (
                       <>
                         <div className="flex gap-3">
                           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-900 text-white"><Sparkles className="h-3.5 w-3.5" /></div>
-                          <div className="text-[15px] leading-7 text-slate-700 whitespace-pre-line">{turn.answer.answer}</div>
+                          <div className="text-[15px] leading-7 text-slate-700 dark:text-slate-200 whitespace-pre-line">{turn.answer.answer}</div>
                         </div>
                         {turn.answer.actions.length > 0 && (
-                          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-slate-700"><Target className="h-3.5 w-3.5" /> {appUiCopy(language, 'whatNext')}</div>
+                          <div className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-[#161b18] p-4">
+                            <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-slate-700 dark:text-slate-200"><Target className="h-3.5 w-3.5" /> {appUiCopy(language, 'whatNext')}</div>
                             <div className="mt-3 space-y-2">
                               {turn.answer.actions.map((action, i) => (
-                                <div key={i} className="rounded-xl bg-white p-3">
+                                <div key={i} className="rounded-xl bg-white dark:bg-[#1b211d] p-3">
                                   <div className="flex items-start gap-3">
-                                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600 text-xs font-medium">{action.kind === 'local_professional' ? 'P' : action.kind === 'field_investigation' ? 'F' : 'S'}</span>
+                                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600 dark:text-slate-300 text-xs font-medium">{action.kind === 'local_professional' ? 'P' : action.kind === 'field_investigation' ? 'F' : 'S'}</span>
                                     <div>
-                                      <div className="text-sm font-medium text-slate-800">{action.title}</div>
-                                      <div className="mt-1 text-xs leading-5 text-slate-500">{action.reason}</div>
+                                      <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{action.title}</div>
+                                      <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{action.reason}</div>
                                       {action.professionalCategory && <div className="mt-1 text-xs font-medium capitalize text-slate-400">{String(language || '').toLowerCase().startsWith('pl') ? 'Przydatny lokalny specjalista' : String(language || '').toLowerCase().startsWith('de') ? 'Geeignete Fachkraft vor Ort' : 'Useful local professional'}: {action.professionalCategory}</div>}
                                     </div>
                                   </div>
@@ -907,15 +907,15 @@ export const GroundSurfApp: React.FC = () => {
                             <div className="mt-1 text-xs leading-5 text-sky-900/70">{String(language || '').toLowerCase().startsWith('pl') ? 'Usługi znalezione w OpenStreetMap w pobliżu. To wstępna orientacja, a nie pełny katalog.' : String(language || '').toLowerCase().startsWith('de') ? 'OpenStreetMap-Dienste in der Nähe. Dies ist eine erste Orientierung, kein vollständiges Verzeichnis.' : 'Nearby services found through OpenStreetMap. This is a first orientation, not a complete directory.'}</div>
                             <div className="mt-3 space-y-2">
                               {turn.answer.localBusinesses.map((business, i) => (
-                                <div key={i} className="rounded-xl bg-white p-3">
+                                <div key={i} className="rounded-xl bg-white dark:bg-[#1b211d] p-3">
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                      <div className="text-sm font-medium text-slate-800">{business.name}</div>
+                                      <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{business.name}</div>
                                       <div className="mt-0.5 text-xs capitalize text-slate-400">{business.category} · {Math.round(business.distanceM).toLocaleString()} m {String(language || '').toLowerCase().startsWith('pl') ? 'stąd' : String(language || '').toLowerCase().startsWith('de') ? 'entfernt' : 'away'}</div>
                                     </div>
                                     {business.phone && <a href={'tel:' + business.phone} className="shrink-0 text-xs font-medium text-sky-700">{business.phone}</a>}
                                   </div>
-                                  {business.address && <div className="mt-1 text-xs text-slate-500">{business.address}</div>}
+                                  {business.address && <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{business.address}</div>}
                                   {business.website && <a href={business.website} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-sky-700">{appUiCopy(language, 'website')} <SquareArrowOutUpRight className="h-3 w-3" /></a>}
                                 </div>
                               ))}
@@ -923,14 +923,14 @@ export const GroundSurfApp: React.FC = () => {
                           </div>
                         )}
                         {turn.answer.localBusinesses && turn.answer.localBusinesses.length === 0 && (
-                          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="text-sm font-medium uppercase tracking-wide text-slate-500">{appUiCopy(language, 'noLocalListing')}</div>
-                            <div className="mt-1 text-xs leading-5 text-slate-500">{String(language || '').toLowerCase().startsWith('pl') ? 'Możesz nadal wyszukać specjalistów w pobliżu. Pusty katalog nie oznacza, że nie ma odpowiedniej usługi.' : String(language || '').toLowerCase().startsWith('de') ? 'Du kannst weiterhin nach Fachleuten in der Nähe suchen. Ein leeres Verzeichnis bedeutet nicht, dass es keinen passenden Dienst gibt.' : 'You can still search for professionals nearby. An empty directory does not mean that no suitable service exists.'}</div>
+                          <div className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-[#161b18] p-4">
+                            <div className="text-sm font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{appUiCopy(language, 'noLocalListing')}</div>
+                            <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{String(language || '').toLowerCase().startsWith('pl') ? 'Możesz nadal wyszukać specjalistów w pobliżu. Pusty katalog nie oznacza, że nie ma odpowiedniej usługi.' : String(language || '').toLowerCase().startsWith('de') ? 'Du kannst weiterhin nach Fachleuten in der Nähe suchen. Ein leeres Verzeichnis bedeutet nicht, dass es keinen passenden Dienst gibt.' : 'You can still search for professionals nearby. An empty directory does not mean that no suitable service exists.'}</div>
                             <a
                               href={'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('geotechnical engineer surveyor architect environmental consultant near ' + report.latitude + ',' + report.longitude)}
                               target="_blank"
                               rel="noreferrer"
-                              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-700"
+                              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-700 dark:text-slate-200"
                             >
                               {appUiCopy(language, 'nearbySearch')} <SquareArrowOutUpRight className="h-3 w-3" />
                             </a>
@@ -940,7 +940,7 @@ export const GroundSurfApp: React.FC = () => {
                           <div className="mt-5">
                             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{appUiCopy(language, 'askNext')}</div>
                             <div className="mt-2 flex flex-wrap gap-2">
-                              {turn.answer.nextQuestions.map((item, i) => <button key={i} onClick={() => ask(item)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-950">{item}</button>)}
+                              {turn.answer.nextQuestions.map((item, i) => <button key={i} onClick={() => ask(item)} className="rounded-full border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-950">{item}</button>)}
                             </div>
                           </div>
                         )}
@@ -950,7 +950,7 @@ export const GroundSurfApp: React.FC = () => {
                 </div>
               ))}
 
-              <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky bottom-3 rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-lg shadow-slate-200/40">
+              <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky bottom-3 rounded-[1.5rem] border border-slate-200 dark:border-slate-700/80 bg-white p-2 shadow-lg shadow-slate-200/40">
                 <div className="flex items-end gap-2">
                   <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={1} onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(question); }
@@ -964,8 +964,8 @@ export const GroundSurfApp: React.FC = () => {
           </section>
 
           <aside className="space-y-4">
-            <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 px-4 py-4">
+            <section className="overflow-hidden rounded-[2rem] border border-slate-200 dark:border-slate-700/80 bg-white shadow-sm">
+              <div className="border-b border-slate-100 dark:border-slate-800 px-4 py-4">
                 <div className="flex items-center gap-2 text-sm font-medium"><Map className="h-4 w-4 text-slate-400" /> {appUiCopy(language, 'place')}</div>
               </div>
               <MapPreview
@@ -979,18 +979,18 @@ export const GroundSurfApp: React.FC = () => {
                 language={report.language}
                 ukJurisdiction={report.uk_jurisdiction}
               />
-              <div className="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100">
+              <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-slate-800 border-t border-slate-100 dark:border-slate-800">
                 <div className="p-4"><div className="text-xs font-medium uppercase tracking-wide text-slate-400">{appUiCopy(language, 'area')}</div><div className="mt-1 text-sm font-medium">{Math.round(report.area_size).toLocaleString()} m²</div></div>
                 <div className="p-4"><div className="text-xs font-medium uppercase tracking-wide text-slate-400">{appUiCopy(language, 'parcel')}</div><div className="mt-1 truncate text-sm font-medium">{report.is_official_parcel ? appUiCopy(language, 'official') : appUiCopy(language, 'notConfirmed')}</div></div>
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="rounded-[2rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] p-5 shadow-sm">
               <div className="flex items-center gap-2 text-sm font-medium"><Target className="h-4 w-4 text-slate-400" /> {appUiCopy(language, 'evidenceMap')}</div>
               <div className="mt-4 space-y-2">
                 {coverage.map((item) => (
-                  <div key={item.key} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-3">
-                    <div><div className="text-sm font-medium text-slate-800">{item.label}</div><div className="mt-0.5 text-xs text-slate-400">{item.count ? item.count + ' ' + (item.count === 1 ? appUiCopy(language, 'evidenceItem') : appUiCopy(language, 'evidenceItemsPlural')) : appUiCopy(language, 'noMatching')}</div></div>
+                  <div key={item.key} className="flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-[#161b18] px-3 py-3">
+                    <div><div className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.label}</div><div className="mt-0.5 text-xs text-slate-400">{item.count ? item.count + ' ' + (item.count === 1 ? appUiCopy(language, 'evidenceItem') : appUiCopy(language, 'evidenceItemsPlural')) : appUiCopy(language, 'noMatching')}</div></div>
                     <span className={"h-2.5 w-2.5 rounded-full " + (item.count ? "bg-emerald-500" : "bg-slate-300")} />
                   </div>
                 ))}
@@ -998,20 +998,20 @@ export const GroundSurfApp: React.FC = () => {
             </section>
 
             {relevantEvidence.length > 0 && (
-              <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <section className="rounded-[2rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] p-5 shadow-sm">
                 <div className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="h-4 w-4 text-slate-400" /> {String(language || '').toLowerCase().startsWith('pl') ? 'Dowody stojące za tą odpowiedzią' : String(language || '').toLowerCase().startsWith('de') ? 'Belege hinter dieser Antwort' : 'Evidence behind this answer'}</div>
                 <div className="mt-4 space-y-2">
                   {relevantEvidence.map((item) => (
                     <div key={item.id} className="rounded-2xl border border-slate-100 p-3">
-                      <div className="flex items-start justify-between gap-2"><div className="text-sm font-medium text-slate-800">{item.sourceName}</div><span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs font-medium uppercase text-slate-400">{statusLabel(item.status, language)}</span></div>
-                      <div className="mt-1 text-xs leading-5 text-slate-500">{item.claim}</div>
+                      <div className="flex items-start justify-between gap-2"><div className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.sourceName}</div><span className="rounded-full bg-slate-50 dark:bg-[#161b18] px-2 py-0.5 text-xs font-medium uppercase text-slate-400">{statusLabel(item.status, language)}</span></div>
+                      <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{item.claim}</div>
                     </div>
                   ))}
                 </div>
               </section>
             )}
 
-            <section className="rounded-[2rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
+            <section className="rounded-[2rem] border border-slate-200 dark:border-slate-700/80 bg-slate-950 p-5 text-white shadow-sm">
               <div className="text-xs font-medium uppercase tracking-[0.16em] text-white/40">{appUiCopy(language, 'goDeeper')}</div>
               <div className="mt-3 text-lg font-medium">{appUiCopy(language, 'landRecord')}</div>
               <p className="mt-2 text-sm leading-5 text-white/60">{appUiCopy(language, 'keepRecord')}</p>
@@ -1022,11 +1022,11 @@ export const GroundSurfApp: React.FC = () => {
 
             {last?.error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{last.error}</div>}
             {relevantSources.length > 0 && (
-              <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <section className="rounded-[2rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] p-5 shadow-sm">
                 <div className="text-sm font-medium">{appUiCopy(language, 'sources')}</div>
                 <div className="mt-3 space-y-2">
                   {relevantSources.slice(0, 5).map((source, index) => (
-                    <a key={index} href={source.url} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-950">
+                    <a key={index} href={source.url} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-[#161b18] px-3 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-950">
                       <span className="truncate">{source.name}</span><SquareArrowOutUpRight className="ml-2 h-3.5 w-3.5 shrink-0" />
                     </a>
                   ))}

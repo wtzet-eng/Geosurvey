@@ -88,7 +88,7 @@ const PROFILES: GermanyCadastreProfile[] = [
   },
   {
     state: 'Hamburg', stateCode: 'DE-HH',
-    schema: 'INSPIRE',
+    schema: 'INSPIRE', querySrsName: 'EPSG:25832', bboxCrs: 'urn:ogc:def:crs:EPSG::25832', bboxEpsilon: 2,
     aliases: ['hamburg', 'de-hh'],
     wfsUrl: 'https://geodienste.hamburg.de/HH_WFS_INSPIRE_Flurstuecke',
     wmsUrl: 'https://geodienste.hamburg.de/HH_WMS_INSPIRE_Flurstuecke',
@@ -335,7 +335,7 @@ function extractMembers(xml: string, profile: GermanyCadastreProfile) {
     for (let i = 0; i + 1 < positions.length; i += 2) {
       const a = positions[i], b = positions[i + 1];
       if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
-      const point: [number, number] = profile.schema === 'THURINGIA'
+      const point: [number, number] = profile.querySrsName === 'EPSG:25832'
         ? utm32ToWgs84(a, b)
         : a >= 47 && a <= 56 && b >= 4 && b <= 16
         ? [a, b]
