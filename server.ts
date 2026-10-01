@@ -388,7 +388,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: spainCadastre.sourceName, organization: 'Dirección General del Catastro — Ministerio de Hacienda', url: spainCadastre.sourceUrl, type: 'Official National Cadastre', status: 'VERIFIED' });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Spanish Catastro cadastre notice:`, e); }
- else if (!countryLocationMismatch && countryCode === 'FI' && support.capabilities.nationalCadastre) {
+    } else if (!countryLocationMismatch && countryCode === 'FI' && support.capabilities.nationalCadastre) {
       stage = 'finland-cadastre';
       try {
         finlandCadastre = await queryFinlandCadastre(lat, lng);
@@ -1302,4 +1302,5 @@ async function startServer() {
 }
 
 startServer().catch(err => { console.error('Failed to start server:', err); process.exit(1); });
+
 
