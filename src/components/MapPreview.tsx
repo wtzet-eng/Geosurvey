@@ -126,6 +126,34 @@ export const MapPreview: React.FC<MapPreviewProps> = ({
       }).addTo(map);
     }
 
+    if (countryCode?.toUpperCase() === 'ES') {
+      L.tileLayer.wms('https://ovc.catastro.meh.es/cartografia/INSPIRE/spadgcwms.aspx', {
+        layers: 'CP.CadastralParcel',
+        styles: 'BoundariesOnly',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.82,
+        version: '1.1.1',
+        crs: L.CRS.EPSG3857,
+        attribution: 'Dirección General del Catastro — INSPIRE',
+        maxNativeZoom: 17,
+        maxZoom: 22
+      }).addTo(map);
+
+      L.tileLayer.wms('https://mapas.igme.es/gis/services/Cartografia_Geologica/IGME_Geode_50/MapServer/WMSServer', {
+        layers: 'Recintos geología',
+        styles: '',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.42,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3857,
+        attribution: 'IGME-CSIC — GEODE 1:50.000',
+        minZoom: 8,
+        maxZoom: 17
+      }).addTo(map);
+    }
+
     if (countryCode?.toUpperCase() === 'GB') {
       if (ukJurisdiction !== 'SCOTLAND' && ukJurisdiction !== 'NORTHERN_IRELAND') L.tileLayer.wms('https://inspire.landregistry.gov.uk/inspire/ows', {
         layers: 'inspire:CP.CadastralParcel',
