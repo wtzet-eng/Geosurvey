@@ -137,6 +137,23 @@ const materialLabels: Record<ReportLanguage, Record<MappedMaterialIndicator, str
   de: { ALLUVIAL: 'alluviale Ablagerungen', ORGANIC_OR_PEAT: 'organische / Torfablagerungen', MADE_GROUND: 'Auffüllungen', GLACIOFLUVIAL: 'glazifluviale Ablagerungen', TILL: 'Geschiebemergel / Till', COHESIVE: 'bindiges Material', GRANULAR: 'körniges Material', OTHER: 'sonstiges kartiertes Material' },
   pl: { ALLUVIAL: 'osady aluwialne', ORGANIC_OR_PEAT: 'osady organiczne / torfy', MADE_GROUND: 'nasypy', GLACIOFLUVIAL: 'osady wodnolodowcowe', TILL: 'gliny zwałowe / till', COHESIVE: 'grunty spoiste', GRANULAR: 'grunty niespoiste', OTHER: 'inne kartowane utwory' },
   sl: { ALLUVIAL: 'aluvialni nanosi', ORGANIC_OR_PEAT: 'organski / šotni nanosi', MADE_GROUND: 'nasipi in umetno nasutje', GLACIOFLUVIAL: 'fluvioglacialni nanosi', TILL: 'morenski nanosi', COHESIVE: 'kohezivni material', GRANULAR: 'zrnat material', OTHER: 'drug kartiran material' },
+  sl: {
+    title: 'Spremenljivost talnih razmer / geološki kontekst',
+    labels: { LOW: 'Majhna kartirana spremenljivost', MODERATE: 'Zmerna kartirana spremenljivost', HIGH: 'Velika kartirana spremenljivost', INSUFFICIENT_EVIDENCE: 'Premalo dokazov' },
+    mappedUniform: 'Pregledani kartografski vzorci se ujemajo z eno prevladujočo enoto tal v pregledani okolici.',
+    transition: 'V vzorcih lokacije, parcele ali okolice so bile ugotovljene različne kartirane enote, kar lahko kaže na prehodno območje.',
+    insufficient: 'Razpoložljivi kartografski vzorci ne zadoščajo za opredelitev prostorske spremenljivosti talnih razmer.',
+    materials: 'Kazalniki iz kartiranega konteksta',
+    mappedUnits: 'Opažene kartirane enote',
+    samples: 'uporabni kartografski vzorci',
+    soilStable: 'Večtočkovno vzorčenje SoilGrids ni pokazalo spremembe v pregledanih modeliranih vrednostih površinskih tal.',
+    soilVariable: 'Večtočkovno vzorčenje SoilGrids kaže razlike v pregledanih modeliranih vrednostih površinskih tal.',
+    soilUnavailable: 'Večtočkovni kontekst SoilGrids ni na voljo.',
+    investigateTransition: 'Osredotočenje preiskave: preveriti kartirani prehod in potrditi, kateri materiali so dejansko pod lokacijo, vključno s spremembami debeline in stanja.',
+    investigateOrganic: 'Osredotočenje preiskave: posebej preveriti mehke, organske ali aluvialne nanose in njihovo bočno spremenljivost; bližnjih kartiranih nanosov ne predpostavljati pod lokacijo.',
+    investigateGeneral: 'Osredotočenje preiskave: pred inženirskimi odločitvami z raziskavami na lokaciji potrditi material, izvor, stanje in podzemno vodo.',
+    limitation: 'Kartirani in modelirani kontekst je namenjen le predhodni preveritvi. Bližnji podatki ne potrjujejo plasti, debeline nanosov, podzemne vode, gostote, stanja ali inženirskih lastnosti na lokaciji, redki vzorci pa ne določajo natančne geološke meje.'
+  },
   uk: { ALLUVIAL: 'алювіальні відклади', ORGANIC_OR_PEAT: 'органічні / торфові відклади', MADE_GROUND: 'насипні ґрунти', GLACIOFLUVIAL: 'водно-льодовикові відклади', TILL: 'моренні відклади', COHESIVE: 'зв’язний матеріал', GRANULAR: 'зернистий матеріал', OTHER: 'інші картовані відклади' }
 };
 
