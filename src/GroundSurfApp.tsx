@@ -865,7 +865,7 @@ export const GroundSurfApp: React.FC = () => {
                 <div className="flex items-end gap-2">
                   <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={1} onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(question); }
-                  }} placeholder={appUiCopy(language, 'searchAnything')} aria-label={appUiCopy(language, 'searchAnything')} className="min-h-[52px] flex-1 resize-none bg-transparent px-3 py-3 text-base outline-none placeholder:text-slate-400" />
+                  }} placeholder={appUiCopy(language, 'searchAnything')} aria-label={appUiCopy(language, 'searchAnything')} className="min-h-[52px] flex-1 resize-none bg-transparent px-3 py-3 text-base text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500" />
                   <button disabled={!question.trim() || asking} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-900 text-white disabled:opacity-30">
                     {asking ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   </button>
@@ -974,11 +974,11 @@ export const GroundSurfApp: React.FC = () => {
                 </div>
               ))}
 
-              <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky bottom-3 rounded-[1.5rem] border border-slate-200 dark:border-slate-700/80 bg-white p-2 shadow-lg shadow-slate-200/40">
+              <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky bottom-3 rounded-[1.5rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] p-2 shadow-lg shadow-slate-200/40">
                 <div className="flex items-end gap-2">
                   <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={1} onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(question); }
-                  }} placeholder={appUiCopy(language, 'searchAnything')} className="min-h-[52px] flex-1 resize-none bg-transparent px-3 py-3 text-base outline-none placeholder:text-slate-400" />
+                  }} placeholder={appUiCopy(language, 'searchAnything')} className="min-h-[52px] flex-1 resize-none bg-transparent px-3 py-3 text-base text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500" />
                   <button disabled={!question.trim() || asking} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-900 text-white disabled:opacity-30">
                     {asking ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   </button>
