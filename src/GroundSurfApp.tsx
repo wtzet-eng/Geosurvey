@@ -667,12 +667,12 @@ export const GroundSurfApp: React.FC = () => {
                   onOfficialParcelSelected={setOfficialParcel}
                   onParcelLookupStateChange={setIsFindingParcel}
                 />
-                <label className="absolute bottom-3 right-3 z-[500] flex items-center gap-2 rounded-xl border border-white/60 bg-white/90 px-2.5 py-2 text-xs font-black text-slate-700 shadow-lg backdrop-blur dark:border-white/15 dark:bg-slate-900/90 dark:text-slate-100">
-                  <Globe2 className="h-4 w-4 text-slate-500 dark:text-slate-300" />
+                <label className="absolute right-3 top-3 z-[500] flex items-center gap-2 rounded-xl border border-white/70 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-lg backdrop-blur dark:border-white/20 dark:bg-slate-900/95 dark:text-slate-100">
+                  <Globe2 className="h-4 w-4 text-slate-600 dark:text-slate-200" />
                   <select
                     value={language}
                     onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }}
-                    className="max-w-[8rem] bg-transparent text-xs font-black outline-none"
+                    className="max-w-[9rem] bg-transparent text-sm font-black outline-none"
                     aria-label={copy('menuLanguage')}
                   >
                     {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
