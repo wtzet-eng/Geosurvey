@@ -162,7 +162,9 @@ const GROUND_SURF_COPY = {
     menuLanguage: 'Język',
     themeSystem: 'Zgodnie z przeglądarką', themeUseLight: 'Użyj jasnego tła', themeUseDark: 'Użyj ciemnego tła',
     gatheringEvidence: 'Zbieranie publicznych danych…'
-  }
+  }  },
+  et: {
+    badge: 'Avalikud andmed ühes kohas', heroTitle: 'Kõigepealt kogun kokku tõendid.', heroSubTitle: 'Seejärel otsustad sina, mida küsida.', heroText: 'GroundSurf otsib avalikult kättesaadavat teavet maa-ala kohta, millest oled huvitatud — katastriandmed, pinnas, vesi, planeeringud, keskkond ja kohalik kontekst — ning muudab selle uuritavaks.', whereTitle: 'Kust otsime?', whereHint: 'Otsi aadressi või vali maa-ala kaardilt.', addressFlow: 'Aadress → katastriüksus → andmed', promiseLabel: 'Lubadus', promiseMain: 'Kogun kokku avalikud andmed, mida leian.', promiseQuestion: 'Mida soovid teada?', evidenceFirst: 'Andmed enne selgitusi.', unknownsVisible: 'Teadmata asjad jäävad nähtavaks.', sourceTrail: 'Iga vastus võib viia tagasi allikani.', gatherButton: 'Kogu andmed', screeningNote: 'See on esmane ülevaade, mitte juriidiline ega insenertehniline kinnitus.', findingParcel: 'Ametlikku katastriüksust otsitakse…', officialParcel: 'Ametlik katastriüksus leitud.', landReady: 'Maa-ala on valitud ja valmis.', chooseLand: 'Vali maa-ala kaardilt.', menuLanguage: 'Keel', themeSystem: 'Jälgi brauserit', themeUseLight: 'Kasuta heledat tausta', themeUseDark: 'Kasuta tumedat tausta', gatheringEvidence: 'Avalike andmete kogumine…'
 } as const;
 
 type GroundSurfCopyKey = keyof typeof GROUND_SURF_COPY.en;
@@ -170,7 +172,7 @@ type ThemePreference = 'system' | 'light' | 'dark';
 
 function groundSurfCopy(language: string, key: GroundSurfCopyKey): string {
   const locale = String(language || '').toLowerCase().split('-')[0];
-  const selected = locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : locale === 'cs' ? 'cs' : locale === 'da' ? 'da' : locale === 'nl' ? 'nl' : locale === 'hr' ? 'hr' : 'en';
+  const selected = locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : locale === 'cs' ? 'cs' : locale === 'da' ? 'da' : locale === 'nl' ? 'nl' : locale === 'hr' ? 'hr' : locale === 'es' ? 'es' : locale === 'fr' ? 'fr' : locale === 'et' ? 'et' : 'en';
   return GROUND_SURF_COPY[selected][key];
 }
 
