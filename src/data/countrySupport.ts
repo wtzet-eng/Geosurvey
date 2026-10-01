@@ -70,6 +70,7 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   CH: { countryCode: 'CH', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true } },
   MT: { countryCode: 'MT', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
   HR: { countryCode: 'HR', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
+  IT: { countryCode: 'IT', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } },
   UA: { countryCode: 'UA', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } }
 };
 
