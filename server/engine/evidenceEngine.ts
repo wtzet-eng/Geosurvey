@@ -109,7 +109,24 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
 
   if (countryCode === 'IT' && italyCadastre) evidenceRegistry.push(...italyCadastre.evidence);
 
-  if (countryCode === 'UA' && ukraineCadastre?.success && ukraineCadastre.parcel) {
+  if (countryCode === 'IT' && italyCadastre?.success && italyCadastre.parcel) {
+    const p = italyCadastre.parcel;
+    parcelInfo = {
+      status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'IT',
+      geometryPoints: undefined, isOfficialGeometry: false, areaCalculatedM2: areaSizeM2,
+      officialAreaM2: p.areaM2, cadastralSource: italyCadastre.sourceName, datasetDate: todayStr,
+      limitation: italyCadastre.limitation
+    };
+    evidenceRegistry.push({
+      id: 'it-cadastre-parcel', category: 'Cadastre & Identification',
+      claim: `Agenzia delle Entrate cadastral parcel ${p.parcelId}${p.nationalCadastralReference ? ` (${p.nationalCadastralReference})` : ''} identified at the selected location.`,
+      status: 'VERIFIED', sourceName: italyCadastre.sourceName, sourceUrl: italyCadastre.sourceUrl, datasetDate: todayStr,
+      spatialRelationship: 'Official cadastral map feature returned at the selected coordinate',
+      calculationMethod: 'Agenzia delle Entrate WMS GetFeatureInfo on CP.CadastralParcel',
+      confidence: 'High', limitation: italyCadastre.limitation,
+      value: { parcelId: p.parcelId, nationalCadastralReference: p.nationalCadastralReference, sheet: p.sheet }
+    });
+  } else   if (countryCode === 'UA' && ukraineCadastre?.success && ukraineCadastre.parcel) {
     const p = ukraineCadastre.parcel;
     parcelInfo = {
       status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'UA', geometryPoints: p.geometryPoints,
