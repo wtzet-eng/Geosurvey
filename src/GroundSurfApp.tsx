@@ -624,9 +624,9 @@ export const GroundSurfApp: React.FC = () => {
           <div className="mx-auto max-w-4xl text-center">
             <h1 className="text-3xl font-medium tracking-[-0.02em] text-slate-950 sm:text-4xl lg:text-5xl dark:text-slate-100">
               {copy('heroTitle')}
-              <span className="block font-normal text-slate-500 dark:text-slate-400">{copy('heroSubTitle')}</span>
+              <span className="block font-normal text-slate-700 dark:text-slate-200">{copy('heroSubTitle')}</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
+            <p className="mx-auto mt-4 max-w-2xl text-base font-normal leading-7 text-slate-700 dark:text-slate-300">
               {copy('heroText')}
             </p>
           </div>
