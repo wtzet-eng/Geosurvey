@@ -70,7 +70,7 @@ function xmlNumber(block: string, names: string[]): number | null {
 }
 
 function firstOuterRing(block: string): [number, number][] | undefined {
-  const posList = block.match(/<(?:[\\w.-]+:)?posList(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w.-]+:)?posList>/i);
+  const posList = block.match(/<(?:[\w.-]+:)?posList(?:\s[^>]*)?>([\s\S]*?)<\/(?:[\w.-]+:)?posList>/i);
   if (!posList) return undefined;
   const values = posList[1].trim().split(/\s+/).map(Number).filter(Number.isFinite);
   if (values.length < 6) return undefined;
@@ -141,7 +141,7 @@ export async function querySpainCadastre(lat: number, lng: number, fetcher: Fetc
   const xml = await fetchText(fetcher, url);
   if (!xml) return unavailable('SOURCE_UNAVAILABLE', 'The Spanish Catastro INSPIRE cadastral service could not be reached.');
 
-  const memberMatches = [...xml.matchAll(/<(?:[\\w.-]+:)?featureMember(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w.-]+:)?featureMember>/gi)];
+  const memberMatches = [...xml.matchAll(/<(?:[\w.-]+:)?featureMember(?:\s[^>]*)?>([\s\S]*?)<\/(?:[\w.-]+:)?featureMember>/gi)];
   if (!memberMatches.length) return unavailable('NO_DATA', 'The Spanish Catastro INSPIRE service returned no cadastral parcel in the immediate search envelope.');
 
   const site: [number, number] = [lat, lng];
