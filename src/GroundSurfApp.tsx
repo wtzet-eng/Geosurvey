@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, ChevronRight, CircleHelp, FileText, Globe2,
   Layers3, Loader2, Map, Search, ShieldCheck, Sparkles, Phone,
-  SquareArrowOutUpRight, Sun, Moon, Target
+  SquareArrowOutUpRight, Sun, Moon, Target, Send, AlertCircle, MapPin,
+  Pentagon, Square, Circle, ExternalLink
 } from 'lucide-react';
 import { MapPicker } from './components/MapPicker';
 import { MapPreview } from './components/MapPreview';
@@ -256,4 +257,746 @@ function appUiCopy(language: string, key: AppUiCopyKey): string {
   const locale = String(language || '').toLowerCase().split('-')[0];
   const selected = locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : locale === 'cs' ? 'cs' : locale === 'da' ? 'da' : locale === 'nl' ? 'nl' : locale === 'hr' ? 'hr' : locale === 'es' ? 'es' : locale === 'fr' ? 'fr' : locale === 'no' ? 'no' : locale === 'fi' ? 'fi' : locale === 'sv' ? 'sv' : 'en';
   return APP_UI_COPY[selected][key];
+}
+
+export function GroundSurfApp() {
+  const [countryCode, setCountryCode] = useState<string>('DE');
+  const [language, setLanguage] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const urlLang = new URLSearchParams(window.location.search).get('lang');
+      if (urlLang) return normalizeReportLanguage(urlLang, 'DE');
+    }
+    return getDefaultReportLanguageForCountry('DE', 'de');
+  });
+  const [mode, setMode] = useState<'polygon' | 'rectangle' | 'circle'>('polygon');
+  const [shape, setShape] = useState<BoundaryShape | null>(null);
+  const [officialParcel, setOfficialParcel] = useState<{ parcelId?: string; areaM2?: number; geometry?: [number, number][] } | null>(null);
+  const [isFindingParcel, setIsFindingParcel] = useState(false);
+  const [areaSize, setAreaSize] = useState<number>(1000);
+  const [report, setReport] = useState<SiteReport | null>(null);
+  const [isGathering, setIsGathering] = useState(false);
+  const [gatherError, setGatherError] = useState<string | null>(null);
+
+  // Chat / interaction state
+  const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
+  const [questionInput, setQuestionInput] = useState('');
+  const [isAsking, setIsAsking] = useState(false);
+
+  const currentCountry = useMemo(() => {
+    return EUROPEAN_COUNTRIES.find(c => c.code === countryCode) || EUROPEAN_COUNTRIES[0];
+  }, [countryCode]);
+
+  const availableLanguages = useMemo(() => {
+    return getAvailableReportLanguages(countryCode, currentCountry.language);
+  }, [countryCode, currentCountry.language]);
+
+  const circleRadius = Math.sqrt((areaSize || 1000) / Math.PI);
+  const isBoundaryComplete = Boolean(
+    shape && (
+      shape.type === 'circle' ? Boolean(shape.center) :
+      shape.type === 'rectangle' ? (shape.corners?.length || 0) >= 2 :
+      (shape.points?.length || 0) >= 3
+    )
+  );
+
+  const handleShapeChange = (newShape: BoundaryShape | null) => {
+    setShape(newShape);
+    if (newShape) {
+      const calculated = calculateBoundaryArea(newShape, areaSize);
+      if (calculated > 0) setAreaSize(calculated);
+    }
+  };
+
+  const handleCountryDetected = (code: string) => {
+    const nextCountry = EUROPEAN_COUNTRIES.find(c => c.code === code.toUpperCase());
+    if (nextCountry) {
+      setCountryCode(nextCountry.code);
+      setLanguage(getDefaultReportLanguageForCountry(nextCountry.code, nextCountry.language));
+      setShape(null);
+      setOfficialParcel(null);
+    }
+  };
+
+  const handleGatherEvidence = async () => {
+    if (!shape || !isBoundaryComplete || isGathering) return;
+    setIsGathering(true);
+    setGatherError(null);
+    try {
+      const center = getBoundaryCenter(shape) || currentCountry.defaultCenter;
+      const res = await apiFetch('/api/analyze-site', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shape,
+          areaSize: Math.round(areaSize),
+          country: currentCountry.name,
+          countryCode: currentCountry.code,
+          language,
+          currency: currentCountry.currency,
+          officialParcel: officialParcel || undefined
+        })
+      });
+      if (!res.ok) {
+        throw new Error('Failed to gather public evidence. Please try again.');
+      }
+      const payload = await res.json();
+      const newReport: SiteReport = payload?.report_data ? {
+        ...payload,
+        country: payload.country || currentCountry.name,
+        country_code: payload.country_code || currentCountry.code,
+        language: payload.language || language,
+        latitude: Number(payload.latitude ?? center[0]),
+        longitude: Number(payload.longitude ?? center[1]),
+        area_size: Number(payload.area_size ?? Math.round(areaSize)),
+        boundary: payload.boundary || shape,
+        selected_boundary: shape
+      } : {
+        id: 'rep_' + Math.random().toString(36).substring(2, 9),
+        created_at: new Date().toISOString(),
+        location_name: payload.location_name || `${center[0].toFixed(4)}, ${center[1].toFixed(4)}`,
+        country: currentCountry.name,
+        country_code: currentCountry.code,
+        language,
+        latitude: center[0],
+        longitude: center[1],
+        area_size: Math.round(areaSize),
+        boundary: shape,
+        report_data: payload
+      };
+
+      try {
+        localStorage.setItem('groundsurf_report_' + newReport.id, JSON.stringify(newReport));
+        const saved = JSON.parse(localStorage.getItem('saved_site_reports') || '[]');
+        localStorage.setItem('saved_site_reports', JSON.stringify([newReport, ...saved.filter((r: any) => r.id !== newReport.id)]));
+      } catch {}
+
+      setReport(newReport);
+    } catch (err: any) {
+      setGatherError(err.message || 'Error gathering evidence. Please try again.');
+    } finally {
+      setIsGathering(false);
+    }
+  };
+
+  const handleAsk = async (questionText: string) => {
+    const q = questionText.trim();
+    if (!q || isAsking || !report) return;
+    setQuestionInput('');
+    setIsAsking(true);
+
+    const newTurn: ChatTurn = { question: q };
+    setChatTurns(prev => [...prev, newTurn]);
+
+    try {
+      const res = await apiFetch('/api/ai/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          report,
+          question: q,
+          language
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'The adviser could not process this question.');
+      }
+
+      let localBiz: any[] = [];
+      const hasLocalProf = Array.isArray(data.actions) && data.actions.some((a: any) => a.kind === 'local_professional');
+      const lat = report.latitude;
+      const lng = report.longitude;
+      if (hasLocalProf && typeof lat === 'number' && typeof lng === 'number') {
+        try {
+          const actionWithCat = data.actions.find((a: any) => a.professionalCategory);
+          const category = actionWithCat?.professionalCategory || 'surveyor';
+          const helpRes = await apiFetch(`/api/local-help?lat=${lat}&lng=${lng}&category=${encodeURIComponent(category)}`);
+          if (helpRes.ok) {
+            const helpData = await helpRes.json();
+            if (Array.isArray(helpData.businesses)) {
+              localBiz = helpData.businesses.slice(0, 3);
+            }
+          }
+        } catch {}
+      }
+
+      setChatTurns(prev => {
+        const copy = [...prev];
+        if (copy.length > 0) {
+          copy[copy.length - 1] = {
+            question: q,
+            answer: {
+              ...data,
+              localBusinesses: localBiz.length > 0 ? localBiz : undefined
+            }
+          };
+        }
+        return copy;
+      });
+    } catch (err: any) {
+      setChatTurns(prev => {
+        const copy = [...prev];
+        if (copy.length > 0) {
+          copy[copy.length - 1] = {
+            question: q,
+            error: err.message || 'Adviser request failed.'
+          };
+        }
+        return copy;
+      });
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
+  const openDetailedReport = () => {
+    if (!report) return;
+    try {
+      localStorage.setItem('groundsurf_report_' + report.id, JSON.stringify(report));
+    } catch {}
+    window.location.href = `/report?report_id=${encodeURIComponent(report.id)}`;
+  };
+
+  const evidenceRegistry = (report?.report_data as any)?.evidenceRegistry || (report as any)?.evidenceRegistry || [];
+  const evidenceCount = evidenceRegistry.length;
+
+  const topicStatuses = useMemo(() => {
+    if (!report) return [];
+    return COVERAGE.map(([key, enLabel, deLabel, plLabel, keywords]) => {
+      const records = evidenceRegistry.filter((rec: any) => {
+        const text = `${rec.id || ''} ${rec.category || ''} ${rec.title || ''} ${rec.description || ''}`.toLowerCase();
+        return (keywords as readonly string[]).some((kw: string) => text.includes(kw));
+      });
+      let status: 'established' | 'mapped' | 'open' = 'open';
+      if (records.some((r: any) => r.status === 'VERIFIED')) status = 'established';
+      else if (records.some((r: any) => r.status === 'MODELLED' || r.status === 'CONTRIBUTORY' || r.status === 'ESTIMATED')) status = 'mapped';
+
+      const label = language === 'de' ? deLabel : language === 'pl' ? plLabel : enLabel;
+      return { key, label, status, count: records.length };
+    });
+  }, [report, evidenceRegistry, language]);
+
+  const center = useMemo(() => {
+    if (!report) return currentCountry.defaultCenter;
+    return [report.latitude, report.longitude] as [number, number];
+  }, [report, currentCountry]);
+
+  // If no report yet: Landing / Land selection view
+  if (!report) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+        {/* Navigation Bar */}
+        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-sm">
+                <Layers3 className="w-5 h-5" />
+              </div>
+              <span className="font-extrabold text-xl tracking-tight text-slate-900">GroundSurf</span>
+              <span className="hidden sm:inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                {groundSurfCopy(language, 'badge')}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 bg-slate-100 rounded-xl px-2.5 py-1.5 border border-slate-200 text-xs font-medium text-slate-700">
+                <Globe2 className="w-3.5 h-3.5 text-slate-500" />
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="bg-transparent border-none focus:outline-none cursor-pointer text-slate-800 font-semibold"
+                >
+                  {availableLanguages.map((l) => (
+                    <option key={l.code} value={l.code}>{l.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <a
+                href="/report"
+                className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition"
+              >
+                {appUiCopy(language, 'detailedReport')}
+              </a>
+            </div>
+          </div>
+        </header>
+
+        {/* Hero Section */}
+        <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8 w-full">
+          <div className="text-center space-y-3 max-w-3xl mx-auto">
+            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+              {groundSurfCopy(language, 'heroTitle')}{' '}
+              <span className="text-slate-500">{groundSurfCopy(language, 'heroSubTitle')}</span>
+            </h1>
+            <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+              {groundSurfCopy(language, 'heroText')}
+            </p>
+          </div>
+
+          {/* Map Selection Card */}
+          <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                  {groundSurfCopy(language, 'whereTitle')}
+                </h2>
+                <p className="text-xs text-slate-500">{groundSurfCopy(language, 'whereHint')}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {groundSurfCopy(language, 'addressFlow')}
+                </span>
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => { setMode('polygon'); setShape(null); }}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${mode === 'polygon' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                  >
+                    <Pentagon className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMode('rectangle'); setShape(null); }}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${mode === 'rectangle' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                  >
+                    <Square className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMode('circle'); setShape(null); }}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${mode === 'circle' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                  >
+                    <Circle className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <MapPicker
+              mode={mode}
+              shape={shape}
+              onChange={handleShapeChange}
+              circleRadius={circleRadius}
+              onClear={() => { setShape(null); setOfficialParcel(null); }}
+              defaultCenter={currentCountry.defaultCenter}
+              defaultZoom={currentCountry.defaultZoom}
+              language={language}
+              countryCode={countryCode}
+              onCountryDetected={handleCountryDetected}
+              onOfficialParcelSelected={setOfficialParcel}
+              onParcelLookupStateChange={setIsFindingParcel}
+            />
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-100">
+              <div className="text-xs text-slate-600 flex items-center gap-2">
+                {isFindingParcel ? (
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    {groundSurfCopy(language, 'findingParcel')}
+                  </span>
+                ) : officialParcel ? (
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    {groundSurfCopy(language, 'officialParcel')}{officialParcel.parcelId ? ` (${officialParcel.parcelId})` : ''}
+                  </span>
+                ) : isBoundaryComplete ? (
+                  <span className="text-slate-800 font-medium">
+                    {groundSurfCopy(language, 'landReady')} • <strong className="font-bold">{Math.round(areaSize).toLocaleString()} m²</strong>
+                  </span>
+                ) : (
+                  <span>{groundSurfCopy(language, 'chooseLand')}</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleGatherEvidence}
+                  disabled={!isBoundaryComplete || isGathering}
+                  className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 flex items-center justify-center gap-2 shadow-sm transition"
+                >
+                  {isGathering ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{groundSurfCopy(language, 'gatheringEvidence')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      <span>{groundSurfCopy(language, 'gatherButton')}</span>
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {gatherError && (
+              <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs flex items-center gap-2 border border-red-200">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{gatherError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* The Promise Section */}
+          <div className="grid sm:grid-cols-3 gap-4 pt-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                1
+              </div>
+              <h3 className="font-bold text-sm text-slate-900">{groundSurfCopy(language, 'evidenceFirst')}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">{groundSurfCopy(language, 'promiseMain')}</p>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">
+                2
+              </div>
+              <h3 className="font-bold text-sm text-slate-900">{groundSurfCopy(language, 'unknownsVisible')}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">{groundSurfCopy(language, 'promiseQuestion')}</p>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                3
+              </div>
+              <h3 className="font-bold text-sm text-slate-900">{groundSurfCopy(language, 'sourceTrail')}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">{groundSurfCopy(language, 'screeningNote')}</p>
+            </div>
+          </div>
+        </main>
+
+        <FloatingSupportLandSurf language={language} />
+      </div>
+    );
+  }
+
+  // If report has been gathered: Interactive Adviser & Evidence Explorer
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-20">
+      {/* Top Header */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => { setReport(null); setChatTurns([]); }}
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+              title="Back to land search"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-slate-900 text-sm sm:text-base">
+                  {report.location_name}
+                </span>
+                {report.parcel?.parcelId && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    {report.parcel.parcelId}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">
+                {report.area_size.toLocaleString()} m² • {evidenceCount} {appUiCopy(language, 'itemsGathered')}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={openDetailedReport}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>{appUiCopy(language, 'openDetailed')}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Two-Column View */}
+      <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-6 w-full grid lg:grid-cols-[1fr_1.4fr] gap-6 items-start">
+        {/* Left Column: Land & Evidence Map */}
+        <div className="space-y-6">
+          {/* Map Preview Card */}
+          <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-3">
+            <div className="h-64 sm:h-72 rounded-2xl overflow-hidden border border-slate-100">
+              <MapPreview
+                lat={center[0]}
+                lng={center[1]}
+                areaSize={report.area_size}
+                boundary={report.boundary}
+                officialGeometry={report.official_geometry}
+                countryCode={report.country_code}
+                language={language}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-slate-400 block text-[10px] font-medium uppercase">{appUiCopy(language, 'place')}</span>
+                <span className="font-semibold text-slate-800 truncate block">{report.location_name}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-slate-400 block text-[10px] font-medium uppercase">{appUiCopy(language, 'area')}</span>
+                <span className="font-semibold text-slate-800">{report.area_size.toLocaleString()} m²</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Evidence Coverage Grid */}
+          <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                {appUiCopy(language, 'evidenceMap')}
+              </h2>
+              <span className="text-xs text-slate-500 font-medium">
+                {evidenceCount} {appUiCopy(language, 'evidenceItemsPlural')}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {topicStatuses.map((topic) => (
+                <div key={topic.key} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-800 leading-tight">{topic.label}</span>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      topic.status === 'established'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : topic.status === 'mapped'
+                        ? 'bg-sky-100 text-sky-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {topic.status === 'established' ? appUiCopy(language, 'established') :
+                       topic.status === 'mapped' ? appUiCopy(language, 'mapped') :
+                       appUiCopy(language, 'open')}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{topic.count}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Land Record Callout */}
+          <div className="bg-emerald-950 text-white rounded-3xl p-5 space-y-3 shadow-sm">
+            <h3 className="font-bold text-sm text-emerald-100 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-emerald-400" />
+              {appUiCopy(language, 'landRecord')}
+            </h3>
+            <p className="text-xs text-emerald-200/80 leading-relaxed">
+              {appUiCopy(language, 'keepRecord')}
+            </p>
+            <button
+              type="button"
+              onClick={openDetailedReport}
+              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition"
+            >
+              <span>{appUiCopy(language, 'openDetailed')}</span>
+              <SquareArrowOutUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column: GroundSurf Adviser Conversation */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 flex flex-col min-h-[500px] space-y-5">
+          {/* Welcome / Intro */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+            <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <span>{appUiCopy(language, 'adviser')}</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {appUiCopy(language, 'gathered')}{' '}{appUiCopy(language, 'askIntro')}
+            </p>
+          </div>
+
+          {/* Starter Questions (Prompts) */}
+          {chatTurns.length === 0 && (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-semibold text-slate-700">{appUiCopy(language, 'askAnything')}</span>
+                <span>{appUiCopy(language, 'promptsHint')}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {starterQuestions(language).map((q, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleAsk(q)}
+                    disabled={isAsking}
+                    className="text-left text-xs font-medium px-3 py-2 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-200 border border-slate-200 transition"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Conversation Thread */}
+          <div className="flex-1 space-y-4 overflow-y-auto">
+            {chatTurns.map((turn, idx) => (
+              <div key={idx} className="space-y-3">
+                {/* User message */}
+                <div className="flex justify-end">
+                  <div className="bg-slate-900 text-white rounded-2xl rounded-tr-xs px-4 py-2.5 max-w-[85%] text-xs sm:text-sm font-medium">
+                    {turn.question}
+                  </div>
+                </div>
+
+                {/* Adviser answer */}
+                {turn.answer ? (
+                  <div className="bg-slate-50 rounded-2xl rounded-tl-xs p-4 border border-slate-200/80 space-y-3 max-w-[95%]">
+                    <p className="text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-line font-normal">
+                      {turn.answer.answer}
+                    </p>
+
+                    {/* Behind the answer: Evidence chips */}
+                    {turn.answer.evidenceIds.length > 0 && (
+                      <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                        <span className="text-[11px] font-bold text-slate-700 block">
+                          {appUiCopy(language, 'behindAnswer')}:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {turn.answer.evidenceIds.map((eid, eIdx) => (
+                            <span key={eIdx} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700">
+                              {eid}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Unknowns remaining */}
+                    {turn.answer.unknowns.length > 0 && (
+                      <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/60 space-y-1">
+                        <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
+                          <CircleHelp className="w-3.5 h-3.5 text-amber-700" />
+                          {appUiCopy(language, 'stillOpen')}:
+                        </span>
+                        <ul className="list-disc list-inside text-xs text-amber-800 space-y-0.5">
+                          {turn.answer.unknowns.map((unk, uIdx) => (
+                            <li key={uIdx}>{unk}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Actions / What next */}
+                    {turn.answer.actions.length > 0 && (
+                      <div className="pt-2 space-y-2">
+                        <span className="text-[11px] font-bold text-slate-700 block">
+                          {appUiCopy(language, 'whatNext')}:
+                        </span>
+                        <div className="grid gap-1.5">
+                          {turn.answer.actions.map((act, aIdx) => (
+                            <div key={aIdx} className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs space-y-0.5">
+                              <span className="font-bold text-slate-900 block">{act.title}</span>
+                              <span className="text-slate-600 block">{act.reason}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Local help / professionals */}
+                    {turn.answer.localBusinesses && turn.answer.localBusinesses.length > 0 && (
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200/60 space-y-2">
+                        <span className="text-[11px] font-bold text-emerald-950 flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-emerald-700" />
+                          {appUiCopy(language, 'localHelp')}:
+                        </span>
+                        <div className="grid gap-1.5">
+                          {turn.answer.localBusinesses.map((biz, bIdx) => (
+                            <div key={bIdx} className="p-2 rounded-lg bg-white border border-emerald-200 text-xs flex items-center justify-between">
+                              <div>
+                                <span className="font-semibold text-slate-900 block">{biz.name}</span>
+                                <span className="text-[10px] text-slate-500">{biz.category} • {biz.distanceM}m</span>
+                              </div>
+                              {biz.phone && (
+                                <a href={`tel:${biz.phone}`} className="text-emerald-700 font-bold hover:underline">
+                                  {biz.phone}
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Next questions suggestions */}
+                    {turn.answer.nextQuestions.length > 0 && (
+                      <div className="pt-2 space-y-1.5">
+                        <span className="text-[10px] font-semibold text-slate-500 block">
+                          {appUiCopy(language, 'askNext')}:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {turn.answer.nextQuestions.map((nxt, nIdx) => (
+                            <button
+                              key={nIdx}
+                              type="button"
+                              onClick={() => handleAsk(nxt)}
+                              disabled={isAsking}
+                              className="text-left text-xs font-medium px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 transition text-slate-800"
+                            >
+                              {nxt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : turn.error ? (
+                  <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700">
+                    {turn.error}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-slate-500 p-3 bg-slate-50 rounded-2xl">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                    <span>{appUiCopy(language, 'looking')}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Ask Input Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAsk(questionInput);
+            }}
+            className="pt-2 border-t border-slate-100 flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={questionInput}
+              onChange={(e) => setQuestionInput(e.target.value)}
+              placeholder={appUiCopy(language, 'searchAnything')}
+              disabled={isAsking}
+              className="flex-1 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition"
+            />
+            <button
+              type="submit"
+              disabled={!questionInput.trim() || isAsking}
+              className="p-3 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 transition shrink-0"
+              title="Send question"
+            >
+              {isAsking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </button>
+          </form>
+        </div>
+      </main>
+
+      <FloatingSupportLandSurf language={language} />
+    </div>
+  );
 }
