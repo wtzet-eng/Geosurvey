@@ -27,7 +27,11 @@ function canonicalFixture(countryCode: string, countryName: string): any {
 for (const [language, code, name, expected] of [
   ['fr', 'FR', 'France', /valeur du terrain|terrain uniquement/i],
   ['es', 'ES', 'Spain', /valor del suelo|solo valor del suelo/i],
-  ['fi', 'FI', 'Finland', /maan arvo|vain maan arvo/i]
+  ['fi', 'FI', 'Finland', /maan arvo|vain maan arvo/i],
+  ['pt', 'PT', 'Portugal', /valor do terreno|terreno/i],
+  ['et', 'EE', 'Estonia', /maa|kinnistu|väärtus/i],
+  ['lv', 'LV', 'Latvia', /zeme|zemesgab|vērt/i],
+  ['lt', 'LT', 'Lithuania', /žemės|sklyp|vert/i]
 ] as const) {
   test(`${language} renderer produces localized evidence-first land-only report`, () => {
     const report = renderFrEsFiLocalizedReport(canonicalFixture(code, name), language);

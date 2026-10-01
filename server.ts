@@ -172,7 +172,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     } : baseProfile;
     const support = getCountrySupport(countryCode);
     const country = req.body.country || cProfile.countryName;
-    const defaultLanguage = countryCode === 'FR' ? 'fr' : countryCode === 'ES' ? 'es' : countryCode === 'FI' ? 'fi' : countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'DK' ? 'da' : countryCode === 'NO' ? 'no' : countryCode === 'SE' ? 'sv' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : countryCode === 'HR' ? 'hr' : 'en';
+    const defaultLanguage = countryCode === 'FR' ? 'fr' : countryCode === 'ES' ? 'es' : countryCode === 'FI' ? 'fi' : countryCode === 'SK' ? 'sk' : countryCode === 'CZ' ? 'cs' : countryCode === 'DK' ? 'da' : countryCode === 'NO' ? 'no' : countryCode === 'SE' ? 'sv' : countryCode === 'PL' ? 'pl' : countryCode === 'NL' ? 'nl' : countryCode === 'HR' ? 'hr' : countryCode === 'PT' ? 'pt' : countryCode === 'EE' ? 'et' : countryCode === 'LV' ? 'lv' : countryCode === 'LT' ? 'lt' : 'en';
     const requestedLanguage = String(req.body.language || req.body.languageCode || defaultLanguage).toLowerCase().split('-')[0];
     const language = requestedLanguage === 'sk'
       ? (countryCode === 'SK' ? 'sk' : 'en')
@@ -184,7 +184,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             ? (countryCode === 'SE' ? 'sv' : 'en')
             : (requestedLanguage === 'no' || requestedLanguage === 'nb')
               ? (countryCode === 'NO' ? 'no' : 'en')
-              : ['en', 'de', 'pl', 'nl', 'fr', 'es', 'fi', 'hr'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
+              : ['en', 'de', 'pl', 'nl', 'fr', 'es', 'fi', 'hr', 'pt', 'et', 'lv', 'lt'].includes(requestedLanguage) ? requestedLanguage : defaultLanguage;
     stage = 'site-centre';
     const center = getCenterFromShape(shape, req.body);
     if (!center) return res.status(400).json({ error: 'Select a site on the map to continue.', code: 'SITE_LOCATION_REQUIRED' });
@@ -932,7 +932,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const isNorwegianPresentation = countryCode === 'NO' && language === 'no';
     const isSwedishPresentation = countryCode === 'SE' && language === 'sv';
     const isDutchPresentation = language === 'nl';
-    const isFrEsFiPresentation = language === 'fr' || language === 'es' || language === 'fi';
+    const isFrEsFiPresentation = ['fr', 'es', 'fi', 'pt', 'et', 'lv', 'lt'].includes(language);
     const isCroatianPresentation = countryCode === 'HR' && language === 'hr';
     const presentation: any = isCroatianPresentation
       ? renderCroatiaLocalizedReport(canonicalReport)
@@ -949,7 +949,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
               : isDutchPresentation
                 ? renderDutchLocalizedReport(canonicalReport)
                 : isFrEsFiPresentation
-                  ? renderFrEsFiLocalizedReport(canonicalReport, language as 'fr' | 'es' | 'fi')
+                  ? renderFrEsFiLocalizedReport(canonicalReport, language as 'fr' | 'es' | 'fi' | 'pt' | 'et' | 'lv' | 'lt')
                   : renderLocalizedReport(canonicalReport, language);
     if (!isCroatianPresentation && !isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
     if (countryCode === 'PT' && portugalLisbonUrbanEvidence.some((item: any) => item.status === 'VERIFIED')) {

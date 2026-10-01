@@ -10,6 +10,10 @@ test('report languages put the selected country native language first and Englis
   assert.deepEqual(codes('ES', 'es').slice(0, 2), ['es', 'en']);
   assert.deepEqual(codes('PL', 'pl').slice(0, 2), ['pl', 'en']);
   assert.deepEqual(codes('NL', 'nl').slice(0, 2), ['nl', 'en']);
+  assert.deepEqual(codes('PT', 'pt').slice(0, 2), ['pt', 'en']);
+  assert.deepEqual(codes('EE', 'et').slice(0, 2), ['et', 'en']);
+  assert.deepEqual(codes('LV', 'lv').slice(0, 2), ['lv', 'en']);
+  assert.deepEqual(codes('LT', 'lt').slice(0, 2), ['lt', 'en']);
   assert.deepEqual(codes('FR', 'fr').slice(0, 2), ['fr', 'en']);
   assert.equal(codes('MT', 'mt')[0], 'en');
   assert.equal(codes('MT', 'mt').includes('mt'), false);
@@ -17,7 +21,7 @@ test('report languages put the selected country native language first and Englis
 
 test('all available report languages remain selectable regardless of screened country', () => {
   const languages = codes('DE', 'de');
-  for (const code of ['cs', 'sk', 'hr', 'da', 'no', 'sv', 'fr', 'es', 'fi', 'nl', 'pl']) {
+  for (const code of ['cs', 'sk', 'hr', 'da', 'no', 'sv', 'fr', 'es', 'fi', 'nl', 'pl', 'pt', 'et', 'lv', 'lt']) {
     assert.equal(languages.includes(code), true);
   }
   assert.deepEqual(languages.slice(0, 2), ['de', 'en']);
@@ -30,12 +34,16 @@ test('all compatible languages use a neutral alphabetical order after the native
     'English',
     'Čeština (Czech)',
     'Dansk (Danish)',
+    'Eesti (Estonian)',
     'Español (Spanish)',
     'Français (French)',
     'Hrvatski (Croatian)',
+    'Latviešu (Latvian)',
+    'Lietuvių (Lithuanian)',
     'Nederlands (Dutch)',
     'Norsk bokmål (Norwegian)',
     'Polski (Polish)',
+    'Português (Portuguese)',
     'Slovenčina (Slovak)',
     'Suomi (Finnish)',
     'Svenska (Swedish)'
@@ -56,6 +64,10 @@ test('normalization accepts supported languages independently of country', () =>
 test('Netherlands defaults to Dutch independently of the browser language', () => {
   assert.equal(normalizeReportLanguage('nl', 'NL'), 'nl');
   assert.deepEqual(codes('NL', 'nl').slice(0, 2), ['nl', 'en']);
+  assert.deepEqual(codes('PT', 'pt').slice(0, 2), ['pt', 'en']);
+  assert.deepEqual(codes('EE', 'et').slice(0, 2), ['et', 'en']);
+  assert.deepEqual(codes('LV', 'lv').slice(0, 2), ['lv', 'en']);
+  assert.deepEqual(codes('LT', 'lt').slice(0, 2), ['lt', 'en']);
 });
 
 

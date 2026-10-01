@@ -25,7 +25,11 @@ const reportShellCopy = (language: string) => {
     sk: { report: 'Podrobný report dôkazov', ask: 'Opýtať sa GroundSurf na tento pozemok' },
     da: { report: 'Detaljeret evidensrapport', ask: 'Zeptejte se GroundSurf na tento pozemek' },
     sv: { report: 'Detaljerad evidensrapport', ask: 'Fråga GroundSurf om denna mark' },
-    no: { report: 'Detaljert evidensrapport', ask: 'Spør GroundSurf om denne tomten' }
+    no: { report: 'Detaljert evidensrapport', ask: 'Spør GroundSurf om denne tomten' },
+    pt: { report: 'Relatório detalhado de evidências', ask: 'Pergunte ao GroundSurf sobre este terreno' },
+    et: { report: 'Üksikasjalik tõendite aruanne', ask: 'Küsi GroundSurfilt selle maa kohta' },
+    lv: { report: 'Detalizēts pierādījumu pārskats', ask: 'Jautājiet GroundSurf par šo zemi' },
+    lt: { report: 'Išsamių įrodymų ataskaita', ask: 'Klauskite GroundSurf apie šį sklypą' }
   };
   return copy[code] || copy.en;
 };
