@@ -53,6 +53,13 @@ const LATVIA_CADASTRAL_CONTEXT = {
   attribution: '© Valsts zemes dienests — Cadastral parcels'
 };
 
+const FRANCE_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://data.geopf.fr/wms-r/wms',
+  viewLayer: 'CADASTRALPARCELS.PARCELLAIRE_EXPRESS',
+  viewStyle: '',
+  attribution: '© IGN / DGFiP — Parcellaire Express (PCI)'
+};
+
 // Keep the site marker inside the selected cadastral parcel rather than at the
 // original search point, which can sit near a parcel edge and obscure controls.
 const getPolygonCentroid = (points: [number, number][]): L.LatLng => {
@@ -262,6 +269,20 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         styles: LATVIA_CADASTRAL_CONTEXT.viewStyle,
         format: 'image/png', transparent: true, opacity: 0.82, version: '1.3.0',
         crs: L.CRS.EPSG3857, attribution: LATVIA_CADASTRAL_CONTEXT.attribution, maxNativeZoom: 18, maxZoom: 22
+      }).addTo(map);
+    }
+    if (countryCode.toUpperCase() === 'FR') {
+      L.tileLayer.wms(FRANCE_CADASTRAL_CONTEXT.viewServiceUrl, {
+        layers: FRANCE_CADASTRAL_CONTEXT.viewLayer,
+        styles: FRANCE_CADASTRAL_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.82,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3857,
+        attribution: FRANCE_CADASTRAL_CONTEXT.attribution,
+        maxNativeZoom: 18,
+        maxZoom: 22
       }).addTo(map);
     }
 
