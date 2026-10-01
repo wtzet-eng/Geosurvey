@@ -71,6 +71,7 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   MT: { countryCode: 'MT', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
   HR: { countryCode: 'HR', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
   SI: { countryCode: 'SI', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } },
+  BG: { countryCode: 'BG', maturity: 'LIMITED', capabilities: { ...NONE, nationalGeology: true } },
   UA: { countryCode: 'UA', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } }
 };
 
@@ -93,7 +94,8 @@ const labels = {
   es: { SUPPORTED: 'Compatible', LIMITED: 'Cobertura limitada' },
   uk: { SUPPORTED: 'Підтримується', LIMITED: 'Обмежене покриття' },
   fi: { SUPPORTED: 'Tuettu', LIMITED: 'Rajoitettu kattavuus' },
-  sl: { SUPPORTED: 'Podprto', LIMITED: 'Omejena pokritost' }
+  sl: { SUPPORTED: 'Podprto', LIMITED: 'Omejena pokritost' },
+  bg: { SUPPORTED: 'Поддържано', LIMITED: 'Ограничено покритие' }
 } as const;
 
 const notices = {
@@ -137,6 +139,11 @@ const notices = {
     LIMITED: 'Omejena pokritost: za Slovenijo so vključeni uradni katastrski in geološki viri, druge nacionalne kategorije pa še zahtevajo uradno preverjanje.',
     PARTIAL: 'Omejena pokritost: vključeni so izbrani nacionalni viri, druge kategorije pa še zahtevajo uradno preverjanje. Poročilo uporablja tudi preverjene podatke o terenu, OpenStreetMap in SoilGrids, kjer so na voljo.'
   },
+  bg: {
+    SUPPORTED: 'За избрани категории са налични интеграции с национални източници. Неподдържаните категории все още изискват официална проверка.',
+    LIMITED: 'Ограничено покритие: официалните български кадастрални услуги са налични през КАИС, но автоматизираното извличане на парцели още не е включено. Националната геоложка информация е налична, а останалите категории изискват официална проверка.',
+    PARTIAL: 'Ограничено покритие: избрани национални източници са интегрирани, а останалите категории изискват официална проверка. Използват се и валидирани данни за релеф, OpenStreetMap и SoilGrids, когато са налични.'
+  },
   fi: {
     SUPPORTED: 'Valituissa luokissa on käytettävissä kansallisia lähdeintegraatioita. Tukemattomat luokat on edelleen tarkistettava virallisista lähteistä.',
     LIMITED: 'Rajoitettu kattavuus: kansallisia kiinteistörekisteri-, geologia-, kaavoitus-, tulva- ja maan arvon lähteitä ei ole kaikilta osin automatisoitu tälle maalle. Raportti käyttää lisäksi validoituja rajat ylittäviä maasto-, OpenStreetMap- ja SoilGrids-aineistoja niiden ollessa saatavilla ja ohjaa viranomaislähteisiin tarkistusta varten.',
@@ -147,7 +154,7 @@ const notices = {
 type SupportLanguage = keyof typeof labels;
 const normalizeLanguage = (language: string): SupportLanguage => {
   const code = String(language || '').toLowerCase().split('-')[0];
-  return (['de', 'pl', 'sk', 'da', 'fr', 'es', 'fi', 'sl'] as SupportLanguage[]).includes(code as SupportLanguage) ? code as SupportLanguage : 'en';
+  return (['de', 'pl', 'sk', 'da', 'fr', 'es', 'fi', 'sl', 'bg'] as SupportLanguage[]).includes(code as SupportLanguage) ? code as SupportLanguage : 'en';
 };
 
 export function getCountrySupportLabel(countryCode: string, language = 'en'): string {

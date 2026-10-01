@@ -12,7 +12,8 @@ const EXTRA_REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'lv', label: 'Latviešu (Latvian)' },
   { code: 'lt', label: 'Lietuvių (Lithuanian)' },
   { code: 'uk', label: 'Українська (Ukrainian)' },
-  { code: 'sl', label: 'Slovenščina (Slovenian)' }
+  { code: 'sl', label: 'Slovenščina (Slovenian)' },
+  { code: 'bg', label: 'Български (Bulgarian)' }
 ];
 
 export const REPORT_LANGUAGE_OPTIONS: ReportLanguage[] = [
