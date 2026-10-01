@@ -143,7 +143,7 @@ const GROUND_SURF_COPY = {
     badge: 'Publiczne dane zebrane w jednym miejscu',
     heroTitle: 'Najpierw zbieram dowody.',
     heroSubTitle: 'Potem decydujesz, o co chcesz zapytać.',
-    heroText: 'GroundSurf zbiera dostępne publiczne dane o tej działce — kataster, podłoże, wodę, planowanie, środowisko i otoczenie — i przedstawia je w formie, którą możesz samodzielnie sprawdzać.',
+    heroText: 'GroundSurf zbiera dostępne publiczne dane o twojej działce — kataster, podłoże, wodę, planowanie, środowisko i otoczenie — i przedstawia je w formie, którą możesz samodzielnie sprawdzać.',
     whereTitle: 'Gdzie szukamy?',
     whereHint: 'Wyszukaj adres lub wybierz działkę na mapie.',
     addressFlow: 'Adres → działka → dowody',
