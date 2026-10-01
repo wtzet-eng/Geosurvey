@@ -667,7 +667,7 @@ export const GroundSurfApp: React.FC = () => {
                   onOfficialParcelSelected={setOfficialParcel}
                   onParcelLookupStateChange={setIsFindingParcel}
                 />
-                <label className="absolute right-3 top-3 z-[500] flex items-center gap-2 rounded-xl border border-white/60 bg-white/90 px-2.5 py-2 text-xs font-black text-slate-700 shadow-lg backdrop-blur dark:border-white/15 dark:bg-slate-900/90 dark:text-slate-100">
+                <label className="absolute bottom-3 right-3 z-[500] flex items-center gap-2 rounded-xl border border-white/60 bg-white/90 px-2.5 py-2 text-xs font-black text-slate-700 shadow-lg backdrop-blur dark:border-white/15 dark:bg-slate-900/90 dark:text-slate-100">
                   <Globe2 className="h-4 w-4 text-slate-500 dark:text-slate-300" />
                   <select
                     value={language}
