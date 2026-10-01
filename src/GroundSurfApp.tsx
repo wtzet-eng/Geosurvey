@@ -677,23 +677,19 @@ export const GroundSurfApp: React.FC = () => {
                 />
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm transition-colors dark:bg-[#232b26] dark:text-slate-200">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  {isFindingParcel ? copy('findingParcel') :
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
+                  <span>{isFindingParcel ? copy('findingParcel') :
                     officialParcel ? copy('officialParcel') :
-                    isComplete ? copy('landReady') : copy('chooseLand')}
+                    isComplete ? copy('landReady') : copy('chooseLand')}</span>
+                  {isComplete && <span className="ml-1 shrink-0 font-black text-slate-800 dark:text-slate-100">{Math.round(area).toLocaleString()} m²</span>}
                 </div>
-                {isComplete && <span className="font-black text-slate-800 dark:text-slate-100">{Math.round(area).toLocaleString()} m²</span>}
+                <button onClick={gatherEvidence} disabled={!isComplete || isGathering} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100">
+                  {isGathering ? <><Loader2 className="h-4 w-4 animate-spin" /> {copy('gatheringEvidence')}</> : <>{copy('gatherButton')} <ArrowRight className="h-4 w-4" /></>}
+                </button>
               </div>
-              <div className="mt-4 flex justify-end">
-                <div className="w-full sm:w-auto">
-                  {error && <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-100">{error}</div>}
-                  <button onClick={gatherEvidence} disabled={!isComplete || isGathering} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 sm:w-auto">
-                    {isGathering ? <><Loader2 className="h-4 w-4 animate-spin" /> {copy('gatheringEvidence')}</> : <>{copy('gatherButton')} <ArrowRight className="h-4 w-4" /></>}
-                  </button>
-                  <div className="mt-2 text-right text-xs text-slate-400 dark:text-white/40">{copy('screeningNote')}</div>
-                </div>
-              </div>
+              {error && <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-100">{error}</div>}
+              <div className="mt-2 text-right text-xs text-slate-400 dark:text-white/40">{copy('screeningNote')}</div>
             </section>
           </div>
         </main>
