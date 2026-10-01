@@ -287,7 +287,7 @@ test('country support maturity exposes calibrated valuation and validated Europe
   assert.equal(hr.capabilities.nationalFlood, true);
   assert.equal(hr.capabilities.nationalCadastre, true); assert.equal(hr.capabilities.nationalGeology, true);
   assert.equal(hr.capabilities.nationalPlanning, false); assert.equal(hr.capabilities.nationalValuation, false);
-  for (const code of ['IT', 'HU', 'RO', 'GR', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
+  for (const code of ['HU', 'RO', 'GR', 'LT', 'CY', 'SI', 'BG', 'IS', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
 });
@@ -351,7 +351,7 @@ test('Malta evidence score stays below Robust until binding planning is automate
 });
 
 test('unsupported limited country still withholds national conclusions and valuation', () => {
-  const canonical = createCanonicalReport(rawReport('IT'), getCountryProfile('IT'));
+  const canonical = createCanonicalReport(rawReport('XX'), getCountryProfile('XX'));
   assert.equal(canonical.support.maturity, 'LIMITED');
   assert.equal(canonical.geology.unitName, null); assert.equal(canonical.geology.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
   assert.equal(canonical.flood.classification, null); assert.equal(canonical.flood.reasonCode, 'NOT_SUPPORTED_FOR_COUNTRY');
