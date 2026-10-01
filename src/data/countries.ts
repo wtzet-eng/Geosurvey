@@ -31,7 +31,8 @@ export const EUROPEAN_COUNTRIES: Country[] = [
   { code: 'NO', name: 'Norway', language: 'no', currency: 'NOK', defaultCenter: [60.472, 8.4689], defaultZoom: 5 },
   { code: 'CH', name: 'Switzerland', language: 'de', currency: 'CHF', defaultCenter: [46.8182, 8.2275], defaultZoom: 8 },
   { code: 'GB', name: 'United Kingdom', language: 'en', currency: 'GBP', defaultCenter: [55.3781, -3.436], defaultZoom: 6 },
-  { code: 'IS', name: 'Iceland', language: 'is', currency: 'ISK', defaultCenter: [64.9631, -19.0208], defaultZoom: 6 }
+  { code: 'IS', name: 'Iceland', language: 'is', currency: 'ISK', defaultCenter: [64.9631, -19.0208], defaultZoom: 6 },
+  { code: 'UA', name: 'Ukraine', language: 'uk', currency: 'UAH', defaultCenter: [48.3794, 31.1656], defaultZoom: 6 }
 ];
 
 // Keep the selector aligned with the languages the report renderer can actually

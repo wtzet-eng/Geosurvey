@@ -23,6 +23,7 @@ import { fetchCroatiaFloodEvidence } from '../services/croatiaFloodService';
 import { queryCroatiaCadastre } from '../services/croatiaCadastreService';
 import { enrichCroatiaGroundwaterEvidence, fetchCroatiaGroundwaterEvidence } from '../services/croatiaHydrogeologyService';
 import { enrichCroatiaBrownfieldEvidence, fetchCroatiaBrownfieldEvidence } from '../services/croatiaBrownfieldService';
+import { queryUkraineCadastre } from '../services/ukraineCadastreService';
 
 export interface AnalysisInput {
   lat: number;
@@ -46,7 +47,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -55,20 +56,55 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'HR' ? fetchCroatiaFloodEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? queryCroatiaCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaGroundwaterEvidence(lat, lng) : Promise.resolve(null),
-    countryCode === 'HR' ? fetchCroatiaBrownfieldEvidence(lat, lng) : Promise.resolve(null)
+    countryCode === 'HR' ? fetchCroatiaBrownfieldEvidence(lat, lng) : Promise.resolve(null),
+    countryCode === 'UA' ? queryUkraineCadastre(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
 
   if (countryCode === 'HR' && croatiaGroundwater) evidenceRegistry.push(croatiaGroundwater);
   if (countryCode === 'HR' && croatiaBrownfield) evidenceRegistry.push(croatiaBrownfield);
+  if (countryCode === 'UA') {
+    evidenceRegistry.push({
+      id: 'ua-geology-national-map', category: 'Mapped geology',
+      claim: 'Ukraine has an official digital Geological Map at 1:200,000, but the current GroundSurf version does not yet perform a verified coordinate intersection against that map.',
+      status: 'REQUIRES_VERIFICATION', sourceName: 'Ukrainian Geological Survey / Geoinform Ukraine', sourceUrl: 'https://www.geo.gov.ua/derzhgeonadra-vidkrili-dostup-do-geologichnoi-karti-ukraini-v-masshtabi-1200-000/', datasetDate: todayStr,
+      spatialRelationship: 'National geological source available; site-specific spatial intersection not yet automated', calculationMethod: 'Official Ukrainian Geological Survey source review', confidence: 'Medium',
+      limitation: 'The national geological map is useful regional context, but it is not yet treated as a site-specific mapped unit by GroundSurf. A detailed local geological or engineering-geological investigation may be required.'
+    });
+    evidenceRegistry.push({
+      id: 'ua-urban-engineering-geology', category: 'Urban / engineering geology',
+      claim: 'Ukraine maintains national geological information covering geological, geophysical, hydrogeological and engineering-geological investigations; GroundSurf does not yet automatically retrieve a city-scale engineering-geology layer for the selected site.',
+      status: 'REQUIRES_VERIFICATION', sourceName: 'ДНВП «Геоінформ України» / Ukrainian Geological Survey', sourceUrl: 'https://www.geo.gov.ua/sspe-geoinform-ukraine-is-a-treasury-of-the-memory-of-ukrainian-geology/', datasetDate: todayStr,
+      spatialRelationship: 'National source catalogue available; urban/site-specific record not yet automatically matched', calculationMethod: 'Official Ukrainian Geological Survey source review', confidence: 'Medium',
+      limitation: 'Detailed engineering-geological records may require a targeted search of the official geological information holdings rather than a single nationwide urban-geology layer.'
+    });
+  }
 
   // =========================================================================
   // 1. Cadastral Parcel Resolution & Official Geometry (Priority 1)
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
 
-  if (countryCode === 'HR' && croatiaCadastre && croatiaCadastre.success && croatiaCadastre.parcel) {
+  if (countryCode === 'UA' && ukraineCadastre?.success && ukraineCadastre.parcel) {
+    const p = ukraineCadastre.parcel;
+    parcelInfo = {
+      status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'UA', geometryPoints: p.geometryPoints,
+      isOfficialGeometry: Boolean(p.geometryPoints?.length), areaCalculatedM2: areaSizeM2, officialAreaM2: p.areaM2,
+      cadastralSource: ukraineCadastre.sourceName, datasetDate: todayStr,
+      limitation: p.geometryPoints?.length
+        ? 'Офіційна кадастрова інформація та геометрія ділянки отримані з НІГД України. Це просторовий доказ, а не підтвердження права власності, сервітутів чи остаточної юридичної межі.'
+        : 'Кадастровий запис отримано з НІГД України; межі потребують перевірки за офіційними матеріалами.'
+    };
+    evidenceRegistry.push({
+      id: 'ua-cadastre-parcel', category: 'Cadastre & Identification',
+      claim: `Ukrainian NSDI cadastral parcel ${p.parcelId}; registered area ${p.areaM2 ?? 'not returned'} m².`,
+      status: 'VERIFIED', sourceName: ukraineCadastre.sourceName, sourceUrl: ukraineCadastre.sourceUrl, datasetDate: todayStr,
+      spatialRelationship: p.geometryPoints?.length ? 'Official parcel polygon returned at the selected coordinate' : 'Official parcel record returned at the selected coordinate',
+      calculationMethod: 'Ukraine NSDI /geo/parcel public API query by WGS84 coordinates', confidence: p.geometryPoints?.length ? 'High' : 'Medium',
+      limitation: ukraineCadastre.limitation, value: { parcelId: p.parcelId, officialAreaM2: p.areaM2 }
+    });
+  } else if (countryCode === 'HR' && croatiaCadastre && croatiaCadastre.success && croatiaCadastre.parcel) {
     const p = croatiaCadastre.parcel;
     parcelInfo = {
       status: 'VERIFIED', parcelId: p.parcelNumber, commune: p.cadMunicipalityName || municipality,

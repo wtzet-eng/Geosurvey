@@ -10,7 +10,8 @@ const EXTRA_REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'pt', label: 'Português (Portuguese)' },
   { code: 'et', label: 'Eesti (Estonian)' },
   { code: 'lv', label: 'Latviešu (Latvian)' },
-  { code: 'lt', label: 'Lietuvių (Lithuanian)' }
+  { code: 'lt', label: 'Lietuvių (Lithuanian)' },
+  { code: 'uk', label: 'Українська (Ukrainian)' }
 ];
 
 export const REPORT_LANGUAGE_OPTIONS: ReportLanguage[] = [
