@@ -1,3 +1,5 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
 import { queryItalyCadastre } from './italyCadastreService';
 
 test('queryItalyCadastre extracts cadastral identifiers from an Agenzia delle Entrate WMS feature-info response', async () => {
@@ -10,16 +12,16 @@ test('queryItalyCadastre extracts cadastral identifiers from an Agenzia delle En
       </table>`;
     const fetcher = async () => new Response(html, { status: 200 });
     const result = await queryItalyCadastre(41.9, 12.5, fetcher as typeof fetch);
-    expect(result.success).toBe(true);
-    expect(result.parcel?.parcelId).toBe('33 / 673');
-    expect(result.parcel?.nationalCadastralReference).toBe('G273 / 33 / 673');
-    expect(result.evidence[0].status).toBe('VERIFIED');
+    assert.equal(result.success, true);
+    assert.equal(result.parcel?.parcelId, '33 / 673');
+    assert.equal(result.parcel?.nationalCadastralReference, 'G273 / 33 / 673');
+    assert.equal(result.evidence[0].status, 'VERIFIED');
 });
 
 test('queryItalyCadastre does not turn an empty feature-info response into a false parcel absence claim', async () => {
     const fetcher = async () => new Response('<html><body>no feature</body></html>', { status: 200 });
     const result = await queryItalyCadastre(41.9, 12.5, fetcher as typeof fetch);
-    expect(result.success).toBe(false);
-    expect(result.reasonCode).toBe('NO_DATA');
-    expect(result.evidence[0].status).toBe('REQUIRES_VERIFICATION');
+    assert.equal(result.success, false);
+    assert.equal(result.reasonCode, 'NO_DATA');
+    assert.equal(result.evidence[0].status, 'REQUIRES_VERIFICATION');
   });
