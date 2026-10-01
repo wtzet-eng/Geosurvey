@@ -24,6 +24,7 @@ import { queryCroatiaCadastre } from '../services/croatiaCadastreService';
 import { enrichCroatiaGroundwaterEvidence, fetchCroatiaGroundwaterEvidence } from '../services/croatiaHydrogeologyService';
 import { enrichCroatiaBrownfieldEvidence, fetchCroatiaBrownfieldEvidence } from '../services/croatiaBrownfieldService';
 import { queryUkraineCadastre } from '../services/ukraineCadastreService';
+import { queryItalyCadastre } from '../services/italyCadastreService';
 
 export interface AnalysisInput {
   lat: number;
@@ -47,7 +48,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, italyCadastre] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -57,13 +58,33 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'HR' ? queryCroatiaCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaGroundwaterEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaBrownfieldEvidence(lat, lng) : Promise.resolve(null),
-    countryCode === 'UA' ? queryUkraineCadastre(lat, lng) : Promise.resolve(null)
+    countryCode === 'UA' ? queryUkraineCadastre(lat, lng) : Promise.resolve(null),
+    countryCode === 'IT' ? queryItalyCadastre(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
 
   if (countryCode === 'HR' && croatiaGroundwater) evidenceRegistry.push(croatiaGroundwater);
   if (countryCode === 'HR' && croatiaBrownfield) evidenceRegistry.push(croatiaBrownfield);
+  if (countryCode === 'IT') {
+    evidenceRegistry.push({
+      id: 'it-carg-national-geology', category: 'Mapped geology',
+      claim: 'Italy has official national geological mapping through ISPRA and the CARG project. The 1:50,000 CARG program is based on detailed surveys and associated geothematic databases, with OGC services available where the mapped sheet exists.',
+      status: 'REQUIRES_VERIFICATION', sourceName: "ISPRA — Servizio Geologico d'Italia / CARG", sourceUrl: 'https://www.isprambiente.gov.it/it/banche-dati/banche-dati-folder/suolo-e-territorio/cartografia-geologica-e-geotematica', datasetDate: todayStr,
+      spatialRelationship: 'National geological source available; site-specific CARG sheet intersection is not yet automated in this version',
+      calculationMethod: 'Official ISPRA CARG source and OGC service review', confidence: 'Medium',
+      limitation: 'CARG coverage is not yet complete across the whole national territory. Where a CARG sheet is available, it provides a more detailed geological context; otherwise the complete 1:100,000 national geological map provides broader context. Site investigation is still required for engineering decisions.'
+    });
+    evidenceRegistry.push({
+      id: 'it-urban-engineering-geology', category: 'Urban / engineering geology',
+      claim: 'ISPRA explicitly treats geological mapping of large urban areas as an important theme. Urban geological studies use wells, boreholes and geophysical investigations to reconstruct shallow and deeper stratigraphy, aquifers, geomorphological processes and interactions with urban development.',
+      status: 'REQUIRES_VERIFICATION', sourceName: 'ISPRA — Cartografia geologica delle aree urbane', sourceUrl: 'https://www.isprambiente.gov.it/files2018/pubblicazioni/stato-ambiente/ambiente-urbano/2_SuoloeTerritorio.pdf', datasetDate: todayStr,
+      spatialRelationship: 'Urban-geology source available nationally; city/site-specific study not automatically matched yet',
+      calculationMethod: 'Official ISPRA urban-environment geological mapping documentation review', confidence: 'Medium',
+      limitation: 'Urban geological investigations are available for selected cities and CARG areas rather than as one uniform nationwide site-specific layer. GroundSurf should treat them as targeted local evidence when the relevant city or study area is confirmed.'
+    });
+  }
+
   if (countryCode === 'UA') {
     evidenceRegistry.push({
       id: 'ua-geology-national-map', category: 'Mapped geology',
@@ -85,6 +106,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // 1. Cadastral Parcel Resolution & Official Geometry (Priority 1)
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
+
+  if (countryCode === 'IT' && italyCadastre) evidenceRegistry.push(...italyCadastre.evidence);
 
   if (countryCode === 'UA' && ukraineCadastre?.success && ukraineCadastre.parcel) {
     const p = ukraineCadastre.parcel;
