@@ -70,7 +70,8 @@ const localizedClassification = (input: string | null, language: ReportLanguage,
 const hazardCopy = {
   en: { landslide: 'Landslide susceptibility classification: {risk}.', seismic: 'Seismic screening value: {value}.', radon: 'Radon screening classification: {value}.', mining: 'Mining-subsidence screening classification: {value}.' },
   de: { landslide: 'Klassifizierung der Hangrutschungsanfälligkeit: {risk}.', seismic: 'Wert der seismischen Vorprüfung: {value}.', radon: 'Klassifizierung der Radonvorprüfung: {value}.', mining: 'Klassifizierung der Bergsenkungsvorprüfung: {value}.' },
-  pl: { landslide: 'Klasyfikacja podatności na osuwiska: {risk}.', seismic: 'Wartość wstępnej oceny sejsmicznej: {value}.', radon: 'Klasyfikacja wstępnej oceny radonowej: {value}.', mining: 'Klasyfikacja wstępnej oceny szkód górniczych: {value}.' }
+  pl: { landslide: 'Klasyfikacja podatności na osuwiska: {risk}.', seismic: 'Wartość wstępnej oceny sejsmicznej: {value}.', radon: 'Klasyfikacja wstępnej oceny radonowej: {value}.', mining: 'Klasyfikacja wstępnej oceny szkód górniczych: {value}.' },
+  uk: { landslide: 'Класифікація схильності до зсувів: {risk}.', seismic: 'Показник попередньої сейсмічної оцінки: {value}.', radon: 'Класифікація попередньої оцінки радону: {value}.', mining: 'Класифікація попередньої оцінки просідання через гірничі роботи: {value}.' }
 } satisfies Record<ReportLanguage, Record<string, string>>;
 
 const groundContextCopy = {
@@ -130,7 +131,8 @@ const groundContextCopy = {
 const materialLabels: Record<ReportLanguage, Record<MappedMaterialIndicator, string>> = {
   en: { ALLUVIAL: 'alluvial deposits', ORGANIC_OR_PEAT: 'organic / peat deposits', MADE_GROUND: 'made ground', GLACIOFLUVIAL: 'glaciofluvial deposits', TILL: 'till', COHESIVE: 'cohesive material', GRANULAR: 'granular material', OTHER: 'other mapped material' },
   de: { ALLUVIAL: 'alluviale Ablagerungen', ORGANIC_OR_PEAT: 'organische / Torfablagerungen', MADE_GROUND: 'Auffüllungen', GLACIOFLUVIAL: 'glazifluviale Ablagerungen', TILL: 'Geschiebemergel / Till', COHESIVE: 'bindiges Material', GRANULAR: 'körniges Material', OTHER: 'sonstiges kartiertes Material' },
-  pl: { ALLUVIAL: 'osady aluwialne', ORGANIC_OR_PEAT: 'osady organiczne / torfy', MADE_GROUND: 'nasypy', GLACIOFLUVIAL: 'osady wodnolodowcowe', TILL: 'gliny zwałowe / till', COHESIVE: 'grunty spoiste', GRANULAR: 'grunty niespoiste', OTHER: 'inne kartowane utwory' }
+  pl: { ALLUVIAL: 'osady aluwialne', ORGANIC_OR_PEAT: 'osady organiczne / torfy', MADE_GROUND: 'nasypy', GLACIOFLUVIAL: 'osady wodnolodowcowe', TILL: 'gliny zwałowe / till', COHESIVE: 'grunty spoiste', GRANULAR: 'grunty niespoiste', OTHER: 'inne kartowane utwory' },
+  uk: { ALLUVIAL: 'алювіальні відклади', ORGANIC_OR_PEAT: 'органічні / торфові відклади', MADE_GROUND: 'насипні ґрунти', GLACIOFLUVIAL: 'водно-льодовикові відклади', TILL: 'моренні відклади', COHESIVE: 'зв’язний матеріал', GRANULAR: 'зернистий матеріал', OTHER: 'інші картовані відклади' }
 };
 
 const contextRecordIds = new Set([
@@ -165,7 +167,9 @@ const siteContextCopy = {
     boundary: 'Dane kartowane oraz punkty dokumentacyjne i badawcze są kontekstem analizy wstępnej; warunki pod działką potwierdzają dopiero badania terenowe i dokumentacja źródłowa.',
     spatial: 'Kartowany kontekst lokalizacji lub deterministyczne próbki lokalizacji/działki/otoczenia; nie wyznacza się niezmierzonej odległości do obiektu.',
     method: 'Urzędowe dane WMS PIG-PIB zostały zwrócone prawidłowo i zachowano ich zakres przestrzenny.'
-  }
+  },
+  uk: { buildingCategory: 'Умови основи та ґрунтів (MGśP)', documentationCategory: 'Документаційні точки SMGP', researchCategory: 'Дослідницькі точки CBDG', building: (descriptor: string | null) => descriptor ? 'Картований контекст ґрунтових умов MGśP: ' + descriptor + '.' : 'MGśP повернула картований контекст ґрунтових умов у точці розташування.', documentation: (count: number, descriptors: string[]) => 'Документаційні точки SMGP: повернуто ' + count + ' контекстних спостережень' + (descriptors.length ? ' (' + descriptors.join('; ') + ')' : '') + '.', research: (count: number, descriptors: string[]) => 'Дослідницькі точки CBDG: повернуто ' + count + ' контекстних спостережень' + (descriptors.length ? ' (' + descriptors.join('; ') + ')' : '') + '.', boundary: 'Картовані дані про ґрунтові умови та документаційні/дослідницькі точки є лише попереднім контекстом; умови під ділянкою потребують польового дослідження.', spatial: 'Картований контекст місця або ділянки; відстань до невиміряного об’єкта не виводиться.', method: 'Офіційні дані WMS PGI-PIB успішно отримано.' }
+
 } satisfies Record<ReportLanguage, {
   buildingCategory: string; documentationCategory: string; researchCategory: string;
   building: (descriptor: string | null) => string; documentation: (count: number, descriptors: string[]) => string; research: (count: number, descriptors: string[]) => string;
@@ -199,6 +203,9 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
     if (language === 'de') return raw
       .replace(/^(.+?) Spatial Planning Authority/i, '$1 — zuständige Planungsbehörde')
       .replace(/^(.+?) competent local planning authority$/i, '$1 — zuständige örtliche Planungsbehörde');
+    if (language === 'uk') return raw
+      .replace(/Spatial Planning Authority/gi, 'компетентний орган містобудування')
+      .replace(/competent local planning authority/gi, 'компетентний місцевий орган містобудування');
     return raw;
   };
   const t = copy[language];
@@ -339,13 +346,15 @@ export function renderLocalizedReport(canonical: CanonicalReport, requestedLangu
   const verificationExperts = {
     en: ['Local planning authority', 'Geotechnical engineer / ground investigation specialist', 'Qualified land surveyor', 'Relevant utility network operators', 'Land registry / cadastral authority and property lawyer'],
     de: ['Zuständiges Bauamt / Stadtplanungsamt', 'Geotechnisches Ingenieurbüro / Baugrundgutachter', 'Qualifiziertes Vermessungsbüro', 'Zuständige Versorgungsnetzbetreiber', 'Grundbuchamt / Katasterbehörde und rechtliche Beratung'],
-    pl: ['Właściwy urząd planowania przestrzennego', 'Geotechnik / specjalista badań podłoża', 'Uprawniony geodeta', 'Właściwi operatorzy sieci uzbrojenia', 'Sąd wieczystoksięgowy / organ ewidencji gruntów i prawnik']
+    pl: ['Właściwy urząd planowania przestrzennego', 'Geotechnik / specjalista badań podłoża', 'Uprawniony geodeta', 'Właściwi operatorzy sieci uzbrojenia', 'Sąd wieczystoksięgowy / organ ewidencji gruntów i prawnik'],
+    uk: ['Компетентний орган містобудування', 'Інженер-геотехнік / фахівець з дослідження ґрунтів', 'Кваліфікований землевпорядник або геодезист', 'Відповідні оператори інженерних мереж', 'Орган земельного кадастру / державної реєстрації та юрист з нерухомості']
   };
   const checklist = (t.checklist as string[]).map((reason, index) => ({ topic: (t.topics as string[])[index], reason, recommendedAuthorityOrExpert: verificationExperts[language][index], priority: index === 3 ? 'Medium' : 'High' }));
   const utilityNames = {
     en: { ELECTRICITY: 'Electricity', WATER: 'Potable water', SEWER: 'Sanitary sewer', GAS: 'Natural gas', TELECOM: 'Telecommunications', OTHER: 'Utility' },
     de: { ELECTRICITY: 'Strom', WATER: 'Trinkwasser', SEWER: 'Schmutzwasserkanal', GAS: 'Erdgas', TELECOM: 'Telekommunikation', OTHER: 'Versorgung' },
-    pl: { ELECTRICITY: 'Energia elektryczna', WATER: 'Woda pitna', SEWER: 'Kanalizacja sanitarna', GAS: 'Gaz ziemny', TELECOM: 'Telekomunikacja', OTHER: 'Sieć uzbrojenia' }
+    pl: { ELECTRICITY: 'Energia elektryczna', WATER: 'Woda pitna', SEWER: 'Kanalizacja sanitarna', GAS: 'Gaz ziemny', TELECOM: 'Telekomunikacja', OTHER: 'Sieć uzbrojenia' },
+    uk: { ELECTRICITY: 'Електроенергія', WATER: 'Питна вода', SEWER: 'Побутова каналізація', GAS: 'Природний газ', TELECOM: 'Телекомунікації', OTHER: 'Інженерна мережа' }
   } as const;
   const utilityAvailable = {
     en: (distance: number | null) => distance === null ? 'Mapped in the reviewed open dataset.' : `Mapped approximately ${distance} m from the site. Connection terms require operator confirmation.`,
