@@ -635,37 +635,50 @@ export const GroundSurfApp: React.FC = () => {
             </p>
           </div>
 
-          <div className="mt-7 grid gap-6 lg:grid-cols-[1.6fr_0.72fr]">
+          <div className="mt-7">
             <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm transition-colors sm:p-5 dark:border-slate-700/80 dark:bg-[#1a201c]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-black text-slate-900 dark:text-slate-100">{copy('whereTitle')}</div>
                   <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy('whereHint')}</div>
                 </div>
-                  <div className="hidden items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 sm:flex dark:bg-[#232b26] dark:text-slate-400">
+                <div className="hidden items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 sm:flex dark:bg-[#232b26] dark:text-slate-400">
                   <Search className="h-3.5 w-3.5" /> {copy('addressFlow')}
                 </div>
               </div>
-              <MapPicker
-                mode="polygon"
-                shape={shape}
-                onChange={(next) => {
-                  setShape(next);
-                  if (next) {
-                    const calculated = calculateBoundaryArea(next, area);
-                    if (calculated > 0) setArea(calculated);
-                  }
-                }}
-                circleRadius={circleRadius}
-                onClear={() => { setShape(null); setOfficialParcel(null); }}
-                defaultCenter={currentCountry.defaultCenter}
-                defaultZoom={currentCountry.defaultZoom}
-                language={language}
-                countryCode={countryCode}
-                onCountryDetected={handleCountryDetected}
-                onOfficialParcelSelected={setOfficialParcel}
-                onParcelLookupStateChange={setIsFindingParcel}
-              />
+              <div className="relative">
+                <MapPicker
+                  mode="polygon"
+                  shape={shape}
+                  onChange={(next) => {
+                    setShape(next);
+                    if (next) {
+                      const calculated = calculateBoundaryArea(next, area);
+                      if (calculated > 0) setArea(calculated);
+                    }
+                  }}
+                  circleRadius={circleRadius}
+                  onClear={() => { setShape(null); setOfficialParcel(null); }}
+                  defaultCenter={currentCountry.defaultCenter}
+                  defaultZoom={currentCountry.defaultZoom}
+                  language={language}
+                  countryCode={countryCode}
+                  onCountryDetected={handleCountryDetected}
+                  onOfficialParcelSelected={setOfficialParcel}
+                  onParcelLookupStateChange={setIsFindingParcel}
+                />
+                <label className="absolute right-3 top-3 z-[500] flex items-center gap-2 rounded-xl border border-white/60 bg-white/90 px-2.5 py-2 text-xs font-black text-slate-700 shadow-lg backdrop-blur dark:border-white/15 dark:bg-slate-900/90 dark:text-slate-100">
+                  <Globe2 className="h-4 w-4 text-slate-500 dark:text-slate-300" />
+                  <select
+                    value={language}
+                    onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }}
+                    className="max-w-[8rem] bg-transparent text-xs font-black outline-none"
+                    aria-label={copy('menuLanguage')}
+                  >
+                    {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
+                  </select>
+                </label>
+              </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm transition-colors dark:bg-[#232b26] dark:text-slate-200">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
@@ -675,45 +688,14 @@ export const GroundSurfApp: React.FC = () => {
                 </div>
                 {isComplete && <span className="font-black text-slate-800 dark:text-slate-100">{Math.round(area).toLocaleString()} m²</span>}
               </div>
-            </section>
-
-            <section className="flex flex-col justify-between rounded-[2rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
-              <div>
-                <div className="flex items-center gap-3">
-                  <div className="text-sm font-bold uppercase tracking-[0.16em] text-white/45">{copy('promiseLabel')}</div>
+              <div className="mt-4 flex justify-end">
+                <div className="w-full sm:w-auto">
+                  {error && <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-100">{error}</div>}
+                  <button onClick={gatherEvidence} disabled={!isComplete || isGathering} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 sm:w-auto">
+                    {isGathering ? <><Loader2 className="h-4 w-4 animate-spin" /> {copy('gatheringEvidence')}</> : <>{copy('gatherButton')} <ArrowRight className="h-4 w-4" /></>}
+                  </button>
+                  <div className="mt-2 text-right text-xs text-slate-400 dark:text-white/40">{copy('screeningNote')}</div>
                 </div>
-                <div className="mt-4 text-xl font-black leading-tight">
-                  {copy('promiseMain')}
-                  <span className="mt-1 block text-white/55">{copy('promiseQuestion')}</span>
-                </div>
-                <div className="mt-5 space-y-2.5 text-sm leading-5 text-white/70">
-                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('evidenceFirst')}</div>
-                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('unknownsVisible')}</div>
-                  <div className="flex gap-3"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{copy('sourceTrail')}</div>
-                </div>
-                <div className="mt-6 flex justify-center">
-                  <label className="flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 px-3.5 py-3 text-sm font-bold text-white shadow-sm">
-                    <span className="flex items-center gap-2 text-sm font-black tracking-tight text-white">
-                      <Globe2 className="h-5 w-5 text-white/75" />
-                      <span>{copy('menuLanguage')}</span>
-                    </span>
-                    <select
-                      value={language}
-                      onChange={(e) => { languageWasManuallySelected.current = true; setLanguage(normalizeReportLanguage(e.target.value, countryCode)); }}
-                      className="w-full rounded-xl border border-white/20 bg-slate-900 px-3 py-2 text-sm font-black text-white outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20"
-                      aria-label={copy('menuLanguage')}
-                    >
-                      {availableLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
-                    </select>
-                  </label>
-                </div>
-              </div>
-              <div className="mt-6">
-                {error && <div className="mb-3 rounded-2xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}
-                <button onClick={gatherEvidence} disabled={!isComplete || isGathering} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30">
-                  {isGathering ? <><Loader2 className="h-4 w-4 animate-spin" /> {copy('gatheringEvidence')}</> : <>{copy('gatherButton')} <ArrowRight className="h-4 w-4" /></>}
-                </button>
-                <div className="mt-3 text-center text-xs text-white/40">{copy('screeningNote')}</div>
               </div>
             </section>
           </div>
