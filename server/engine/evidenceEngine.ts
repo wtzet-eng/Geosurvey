@@ -27,6 +27,7 @@ import { queryUkraineCadastre } from '../services/ukraineCadastreService';
 import { querySloveniaCadastre } from '../services/sloveniaCadastreService';
 import { queryHungaryCadastre } from '../services/hungaryCadastreService';
 import { enrichHungaryGroundEvidence, queryHungaryGroundEvidence } from '../services/hungaryGroundEvidenceService';
+import { queryHungaryWaterEvidence } from '../services/hungaryWaterEvidenceService';
 
 export interface AnalysisInput {
   lat: number;
@@ -50,7 +51,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -63,7 +64,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'UA' ? queryUkraineCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'SI' ? querySloveniaCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'HU' ? queryHungaryCadastre(lat, lng) : Promise.resolve(null),
-    countryCode === 'HU' ? queryHungaryGroundEvidence(lat, lng) : Promise.resolve(null)
+    countryCode === 'HU' ? queryHungaryGroundEvidence(lat, lng) : Promise.resolve(null),
+    countryCode === 'HU' ? queryHungaryWaterEvidence(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
@@ -72,6 +74,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   if (countryCode === 'HR' && croatiaBrownfield) evidenceRegistry.push(croatiaBrownfield);
   if (countryCode === 'HU' && hungaryGroundEvidence) {
     evidenceRegistry.push(...hungaryGroundEvidence.evidence);
+  }
+  if (countryCode === 'HU' && hungaryWaterEvidence) {
+    evidenceRegistry.push(...hungaryWaterEvidence.evidence);
   }
   if (countryCode === 'HU') {
     // The HUGEO point query provides verified regional geology context without implying parcel-scale engineering conclusions.
@@ -975,6 +980,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   if (countryCode === 'HR' && croatiaGroundwater) enrichCroatiaGroundwaterEvidence(report, croatiaGroundwater);
   if (countryCode === 'HR' && croatiaBrownfield) enrichCroatiaBrownfieldEvidence(report, croatiaBrownfield);
   if (countryCode === 'HU' && hungaryGroundEvidence) enrichHungaryGroundEvidence(report, hungaryGroundEvidence);
+  if (countryCode === 'HU' && hungaryWaterEvidence) report.geosurvey_context = {
+    ...(report.geosurvey_context || {}),
+    hu_inundation_area: hungaryWaterEvidence.context.inundation_area ?? false,
+    hu_waterlogged_area: hungaryWaterEvidence.context.waterlogged_area ?? false,
+    hu_floodplain_area: hungaryWaterEvidence.context.floodplain_area ?? false,
+    hu_inland_water_basin: hungaryWaterEvidence.context.inland_water_basin ?? false,
+    hu_groundwater_source_available: hungaryWaterEvidence.context.groundwater_source_available
+  };
   if (countryCode === 'GB' && bgsEvidence) report.geosurvey_context = {
     geological_unit_name: bgsEvidence.geology.unitName,
     lithology_type: bgsEvidence.geology.lithology,
