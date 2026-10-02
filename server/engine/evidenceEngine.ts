@@ -935,7 +935,6 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     'TELEKHATÁROK ÉS JOGI HELYZET: A térképi geometria nem helyettesíti a jogilag hiteles telekhatár, tulajdonjog, szolgalmak és terhek ellenőrzését.',
     'VÍZ, KÖRNYEZET ÉS VESZÉLYEK: Egy hiányzó vagy vissza nem adott adat nem bizonyítja az adott veszély vagy körülmény hiányát.',
     'MEGBÍZHATÓSÁG: A beruházási döntéseket aktuális hivatalos adatokra és megfelelő szakmai vizsgálatokra kell alapozni.'
-  ] : [
   ] : isDe ? [
     'STATUS UND UMFANG: Diese automatisierte Standortanalyse dient ausschließlich der vorläufigen Due-Diligence-Prüfung. Sie fasst offene Geodaten zusammen und ist keine behördliche Bescheinigung.',
     'KEIN AMTLICHES ODER LIZENZIERTES WERTGUTACHTEN: Angezeigte Werte sind, soweit vorhanden, indikative statistische Orientierungswerte. Sie ersetzen keine Bewertung durch eine nach dem am Standort geltenden Recht qualifizierte Fachperson.',
