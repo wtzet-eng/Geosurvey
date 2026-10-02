@@ -75,6 +75,12 @@ const FRANCE_CADASTRAL_CONTEXT = {
   attribution: '© IGN / DGFiP — Parcellaire Express (PCI)'
 };
 
+const EUROPE_BOREHOLE_CONTEXT = {
+  viewServiceUrl: 'https://data.geoscience.earth/api/wxsBorehole',
+  viewLayer: 'epos-gsmlp:BoreholeView_Group',
+  attribution: '© EGDI / EPOS — European Borehole Index'
+};
+
 // Keep the site marker inside the selected cadastral parcel rather than at the
 // original search point, which can sit near a parcel edge and obscure controls.
 const getPolygonCentroid = (points: [number, number][]): L.LatLng => {
@@ -239,6 +245,20 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         maxZoom: 17,
       }).addTo(map);
     }
+    // European baseline: EGDI/EPOS Borehole Index. This is a view-only
+    // WMS; detailed records remain with the national data provider.
+    L.tileLayer.wms(EUROPE_BOREHOLE_CONTEXT.viewServiceUrl, {
+      layers: EUROPE_BOREHOLE_CONTEXT.viewLayer,
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.78,
+      version: '1.3.0',
+      crs: L.CRS.EPSG4326,
+      attribution: EUROPE_BOREHOLE_CONTEXT.attribution,
+      minZoom: 5,
+      maxZoom: 18
+    }).addTo(map);
+
     if (countryCode.toUpperCase() === 'PT') {
       L.tileLayer.wms(PORTUGAL_CADASTRAL_CONTEXT.viewServiceUrl, {
         layers: PORTUGAL_CADASTRAL_CONTEXT.viewLayer,
