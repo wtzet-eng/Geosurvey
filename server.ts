@@ -843,6 +843,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         } catch (e) { console.warn(`[${diagnosticId}] Schleswig-Holstein hydrogeology evidence notice:`, e); }
       }
 
+    }
+
     const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
       ? { type: 'polygon' as const, points: evidenceReport.parcel.geometryPoints }
       : shape;
