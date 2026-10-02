@@ -40,6 +40,7 @@ import { enrichGermanySaxonyHydrogeology, queryGermanySaxonyHydrogeology } from 
 import { enrichGermanyThuringiaHydrogeology, queryGermanyThuringiaHydrogeology } from './server/services/germanyThuringiaHydrogeologyService';
 import { enrichGermanyHesseHydrogeology, queryGermanyHesseHydrogeology } from './server/services/germanyHesseHydrogeologyService';
 import { enrichGermanySchleswigHolsteinHydrogeology, queryGermanySchleswigHolsteinHydrogeology } from './server/services/germanySchleswigHolsteinHydrogeologyService';
+import { enrichGermanySaarlandHydrogeology, queryGermanySaarlandHydrogeology } from './server/services/germanySaarlandHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
@@ -742,6 +743,25 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             });
           }
         } catch (e) { console.warn(`[${diagnosticId}] Hesse hydrogeology evidence notice:`, e); }
+      }
+
+      if (normalizedGermanState === 'saarland') {
+        stage = 'germany-saarland-hydrogeology';
+        try {
+          const saarlandHydrogeology = await queryGermanySaarlandHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanySaarlandHydrogeology(evidenceReport, saarlandHydrogeology);
+          const verified = saarlandHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'LUA Saarland / BGR — Hydrogeologie und Grundwasser')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'LUA Saarland / BGR — Hydrogeologie und Grundwasser',
+              organization: 'Landesamt für Umwelt- und Arbeitsschutz Saarland / Bundesanstalt für Geowissenschaften und Rohstoffe',
+              url: 'https://geoportal.saarland.de/arcgis/services/Internet/Wasser_WFS/MapServer/WFSServer?request=GetCapabilities&SERVICE=WFS&VERSION=1.1.0',
+              type: 'Groundwater Monitoring / Hydrogeology',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Saarland hydrogeology evidence notice:`, e); }
       }
 
       if (normalizedGermanState === 'schleswig-holstein' || normalizedGermanState === 'schleswig holstein') {
