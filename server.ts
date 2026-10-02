@@ -35,6 +35,7 @@ import { enrichGermanyRlpGroundwater, queryGermanyRlpGroundwater } from './serve
 import { enrichGermanyNrwHydrogeology, queryGermanyNrwHydrogeology } from './server/services/germanyNrwHydrogeologyService';
 import { enrichGermanyBwHydrogeology, queryGermanyBwHydrogeology } from './server/services/germanyBadenWurttembergHydrogeologyService';
 import { enrichGermanyBrandenburgHydrogeology, queryGermanyBrandenburgHydrogeology } from './server/services/germanyBrandenburgHydrogeologyService';
+import { enrichGermanySaxonyAnhaltHydrogeology, queryGermanySaxonyAnhaltHydrogeology } from './server/services/germanySaxonyAnhaltHydrogeologyService';
 import { enrichGermanySaxonyHydrogeology, queryGermanySaxonyHydrogeology } from './server/services/germanySaxonyHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
@@ -664,7 +665,26 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
               url: 'https://luis.sachsen.de/wasser/gw/grundwasserdynamik-2022.html',
               type: 'Regional Hydrogeological Survey',
               status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            })
+      if (normalizedGermanState === 'sachsen-anhalt' || normalizedGermanState === 'saxony-anhalt' || normalizedGermanState.includes('sachsen-anhalt')) {
+        stage = 'germany-saxony-anhalt-hydrogeology';
+        try {
+          const saHydrogeology = await queryGermanySaxonyAnhaltHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanySaxonyAnhaltHydrogeology(evidenceReport, saHydrogeology);
+          const verified = saHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'LAGB / LHW Sachsen-Anhalt — Hydrogeologie / Grundwasser')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'LAGB / LHW Sachsen-Anhalt — Hydrogeologie / Grundwasser',
+              organization: 'Landesamt für Geologie und Bergwesen Sachsen-Anhalt / Landesbetrieb für Hochwasserschutz und Wasserwirtschaft Sachsen-Anhalt',
+              url: 'https://lagb.sachsen-anhalt.de/geologie/hydrogeologie',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
             });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Saxony-Anhalt hydrogeology evidence notice:`, e); }
+      }
+;
           }
         } catch (e) { console.warn(`[${diagnosticId}] Saxony hydrogeology evidence notice:`, e); }
       }
