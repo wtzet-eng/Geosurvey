@@ -25,6 +25,8 @@ import { enrichCroatiaGroundwaterEvidence, fetchCroatiaGroundwaterEvidence } fro
 import { enrichCroatiaBrownfieldEvidence, fetchCroatiaBrownfieldEvidence } from '../services/croatiaBrownfieldService';
 import { queryUkraineCadastre } from '../services/ukraineCadastreService';
 import { querySloveniaCadastre } from '../services/sloveniaCadastreService';
+import { queryHungaryCadastre } from '../services/hungaryCadastreService';
+import { enrichHungaryGroundEvidence, queryHungaryGroundEvidence } from '../services/hungaryGroundEvidenceService';
 
 export interface AnalysisInput {
   lat: number;
@@ -48,7 +50,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -59,13 +61,23 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'HR' ? fetchCroatiaGroundwaterEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaBrownfieldEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'UA' ? queryUkraineCadastre(lat, lng) : Promise.resolve(null),
-    countryCode === 'SI' ? querySloveniaCadastre(lat, lng) : Promise.resolve(null)
+    countryCode === 'SI' ? querySloveniaCadastre(lat, lng) : Promise.resolve(null),
+    countryCode === 'HU' ? queryHungaryCadastre(lat, lng) : Promise.resolve(null),
+    countryCode === 'HU' ? queryHungaryGroundEvidence(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
 
   if (countryCode === 'HR' && croatiaGroundwater) evidenceRegistry.push(croatiaGroundwater);
   if (countryCode === 'HR' && croatiaBrownfield) evidenceRegistry.push(croatiaBrownfield);
+  if (countryCode === 'HU' && hungaryGroundEvidence) {
+    evidenceRegistry.push(...hungaryGroundEvidence.evidence);
+  }
+  if (countryCode === 'HU') {
+    // The HUGEO point query provides verified regional geology context without implying parcel-scale engineering conclusions.
+    // Context is enriched later when the assembled report object exists.
+  }
+
   if (countryCode === 'SI') {
     evidenceRegistry.push({
       id: 'si-geozs-national-geology', category: 'Mapped geology',
@@ -107,7 +119,15 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
 
-  if (countryCode === 'SI' && sloveniaCadastre?.success && sloveniaCadastre.parcel) {
+  if (countryCode === 'HU' && hungaryCadastre?.success && hungaryCadastre.parcel) {
+    const p = hungaryCadastre.parcel;
+    parcelInfo = {
+      status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'HU', geometryPoints: p.geometryPoints,
+      isOfficialGeometry: Boolean(p.geometryPoints?.length), areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2 ?? null,
+      cadastralSource: hungaryCadastre.sourceName, datasetDate: todayStr, limitation: hungaryCadastre.limitation
+    };
+    evidenceRegistry.push(...hungaryCadastre.evidence);
+  } else   if (countryCode === 'SI' && sloveniaCadastre?.success && sloveniaCadastre.parcel) {
     const p = sloveniaCadastre.parcel;
     parcelInfo = {
       status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'SI',
