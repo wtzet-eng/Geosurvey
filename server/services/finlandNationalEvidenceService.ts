@@ -92,7 +92,7 @@ export async function queryFinlandNationalEvidence(lat: number, lng: number, mun
     pointQuery(GTK_SOIL, 34, lat, lng, undefined, fetcher),
     pointQuery(GTK_GROUND, 1, lat, lng, 5000, fetcher),
     pointQuery(GTK_GROUND, 15, lat, lng, 5000, fetcher),
-    pointQuery(GTK_GROUND, 17, lat, lng, 5000, fetcher)
+    pointQuery(GTK_GROUND, 19, lat, lng, 5000, fetcher)
   ]);
 
   const b = bedrock[0]?.attributes || {};
