@@ -160,7 +160,8 @@ const TAGLINES: Record<string, string> = {
   fr: 'Comprenez le terrain. Comparez vos options. Sachez quoi vérifier ensuite.',
   es: 'Comprenda la parcela. Compare sus opciones. Sepa qué comprobar a continuación.',
   fi: 'Ymmärrä tontti. Vertaa vaihtoehtoja. Tiedä, mitä tarkistaa seuraavaksi.',
-  hr: 'Upoznajte zemljište. Usporedite mogućnosti. Saznajte što još treba provjeriti.'
+  hr: 'Upoznajte zemljište. Usporedite mogućnosti. Saznajte što još treba provjeriti.',
+  hu: 'Ismerje meg a telket. Hasonlítsa össze a lehetőségeket. Tudja meg, mit érdemes még ellenőrizni.'
 };
 
 export function getLocalizedTagline(langCode?: string): string {
