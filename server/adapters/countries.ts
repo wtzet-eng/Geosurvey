@@ -232,6 +232,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'Determined by the applicable local planning and building controls; requires official confirmation',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  IS: {
+    countryCode: 'IS', countryName: 'Iceland', currency: 'ISK', symbol: 'kr',
+    cadastreAuthority: 'National Land Survey of Iceland / HMS — ELF cadastral parcels', cadastrePortalUrl: 'https://gatt.lmi.is/geonetwork/srv/search?keyword=Cadastral%20parcels',
+    geologyAuthority: 'Iceland GeoSurvey (ÍSOR)', geologyPortalUrl: 'https://isor.is/en',
+    floodAuthority: 'Icelandic Meteorological Office / Icelandic authorities', floodPortalUrl: 'https://www.vedur.is/',
+    planningInstrumentName: 'Municipal and local land-use plans; Reykjavík planning viewer where applicable',
+    standardSetbackRule: 'Determined by applicable municipal planning and building controls; requires official confirmation',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   MT: {
     countryCode: 'MT', countryName: 'Malta', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Malta Land Registry / Planning Authority — Parcels of Registered Land', cadastrePortalUrl: 'https://portal.data.gov.mt/dataset/parcels-of-registered-land',
