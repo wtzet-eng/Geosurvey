@@ -90,6 +90,10 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   if (countryCode === 'BG' && bulgariaUrbanGeology) {
     evidenceRegistry.push(...bulgariaUrbanGeology);
   }
+  if (countryCode === 'RO' && romaniaCadastre) {
+    evidenceRegistry.push(...romaniaCadastre.evidence);
+    evidenceRegistry.push(...romaniaGroundEvidence());
+  }
   if (countryCode === 'HU') {
     // The HUGEO point query provides verified regional geology context without implying parcel-scale engineering conclusions.
     // Context is enriched later when the assembled report object exists.
