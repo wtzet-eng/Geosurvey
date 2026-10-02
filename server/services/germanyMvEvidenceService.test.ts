@@ -16,25 +16,34 @@ test('EPSG:5650 conversion uses the M-V zone-prefixed easting', () => {
   assert.ok(y > 5_900_000 && y < 6_000_000);
 });
 
-test('M-V geology and LBDS boreholes remain separate verified regional evidence', async () => {
+test('M-V ground evidence combines geology, boreholes, mapped depth and groundwater-surface elevation', async () => {
   let calls = 0;
+  const [x, y] = toGermanyMvNative(53.5, 13.996);
+  const dynamicsFixture = `<?xml version="1.0"?>\n<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs" xmlns:gml="http://www.opengis.net/gml" xmlns:ms="http://mapserver.gis.umn.edu/mapserver">\n<gml:featureMember><ms:t7_dynamik><ms:msGeometry><gml:LineString srsName="EPSG:5650"><gml:posList>${x + 100} ${y - 200} ${x + 100} ${y + 200}</gml:posList></gml:LineString></ms:msGeometry><ms:GW_LAGE>17</ms:GW_LAGE></ms:t7_dynamik></gml:featureMember>\n<gml:featureMember><ms:t7_dynamik><ms:msGeometry><gml:LineString srsName="EPSG:5650"><gml:posList>${x + 20} ${y - 200} ${x + 20} ${y + 200}</gml:posList></gml:LineString></ms:msGeometry><ms:GW_LAGE>18</ms:GW_LAGE></ms:t7_dynamik></gml:featureMember>\n</wfs:FeatureCollection>`;
   const fetcher: typeof fetch = async (input: any) => {
     calls += 1;
     const url = String(input);
     if (url.includes('mv_a7_hydrogeologie_wms.php')) return xmlResponse("GetFeatureInfo results:\n\nLayer 't7_flurabstand'\n  Feature 8950:\n    LEGENDE = 'A13'\n    FLURABSTAN = '>5 - 10 m'\n");
+    if (url.includes('mv_a7_hydrogeologie_wfs.php')) return xmlResponse(dynamicsFixture);
     return xmlResponse(fixture(url.includes('geol_karten'), url.includes('gg_lbds')));
   };
-  const result = await queryGermanyMvGroundEvidence(53.500, 13.996, 'Mecklenburg-Vorpommern', fetcher);
-  assert.equal(calls, 3);
+  const result = await queryGermanyMvGroundEvidence(53.500, 13.996, 'Mecklenburg-Vorpommern', fetcher, 16);
+  assert.equal(calls, 4);
   assert.equal(result.geologyFound, true);
   assert.equal(result.boreholeCount, 1);
   const geology = result.evidence.find(item => item.id === 'de-mv-geology-gk50');
   const boreholes = result.evidence.find(item => item.id === 'de-mv-boreholes-lbds');
   const groundwater = result.evidence.find(item => item.id === 'de-mv-groundwater-depth');
+  const groundwaterDynamics = result.evidence.find(item => item.id === 'de-mv-groundwater-dynamics');
   assert.equal(geology?.status, 'VERIFIED');
   assert.equal(boreholes?.status, 'VERIFIED');
   assert.equal(groundwater?.status, 'VERIFIED');
   assert.equal((groundwater?.value as any)?.depthClass, '>5 - 10 m');
+  assert.equal(groundwaterDynamics?.status, 'MODELLED');
+  assert.equal((groundwaterDynamics?.value as any)?.riskLevel, 'High');
+  assert.ok((groundwaterDynamics?.value as any)?.estimatedDepthBelowGroundM < 0);
+  assert.ok((groundwaterDynamics?.value as any)?.estimatedGroundwaterElevationM > 17);
+  assert.ok((groundwaterDynamics?.value as any)?.estimatedGroundwaterElevationM < 18);
   assert.match(geology?.claim || '', /Test Pleistocene unit/);
   assert.match(boreholes?.claim || '', /Altlastenerkundung/);
   assert.equal((boreholes?.value as any)?.nearest?.[0]?.endDepthM, 42);
@@ -48,7 +57,7 @@ test('M-V geology and LBDS boreholes remain separate verified regional evidence'
 
 test('M-V unavailable services fail closed without inventing geology or borehole absence', async () => {
   const fetcher: typeof fetch = async () => new Response('down', { status: 503 });
-  const result = await queryGermanyMvGroundEvidence(53.5, 14, 'Mecklenburg-Vorpommern', fetcher);
+  const result = await queryGermanyMvGroundEvidence(53.5, 14, 'Mecklenburg-Vorpommern', fetcher, 16);
   assert.equal(result.geologyFound, false);
   assert.equal(result.boreholeCount, 0);
   assert.ok(result.evidence.every(item => item.status === 'REQUIRES_VERIFICATION'));

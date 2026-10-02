@@ -493,7 +493,8 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       } catch (e) { console.warn(`[${diagnosticId}] BGR German Borehole Locations notice:`, e); }
       stage = 'germany-mv-ground-evidence';
       try {
-        const mvResult = await queryGermanyMvGroundEvidence(lat, lng, stateName, fetch);
+        const siteElevationM = typeof evidenceReport.terrain?.elevationAmsl === 'number' && Number.isFinite(evidenceReport.terrain.elevationAmsl) ? evidenceReport.terrain.elevationAmsl : null;
+        const mvResult = await queryGermanyMvGroundEvidence(lat, lng, stateName, fetch, siteElevationM);
         germanyMvEvidence = mvResult.evidence;
         enrichGermanyMvGroundEvidence(evidenceReport, mvResult);
         if (mvResult.evidence.some((item: any) => item.id === 'de-mv-boreholes-lbds' && item.status === 'VERIFIED')) {
@@ -519,6 +520,10 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             evidenceReport.dataSourcesCited.push({ name: 'WasserBLIcK / BfG — German flood hazard maps', organization: 'WasserBLIcK / BfG', url: 'https://geoportal.bafg.de/karten/HWRM/', type: 'National Flood Hazard Mapping', status: verifiedFlood ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
           }
         } catch (e) { console.warn(`[${diagnosticId}] German flood evidence notice:`, e); }
+        if (mvResult.evidence.some((item: any) => item.id === 'de-mv-groundwater-dynamics' && item.status === 'MODELLED')) {
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          evidenceReport.dataSourcesCited.push({ name: 'LUNG M-V — Grundwasserhöhengleichen (2016)', organization: 'Landesamt für Umwelt, Naturschutz und Geologie Mecklenburg-Vorpommern', url: 'https://www.umweltkarten.mv-regierung.de/meta/dynamik.pdf', type: 'Hydrogeological Survey', status: 'MODELLED' });
+        }
         if (mvResult.evidence.some((item: any) => item.id === 'de-mv-geology-gk50' && item.status === 'VERIFIED')) {
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
           evidenceReport.dataSourcesCited.push({
@@ -990,6 +995,27 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
                 : isFrEsFiPresentation
                   ? renderFrEsFiLocalizedReport(canonicalReport, language as 'fr' | 'es' | 'fi' | 'pt' | 'et' | 'lv' | 'lt')
                   : renderLocalizedReport(canonicalReport, language);
+    const mvGroundwaterDepth = Number(evidenceReport.geosurvey_context?.groundwater_depth_below_ground_m);
+    const mvGroundwaterRisk = evidenceReport.geosurvey_context?.groundwater_excavation_risk_level;
+    if (countryCode === 'DE' && Number.isFinite(mvGroundwaterDepth) && presentation.technicalNarrative) {
+      presentation.technicalNarrative.groundwater_depth_m = `${mvGroundwaterDepth.toFixed(1)} m`;
+      if (mvGroundwaterRisk === 'High' && Array.isArray(presentation.riskMatrix)) {
+        const lang = String(language || 'en').toLowerCase().slice(0, 2);
+        const groundwaterCategory: Record<string, string> = {
+          en: 'Groundwater / excavation water', de: 'Grundwasser / Wasser in der Baugrube', pl: 'Wody gruntowe / woda w wykopach', nl: 'Grondwater / water in bouwputten',
+          fr: 'Eaux souterraines / eau dans les fouilles', es: 'Aguas subterráneas / agua en excavaciones', fi: 'Pohjavesi / vesi kaivannoissa', hr: 'Podzemna voda / voda u iskopima',
+          cs: 'Podzemní voda / voda ve výkopech', sk: 'Podzemná voda / voda vo výkopoch', da: 'Grundvand / vand i udgravninger', sv: 'Grundvatten / vatten i schakter',
+          no: 'Grunnvann / vann i byggegrop', pt: 'Água subterrânea / água nas escavações', et: 'Põhjavesi / vesi kaevetistes', lv: 'Gruntsūdens / ūdens būvbedrē',
+          lt: 'Požeminis vanduo / vanduo kasant', uk: 'Підземні води / вода у виїмках', sl: 'Podzemna voda / voda v izkopih', hu: 'Talajvíz / víz a munkagödörben'
+        };
+        const groundwaterDetail: Record<string, string> = {
+          en: 'The calculated groundwater surface is above the modelled ground level, creating a high screening risk of very shallow groundwater and water entering excavations. Wet-weather conditions may make this more significant.',
+          de: 'Der berechnete Grundwasserspiegel liegt über dem modellierten Geländeniveau. Das ergibt ein hohes Screening-Risiko für sehr oberflächennahes Grundwasser und Wasserzutritt in Baugruben; bei nasser Witterung kann dies verstärkt werden.',
+          pl: 'Obliczony poziom wód gruntowych znajduje się powyżej modelowanej powierzchni terenu. Oznacza to wysokie ryzyko przesiewowe bardzo płytkiego występowania wód i napływu wody do wykopów; po mokrych okresach sytuacja może się nasilić.'
+        };
+        presentation.riskMatrix.unshift({ category: groundwaterCategory[lang] || groundwaterCategory.en, level: 'High', evidence_level: 'MODELLED', detail: groundwaterDetail[lang] || groundwaterDetail.en });
+      }
+    }
     if (!isCroatianPresentation && !isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isHungarianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
     if (countryCode === 'PT' && portugalLisbonUrbanEvidence.some((item: any) => item.status === 'VERIFIED')) {
       const urban = evidenceReport.geosurvey_context || {};

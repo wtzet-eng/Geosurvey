@@ -6,12 +6,15 @@ export interface GermanyMvGroundEvidenceResult {
   geologyFound: boolean;
   boreholeCount: number;
   groundwaterDepthClassFound: boolean;
+  groundwaterDynamicsFound: boolean;
 }
 
 const GEOLOGY_WFS = 'https://www.umweltkarten.mv-regierung.de/script/mv_a7_geol_karten_wfs.php';
 const BOREHOLE_WFS = 'https://umweltkarten.lung-mv.de/dienste/gg_lbds';
 const GEO_SOURCE = 'LUNG M-V — Geologische Karte (GK 50) 1:50.000';
 const BOREHOLE_SOURCE = 'LUNG M-V — Landesbohrdatenspeicher (LBDS)';
+const HYDROLOGY_WFS = 'https://www.umweltkarten.mv-regierung.de/script/mv_a7_hydrogeologie_wfs.php';
+const GROUNDWATER_DYNAMICS_SOURCE = 'LUNG M-V — Grundwasserhöhengleichen (oberster Grundwasserleiter)';
 const STATE = 'Mecklenburg-Vorpommern' as const;
 const NATIVE_CRS = 'EPSG:5650';
 const today = () => new Date().toISOString().slice(0, 10);
@@ -82,7 +85,39 @@ function field(block: string, name: string): string | null {
   return clean(block.match(new RegExp(`<(?:qgs|ms):${escaped}>([^<]*)<\\/(?:qgs|ms):${escaped}>`, 'i'))?.[1]);
 }
 
-function noData(id: string, claim: string, sourceName: string, sourceUrl: string, reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA'): EvidenceItem {
+function pointToSegmentDistance(x: number, y: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2)) : 0;
+  const px = ax + t * dx;
+  const py = ay + t * dy;
+  return Math.hypot(x - px, y - py);
+}
+
+function parseGroundwaterContourDistances(xml: string, x: number, y: number): Array<{ elevationM: number; distanceM: number }> {
+  const distances = new Map<number, number>();
+  for (const block of featureBlocks(xml)) {
+    const elevation = numberValue(field(block, 'GW_LAGE') || field(block, 'ZLEVEL'));
+    if (elevation === null) continue;
+    const lineLists = [...block.matchAll(/<gml:posList[^>]*>([^<]+)<\/gml:posList>/g)].map(match => {
+      const values = match[1].trim().split(/\s+/).map(Number);
+      const points: [number, number][] = [];
+      for (let i = 0; i + 1 < values.length; i += 2) {
+        if (Number.isFinite(values[i]) && Number.isFinite(values[i + 1])) points.push([values[i], values[i + 1]]);
+      }
+      return points;
+    }).filter(points => points.length >= 2);
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const points of lineLists) {
+      for (let i = 1; i < points.length; i += 1) nearest = Math.min(nearest, pointToSegmentDistance(x, y, ...points[i - 1], ...points[i]));
+    }
+    if (Number.isFinite(nearest)) distances.set(elevation, Math.min(distances.get(elevation) ?? Number.POSITIVE_INFINITY, nearest));
+  }
+  return [...distances.entries()].map(([elevationM, distanceM]) => ({ elevationM, distanceM })).sort((a, b) => a.distanceM - b.distanceM);
+}
+
+function noData(id: string, claim: string, sourceName: string, sourceUrl: string, reasonCode: 'NO_DATA' | 'SOURCE_UNAVAILABLE' | 'MALFORMED_DATA' | 'PARAMETER_NOT_PROVIDED' | 'INSUFFICIENT_EVIDENCE'): EvidenceItem {
   return {
     id,
     category: 'Regional geology & ground evidence',
@@ -158,6 +193,55 @@ function parseBoreholes(xml: string, x: number, y: number) {
   }).sort((a, b) => a.distanceM - b.distanceM);
 }
 
+async function queryMvGroundwaterDynamics(lat: number, lng: number, siteElevationM: number | null, fetcher: typeof fetch): Promise<EvidenceItem> {
+  if (siteElevationM === null) return noData('de-mv-groundwater-dynamics-no-site-elevation', 'The groundwater-elevation contours could not be compared with the property because no site ground elevation was available.', GROUNDWATER_DYNAMICS_SOURCE, HYDROLOGY_WFS, 'PARAMETER_NOT_PROVIDED');
+  const [x, y] = toGermanyMvNative(lat, lng);
+  const radius = 300;
+  const params = new URLSearchParams({ SERVICE: 'WFS', VERSION: '1.1.0', REQUEST: 'GetFeature', TYPENAME: 't7_dynamik', SRSNAME: NATIVE_CRS, BBOX: `${x - radius},${y - radius},${x + radius},${y + radius}`, MAXFEATURES: '30' });
+  const url = `${HYDROLOGY_WFS}?${params.toString()}`;
+  const response = await fetchXml(url, fetcher);
+  if (!response.ok) return noData('de-mv-groundwater-dynamics-unavailable', 'The official Mecklenburg-Vorpommern groundwater-elevation contour service could not be reached.', GROUNDWATER_DYNAMICS_SOURCE, url, 'SOURCE_UNAVAILABLE');
+  if (!response.xml) return noData('de-mv-groundwater-dynamics-malformed', 'The official Mecklenburg-Vorpommern groundwater-elevation contour service returned no readable response.', GROUNDWATER_DYNAMICS_SOURCE, url, 'MALFORMED_DATA');
+  const contours = parseGroundwaterContourDistances(response.xml, x, y).filter(item => item.distanceM <= radius);
+  if (contours.length < 2) return noData('de-mv-groundwater-dynamics-no-data', 'The official Mecklenburg-Vorpommern groundwater-elevation contour service did not return enough nearby contour lines to estimate the local groundwater surface.', GROUNDWATER_DYNAMICS_SOURCE, url, 'NO_DATA');
+
+  const byElevation = new Map(contours.map(item => [item.elevationM, item.distanceM]));
+  const levels = [...byElevation.keys()].sort((a, b) => a - b);
+  let bestPair: { low: number; high: number; lowDistanceM: number; highDistanceM: number } | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < levels.length - 1; i += 1) {
+    const low = levels[i];
+    const high = levels[i + 1];
+    if (Math.abs(high - low) !== 1) continue;
+    const lowDistanceM = byElevation.get(low)!;
+    const highDistanceM = byElevation.get(high)!;
+    const combinedDistance = lowDistanceM + highDistanceM;
+    if (combinedDistance < bestDistance) {
+      bestDistance = combinedDistance;
+      bestPair = { low, high, lowDistanceM, highDistanceM };
+    }
+  }
+  if (!bestPair) return noData('de-mv-groundwater-dynamics-no-bracket', 'Nearby groundwater contours were returned, but no adjacent 1 m contour pair was available for a local interpolation.', GROUNDWATER_DYNAMICS_SOURCE, url, 'INSUFFICIENT_EVIDENCE' as any);
+
+  const fractionTowardHigh = bestPair.lowDistanceM / (bestPair.lowDistanceM + bestPair.highDistanceM);
+  const estimatedGroundwaterElevationM = bestPair.low + fractionTowardHigh * (bestPair.high - bestPair.low);
+  const estimatedDepthBelowGroundM = siteElevationM - estimatedGroundwaterElevationM;
+  const groundwaterHeadAboveGroundM = Math.max(0, -estimatedDepthBelowGroundM);
+  const riskLevel = estimatedDepthBelowGroundM <= 1 ? 'High' : estimatedDepthBelowGroundM <= 2 ? 'Moderate' : 'Lower';
+  const relation = estimatedDepthBelowGroundM < 0
+    ? `the interpolated groundwater elevation is approximately ${groundwaterHeadAboveGroundM.toFixed(1)} m above the modelled site surface`
+    : `the interpolated groundwater elevation is approximately ${estimatedDepthBelowGroundM.toFixed(1)} m below the modelled site surface`;
+  const claim = `LUNG M-V groundwater-elevation contours for the uppermost aquifer indicate an interpolated groundwater elevation of approximately ${estimatedGroundwaterElevationM.toFixed(1)} m NHN at the selected site, between the ${bestPair.low} m and ${bestPair.high} m NHN contours (${bestPair.lowDistanceM.toFixed(0)} m and ${bestPair.highDistanceM.toFixed(0)} m from the site). Compared with the modelled site elevation of ${siteElevationM.toFixed(1)} m NHN, ${relation}; this triggers a ${riskLevel.toLowerCase()} screening risk of very shallow groundwater and groundwater entering excavations.`;
+  return {
+    id: 'de-mv-groundwater-dynamics', category: 'Hydrogeology', claim, status: 'MODELLED', sourceName: GROUNDWATER_DYNAMICS_SOURCE, sourceUrl: url, datasetDate: '2016',
+    spatialRelationship: `Nearest adjacent groundwater-elevation contours: ${bestPair.low} m and ${bestPair.high} m NHN; site elevation ${siteElevationM.toFixed(1)} m NHN`,
+    calculationMethod: 'LUNG M-V WFS 1.1.0 t7_dynamik query in EPSG:5650; nearest-distance calculation to contour lines; linear interpolation between the nearest adjacent 1 m contours; groundwater elevation compared with the site DEM elevation',
+    confidence: 'Medium',
+    limitation: 'The t7_dynamik dataset represents a regionalised groundwater surface for the uppermost aquifer (2016). The interpolated value is a screening estimate, not a site measurement. Groundwater can vary seasonally and after heavy rainfall; final excavation, waterproofing and foundation design require site-specific groundwater observations. This finding is separate from river-flood exposure.',
+    value: { layer: 't7_dynamik', estimatedGroundwaterElevationM, siteGroundElevationM: siteElevationM, estimatedDepthBelowGroundM, groundwaterHeadAboveGroundM, riskLevel, contoursUsed: [bestPair.low, bestPair.high], contourDistancesM: [bestPair.lowDistanceM, bestPair.highDistanceM] }
+  };
+}
+
 async function queryMvGroundwaterDepth(lat: number, lng: number, fetcher: typeof fetch): Promise<EvidenceItem> {
   const service = 'https://www.umweltkarten.mv-regierung.de/script/mv_a7_hydrogeologie_wms.php';
   const halfSpan = 0.002;
@@ -197,15 +281,15 @@ async function queryMvBoreholes(lat: number, lng: number, fetcher: typeof fetch)
   };
 }
 
-export async function queryGermanyMvGroundEvidence(lat: number, lng: number, state: string | null | undefined, fetcher: typeof fetch = fetch): Promise<GermanyMvGroundEvidenceResult> {
+export async function queryGermanyMvGroundEvidence(lat: number, lng: number, state: string | null | undefined, fetcher: typeof fetch = fetch, siteElevationM: number | null = null): Promise<GermanyMvGroundEvidenceResult> {
   const normalized = String(state || '').trim().toLowerCase();
   const stateOk = normalized === 'mecklenburg-vorpommern' || normalized === 'mecklenburg-western pomerania' || normalized === 'mecklenburg-vorpommern, deutschland' || !normalized;
   if (!stateOk) {
-    return { state: STATE, geologyFound: false, boreholeCount: 0, evidence: [] };
+    return { state: STATE, geologyFound: false, boreholeCount: 0, groundwaterDepthClassFound: false, groundwaterDynamicsFound: false, evidence: [] };
   }
-  const [geology, boreholes, groundwaterDepth] = await Promise.all([queryMvGeology(lat, lng, fetcher), queryMvBoreholes(lat, lng, fetcher), queryMvGroundwaterDepth(lat, lng, fetcher)]);
+  const [geology, boreholes, groundwaterDepth, groundwaterDynamics] = await Promise.all([queryMvGeology(lat, lng, fetcher), queryMvBoreholes(lat, lng, fetcher), queryMvGroundwaterDepth(lat, lng, fetcher), queryMvGroundwaterDynamics(lat, lng, siteElevationM, fetcher)]);
   const boreholeCount = boreholes.status === 'VERIFIED' && typeof (boreholes.value as any)?.count === 'number' ? Number((boreholes.value as any).count) : 0;
-  return { state: STATE, geologyFound: geology.status === 'VERIFIED', boreholeCount, groundwaterDepthClassFound: groundwaterDepth.status === 'VERIFIED', evidence: [geology, boreholes, groundwaterDepth] };
+  return { state: STATE, geologyFound: geology.status === 'VERIFIED', boreholeCount, groundwaterDepthClassFound: groundwaterDepth.status === 'VERIFIED', groundwaterDynamicsFound: groundwaterDynamics.status === 'MODELLED', evidence: [geology, boreholes, groundwaterDepth, groundwaterDynamics] };
 }
 
 export function enrichGermanyMvGroundEvidence(report: VerifiedSiteReport & Record<string, any>, result: GermanyMvGroundEvidenceResult): void {
@@ -213,9 +297,11 @@ export function enrichGermanyMvGroundEvidence(report: VerifiedSiteReport & Recor
   report.evidenceRegistry.push(...result.evidence);
   const geology = result.evidence.find(item => item.id === 'de-mv-geology-gk50' && item.status === 'VERIFIED');
   const groundwater = result.evidence.find(item => item.id === 'de-mv-groundwater-depth' && item.status === 'VERIFIED');
-  if (!geology && !groundwater) return;
+  const groundwaterDynamics = result.evidence.find(item => item.id === 'de-mv-groundwater-dynamics' && item.status === 'MODELLED');
+  if (!geology && !groundwater && !groundwaterDynamics) return;
   const value = (geology?.value || {}) as Record<string, unknown>;
   const groundwaterValue = (groundwater?.value || {}) as Record<string, unknown>;
+  const dynamicsValue = (groundwaterDynamics?.value || {}) as Record<string, unknown>;
   report.geosurvey_context = {
     ...(report.geosurvey_context || {}),
     geological_unit_name: value.geologicalUnit || value.lithology || null,
@@ -224,11 +310,25 @@ export function enrichGermanyMvGroundEvidence(report: VerifiedSiteReport & Recor
     genetic_origin: value.geneticOrigin || null,
     groundwater_depth_class: groundwaterValue.depthClass || null,
     groundwater_depth_source: groundwater?.sourceName || null,
+    groundwater_surface_elevation_m: dynamicsValue.estimatedGroundwaterElevationM ?? null,
+    groundwater_site_elevation_m: dynamicsValue.siteGroundElevationM ?? null,
+    groundwater_depth_below_ground_m: dynamicsValue.estimatedDepthBelowGroundM ?? null,
+    groundwater_head_above_ground_m: dynamicsValue.groundwaterHeadAboveGroundM ?? null,
+    groundwater_excavation_risk_level: dynamicsValue.riskLevel ?? null,
+    groundwater_dynamics_source: groundwaterDynamics?.sourceName || null,
     survey_authority: GEO_SOURCE,
     source_name: GEO_SOURCE,
-    source_url: geology?.sourceUrl || groundwater?.sourceUrl || null,
-    evidence_level: 'VERIFIED'
+    source_url: groundwaterDynamics?.sourceUrl || geology?.sourceUrl || groundwater?.sourceUrl || null,
+    evidence_level: geology || groundwater ? 'VERIFIED' : 'MODELLED',
+    groundwater_evidence_level: groundwaterDynamics ? 'MODELLED' : groundwater?.status || null
   };
+  const estimatedDepth = numberValue(dynamicsValue.estimatedDepthBelowGroundM);
+  if (estimatedDepth !== null && report.soil) {
+    report.soil.estimatedWaterTableDepthM = estimatedDepth < 0
+      ? `Indicative groundwater head ${Math.abs(estimatedDepth).toFixed(1)} m above modelled ground level`
+      : `Indicative groundwater depth ${estimatedDepth.toFixed(1)} m below modelled ground level`;
+    report.soil.groundwaterNotice = groundwaterDynamics?.claim || report.soil.groundwaterNotice;
+  }
   if (report.evidenceScore?.breakdown?.geologyAndGroundwater) {
     report.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(report.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
     report.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Verified Mecklenburg-Vorpommern GK50 regional geology is available at the selected coordinate; nearby LBDS boreholes are retained as contextual evidence without turning them into parcel-specific engineering parameters.';
@@ -239,6 +339,8 @@ export const GERMANY_MV_SOURCES = {
   geologyWfs: GEOLOGY_WFS,
   boreholeWfs: BOREHOLE_WFS,
   groundwaterWms: 'https://www.umweltkarten.mv-regierung.de/script/mv_a7_hydrogeologie_wms.php',
+  groundwaterWfs: HYDROLOGY_WFS,
   groundwaterDepthLayer: 't7_flurabstand',
+  groundwaterDynamicsLayer: 't7_dynamik',
   nativeCrs: NATIVE_CRS
 };
