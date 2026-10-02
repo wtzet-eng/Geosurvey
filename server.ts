@@ -13,6 +13,7 @@ import { queryUKCadastre } from './server/services/ukCadastreService';
 import { queryScotlandCadastre } from './server/services/scotlandCadastreService';
 import { getNorthernIrelandLandRegistryEvidence } from './server/services/northernIrelandLandRegistryService';
 import { enrichGeologyFromBrgm, queryFranceSiteEvidence } from './server/services/franceSiteEvidenceService';
+import { enrichFranceGroundwater, queryFranceGroundwater } from './server/services/franceGroundwaterService';
 import { enrichSlovakiaGroundEvidence, querySlovakiaGroundEvidence } from './server/services/slovakiaGroundEvidenceService';
 import { enrichCzechiaGroundEvidence, queryCzechiaGroundEvidence } from './server/services/czechiaGroundEvidenceService';
 import { applyCzechiaCadastreToReport, queryCzechiaCadastre } from './server/services/czechiaCadastreService';
@@ -1085,6 +1086,23 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'france-site-evidence'; try { franceSiteEvidence = await queryFranceSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] BRGM France evidence notice:`, e); }
       stage = 'france-report-enrichment'; if (franceSiteEvidence.length) evidenceReport.evidenceRegistry.push(...franceSiteEvidence);
       try { enrichGeologyFromBrgm(evidenceReport, franceSiteEvidence); } catch (e) { console.warn(`[${diagnosticId}] BRGM geology enrichment notice:`, e); }
+      stage = 'france-groundwater';
+      try {
+        const franceGroundwater = await queryFranceGroundwater(lat, lng, fetch);
+        if (franceGroundwater.length) evidenceReport.evidenceRegistry.push(...franceGroundwater);
+        enrichFranceGroundwater(evidenceReport, franceGroundwater);
+        const verifiedGroundwater = franceGroundwater.some((item: any) => item.id === 'fr-hubeau-groundwater-level' && item.status === 'VERIFIED');
+        evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+        if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'Hub’Eau / ADES — Piézométrie')) {
+          evidenceReport.dataSourcesCited.push({
+            name: 'Hub’Eau / ADES — Piézométrie',
+            organization: 'Office Français de la Biodiversité / BRGM / Eaufrance',
+            url: 'https://hubeau.eaufrance.fr/api/v1/niveaux_nappes/stations',
+            type: 'Hydrological Registry',
+            status: verifiedGroundwater ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+          });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] France groundwater evidence notice:`, e); }
     } else if (!countryLocationMismatch && countryCode === 'HR' && support.capabilities.nationalGeology) {
       stage = 'croatia-national-geology';
       try { croatiaNationalEvidence = await queryCroatiaNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] HGI Croatia geology notice:`, e); }
