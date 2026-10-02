@@ -42,6 +42,7 @@ import { enrichGermanyHesseHydrogeology, queryGermanyHesseHydrogeology } from '.
 import { enrichGermanySchleswigHolsteinHydrogeology, queryGermanySchleswigHolsteinHydrogeology } from './server/services/germanySchleswigHolsteinHydrogeologyService';
 import { enrichGermanySaarlandHydrogeology, queryGermanySaarlandHydrogeology } from './server/services/germanySaarlandHydrogeologyService';
 import { enrichGermanyHamburgHydrogeology, queryGermanyHamburgHydrogeology } from './server/services/germanyHamburgHydrogeologyService';
+import { enrichGermanyBerlinHydrogeology, queryGermanyBerlinHydrogeology } from './server/services/germanyBerlinHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
@@ -744,6 +745,25 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             });
           }
         } catch (e) { console.warn(`[${diagnosticId}] Hesse hydrogeology evidence notice:`, e); }
+      }
+
+      if (normalizedGermanState === 'berlin') {
+        stage = 'germany-berlin-hydrogeology';
+        try {
+          const berlinHydrogeology = await queryGermanyBerlinHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanyBerlinHydrogeology(evidenceReport, berlinHydrogeology);
+          const verified = berlinHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'Senatsverwaltung Berlin / Landesgeologie — Grundwasser')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'Senatsverwaltung Berlin / Landesgeologie — Grundwasser',
+              organization: 'Senatsverwaltung für Mobilität, Verkehr, Klimaschutz und Umwelt Berlin',
+              url: 'https://www.berlin.de/sen/uvk/umwelt/wasser-und-geologie/grundwasser/informationen-zum-grundwasser/',
+              type: 'Groundwater Monitoring / Hydrogeology',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Berlin hydrogeology evidence notice:`, e); }
       }
 
       if (normalizedGermanState === 'hamburg') {
