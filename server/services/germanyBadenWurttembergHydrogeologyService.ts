@@ -46,7 +46,7 @@ async function fetchText(url: string, fetcher: typeof fetch): Promise<{ ok: bool
 }
 
 function parseLayers(capabilities: string, terms: string[]): string | null {
-  const matches = [...capabilities.matchAll(/<Layer[^>]*>[\\s\\S]*?<Name>([^<]+)<\\/Name>[\\s\\S]*?<Title>([^<]+)<\\/Title>[\\s\\S]*?<\\/Layer>/gi)];
+  const matches = [...capabilities.matchAll(/<Layer[^>]*>[\s\S]*?<Name>([^<]+)<\/Name>[\s\S]*?<Title>([^<]+)<\/Title>[\s\S]*?<\/Layer>/gi)];
   for (const match of matches) {
     const name = match[1].trim();
     const title = match[2].trim().toLowerCase();
