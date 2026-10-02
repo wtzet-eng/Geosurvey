@@ -193,6 +193,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'A helyi HÉSZ és az országos építési szabályok szerint; hivatalos helyi ellenőrzés szükséges',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  BG: {
+    countryCode: 'BG', countryName: 'Bulgaria', currency: 'BGN', symbol: 'лв',
+    cadastreAuthority: 'Агенция по геодезия, картография и кадастър (АГКК / KAIS / INSPIRE)', cadastrePortalUrl: 'https://kais.cadastre.bg/bg/Map',
+    geologyAuthority: 'Geological Institute, Bulgarian Academy of Sciences (GI-BAS)', geologyPortalUrl: 'https://www.geology.bas.bg/en',
+    floodAuthority: 'Ministry of Environment and Water (MOEW) / four Basin Directorates — Flood Risk Management Plans', floodPortalUrl: 'https://www.moew.government.bg/bg/vodi/planove-za-upravlenie/planove-za-upravlenie-na-riska-ot-navodneniya-purn/',
+    planningInstrumentName: 'Общ устройствен план / Подробен устройствен план (ОУП / ПУП)',
+    standardSetbackRule: 'Определя се от действащия устройствен план и приложимите строителни правила; необходима е официална местна проверка',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   HR: {
     countryCode: 'HR', countryName: 'Croatia', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Državna geodetska uprava (DGU / Uređena zemlja / INSPIRE)', cadastrePortalUrl: 'https://geoportal.dgu.hr/',
