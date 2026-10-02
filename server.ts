@@ -41,6 +41,7 @@ import { enrichGermanyThuringiaHydrogeology, queryGermanyThuringiaHydrogeology }
 import { enrichGermanyHesseHydrogeology, queryGermanyHesseHydrogeology } from './server/services/germanyHesseHydrogeologyService';
 import { enrichGermanySchleswigHolsteinHydrogeology, queryGermanySchleswigHolsteinHydrogeology } from './server/services/germanySchleswigHolsteinHydrogeologyService';
 import { enrichGermanySaarlandHydrogeology, queryGermanySaarlandHydrogeology } from './server/services/germanySaarlandHydrogeologyService';
+import { enrichGermanyHamburgHydrogeology, queryGermanyHamburgHydrogeology } from './server/services/germanyHamburgHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
@@ -743,6 +744,25 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             });
           }
         } catch (e) { console.warn(`[${diagnosticId}] Hesse hydrogeology evidence notice:`, e); }
+      }
+
+      if (normalizedGermanState === 'hamburg') {
+        stage = 'germany-hamburg-hydrogeology';
+        try {
+          const hamburgHydrogeology = await queryGermanyHamburgHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanyHamburgHydrogeology(evidenceReport, hamburgHydrogeology);
+          const verified = hamburgHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'BUKEA / Geologisches Landesamt Hamburg — Hydrogeologie und Grundwasser')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'BUKEA / Geologisches Landesamt Hamburg — Hydrogeologie und Grundwasser',
+              organization: 'Freie und Hansestadt Hamburg — Behörde für Umwelt, Klima, Energie und Agrarwirtschaft',
+              url: 'https://www.hamburg.de/politik-und-verwaltung/behoerden/bukea/themen/wasser/grundwasser/grundwasserstand-176112',
+              type: 'Groundwater Monitoring / Hydrogeology',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Hamburg hydrogeology evidence notice:`, e); }
       }
 
       if (normalizedGermanState === 'saarland') {
