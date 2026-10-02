@@ -54,7 +54,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence, romaniaCadastre] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -70,7 +70,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'HU' ? queryHungaryGroundEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HU' ? queryHungaryWaterEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'BG' ? queryBulgariaGroundEvidence(lat, lng) : Promise.resolve(null),
-    countryCode === 'BG' ? queryBulgariaUrbanGeology(lat, lng) : Promise.resolve([])
+    countryCode === 'BG' ? queryBulgariaUrbanGeology(lat, lng) : Promise.resolve([]),
+    countryCode === 'RO' ? queryRomaniaCadastre(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
