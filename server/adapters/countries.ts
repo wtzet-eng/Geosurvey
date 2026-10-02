@@ -184,6 +184,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'Визначається чинною містобудівною документацією та будівельними нормами; потребує місцевого підтвердження',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  HU: {
+    countryCode: 'HU', countryName: 'Hungary', currency: 'HUF', symbol: 'Ft',
+    cadastreAuthority: 'Lechner Tudásközpont / Hungarian Land Registry — INSPIRE cadastral parcels', cadastrePortalUrl: 'https://inspire.lechnerkozpont.hu/',
+    geologyAuthority: 'SZTFH / HUGEO — Hungarian Geological Survey map services', geologyPortalUrl: 'https://map.hugeo.hu/',
+    floodAuthority: 'Országos Vízügyi Főigazgatóság (OVF) / Vízügyi Geoinformatikai Portál', floodPortalUrl: 'https://geoportal.vizugy.hu/',
+    planningInstrumentName: 'Helyi építési szabályzat (HÉSZ) / településrendezési terv',
+    standardSetbackRule: 'A helyi HÉSZ és az országos építési szabályok szerint; hivatalos helyi ellenőrzés szükséges',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   HR: {
     countryCode: 'HR', countryName: 'Croatia', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Državna geodetska uprava (DGU / Uređena zemlja / INSPIRE)', cadastrePortalUrl: 'https://geoportal.dgu.hr/',
