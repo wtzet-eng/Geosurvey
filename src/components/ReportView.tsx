@@ -6,6 +6,7 @@ import { ReportViewCzech } from './ReportViewCzech';
 import { ReportViewNorwegian } from './ReportViewNorwegian';
 import { ReportViewSwedish } from './ReportViewSwedish';
 import { ReportViewDanish } from './ReportViewDanish';
+import { ReportViewHungarian } from './ReportViewHungarian';
 import { AIInterpretationPanel } from './AIInterpretationPanel';
 import { SiteReport } from '../types';
 import { SupportLandSurf } from './SupportLandSurf';
@@ -57,7 +58,9 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
           ? <ReportViewSwedish report={report} onBack={onBack} />
           : language.startsWith('da')
             ? <ReportViewDanish report={report} onBack={onBack} />
-            : <ReportViewEvidenceV2 report={report} onBack={onBack} />;
+            : language.startsWith('hu')
+              ? <ReportViewHungarian report={report} onBack={onBack} />
+              : <ReportViewEvidenceV2 report={report} onBack={onBack} />;
 
   return (
     <div className="flex w-full flex-col">
