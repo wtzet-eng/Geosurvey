@@ -126,6 +126,12 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
     description: '2021–2022 geological resurvey of the Maltese Islands at 1:10,000 with official WFS layers for geology, ground features, water and environmental screening.',
     datasets: ['Geological Map of the Maltese Islands 1:10,000 — bedrock', 'Superficial geology 1:10,000', 'Artificial / worked ground 1:10,000', 'Faults and solution-subsidence features 1:10,000', 'Flood Hazard and Flood Risk Areas — Floods Directive', 'Ground Water Body Malta / Groundwater Protection Zone', 'Parcels of Registered Land', 'Natura 2000 Sites', 'Digital Terrain Model 2018 — 1 m resolution (verification / future direct integration)']
   },
+  IS: {
+    countryCode: 'IS', countryName: 'Iceland', authorityName: 'Iceland GeoSurvey / National Land Survey / HMS', acronym: 'ÍSOR / NLSI / HMS',
+    officialPortalUrl: 'https://isor.is/en', mapViewerUrl: 'https://isor.is/en', cadastrePortalUrl: 'https://gatt.lmi.is/geonetwork/srv/search?keyword=Cadastral%20parcels', hazardPortalUrl: 'https://www.vedur.is/',
+    description: 'Icelandic cadastral parcels plus national geological, hydrogeological, geothermal and natural-hazard data',
+    datasets: ['ELF Cadastral Parcels — Icelandic cadastral parcel polygons', 'ÍSOR bedrock and surficial geology maps', 'ÍSOR hydrological, tectonic and geothermal maps', 'Icelandic natural-hazard information including volcanic, earthquake and landslide context', 'Reykjavík LUKR survey, property and planning data where applicable']
+  },
   EU: {
     countryCode: 'EU', countryName: 'European Union', authorityName: 'EuroGeoSurveys – The Geological Surveys of Europe', acronym: 'EuroGeoSurveys / EGDI',
     officialPortalUrl: 'https://www.eurogeosurveys.org', mapViewerUrl: 'https://www.europe-geology.eu', cadastrePortalUrl: 'https://eurodatacube.com', hazardPortalUrl: 'https://emergency.copernicus.eu',
