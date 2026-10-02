@@ -15,11 +15,11 @@ test('country SEO guides are crawlable, canonical and linked from the building-p
   for (const slug of newCountryGuides) {
     const html = read(`public/${slug}/index.html`);
     assert.match(html, /<meta name="robots" content="index,follow">/);
-    assert.match(html, new RegExp(`<link rel="canonical" href="https://surveyland\\.ai\\.studio/${slug}/">`));
+    assert.match(html, new RegExp(`<link rel="canonical" href="https://groundsurf\\.net/${slug}/">`));
     assert.match(html, /<h1>[^<]+<\/h1>/);
     assert.match(html, /application\/ld\+json/);
     assert.match(hub, new RegExp(`href="/${slug}/"`));
-    assert.match(sitemap, new RegExp(`<loc>https://surveyland\\.ai\\.studio/${slug}/</loc>`));
+    assert.match(sitemap, new RegExp(`<loc>https://groundsurf\\.net/${slug}/</loc>`));
   }
 });
 
