@@ -108,7 +108,7 @@ const GROUNDSURF_COVERAGE_FLAGS: Array<{ code: string; name: string; lat: number
   { code: 'NL', name: 'Netherlands', lat: 52.2, lng: 5.3 }, { code: 'LU', name: 'Luxembourg', lat: 49.8, lng: 6.1 },
   { code: 'DE', name: 'Germany', lat: 51.2, lng: 10.4 }, { code: 'DK', name: 'Denmark', lat: 56.1, lng: 9.4 },
   { code: 'NO', name: 'Norway', lat: 64.2, lng: 11.0 }, { code: 'SE', name: 'Sweden', lat: 62.0, lng: 15.0 },
-  { code: 'FI', name: 'Finland', lat: 64.5, lng: 26.0 }, { code: 'IS', name: 'Iceland', lat: 64.9, lng: -18.6 },
+  { code: 'FI', name: 'Finland', lat: 64.5, lng: 26.0 }, { code: 'IS', name: 'Iceland', lat: 64.9, lng: -18.6 }, { code: 'AL', name: 'Albania', lat: 41.2, lng: 20.0 },
   { code: 'CH', name: 'Switzerland', lat: 46.8, lng: 8.2 }, { code: 'AT', name: 'Austria', lat: 47.6, lng: 14.1 },
   { code: 'IT', name: 'Italy', lat: 42.8, lng: 12.5 }, { code: 'MT', name: 'Malta', lat: 35.9, lng: 14.4 },
   { code: 'CZ', name: 'Czechia', lat: 49.8, lng: 15.5 }, { code: 'SK', name: 'Slovakia', lat: 48.7, lng: 19.5 },
