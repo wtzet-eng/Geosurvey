@@ -30,6 +30,7 @@ import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './serv
 import { applyGermanyCadastreToReport, queryGermanyCadastre } from './server/services/germanyCadastreService';
 import { enrichGermanyMvGroundEvidence, queryGermanyMvGroundEvidence } from './server/services/germanyMvEvidenceService';
 import { enrichGermanyBavariaGroundwater, queryGermanyBavariaGroundwater } from './server/services/germanyBavariaGroundwaterService';
+import { enrichGermanyRlpGroundwater, queryGermanyRlpGroundwater } from './server/services/germanyRlpGroundwaterService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
@@ -548,6 +549,17 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
           evidenceReport.dataSourcesCited.push({ name: 'Bayerisches Landesamt für Umwelt — Hydrogeologie', organization: 'Bayerisches Landesamt für Umwelt (LfU)', url: 'https://www.lfu.bayern.de/gdi/wms/geologie/hk500?', type: 'Regional Hydrogeological Survey', status: modelled ? 'MODELLED' : verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
         } catch (e) { console.warn(`[${diagnosticId}] Bavaria groundwater evidence notice:`, e); }
+      }
+      if (normalizedGermanState === 'rheinland-pfalz' || normalizedGermanState === 'rhineland-palatinate' || normalizedGermanState.includes('rheinland-pfalz')) {
+        stage = 'germany-rheinland-pfalz-groundwater';
+        try {
+          const siteElevationM = typeof evidenceReport.terrain?.elevationAmsl === 'number' && Number.isFinite(evidenceReport.terrain.elevationAmsl) ? evidenceReport.terrain.elevationAmsl : null;
+          const rlpGroundwater = await queryGermanyRlpGroundwater(lat, lng, stateName, fetch, siteElevationM);
+          enrichGermanyRlpGroundwater(evidenceReport, rlpGroundwater);
+          const modelled = rlpGroundwater.evidence.some((item: any) => item.status === 'MODELLED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          evidenceReport.dataSourcesCited.push({ name: 'LGB — GWO-RLP 2025', organization: 'Landesamt für Geologie und Bergbau Rheinland-Pfalz', url: 'https://mapserver.lgb-rlp.de/cgi-bin/mc_gwo?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities', type: 'Regional Hydrogeological Survey', status: modelled ? 'MODELLED' : 'REQUIRES_VERIFICATION' });
+        } catch (e) { console.warn(`[${diagnosticId}] Rheinland-Pfalz groundwater evidence notice:`, e); }
       }
     }
 
