@@ -28,16 +28,6 @@ type ChatTurn = {
   error?: string;
 };
 
-const COUNTRY_BADGE_NAMES: Record<string, string> = {
-  PL: 'Poland', DE: 'Germany', FR: 'France', IT: 'Italy', ES: 'Spain', NL: 'Netherlands', BE: 'Belgium', AT: 'Austria', SE: 'Sweden', IE: 'Ireland', FI: 'Finland', PT: 'Portugal', DK: 'Denmark', CZ: 'Czechia', HU: 'Hungary', RO: 'Romania', SK: 'Slovakia', HR: 'Croatia', GR: 'Greece', EE: 'Estonia', LV: 'Latvia', LT: 'Lithuania', LU: 'Luxembourg', CY: 'Cyprus', MT: 'Malta', SI: 'Slovenia', BG: 'Bulgaria', NO: 'Norway', CH: 'Switzerland', GB: 'UK', IS: 'Iceland', UA: 'Ukraine'
-};
-
-function countryFlag(countryCode: string): string {
-  const code = String(countryCode || '').toUpperCase();
-  if (code.length !== 2) return '🌍';
-  return String.fromCodePoint(...[...code].map(char => 127397 + char.charCodeAt(0)));
-}
-
 const COVERAGE = [
   ['cadastre', 'Where is it?', 'Wo ist es?', 'Gdzie znajduje się działka?', ['cadastre', 'parcel', 'boundary']],
   ['ground', 'What is beneath it?', 'Was befindet sich darunter?', 'Co znajduje się pod działką?', ['geology', 'soil', 'ground', 'borehole']],
@@ -719,10 +709,6 @@ export const GroundSurfApp: React.FC = () => {
                 </label>
               </div>
               <div className="relative">
-                <div className="pointer-events-none absolute left-3 top-3 z-[1000] inline-flex items-center gap-2 rounded-xl border border-white/70 bg-white/92 px-3 py-1.5 text-xs font-semibold tracking-wide text-slate-800 shadow-md backdrop-blur dark:border-slate-600/80 dark:bg-[#18201b]/92 dark:text-slate-100">
-                  <span className="text-base leading-none" aria-hidden="true">{countryFlag(countryCode)}</span>
-                  <span>GroundSurf {COUNTRY_BADGE_NAMES[countryCode.toUpperCase()] || countryCode.toUpperCase()}</span>
-                </div>
                 <MapPicker
                   mode="polygon"
                   shape={shape}
