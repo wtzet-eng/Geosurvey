@@ -46,6 +46,13 @@ const ESTONIA_CADASTRAL_CONTEXT = {
   attribution: '© Estonian Land and Spatial Development Board — Cadastre'
 };
 
+const CYPRUS_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://eservices.dls.moi.gov.cy/inspire/rest/services/INSPIRE/CP_CadastralParcels/MapServer/exts/InspireView/service',
+  viewLayer: 'Cadastral Parcel',
+  viewStyle: '',
+  attribution: '© Cyprus Department of Lands and Surveys — INSPIRE Cadastral Parcels'
+};
+
 const LATVIA_CADASTRAL_CONTEXT = {
   viewServiceUrl: 'https://grafws.kadastrs.lv/geoserver/cp/wms',
   viewLayer: 'cp:CadastralParcel',
@@ -344,6 +351,20 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         crs: L.CRS.EPSG3857, attribution: LATVIA_CADASTRAL_CONTEXT.attribution, maxNativeZoom: 18, maxZoom: 22
       }).addTo(map);
     }
+    if (countryCode.toUpperCase() === 'CY') {
+      L.tileLayer.wms(CYPRUS_CADASTRAL_CONTEXT.viewServiceUrl, {
+        layers: CYPRUS_CADASTRAL_CONTEXT.viewLayer,
+        styles: CYPRUS_CADASTRAL_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.82,
+        version: '1.3.0',
+        crs: L.CRS.EPSG4326,
+        attribution: CYPRUS_CADASTRAL_CONTEXT.attribution,
+        maxNativeZoom: 18,
+        maxZoom: 22
+      }).addTo(map);
+    }
     if (countryCode.toUpperCase() === 'RO') {
       L.tileLayer.wms(ROMANIA_CADASTRAL_CONTEXT.viewServiceUrl, {
         layers: ROMANIA_CADASTRAL_CONTEXT.viewLayer,
@@ -505,7 +526,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   // Find and select an official parcel at a clicked map location.
   const findOfficialParcelAtPoint = useCallback(async (lat: number, lng: number) => {
     const lookupCountry = countryCode.toUpperCase();
-    if (!['DE', 'HR', 'NL', 'FI', 'EE', 'LV'].includes(lookupCountry)) return false;
+    if (!['DE', 'HR', 'NL', 'FI', 'EE', 'LV', 'CY'].includes(lookupCountry)) return false;
     if (lookupCountry === 'DE' && !cadastralState) return false;
 
     if (parcelLookupPendingRef.current) return false;
@@ -816,7 +837,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     onOfficialParcelSelected?.(null);
 
     const searchCountryCode = detectedCountry || countryCode.toUpperCase();
-    if (['DE', 'PL', 'HR', 'NL', 'FI', 'EE', 'LV'].includes(searchCountryCode)) {
+    if (['DE', 'PL', 'HR', 'NL', 'FI', 'EE', 'LV', 'CY'].includes(searchCountryCode)) {
       parcelLookupPendingRef.current = true;
       setIsFindingParcel(true);
       onParcelLookupStateChange?.(true);
