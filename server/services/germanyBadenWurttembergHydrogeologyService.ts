@@ -171,67 +171,6 @@ async function queryHydrogeology(lat: number, lng: number, fetcher: typeof fetch
   };
 }
 
-function buildEvidence(id: string, feature: any, url: string, claimPrefix: string): EvidenceItem {
-  const properties = feature?.properties && typeof feature.properties === 'object' ? feature.properties : {};
-  const entries = Object.entries(properties)
-    .filter(([, value]) => value !== null && value !== undefined && String(value).trim())
-    .slice(0, 8)
-    .map(([key, value]) => key + '=' + String(value))
-    .join('; ');
-  return {
-    id,
-    category: 'Hydrogeology',
-    claim: claimPrefix + (entries ? ' Mapped attributes: ' + entries + '.' : ''),
-    status: 'VERIFIED',
-    sourceName: SOURCE,
-    sourceUrl: url,
-    datasetDate: today(),
-    spatialRelationship: 'Official LGRB HK50 feature returned for the selected coordinate area',
-    calculationMethod: 'LGRB GeoLa HK50 WFS spatial query using a small WGS84 bounding box around the selected coordinate',
-    confidence: 'Medium',
-    limitation: 'HK50 is a regional 1:50,000 planning-scale dataset. LGRB states that individual-property conclusions cannot be derived from HK50 alone; site investigation is required for site-specific decisions.',
-    value: { properties }
-  };
-}
-
-async function queryHydrogeology(lat: number, lng: number, fetcher: typeof fetch): Promise<GermanyBwHydrogeologyResult> {
-  const evidence: EvidenceItem[] = [];
-  const unit = await queryLayer('hydrogeologische_grundflaechen', lat, lng, fetcher);
-  if (unit.feature) {
-    evidence.push(buildEvidence(
-      'de-bw-hk50-hydrogeological-unit',
-      unit.feature,
-      unit.url,
-      'The official LGRB HK50 maps the selected location within a hydrogeological unit. The unit characterises groundwater-bearing behaviour, permeability and hydrogeological rock type.'
-    ));
-  }
-
-  const cover = await queryLayer('hydrogeologische_deckschichten', lat, lng, fetcher);
-  if (cover.feature) {
-    evidence.push(buildEvidence(
-      'de-bw-hk50-protective-cover',
-      cover.feature,
-      cover.url,
-      'The official LGRB HK50 maps a hydrogeological cover-layer unit at the selected location. Cover layers can influence groundwater recharge, protection and the movement of water toward the aquifer.'
-    ));
-  }
-
-  if (!evidence.length) {
-    evidence.push(noData(
-      'de-bw-hk50-no-data',
-      'The official LGRB HK50 service did not return a usable hydrogeological feature for the selected coordinate.',
-      HK50_WMS
-    ));
-  }
-
-  return {
-    state: STATE,
-    evidence,
-    hydrogeologicalUnitFound: evidence.some(item => item.id === 'de-bw-hk50-hydrogeological-unit'),
-    protectiveCoverFound: evidence.some(item => item.id === 'de-bw-hk50-protective-cover')
-  };
-}
-
 export async function queryGermanyBwHydrogeology(
   lat: number,
   lng: number,
