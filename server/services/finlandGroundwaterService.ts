@@ -80,7 +80,7 @@ function parseGroundwaterRecord(raw: unknown): { referenceElevationM: number; ob
   while ((match = rowPattern.exec(body)) !== null) {
     const groundwaterElevationM = num(match[1]);
     const date = parseDate(match[2]);
-    if (groundwaterElevationM === null || !date) continue;
+    if (groundwaterElevationM === null || !date || groundwaterElevationM <= -9000 || groundwaterElevationM >= 9000) continue;
     observations.push({
       groundwaterElevationM,
       measurementDate: formatDate(date)
