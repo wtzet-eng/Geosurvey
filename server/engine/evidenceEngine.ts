@@ -30,6 +30,7 @@ import { enrichHungaryGroundEvidence, queryHungaryGroundEvidence } from '../serv
 import { queryHungaryWaterEvidence } from '../services/hungaryWaterEvidenceService';
 import { queryBulgariaGroundEvidence } from '../services/bulgariaGroundEvidenceService';
 import { queryBulgariaUrbanGeology } from '../services/bulgariaUrbanGeologyService';
+import { queryRomaniaCadastre, romaniaGroundEvidence } from '../services/romaniaGroundEvidenceService';
 
 export interface AnalysisInput {
   lat: number;
