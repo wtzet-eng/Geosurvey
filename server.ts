@@ -39,6 +39,7 @@ import { enrichGermanySaxonyAnhaltHydrogeology, queryGermanySaxonyAnhaltHydrogeo
 import { enrichGermanySaxonyHydrogeology, queryGermanySaxonyHydrogeology } from './server/services/germanySaxonyHydrogeologyService';
 import { enrichGermanyThuringiaHydrogeology, queryGermanyThuringiaHydrogeology } from './server/services/germanyThuringiaHydrogeologyService';
 import { enrichGermanyHesseHydrogeology, queryGermanyHesseHydrogeology } from './server/services/germanyHesseHydrogeologyService';
+import { enrichGermanySchleswigHolsteinHydrogeology, queryGermanySchleswigHolsteinHydrogeology } from './server/services/germanySchleswigHolsteinHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
@@ -741,6 +742,25 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             });
           }
         } catch (e) { console.warn(`[${diagnosticId}] Hesse hydrogeology evidence notice:`, e); }
+      }
+
+      if (normalizedGermanState === 'schleswig-holstein' || normalizedGermanState === 'schleswig holstein') {
+        stage = 'germany-schleswig-holstein-hydrogeology';
+        try {
+          const shHydrogeology = await queryGermanySchleswigHolsteinHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanySchleswigHolsteinHydrogeology(evidenceReport, shHydrogeology);
+          const verified = shHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'LfU Schleswig-Holstein — Hydrogeologie / Grundwasser')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'LfU Schleswig-Holstein — Hydrogeologie / Grundwasser',
+              organization: 'Landesamt für Umwelt Schleswig-Holstein',
+              url: 'https://umweltgeodienste.schleswig-holstein.de/WMS_Hydrogeologie?SERVICE=WMS&REQUEST=GetCapabilities&',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Schleswig-Holstein hydrogeology evidence notice:`, e); }
       }
 
     const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
