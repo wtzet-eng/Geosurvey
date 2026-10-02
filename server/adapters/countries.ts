@@ -202,6 +202,18 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'Определя се от действащия устройствен план и приложимите строителни правила; необходима е официална местна проверка',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  RO: {
+    countryCode: 'RO', countryName: 'Romania', currency: 'RON', symbol: 'lei',
+    cadastreAuthority: 'Agenția Națională de Cadastru și Publicitate Imobiliară (ANCPI) / INSPIRE',
+    cadastrePortalUrl: 'https://geoportal.ancpi.ro/imobile.html',
+    geologyAuthority: 'Institutul Geologic al României (IGR)',
+    geologyPortalUrl: 'https://geoportal.igr.ro/',
+    floodAuthority: 'Administrația Națională Apele Române (ANAR) / RO-FLOODS',
+    floodPortalUrl: 'https://inundatii.ro/',
+    planningInstrumentName: 'Plan Urbanistic General (PUG) / Plan Urbanistic Zonal (PUZ) / Plan Urbanistic de Detaliu (PUD)',
+    standardSetbackRule: 'Determined by the applicable local urban plan and building rules; requires official local confirmation',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   HR: {
     countryCode: 'HR', countryName: 'Croatia', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Državna geodetska uprava (DGU / Uređena zemlja / INSPIRE)', cadastrePortalUrl: 'https://geoportal.dgu.hr/',
