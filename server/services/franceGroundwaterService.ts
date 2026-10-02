@@ -161,8 +161,7 @@ export async function queryFranceGroundwater(lat: number, lng: number, fetcher: 
       groundwaterDepthM: nearest.depthM,
       piezometricLevelM: nearest.levelM,
       stationAltitudeM: nearest.candidate.altitudeM
-    },
-    spatialScope: 'VICINITY'
+    }
   }];
 }
 
