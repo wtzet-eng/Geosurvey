@@ -48,7 +48,7 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
     countryCode: 'GB', countryName: 'United Kingdom', authorityName: 'British Geological Survey', acronym: 'BGS',
     officialPortalUrl: 'https://www.bgs.ac.uk', mapViewerUrl: 'https://mapapps2.bgs.ac.uk/geoindex/home.html', cadastrePortalUrl: 'https://www.gov.uk/search-property-information-service', hazardPortalUrl: 'https://check-long-term-flood-risk.service.gov.uk',
     description: 'BGS Geology 1:50 000 (GeoIndex) & Environment Agency Flood Data',
-    datasets: ['BGS GeoIndex Onshore – 1:50 000 Bedrock & Superficial Geology', 'BGS GeoSure – Ground Stability & Shrink-Swell Hazard Datasets', 'BGS National Borehole Record Archive', 'Environment Agency – Risk of Flooding from Rivers and Sea (RoFRS)', 'HM Land Registry Price Paid Data (PPD)']
+    datasets: ['BGS GeoIndex Onshore – 1:50 000 Bedrock & Superficial Geology', 'BGS GeoSure – Ground Stability & Shrink-Swell Hazard Datasets', 'BGS National Borehole Record Archive', 'BGS AGS open site-investigation boreholes — spatial index and downloadable AGS records', 'Environment Agency – Risk of Flooding from Rivers and Sea (RoFRS)', 'HM Land Registry Price Paid Data (PPD)']
   },
   ES: {
     countryCode: 'ES', countryName: 'Spain', authorityName: 'Instituto Geológico y Minero de España', acronym: 'IGME-CSIC',
