@@ -101,6 +101,25 @@ const EUROPE_BOREHOLE_CONTEXT = {
   attribution: '© EGDI / EPOS — European Borehole Index'
 };
 
+const GERMANY_FLOOD_MEDIUM_CONTEXT = {
+  viewServiceUrl: 'https://geoportal.bafg.de/arcgis3/rest/services/nHWGK_HWRK/RWMe/MapServer/WMSServer',
+  viewLayer: 'DEMV_RW_M',
+  attribution: '© WasserBLIcK / BfG & Länder authorities — German flood hazard maps'
+};
+
+const GERMANY_FLOOD_LOW_CONTEXT = {
+  viewServiceUrl: 'https://geoportal.bafg.de/arcgis3/rest/services/nHWGK_HWRK/RWlo/MapServer/WMSServer',
+  viewLayer: 'DEMV_RW_L',
+  attribution: '© WasserBLIcK / BfG & Länder authorities — German flood hazard maps'
+};
+
+const GERMANY_HEAVY_RAIN_CONTEXT = {
+  viewServiceUrl: 'https://sgx.geodatenzentrum.de/wms_starkregen',
+  viewLayer: 'tiefe_agw',
+  viewStyle: 'depth',
+  attribution: '© BKG — Hinweiskarte Starkregengefahren'
+};
+
 const GROUNDSURF_COVERAGE_FLAGS: Array<{ code: string; name: string; lat: number; lng: number }> = [
   { code: 'PT', name: 'Portugal', lat: 39.6, lng: -8.0 }, { code: 'ES', name: 'Spain', lat: 40.2, lng: -3.5 },
   { code: 'FR', name: 'France', lat: 46.5, lng: 2.2 }, { code: 'IE', name: 'Ireland', lat: 53.3, lng: -8.0 },
@@ -451,6 +470,26 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           maxZoom: 22
         }).addTo(map);
       }
+      // Germany: show official river-flood hazard and heavy-rain context on the map.
+      // These are evidence layers, not a legal flood-zone determination.
+      L.tileLayer.wms(GERMANY_FLOOD_MEDIUM_CONTEXT.viewServiceUrl, {
+        layers: GERMANY_FLOOD_MEDIUM_CONTEXT.viewLayer,
+        format: 'image/png', transparent: true, opacity: 0.28, version: '1.3.0',
+        crs: L.CRS.EPSG3857, attribution: GERMANY_FLOOD_MEDIUM_CONTEXT.attribution,
+        minZoom: 9, maxZoom: 22
+      }).addTo(map);
+      L.tileLayer.wms(GERMANY_FLOOD_LOW_CONTEXT.viewServiceUrl, {
+        layers: GERMANY_FLOOD_LOW_CONTEXT.viewLayer,
+        format: 'image/png', transparent: true, opacity: 0.20, version: '1.3.0',
+        crs: L.CRS.EPSG3857, attribution: GERMANY_FLOOD_LOW_CONTEXT.attribution,
+        minZoom: 9, maxZoom: 22
+      }).addTo(map);
+      L.tileLayer.wms(GERMANY_HEAVY_RAIN_CONTEXT.viewServiceUrl, {
+        layers: GERMANY_HEAVY_RAIN_CONTEXT.viewLayer, styles: GERMANY_HEAVY_RAIN_CONTEXT.viewStyle,
+        format: 'image/png', transparent: true, opacity: 0.22, version: '1.3.0',
+        crs: L.CRS.EPSG3857, attribution: GERMANY_HEAVY_RAIN_CONTEXT.attribution,
+        minZoom: 9, maxZoom: 22
+      }).addTo(map);
     } else if (countryCode.toUpperCase() === 'NL') {
       L.tileLayer.wms('https://service.pdok.nl/kadaster/brk-kadastrale-kaart/wms/v5_0', {
         layers: 'Kadastralekaart',
