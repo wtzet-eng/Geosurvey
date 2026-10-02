@@ -32,6 +32,7 @@ import { queryBulgariaGroundEvidence } from '../services/bulgariaGroundEvidenceS
 import { queryBulgariaUrbanGeology } from '../services/bulgariaUrbanGeologyService';
 import { queryRomaniaCadastre, romaniaGroundEvidence } from '../services/romaniaGroundEvidenceService';
 import { queryUkAgsBoreholes } from '../services/ukAgsEvidenceService';
+import { queryCyprusCadastre } from '../services/cyprusCadastreService';
 
 export interface AnalysisInput {
   lat: number;
@@ -55,7 +56,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, ukAgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence, romaniaCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, ukAgsEvidence, croatiaFloodEvidence, croatiaCadastre, cyprusCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence, romaniaCadastre] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -73,7 +74,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'HU' ? queryHungaryWaterEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'BG' ? queryBulgariaGroundEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'BG' ? queryBulgariaUrbanGeology(lat, lng) : Promise.resolve([]),
-    countryCode === 'RO' ? queryRomaniaCadastre(lat, lng) : Promise.resolve(null)
+    countryCode === 'RO' ? queryRomaniaCadastre(lat, lng) : Promise.resolve(null),
+    countryCode === 'CY' ? queryCyprusCadastre(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
@@ -94,6 +96,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   }
   if (countryCode === 'GB' && ukAgsEvidence?.evidence) {
     evidenceRegistry.push(ukAgsEvidence.evidence);
+  }
+  if (countryCode === 'CY' && cyprusCadastre) {
+    evidenceRegistry.push(...cyprusCadastre.evidence);
   }
   if (countryCode === 'RO' && romaniaCadastre) {
     evidenceRegistry.push(...romaniaCadastre.evidence);
@@ -145,7 +150,16 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
 
-  if (countryCode === 'RO' && romaniaCadastre?.success && romaniaCadastre.parcel) {
+  if (countryCode === 'CY' && cyprusCadastre?.success && cyprusCadastre.parcel) {
+    const p = cyprusCadastre.parcel;
+    parcelInfo = {
+      status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'CY',
+      geometryPoints: p.geometryPoints, isOfficialGeometry: Boolean(p.geometryPoints?.length),
+      areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2 ?? null,
+      cadastralSource: cyprusCadastre.sourceName, datasetDate: todayStr,
+      limitation: cyprusCadastre.limitation
+    };
+  } else if (countryCode === 'RO' && romaniaCadastre?.success && romaniaCadastre.parcel) {
     const p = romaniaCadastre.parcel;
     parcelInfo = {
       status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'RO',
