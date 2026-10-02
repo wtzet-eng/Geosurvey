@@ -20,7 +20,7 @@ const TITLES_MAP: Record<string, string> = {
   et: "Hinda oma ehituskrunti: geoloogilised ohud ja turuväärtus",
   lv: "Novērtējiet savu apbūves gabalu: ģeoloģiskie riski un tirgus vērtība",
   lt: "Įvertinkite savo statybos sklypą: geologiniai pavojai ir rinkos vertė",
-  no: "Forhåndsvurdering av byggetomten: geofarer og tomteverdi"
+  no: "Forhåndsvurdering av byggetomten: geofarer og tomteverdi",
 };
 
 export function getBrowserLanguage(): string {
@@ -159,7 +159,8 @@ const TAGLINES: Record<string, string> = {
   fr: 'Comprenez le terrain. Comparez vos options. Sachez quoi vérifier ensuite.',
   es: 'Comprenda la parcela. Compare sus opciones. Sepa qué comprobar a continuación.',
   fi: 'Ymmärrä tontti. Vertaa vaihtoehtoja. Tiedä, mitä tarkistaa seuraavaksi.',
-  hr: 'Upoznajte zemljište. Usporedite mogućnosti. Saznajte što još treba provjeriti.'
+  hr: 'Upoznajte zemljište. Usporedite mogućnosti. Saznajte što još treba provjeriti.',
+  hu: 'Ismerje meg a telket. Hasonlítsa össze a lehetőségeket. Tudja meg, mit érdemes még ellenőrizni.'
 };
 
 export function getLocalizedTagline(langCode?: string): string {

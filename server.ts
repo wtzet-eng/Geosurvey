@@ -57,6 +57,7 @@ import { renderCzechLocalizedReport } from './server/reporting/czechLocalizedRep
 import { renderSwedishLocalizedReport } from './server/reporting/swedishLocalizedReport';
 import { renderNorwegianLocalizedReport } from './server/reporting/norwegianLocalizedReport';
 import { renderDanishLocalizedReport } from './server/reporting/danishLocalizedReport';
+import { renderHungarianLocalizedReport } from './server/reporting/hungarianLocalizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
 import { renderCroatiaGroundPresentation } from './server/reporting/croatiaGroundPresentation';
 import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
@@ -77,6 +78,7 @@ import { applyLatviaNationalEvidenceToReport, queryLatviaNationalEvidence } from
 import { applyEstoniaNationalEvidenceToReport, queryEstoniaNationalEvidence } from './server/services/estoniaNationalEvidenceService';
 import { enrichEstoniaUrbanEvidence, queryEstoniaUrbanGeology } from './server/services/estoniaUrbanGeologyService';
 import { renderCountrySeoPage } from './server/seo/renderCountrySeoPage';
+import { queryHungaryCadastre } from './server/services/hungaryCadastreService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -142,6 +144,7 @@ app.get('/api/cadastre/query', async (req, res) => {
     const portugal = await queryPortugalCadastre(lat, lng);
     return res.json({ ...portugal, geometryPoints: portugal.geometryPoints, viewServiceUrl: 'https://snicws.dgterritorio.gov.pt/geoserver/inspire/ows', viewLayer: 'cadastralparcel', viewStyle: 'generic', viewAttribution: '© Direção-Geral do Território — Cadastro Predial' });
   }
+  if (support.capabilities.nationalCadastre && country === 'HU') return res.json(await queryHungaryCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'IE') return res.json(await queryIrelandCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'LU') return res.json(await queryLuxembourgCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'BE') return res.json(await queryBelgiumCadastre(lat, lng));
@@ -932,6 +935,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     const isDanishPresentation = countryCode === 'DK' && language === 'da';
     const isNorwegianPresentation = countryCode === 'NO' && language === 'no';
     const isSwedishPresentation = countryCode === 'SE' && language === 'sv';
+    const isHungarianPresentation = countryCode === 'HU' && language === 'hu';
     const isDutchPresentation = language === 'nl';
     const isFrEsFiPresentation = ['fr', 'es', 'fi', 'pt', 'et', 'lv', 'lt'].includes(language);
     const isCroatianPresentation = countryCode === 'HR' && language === 'hr';
@@ -943,7 +947,9 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         ? renderCzechLocalizedReport(canonicalReport)
         : isDanishPresentation
           ? renderDanishLocalizedReport(canonicalReport)
-          : isSwedishPresentation
+          : isHungarianPresentation
+            ? renderHungarianLocalizedReport(canonicalReport)
+            : isSwedishPresentation
             ? renderSwedishLocalizedReport(canonicalReport)
             : isNorwegianPresentation
               ? renderNorwegianLocalizedReport(canonicalReport)
@@ -952,7 +958,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
                 : isFrEsFiPresentation
                   ? renderFrEsFiLocalizedReport(canonicalReport, language as 'fr' | 'es' | 'fi' | 'pt' | 'et' | 'lv' | 'lt')
                   : renderLocalizedReport(canonicalReport, language);
-    if (!isCroatianPresentation && !isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
+    if (!isCroatianPresentation && !isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isHungarianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
     if (countryCode === 'PT' && portugalLisbonUrbanEvidence.some((item: any) => item.status === 'VERIFIED')) {
       const urban = evidenceReport.geosurvey_context || {};
       const urbanParts = [

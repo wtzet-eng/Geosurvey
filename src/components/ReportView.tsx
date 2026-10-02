@@ -6,6 +6,7 @@ import { ReportViewCzech } from './ReportViewCzech';
 import { ReportViewNorwegian } from './ReportViewNorwegian';
 import { ReportViewSwedish } from './ReportViewSwedish';
 import { ReportViewDanish } from './ReportViewDanish';
+import { ReportViewHungarian } from './ReportViewHungarian';
 import { AIInterpretationPanel } from './AIInterpretationPanel';
 import { SiteReport } from '../types';
 import { SupportLandSurf } from './SupportLandSurf';
@@ -29,6 +30,7 @@ const reportShellCopy = (language: string) => {
     pt: { report: 'Relatório detalhado de evidências', ask: 'Pergunte ao GroundSurf sobre este terreno' },
     et: { report: 'Üksikasjalik tõendite aruanne', ask: 'Küsi GroundSurfilt selle maa kohta' },
     lv: { report: 'Detalizēts pierādījumu pārskats', ask: 'Jautājiet GroundSurf par šo zemi' },
+    hu: { report: 'Részletes bizonyítékalapú jelentés', ask: 'Kérdezze a GroundSurfot erről a területről' },
     lt: { report: 'Išsamių įrodymų ataskaita', ask: 'Klauskite GroundSurf apie šį sklypą' }
   };
   return copy[code] || copy.en;
@@ -56,7 +58,9 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
           ? <ReportViewSwedish report={report} onBack={onBack} />
           : language.startsWith('da')
             ? <ReportViewDanish report={report} onBack={onBack} />
-            : <ReportViewEvidenceV2 report={report} onBack={onBack} />;
+            : language.startsWith('hu')
+              ? <ReportViewHungarian report={report} onBack={onBack} />
+              : <ReportViewEvidenceV2 report={report} onBack={onBack} />;
 
   return (
     <div className="flex w-full flex-col">

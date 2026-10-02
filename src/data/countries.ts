@@ -149,6 +149,13 @@ export const NATIONAL_GEOSURVEYS: Record<string, GeoSurveyProfile> = {
       'NVE aktsomhets- og farekart – flom og skred (offisiell kontrollkilde)'
     ]
   },
+  HU: {
+    authorityName: 'Szabályozott Tevékenységek Felügyeleti Hatósága – Földtani Szolgálat',
+    acronym: 'SZTFH / HUGEO',
+    mapViewerUrl: 'https://map.hugeo.hu/',
+    description: 'Magyarország hivatalos földtani térképei, fúrási adatai és alkalmazott földtani forrásai a HUGEO térképi portálon; a nyilvános INSPIRE kataszteri WFS jelenleg Mesterszállás adatkészletét teszi elérhetővé.',
+    datasets: ['HUGEO Magyarország földtani térképe 1:100 000', 'HUGEO fúráspontok és földtani réteginformáció WFS', 'HUGEO talajvíz- és alkalmazott földtani térképek', 'Lechner INSPIRE CP.CadastralParcels — Mesterszállás', 'Állami ingatlan-nyilvántartási alaptérképi adatbázis / helyrajzi szám']
+  },
   GB: {
     authorityName: 'British Geological Survey',
     acronym: 'BGS / GeoIndex',
