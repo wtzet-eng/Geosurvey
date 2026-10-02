@@ -53,6 +53,21 @@ const LATVIA_CADASTRAL_CONTEXT = {
   attribution: '© Valsts zemes dienests — Cadastral parcels'
 };
 
+
+const ROMANIA_CADASTRAL_CONTEXT = {
+  viewServiceUrl: 'https://geoportal.ancpi.ro/inspireview/rest/services/CP/CP_View/MapServer/exts/InspireView/service',
+  viewLayer: 'CP.CadastralParcel',
+  viewStyle: '',
+  attribution: '© ANCPI — Cadastral parcels'
+};
+
+const ROMANIA_GEOLOGY_CONTEXT = {
+  viewServiceUrl: 'https://inspire.igr.ro/geoserver/geolro200k/wms',
+  viewLayer: 'lithology_200k_inspire',
+  viewStyle: '',
+  attribution: '© Geological Institute of Romania — 1:200,000 geological map'
+};
+
 const FRANCE_CADASTRAL_CONTEXT = {
   viewServiceUrl: 'https://data.geopf.fr/wms-r/wms',
   viewLayer: 'CADASTRALPARCELS.PARCELLAIRE_EXPRESS',
@@ -269,6 +284,32 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         styles: LATVIA_CADASTRAL_CONTEXT.viewStyle,
         format: 'image/png', transparent: true, opacity: 0.82, version: '1.3.0',
         crs: L.CRS.EPSG3857, attribution: LATVIA_CADASTRAL_CONTEXT.attribution, maxNativeZoom: 18, maxZoom: 22
+      }).addTo(map);
+    }
+    if (countryCode.toUpperCase() === 'RO') {
+      L.tileLayer.wms(ROMANIA_CADASTRAL_CONTEXT.viewServiceUrl, {
+        layers: ROMANIA_CADASTRAL_CONTEXT.viewLayer,
+        styles: ROMANIA_CADASTRAL_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.82,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3857,
+        attribution: ROMANIA_CADASTRAL_CONTEXT.attribution,
+        minZoom: 14,
+        maxZoom: 22
+      }).addTo(map);
+      L.tileLayer.wms(ROMANIA_GEOLOGY_CONTEXT.viewServiceUrl, {
+        layers: ROMANIA_GEOLOGY_CONTEXT.viewLayer,
+        styles: ROMANIA_GEOLOGY_CONTEXT.viewStyle,
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.32,
+        version: '1.3.0',
+        crs: L.CRS.EPSG3857,
+        attribution: ROMANIA_GEOLOGY_CONTEXT.attribution,
+        minZoom: 7,
+        maxZoom: 18
       }).addTo(map);
     }
     if (countryCode.toUpperCase() === 'FR') {
