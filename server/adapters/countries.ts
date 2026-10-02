@@ -232,6 +232,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'Determined by the applicable local planning and building controls; requires official confirmation',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  AL: {
+    countryCode: 'AL', countryName: 'Albania', currency: 'ALL', symbol: 'L',
+    cadastreAuthority: 'State Cadastre Agency / ASIG National Geoportal', cadastrePortalUrl: 'https://geoportal.asig.gov.al/en/services?category=cadastral%20parcels',
+    geologyAuthority: 'Albanian geological authorities / ASIG National Geoportal', geologyPortalUrl: 'https://geoportal.asig.gov.al/en/services',
+    floodAuthority: 'Water Resources Management Agency (AMBU) / ASIG', floodPortalUrl: 'https://geoportal.asig.gov.al/en/node/1696',
+    planningInstrumentName: 'Applicable municipal and territorial planning instruments',
+    standardSetbackRule: 'Determined by applicable local planning and building controls; requires official confirmation',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   IS: {
     countryCode: 'IS', countryName: 'Iceland', currency: 'ISK', symbol: 'kr',
     cadastreAuthority: 'National Land Survey of Iceland / HMS — ELF cadastral parcels', cadastrePortalUrl: 'https://gatt.lmi.is/geonetwork/srv/search?keyword=Cadastral%20parcels',
