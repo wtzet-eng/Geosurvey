@@ -8,6 +8,7 @@ import { fetchPolandCadastralParcel } from './server/adapters/poland';
 import { getCountryProfile } from './server/adapters/countries';
 import { enrichGeologyFromPgi, queryPolandSiteEvidence } from './server/services/pgiSiteEvidenceService';
 import { queryPolandHydroAndHazards } from './server/services/pgiSupplementEvidenceService';
+import { enrichPolandGroundwater, queryPolandGroundwater } from './server/services/polandGroundwaterService';
 import { queryUKSiteEvidence, enrichGeologyFromBgs } from './server/services/ukSiteEvidenceService';
 import { queryUKCadastre } from './server/services/ukCadastreService';
 import { queryScotlandCadastre } from './server/services/scotlandCadastreService';
@@ -910,6 +911,23 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       stage = 'pgi-site-evidence'; try { pgiSiteEvidence = await queryPolandSiteEvidence(lat, lng, fetch, groundSamplingLayout); } catch (e) { console.warn(`[${diagnosticId}] PIG site evidence notice:`, e); }
       if (support.capabilities.nationalHydrogeology) {
         stage = 'pgi-hydro-hazards'; try { pgiSiteEvidence.push(...await queryPolandHydroAndHazards(lat, lng, 5)); } catch (e) { console.warn(`[${diagnosticId}] PIG hydro/hazard evidence notice:`, e); }
+        stage = 'pgi-groundwater-level';
+        try {
+          const polandGroundwater = await queryPolandGroundwater(lat, lng, fetch);
+          if (polandGroundwater.length) evidenceReport.evidenceRegistry.push(...polandGroundwater);
+          enrichPolandGroundwater(evidenceReport, polandGroundwater);
+          const verifiedGroundwater = polandGroundwater.some((item: any) => item.id === 'pl-pgi-groundwater-level' && item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (verifiedGroundwater && !evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'Państwowa Służba Hydrogeologiczna (PIG-PIB) — Monitoring Wód Podziemnych')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'Państwowa Służba Hydrogeologiczna (PIG-PIB) — Monitoring Wód Podziemnych',
+              organization: 'Państwowy Instytut Geologiczny — Państwowy Instytut Badawczy',
+              url: 'https://cbdgmapa.pgi.gov.pl/arcgis/rest/services/hydrogeologia/mwp/MapServer',
+              type: 'Hydrological Registry',
+              status: 'VERIFIED'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] PIG groundwater-level evidence notice:`, e); }
       }
       stage = 'pgi-report-enrichment'; if (pgiSiteEvidence.length) evidenceReport.evidenceRegistry.push(...pgiSiteEvidence); enrichGeologyFromPgi(evidenceReport, pgiSiteEvidence);
     } else if (!countryLocationMismatch && countryCode === 'GB' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
