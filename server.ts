@@ -29,6 +29,7 @@ import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './s
 import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './server/services/luxembourgCadastreService';
 import { applyGermanyCadastreToReport, queryGermanyCadastre } from './server/services/germanyCadastreService';
 import { enrichGermanyMvGroundEvidence, queryGermanyMvGroundEvidence } from './server/services/germanyMvEvidenceService';
+import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
 import { applyBelgiumCadastreToReport, queryBelgiumCadastre } from './server/services/belgiumCadastreService';
@@ -504,6 +505,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             type: 'Regional Borehole Register', status: 'VERIFIED'
           });
         }
+        stage = 'germany-flood-evidence';
+        try {
+          const germanyFloodEvidence = await queryGermanyFloodEvidence(lat, lng, stateName, fetch);
+          evidenceReport.evidenceRegistry.push(...germanyFloodEvidence);
+          const verifiedFlood = germanyFloodEvidence.some((item: any) => item.status === 'VERIFIED');
+          if (verifiedFlood && evidenceReport.evidenceScore?.breakdown?.environmentalAndFlood) {
+            evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score = Math.max(8, Number(evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score) || 0);
+            evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'BfG national flood-hazard mapping returned verified river-flood inundation evidence for the integrated Mecklenburg-Vorpommern state layer. This is mapped hazard evidence, not a site measurement.';
+          }
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.organization === 'WasserBLIcK / BfG')) {
+            evidenceReport.dataSourcesCited.push({ name: 'WasserBLIcK / BfG — German flood hazard maps', organization: 'WasserBLIcK / BfG', url: 'https://geoportal.bafg.de/karten/HWRM/', type: 'National Flood Hazard Mapping', status: verifiedFlood ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] German flood evidence notice:`, e); }
         if (mvResult.evidence.some((item: any) => item.id === 'de-mv-geology-gk50' && item.status === 'VERIFIED')) {
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
           evidenceReport.dataSourcesCited.push({
