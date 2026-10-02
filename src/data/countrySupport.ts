@@ -74,7 +74,8 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   UA: { countryCode: 'UA', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } },
   HU: { countryCode: 'HU', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true } },
   CY: { countryCode: 'CY', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true } },
-  IS: { countryCode: 'IS', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } }
+  IS: { countryCode: 'IS', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
+  AL: { countryCode: 'AL', maturity: 'LIMITED', capabilities: { ...NONE, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } }
 };
 
 export function getCountrySupport(countryCode: string): CountrySupportProfile {
