@@ -76,8 +76,8 @@ const FRANCE_CADASTRAL_CONTEXT = {
 };
 
 const EUROPE_BOREHOLE_CONTEXT = {
-  viewServiceUrl: 'https://data.geoscience.earth/api/wxsBorehole',
-  viewLayer: 'epos-gsmlp:BoreholeView_Group',
+  viewServiceUrl: 'https://maps.europe-geology.eu/geoserver/ows',
+  viewLayer: 'Borehole_Index',
   attribution: '© EGDI / EPOS — European Borehole Index'
 };
 
