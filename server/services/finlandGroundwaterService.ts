@@ -47,6 +47,8 @@ function parseDate(value: string): Date | null {
   const day = Number(value.slice(0, 2));
   const month = Number(value.slice(2, 4)) - 1;
   const year = Number(value.slice(4, 8));
+  const currentYear = new Date().getUTCFullYear();
+  if (year < 1950 || year > currentYear) return null;
   const date = new Date(Date.UTC(year, month, day));
   return Number.isNaN(date.getTime()) ? null : date;
 }
