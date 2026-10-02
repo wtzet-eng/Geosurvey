@@ -21,7 +21,7 @@ test('Finland groundwater adapter parses dated GTK groundwater-pipe observation'
               '  16.95 01032005 19.89 15.39 1.00',
               '  16.96 02032005 19.89 15.39 1.00',
               '-1  MS'
-            ].join('\\r\\n')
+            ].join('\n')
           },
           geometry: { x: 24.808621841150938, y: 60.18757341659072 }
         }]
