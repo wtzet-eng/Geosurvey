@@ -29,6 +29,7 @@ import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './s
 import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './server/services/luxembourgCadastreService';
 import { applyGermanyCadastreToReport, queryGermanyCadastre } from './server/services/germanyCadastreService';
 import { enrichGermanyMvGroundEvidence, queryGermanyMvGroundEvidence } from './server/services/germanyMvEvidenceService';
+import { enrichGermanyBavariaGroundwater, queryGermanyBavariaGroundwater } from './server/services/germanyBavariaGroundwaterService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
@@ -534,6 +535,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           });
         }
       } catch (e) { console.warn(`[${diagnosticId}] Mecklenburg-Vorpommern regional evidence notice:`, e); }
+
+      const normalizedGermanState = String(stateName || '').trim().toLowerCase();
+      if (normalizedGermanState === 'bayern' || normalizedGermanState === 'bavaria' || normalizedGermanState.includes('bayern')) {
+        stage = 'germany-bavaria-groundwater';
+        try {
+          const siteElevationM = typeof evidenceReport.terrain?.elevationAmsl === 'number' && Number.isFinite(evidenceReport.terrain.elevationAmsl) ? evidenceReport.terrain.elevationAmsl : null;
+          const bavariaGroundwater = await queryGermanyBavariaGroundwater(lat, lng, stateName, fetch, siteElevationM);
+          enrichGermanyBavariaGroundwater(evidenceReport, bavariaGroundwater);
+          const verified = bavariaGroundwater.evidence.some((item: any) => item.status === 'VERIFIED');
+          const modelled = bavariaGroundwater.evidence.some((item: any) => item.status === 'MODELLED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          evidenceReport.dataSourcesCited.push({ name: 'Bayerisches Landesamt für Umwelt — Hydrogeologie', organization: 'Bayerisches Landesamt für Umwelt (LfU)', url: 'https://www.lfu.bayern.de/gdi/wms/geologie/hk500?', type: 'Regional Hydrogeological Survey', status: modelled ? 'MODELLED' : verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+        } catch (e) { console.warn(`[${diagnosticId}] Bavaria groundwater evidence notice:`, e); }
+      }
     }
 
     const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
