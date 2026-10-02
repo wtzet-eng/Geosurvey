@@ -29,6 +29,7 @@ import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './s
 import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './server/services/luxembourgCadastreService';
 import { applyGermanyCadastreToReport, queryGermanyCadastre } from './server/services/germanyCadastreService';
 import { enrichGermanyMvGroundEvidence, queryGermanyMvGroundEvidence } from './server/services/germanyMvEvidenceService';
+import { enrichGermanyNationalHydrogeology, queryGermanyNationalHydrogeology } from './server/services/germanyNationalHydrogeologyService';
 import { enrichGermanyBavariaGroundwater, queryGermanyBavariaGroundwater } from './server/services/germanyBavariaGroundwaterService';
 import { enrichGermanyRlpGroundwater, queryGermanyRlpGroundwater } from './server/services/germanyRlpGroundwaterService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
@@ -483,6 +484,23 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     }
 
     if (!countryLocationMismatch && countryCode === 'DE') {
+      stage = 'germany-national-hydrogeology';
+      try {
+        const nationalHydroEvidence = await queryGermanyNationalHydrogeology(lat, lng, fetch);
+        enrichGermanyNationalHydrogeology(evidenceReport, nationalHydroEvidence);
+        const verifiedNationalHydro = nationalHydroEvidence.some((item: any) => item.status === 'VERIFIED');
+        const modelledNationalHydro = nationalHydroEvidence.some((item: any) => item.id === 'de-huek250-excavation-water-screening' && item.status === 'MODELLED');
+        evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+        if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'BGR / SGD — HÜK250')) {
+          evidenceReport.dataSourcesCited.push({
+            name: 'BGR / SGD — HÜK250',
+            organization: 'Bundesanstalt für Geowissenschaften und Rohstoffe / Staatliche Geologische Dienste',
+            url: 'https://services.bgr.de/arcgis/rest/services/grundwasser/huek250/MapServer',
+            type: 'National Hydrogeological Survey',
+            status: modelledNationalHydro ? 'MODELLED' : verifiedNationalHydro ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+          });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] Germany national HÜK250 evidence notice:`, e); }
       stage = 'germany-borehole-evidence';
       try {
         const boreholeResult = await queryGermanyBoreholes(lat, lng, fetch);
