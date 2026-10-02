@@ -79,6 +79,7 @@ import { applyEstoniaNationalEvidenceToReport, queryEstoniaNationalEvidence } fr
 import { enrichEstoniaUrbanEvidence, queryEstoniaUrbanGeology } from './server/services/estoniaUrbanGeologyService';
 import { renderCountrySeoPage } from './server/seo/renderCountrySeoPage';
 import { queryHungaryCadastre } from './server/services/hungaryCadastreService';
+import { queryCyprusCadastre } from './server/services/cyprusCadastreService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -145,6 +146,7 @@ app.get('/api/cadastre/query', async (req, res) => {
     return res.json({ ...portugal, geometryPoints: portugal.geometryPoints, viewServiceUrl: 'https://snicws.dgterritorio.gov.pt/geoserver/inspire/ows', viewLayer: 'cadastralparcel', viewStyle: 'generic', viewAttribution: '© Direção-Geral do Território — Cadastro Predial' });
   }
   if (support.capabilities.nationalCadastre && country === 'HU') return res.json(await queryHungaryCadastre(lat, lng));
+  if (support.capabilities.nationalCadastre && country === 'CY') return res.json(await queryCyprusCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'IE') return res.json(await queryIrelandCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'LU') return res.json(await queryLuxembourgCadastre(lat, lng));
   if (support.capabilities.nationalCadastre && country === 'BE') return res.json(await queryBelgiumCadastre(lat, lng));
