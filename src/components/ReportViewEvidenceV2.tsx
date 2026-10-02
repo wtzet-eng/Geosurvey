@@ -201,7 +201,8 @@ const evidenceAwareInvestigationChecklist = (items:any[], investigationEvidence:
   const source=verified[0] || investigationEvidence.find((item:any)=>item?.status==='REQUIRES_VERIFICATION');
   if (!source) return items;
   const code=language.toLowerCase().slice(0,2);
-  const count=Number(source?.value?.count);
+  const rawCount=source?.value?.count ?? source?.value?.observationCount ?? source?.value?.featureCount ?? (Array.isArray(source?.value?.records) ? source.value.records.length : Array.isArray(source?.value?.observations) ? source.value.observations.length : null);
+  const count=Number(rawCount);
   const nearestM=Number(source?.value?.nearestDistanceM);
   const nearestKm=Number(source?.value?.nearestDistanceKm);
   const hasRecords=Number.isFinite(count) && count>0;
@@ -233,7 +234,7 @@ export const ReportViewEvidenceV2: React.FC<ReportViewProps> = ({report,onBack})
   const data=report.report_data; const tech=data.technical_parameters||{};
   const canonicalEvidence = data.canonical_evidence as any;
   const officialEvidenceGeometry = canonicalEvidence?.evidenceRecords?.find((item:any) => item?.id === 'de-mv-alkis-cadastre' && item?.status === 'VERIFIED')?.value?.geometryPoints;
-  const officialGeometry = report.official_geometry || data.official_geometry || officialEvidenceGeometry || null; const soil=data.soil_metrics; const groundContext=data.ground_context; const stratigraphy=data.stratigraphy||[]; const risks=data.risk_matrix||[]; const sources=data.data_sources||[]; const evidence=data.evidence_registry||[]; const checklist=data.verification_checklist||[]; const groundInvestigationEvidence=evidence.filter((item:any)=>/borehole|boreholes|ground investigation|drilling|well/i.test(`${item?.id||''} ${item?.category||''} ${item?.sourceName||''}`)); const evidenceAwareChecklist=evidenceAwareInvestigationChecklist(checklist,groundInvestigationEvidence,report.language);
+  const officialGeometry = report.official_geometry || data.official_geometry || officialEvidenceGeometry || null; const soil=data.soil_metrics; const groundContext=data.ground_context; const stratigraphy=data.stratigraphy||[]; const risks=data.risk_matrix||[]; const sources=data.data_sources||[]; const evidence=data.evidence_registry||[]; const checklist=data.verification_checklist||[]; const groundInvestigationEvidence=evidence.filter((item:any)=>/borehole|boreholes|ground investigation|drilling|well|bss|geotechnical|geotechnisch|baugrund|otwor|odwiert/i.test(`${item?.id||''} ${item?.category||''} ${item?.sourceName||''}`)); const evidenceAwareChecklist=evidenceAwareInvestigationChecklist(checklist,groundInvestigationEvidence,report.language);
   const c=getReportPresentation(report.language);
   const reasons=data.unavailable_reasons||{};
   const display=(value:unknown,suffix='',reason?:unknown)=>isUnavailablePresentationValue(value) ? (reason ? localizePresentationValue(reason,report.language) : c.unavailable) : `${localizePresentationValue(value,report.language)}${suffix}`;
