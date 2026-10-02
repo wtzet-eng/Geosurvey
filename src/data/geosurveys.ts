@@ -80,6 +80,20 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
     description: 'Swedish public geological and hydrogeological services. GroundSurf directly queries selected SGU OGC API Features datasets; cadastral, flood and binding planning information remain official-verification sources until separately automated.',
     datasets: ['SGU Jordarter 1:25 000–1:100 000 – superficial-deposit mapping', 'SGU Jordarter 1:250 000 – northern Sweden fallback', 'SGU Berggrund 1:50 000–1:250 000 – bedrock geological units and lithology', 'SGU Brunnsarkivet – wells and borehole observations', 'SGU Grundvattennivåer, observerade – groundwater observation station network', 'MSB Översvämningsportalen – official flood verification source', 'Lantmäteriet Fastighetsregistret / Fastighetsindelning Direkt – cadastral verification source', 'Municipal detailed plans / Nationella geodataplattformen – planning verification where available']
   },
+  RO: {
+    countryCode: 'RO', countryName: 'Romania', authorityName: 'Institutul Geologic al României / ANCPI / Administrația Națională Apele Române', acronym: 'IGR / ANCPI / ANAR',
+    officialPortalUrl: 'https://geoportal.igr.ro/', mapViewerUrl: 'https://geoportal.igr.ro/mapviewer_ol', cadastrePortalUrl: 'https://geoportal.ancpi.ro/imobile.html', hazardPortalUrl: 'https://inundatii.ro/',
+    description: 'Romanian official cadastral, geological, hydrogeological and flood-risk evidence services, with city-specific engineering-geology added where authoritative spatial data can be matched.',
+    datasets: [
+      'ANCPI INSPIRE Cadastral Parcel service — official parcel polygons and national cadastral references',
+      'ANCPI Imobile — public cadastral/registered-immovable viewer',
+      'Geological Institute of Romania — Geological Map 1:200,000',
+      'Geological Institute of Romania — Geological Map 1:50,000 (published sheets; not complete nationwide)',
+      'Geological Institute of Romania — Hydrogeological Map 1:100,000',
+      'RO-FLOODS / Apele Române — updated flood-hazard and flood-risk maps',
+      'Local PUG/PUZ/PUD and engineering-geological studies — city-specific planning and ground context'
+    ]
+  },
   BG: {
     countryCode: 'BG', countryName: 'Bulgaria', authorityName: 'Geological Institute, Bulgarian Academy of Sciences',
     acronym: 'GI-BAS', officialPortalUrl: 'https://www.geology.bas.bg/en', mapViewerUrl: 'https://kais.cadastre.bg/bg/Map',
