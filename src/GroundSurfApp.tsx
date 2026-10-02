@@ -361,15 +361,20 @@ function findingSummary(report: SiteReport, language: string) {
   const groundText = ground?.summary
     || data.geosurvey_context?.geological_unit_name
     || (isGerman ? 'Regionale Informationen zum Untergrund verfügbar' : isPolish ? 'Dostępne są regionalne informacje o podłożu' : summaryCopy?.ground || 'Regional ground information available');
-  const waterText = data.flooding_risk?.summary
-    || data.technical_parameters?.groundwater_notice
-    || (isGerman ? 'Wasserverhältnisse teilweise offen' : isPolish ? 'Warunki wodne są częściowo nieznane' : summaryCopy?.water || 'Water conditions are partly open');
+  const waterSummary = data.flooding_risk?.summary || '';
+  const waterSummaryIsScreening = Boolean(waterSummary) && data.flooding_risk?.evidence_level !== 'REQUIRES_VERIFICATION';
+  const hasWaterEvidence = categoryMatch(report, ['water', 'flood', 'hydro', 'groundwater']).length > 0;
+  const waterText = waterSummaryIsScreening
+    ? waterSummary
+    : hasWaterEvidence
+      ? (isGerman ? 'Wasserbezogene Hinweise sind vorhanden; die standortbezogenen Verhältnisse bleiben in dieser Übersicht offen' : isPolish ? 'Dostępne są wskazówki dotyczące wody; warunki na działce pozostają w tym zestawieniu otwarte' : summaryCopy?.water || 'Water-related evidence is available, but site-specific conditions remain open in this overview')
+      : (isGerman ? 'Die Wasserverhältnisse bleiben in dieser Übersicht offen' : isPolish ? 'Warunki wodne pozostają w tym zestawieniu otwarte' : summaryCopy?.water || 'Water conditions remain open in this overview');
   const planningText = data.zoning_and_land_use?.summary
     || (isGerman ? 'Planungsinformationen müssen vor Ort bestätigt werden' : isPolish ? 'Informacje planistyczne wymagają potwierdzenia' : summaryCopy?.planning || 'Planning information needs local confirmation');
   return [
     { label: isGerman ? 'Wo es liegt' : isPolish ? 'Gdzie się znajduje' : summaryCopy?.where || 'Where it is', value: parcel, tone: report.is_official_parcel || (report.country_code === 'GB' && ukMappedOutline) ? 'mapped' : 'open' },
     { label: isGerman ? 'Untergrund' : isPolish ? 'Podłoże' : summaryCopy?.groundLabel || 'Ground', value: groundText, tone: ground ? 'mapped' : 'open' },
-    { label: isGerman ? 'Wasser' : isPolish ? 'Woda' : summaryCopy?.waterLabel || 'Water', value: waterText, tone: data.flooding_risk?.summary ? 'mapped' : 'open' },
+    { label: isGerman ? 'Wasser' : isPolish ? 'Woda' : summaryCopy?.waterLabel || 'Water', value: waterText, tone: waterSummaryIsScreening ? 'mapped' : 'open' },
     { label: isGerman ? 'Planung' : isPolish ? 'Planowanie' : summaryCopy?.planningLabel || 'Planning', value: planningText, tone: data.zoning_and_land_use?.summary ? 'mapped' : 'open' }
   ];
 }
