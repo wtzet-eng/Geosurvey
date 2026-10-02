@@ -21,16 +21,20 @@ test('M-V geology and LBDS boreholes remain separate verified regional evidence'
   const fetcher: typeof fetch = async (input: any) => {
     calls += 1;
     const url = String(input);
+    if (url.includes('mv_a7_hydrogeologie_wms.php')) return xmlResponse("GetFeatureInfo results:\n\nLayer 't7_flurabstand'\n  Feature 8950:\n    LEGENDE = 'A13'\n    FLURABSTAN = '>5 - 10 m'\n");
     return xmlResponse(fixture(url.includes('geol_karten'), url.includes('gg_lbds')));
   };
   const result = await queryGermanyMvGroundEvidence(53.500, 13.996, 'Mecklenburg-Vorpommern', fetcher);
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   assert.equal(result.geologyFound, true);
   assert.equal(result.boreholeCount, 1);
   const geology = result.evidence.find(item => item.id === 'de-mv-geology-gk50');
   const boreholes = result.evidence.find(item => item.id === 'de-mv-boreholes-lbds');
+  const groundwater = result.evidence.find(item => item.id === 'de-mv-groundwater-depth');
   assert.equal(geology?.status, 'VERIFIED');
   assert.equal(boreholes?.status, 'VERIFIED');
+  assert.equal(groundwater?.status, 'VERIFIED');
+  assert.equal((groundwater?.value as any)?.depthClass, '>5 - 10 m');
   assert.match(geology?.claim || '', /Test Pleistocene unit/);
   assert.match(boreholes?.claim || '', /Altlastenerkundung/);
   assert.equal((boreholes?.value as any)?.nearest?.[0]?.endDepthM, 42);
