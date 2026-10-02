@@ -887,13 +887,13 @@ export const GroundSurfApp: React.FC = () => {
                     </div>
                   </div>
 
-                  <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky top-20 z-20 rounded-[1.5rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1b211d] p-3 shadow-lg shadow-slate-200/30">
-                <div className="mb-2 px-3 text-sm font-medium text-slate-700 dark:text-slate-200">{appUiCopy(language, 'askAnything')}</div>
-                <div className="flex items-end gap-2">
+                  <form onSubmit={(e) => { e.preventDefault(); ask(question); }} className="sticky top-20 z-20 rounded-[1.5rem] border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#232a25] p-4 shadow-lg shadow-slate-200/30">
+                <div className="mb-2 px-3 text-base font-semibold text-slate-700 dark:text-slate-100">{appUiCopy(language, 'askAnything')}</div>
+                <div className="flex items-end gap-3 rounded-2xl border border-slate-200 dark:border-slate-600/80 bg-slate-50 dark:bg-[#2b332e] px-2 py-1">
                   <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={1} onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(question); }
-                  }} placeholder={appUiCopy(language, 'searchAnything')} aria-label={appUiCopy(language, 'searchAnything')} className="min-h-[52px] flex-1 resize-none bg-transparent px-3 py-3 text-base text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500" />
-                  <button disabled={!question.trim() || asking} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-900 text-white disabled:opacity-30">
+                  }} placeholder={appUiCopy(language, 'searchAnything')} aria-label={appUiCopy(language, 'searchAnything')} className="min-h-[64px] flex-1 resize-none bg-transparent px-3 py-3 text-base text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-400" />
+                  <button disabled={!question.trim() || asking} className="mb-2 grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-900 text-white disabled:opacity-30">
                     {asking ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   </button>
                 </div>
