@@ -255,7 +255,8 @@ export const AIInterpretationPanel: React.FC<Props> = ({ report, supportDestinat
         if (!token) throw new Error('Please sign in before using AI interpretation.');
         headers.Authorization = `Bearer ${token}`;
       }
-      const response = await apiFetch('/api/ai/interpret', {
+      const aiEndpoint = report.country_code === 'GB' ? '/api/ai/investigate-uk-sources' : '/api/ai/interpret';
+      const response = await apiFetch(aiEndpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify({ report: token ? { ...report, __surveyland_token: token } : report })
