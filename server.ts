@@ -57,6 +57,7 @@ import { renderCzechLocalizedReport } from './server/reporting/czechLocalizedRep
 import { renderSwedishLocalizedReport } from './server/reporting/swedishLocalizedReport';
 import { renderNorwegianLocalizedReport } from './server/reporting/norwegianLocalizedReport';
 import { renderDanishLocalizedReport } from './server/reporting/danishLocalizedReport';
+import { renderHungarianLocalizedReport } from './server/reporting/hungarianLocalizedReport';
 import { renderFranceGroundPresentation } from './server/reporting/franceGroundPresentation';
 import { renderCroatiaGroundPresentation } from './server/reporting/croatiaGroundPresentation';
 import { renderSlovakiaGroundPresentation } from './server/reporting/slovakiaGroundPresentation';
@@ -946,7 +947,9 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         ? renderCzechLocalizedReport(canonicalReport)
         : isDanishPresentation
           ? renderDanishLocalizedReport(canonicalReport)
-          : isSwedishPresentation
+          : isHungarianPresentation
+            ? renderHungarianLocalizedReport(canonicalReport)
+            : isSwedishPresentation
             ? renderSwedishLocalizedReport(canonicalReport)
             : isNorwegianPresentation
               ? renderNorwegianLocalizedReport(canonicalReport)
@@ -955,7 +958,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
                 : isFrEsFiPresentation
                   ? renderFrEsFiLocalizedReport(canonicalReport, language as 'fr' | 'es' | 'fi' | 'pt' | 'et' | 'lv' | 'lt')
                   : renderLocalizedReport(canonicalReport, language);
-    if (!isCroatianPresentation && !isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
+    if (!isCroatianPresentation && !isSlovakPresentation && !isCzechPresentation && !isDanishPresentation && !isSwedishPresentation && !isNorwegianPresentation && !isHungarianPresentation && !isDutchPresentation && !isFrEsFiPresentation) enrichValuationPresentation(canonicalReport, presentation);
     if (countryCode === 'PT' && portugalLisbonUrbanEvidence.some((item: any) => item.status === 'VERIFIED')) {
       const urban = evidenceReport.geosurvey_context || {};
       const urbanParts = [
