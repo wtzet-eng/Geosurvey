@@ -20,7 +20,8 @@ const TITLES_MAP: Record<string, string> = {
   et: "Hinda oma ehituskrunti: geoloogilised ohud ja turuväärtus",
   lv: "Novērtējiet savu apbūves gabalu: ģeoloģiskie riski un tirgus vērtība",
   lt: "Įvertinkite savo statybos sklypą: geologiniai pavojai ir rinkos vertė",
-  no: "Forhåndsvurdering av byggetomten: geofarer og tomteverdi"
+  no: "Forhåndsvurdering av byggetomten: geofarer og tomteverdi",
+  hu: "Építési telek előzetes vizsgálata: geológiai kockázatok és telekérték"
 };
 
 export function getBrowserLanguage(): string {
