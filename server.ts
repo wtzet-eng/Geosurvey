@@ -101,6 +101,7 @@ import { queryHungaryCadastre } from './server/services/hungaryCadastreService';
 import { queryCyprusCadastre } from './server/services/cyprusCadastreService';
 import { queryIcelandCadastre } from './server/services/icelandCadastreService';
 import { investigateUkBgsSources } from './server/services/ukBgsSourceInvestigationService';
+import { enrichUKGroundwater, queryUKGroundwater } from './server/services/ukGroundwaterEvidenceService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -969,6 +970,24 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         } catch (e) { console.warn(`[${diagnosticId}] UK cadastral evidence notice:`, e); }
       }
       stage = 'uk-site-evidence'; try { ukSiteEvidence = await queryUKSiteEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] UK national evidence notice:`, e); }
+      stage = 'uk-groundwater-evidence';
+      try {
+        const ukGroundwaterEvidence = await queryUKGroundwater(lat, lng, stateName, fetch);
+        if (ukGroundwaterEvidence.length) evidenceReport.evidenceRegistry.push(...ukGroundwaterEvidence);
+        enrichUKGroundwater(evidenceReport, ukGroundwaterEvidence);
+        const verifiedGroundwater = ukGroundwaterEvidence.some((item: any) => ['gb-ea-groundwater-level', 'gb-sepa-groundwater-level'].includes(item.id) && item.status === 'VERIFIED');
+        evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+        if (verifiedGroundwater && !evidenceReport.dataSourcesCited.some((source: any) => /Environment Agency|SEPA/.test(String(source?.name || '')) && /groundwater/i.test(String(source?.name || '')))) {
+          const observed = ukGroundwaterEvidence.find((item: any) => ['gb-ea-groundwater-level', 'gb-sepa-groundwater-level'].includes(item.id));
+          evidenceReport.dataSourcesCited.push({
+            name: observed?.sourceName || 'UK groundwater monitoring',
+            organization: observed?.id === 'gb-sepa-groundwater-level' ? 'Scottish Environment Protection Agency (SEPA)' : 'Environment Agency',
+            url: observed?.sourceUrl || 'https://www.bgs.ac.uk/groundwater/data/groundwater-levels/national-groundwater-level-archive/',
+            type: 'Hydrological Registry',
+            status: 'VERIFIED'
+          });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] UK groundwater evidence notice:`, e); }
       stage = 'uk-report-enrichment'; if (ukSiteEvidence.length) evidenceReport.evidenceRegistry.push(...ukSiteEvidence);
       try { enrichGeologyFromBgs(evidenceReport, ukSiteEvidence); } catch (e) { console.warn(`[${diagnosticId}] BGS geology enrichment notice:`, e); }
       evidenceReport.verificationChecklist = getUKVerificationChecklist(municipality, stateName);
