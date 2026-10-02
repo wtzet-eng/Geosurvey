@@ -37,6 +37,7 @@ import { enrichGermanyBwHydrogeology, queryGermanyBwHydrogeology } from './serve
 import { enrichGermanyBrandenburgHydrogeology, queryGermanyBrandenburgHydrogeology } from './server/services/germanyBrandenburgHydrogeologyService';
 import { enrichGermanySaxonyAnhaltHydrogeology, queryGermanySaxonyAnhaltHydrogeology } from './server/services/germanySaxonyAnhaltHydrogeologyService';
 import { enrichGermanySaxonyHydrogeology, queryGermanySaxonyHydrogeology } from './server/services/germanySaxonyHydrogeologyService';
+import { enrichGermanyThuringiaHydrogeology, queryGermanyThuringiaHydrogeology } from './server/services/germanyThuringiaHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
