@@ -20,7 +20,7 @@ function fetchText(url: string, fetcher: typeof fetch): Promise<{ ok: boolean; t
 }
 
 function parseLayers(capabilities: string, terms: string[]): string | null {
-  const matches = [...capabilities.matchAll(/<Layer[^>]*>[\\s\\S]*?<Name>([^<]+)<\\/Name>[\\s\\S]*?<Title>([^<]+)<\\/Title>[\\s\\S]*?<\\/Layer>/gi)];
+  const matches = [...capabilities.matchAll(/<Layer[^>]*>[\s\S]*?<Name>([^<]+)<\/Name>[\s\S]*?<Title>([^<]+)<\/Title>[\s\S]*?<\/Layer>/gi)];
   for (const match of matches) {
     const name = match[1].trim();
     const title = match[2].trim().toLowerCase();
@@ -67,11 +67,11 @@ async function queryWmsTheme(
 }
 
 function cleanAttributeResponse(value: string): string {
-  return value.replace(/\\s+/g, ' ').trim().slice(0, 1600);
+  return value.replace(/\s+/g, ' ').trim().slice(0, 1600);
 }
 
 function groundwaterDepthClass(text: string): string | null {
-  const match = text.match(/(?:tiefenstufe|grundwasserflurabstand|grundwasseroberfläche)[^\\n:]*[:=]\\s*([^\\n]+)/i);
+  const match = text.match(/(?:tiefenstufe|grundwasserflurabstand|grundwasseroberfläche)[^\n:]*[:=]\s*([^\n]+)/i);
   return match?.[1]?.trim() || null;
 }
 
