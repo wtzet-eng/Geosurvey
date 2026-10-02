@@ -29,6 +29,7 @@ import { queryHungaryCadastre } from '../services/hungaryCadastreService';
 import { enrichHungaryGroundEvidence, queryHungaryGroundEvidence } from '../services/hungaryGroundEvidenceService';
 import { queryHungaryWaterEvidence } from '../services/hungaryWaterEvidenceService';
 import { queryBulgariaGroundEvidence } from '../services/bulgariaGroundEvidenceService';
+import { queryBulgariaUrbanGeology } from '../services/bulgariaUrbanGeologyService';
 
 export interface AnalysisInput {
   lat: number;
@@ -67,7 +68,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'HU' ? queryHungaryCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'HU' ? queryHungaryGroundEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HU' ? queryHungaryWaterEvidence(lat, lng) : Promise.resolve(null),
-    countryCode === 'BG' ? queryBulgariaGroundEvidence(lat, lng) : Promise.resolve(null)
+    countryCode === 'BG' ? queryBulgariaGroundEvidence(lat, lng) : Promise.resolve(null),
+    countryCode === 'BG' ? queryBulgariaUrbanGeology(lat, lng) : Promise.resolve([])
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
@@ -82,6 +84,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   }
   if (countryCode === 'BG' && bulgariaGroundEvidence) {
     evidenceRegistry.push(...bulgariaGroundEvidence.evidence);
+  }
+  if (countryCode === 'BG' && bulgariaUrbanGeology) {
+    evidenceRegistry.push(...bulgariaUrbanGeology);
   }
   if (countryCode === 'HU') {
     // The HUGEO point query provides verified regional geology context without implying parcel-scale engineering conclusions.
