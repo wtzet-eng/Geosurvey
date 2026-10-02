@@ -297,9 +297,15 @@ test('country support maturity exposes calibrated valuation and validated Europe
   assert.equal(hr.capabilities.nationalFlood, true);
   assert.equal(hr.capabilities.nationalCadastre, true); assert.equal(hr.capabilities.nationalGeology, true);
   assert.equal(hr.capabilities.nationalPlanning, false); assert.equal(hr.capabilities.nationalValuation, false);
-  for (const code of ['IT', 'RO', 'GR', 'LT', 'BG', 'IS', 'EU', 'XX']) {
+  for (const code of ['IT', 'RO', 'GR', 'LT', 'BG', 'EU', 'XX']) {
     const support = getCountrySupport(code); assert.equal(support.maturity, 'LIMITED'); assert.ok(Object.values(support.capabilities).every(value => value === false), code);
   }
+  const is = getCountrySupport('IS');
+  assert.equal(is.maturity, 'LIMITED');
+  assert.equal(is.capabilities.nationalCadastre, true);
+  assert.equal(is.capabilities.nationalGeology, true);
+  assert.equal(is.capabilities.nationalHydrogeology, true);
+  assert.equal(is.capabilities.nationalFlood, true);
 });
 
 test('Croatia limited national coverage stays below Robust despite verified geology and flood evidence', () => {
