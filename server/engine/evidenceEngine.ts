@@ -882,6 +882,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     ? `Niniejszy raport due diligence obejmuje ${siteLabel} o powierzchni ${areaSizeM2.toLocaleString()} m² w lokalizacji ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Wskaźnik jakości dowodów: ${totalScore}/100 (${ratingClass}). Teren: ${terrainSummary.replace('not available', 'brak danych')}. Gleba: ${soilSummary.replace('not available', 'brak danych')}. Dostęp drogowy: ${roadSummary.replace('not available', 'brak danych')}. Orientacyjna wycena statystyczna: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Wiążące parametry wymagają dokumentów planistycznych i badań terenowych.`
     : language === 'de'
     ? `Dieser Due-Diligence-Bericht untersucht den Standort ${siteLabel} mit einer Fläche von ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidenz-Qualitätsindex: ${totalScore}/100 (${ratingClass}). Gelände: ${terrainSummary.replace('not available', 'nicht verfügbar')}. Boden: ${soilSummary.replace('not available', 'nicht verfügbar')}. Straßenzugang: ${roadSummary.replace('not available', 'nicht verfügbar')}. Indikative statistische Bewertung: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Verbindliche Parameter erfordern amtliche Planungsunterlagen und Vor-Ort-Untersuchungen.`
+    : language === 'ro'
+    ? `Acest raport preliminar de verificare analizează ${siteLabel}, cu o suprafață de ${areaSizeM2.toLocaleString()} m², în ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Scorul calității dovezilor: ${totalScore}/100 (${ratingClass}). Teren: ${terrainSummary.replace('not available', 'nu este disponibil')}. Sol: ${soilSummary.replace('not available', 'nu este disponibil')}. Acces rutier: ${roadSummary.replace('not available', 'nu este disponibil')}. Parametrii obligatorii trebuie confirmați prin documente oficiale de urbanism și investigații la fața locului.`
     : language === 'hu'
     ? `Ez az előzetes helyszínvizsgálati jelentés egy ${siteLabel} területét (${areaSizeM2.toLocaleString()} m²) vizsgálja ${municipality || state || cProfile.countryName} területén (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). A bizonyítékok minőségi mutatója: ${totalScore}/100 (${ratingClass}). Terep: ${terrainSummary.replace('not available', 'nem érhető el')}. Talaj: ${soilSummary.replace('not available', 'nem érhető el')}. Közúti megközelítés: ${roadSummary.replace('not available', 'nem érhető el')}. A kötelező érvényű paramétereket hivatalos tervezési dokumentumokkal és helyszíni vizsgálatokkal kell megerősíteni.`
     : `This spatial due-diligence report assesses the ${siteLabel} with an area of ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidence Quality Score: ${totalScore}/100 (${ratingClass}). Terrain: ${terrainSummary}. Soil: ${soilSummary}. Road access: ${roadSummary}. Indicative statistical valuation: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Binding parameters require official planning documents and on-site investigations.`;
@@ -956,6 +958,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const isDe = language === 'de';
 
   const isHu = language === 'hu';
+  const isRo = language === 'ro';
   const statutoryDisclaimers = isPl ? [
     'STATUS I ZAKRES RAPORTU: To automatyczne opracowanie służy wyłącznie wstępnej analizie due diligence. Łączy otwarte dane przestrzenne i nie jest urzędowym zaświadczeniem ani dokumentem administracyjnym.',
     'NIE JEST TO OPERAT ANI URZĘDOWA WYCENA: Pokazane wartości, jeżeli są dostępne, mają charakter orientacyjny i statystyczny. Nie zastępują wyceny wykonanej przez uprawnionego rzeczoznawcę zgodnie z prawem właściwym dla lokalizacji nieruchomości.',
@@ -964,6 +967,14 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     'GRANICE I STAN PRAWNY: Dane mapowe nie zastępują potwierdzenia granic, tytułu prawnego, służebności, obciążeń ani praw osób trzecich we właściwych rejestrach.',
     'MEDIA I INFRASTRUKTURA: Obecność obiektu sieciowego na mapie nie potwierdza możliwości ani kosztu przyłączenia. Warunki należy uzyskać bezpośrednio od właściwych operatorów.',
     'OGRANICZENIE ODPOWIEDZIALNOŚCI: Raport jest narzędziem informacyjnym do analizy wstępnej. Decyzje inwestycyjne powinny opierać się na aktualnych dokumentach urzędowych i odpowiednich opiniach zawodowych.'
+  ] : isRo ? [
+    'STATUT ȘI DOMENIU: Această analiză automată este destinată exclusiv verificării preliminare și sintetizează date spațiale publice. Nu este un certificat administrativ oficial.',
+    'NU ESTE O EXPERTIZĂ TEHNICĂ SAU JURIDICĂ: Informațiile cartografice și modelate nu înlocuiesc investigațiile geotehnice, geologice, cadastrale sau juridice necesare pentru proiect.',
+    'CONDIȚIILE TERENULUI: Datele regionale și modelele de teren sunt informații de screening. Ele nu stabilesc capacitatea portantă, tasările sau nivelul de proiectare al apei subterane.',
+    'URBANISM ȘI CONSTRUIBILITATE: Utilizarea terenului și parametrii obligatorii de construire trebuie confirmați prin documentele de urbanism și de autoritatea competentă.',
+    'LIMITE ȘI SITUAȚIE JURIDICĂ: Geometria cartografică nu înlocuiește verificarea limitelor, proprietății, servituților și sarcinilor în registrele competente.',
+    'APĂ ȘI PERICOLE: Lipsa unui rezultat automat nu dovedește absența unui risc. Hărțile de inundații și datele hidrogeologice trebuie verificate la nivelul amplasamentului.',
+    'UTILIZARE: Raportul este un instrument de informare pentru analiza preliminară. Deciziile de investiție trebuie bazate pe documente oficiale actuale și consultanță profesională adecvată.'
   ] : isHu ? [
     'JELENTÉS ÁLLAPOTA ÉS TERJEDELME: Ez az automatizált helyszínvizsgálat kizárólag előzetes átvilágításra szolgál. Nyilvános téradatokat foglal össze, és nem hatósági igazolás.',
     'NEM JOGI VAGY MÉRNÖKI IGAZOLÁS: A térképes és modellezett információk nem helyettesítik a helyszíni geotechnikai, geológiai vagy jogi vizsgálatot.',
