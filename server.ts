@@ -82,6 +82,7 @@ import { renderCountrySeoPage } from './server/seo/renderCountrySeoPage';
 import { queryHungaryCadastre } from './server/services/hungaryCadastreService';
 import { queryCyprusCadastre } from './server/services/cyprusCadastreService';
 import { queryIcelandCadastre } from './server/services/icelandCadastreService';
+import { investigateUkBgsSources } from './server/services/ukBgsSourceInvestigationService';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -1172,6 +1173,68 @@ app.get('/api/ai/status', (req, res) => {
     authRequired: !config.allowAnonymous,
     authConfigured
   });
+});
+
+app.post('/api/ai/investigate-uk-sources', async (req, res) => {
+  const diagnosticId = randomUUID();
+  const config = getAiInterpretationRuntimeConfig();
+  if (!config.configured) return res.status(503).json({ error: 'AI interpretation is not configured on this deployment.' });
+
+  let rateLimitKey = req.ip || 'anonymous';
+  if (!config.allowAnonymous) {
+    const auth = await verifyFirebaseAuthorization(req.headers.authorization);
+    if (!auth.ok) {
+      if (auth.reason === 'AUTH_NOT_CONFIGURED') return res.status(503).json({ error: 'Sign-in is not configured on this deployment.' });
+      if (auth.reason === 'USER_DISABLED') return res.status(403).json({ error: 'This user account cannot access AI interpretation.' });
+      return res.status(401).json({ error: 'Please sign in to use AI interpretation.' });
+    }
+    rateLimitKey = auth.user.uid;
+  }
+  if (!consumeAiRateLimit(rateLimitKey)) return res.status(429).json({ error: 'AI source investigation rate limit reached. Please try again shortly.' });
+
+  const report = req.body?.report;
+  if (!report?.report_data) return res.status(400).json({ error: 'A valid GroundSurf report is required.' });
+  if (String(report.country_code || report.countryCode || '').toUpperCase() !== 'GB') {
+    return res.status(400).json({ error: 'BGS source investigation is currently available only for the UK.' });
+  }
+
+  const lat = Number(report.latitude);
+  const lng = Number(report.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'The UK report does not contain valid coordinates.' });
+
+  try {
+    const investigation = await investigateUkBgsSources(lat, lng);
+    const enrichedReport = investigation.evidence.length
+      ? {
+          ...report,
+          report_data: {
+            ...report.report_data,
+            evidence_registry: [
+              ...(Array.isArray(report.report_data.evidence_registry) ? report.report_data.evidence_registry : []),
+              ...investigation.evidence
+            ]
+          }
+        }
+      : report;
+
+    const interpretation = await interpretSurveyLandEvidence(enrichedReport);
+    return res.json({
+      ...interpretation,
+      sourceInvestigation: {
+        success: investigation.success,
+        sourceCount: investigation.sourceCount,
+        records: investigation.records,
+        limitation: investigation.limitation
+      }
+    });
+  } catch (error: any) {
+    console.error(`[${diagnosticId}] UK BGS source investigation failed:`, error);
+    const message = String(error?.message || '');
+    if (/valid GroundSurf report|coordinates|UK report|BGS source investigation/i.test(message)) {
+      return res.status(400).json({ error: message });
+    }
+    return res.status(502).json({ error: 'UK BGS source investigation is temporarily unavailable.', diagnostic_id: diagnosticId });
+  }
 });
 
 app.post('/api/ai/interpret', async (req, res) => {
