@@ -55,3 +55,49 @@ test('Finland groundwater adapter returns a verification fallback when no ground
   assert.equal(result[0].status, 'REQUIRES_VERIFICATION');
   assert.equal(result[0].id, 'fi-gtk-groundwater-no-measurement');
 });
+test('Finland groundwater adapter ignores GTK missing-value and malformed-date rows', async () => {
+  const fetcher = async (input: RequestInfo | URL): Promise<Response> => {
+    const url = String(input);
+    if (url.includes('/MapServer/0/query?')) {
+      return new Response(JSON.stringify({
+        features: [
+          {
+            attributes: {
+              OBJECTID: 1,
+              TUTKIMUSTAPA: 'VP',
+              TUNNUS2: 'bad-nearby',
+              PAIVAYS: '16052014',
+              ALKUPERAINEN_DATA: [
+                'XY 6675056.430 25496482.180 11.820 16052014 bad-nearby',
+                '  -9999.99 19050014 12.42 5.42 1.00'
+              ].join('\\n')
+            },
+            geometry: { x: 24.9366, y: 60.1883 }
+          },
+          {
+            attributes: {
+              OBJECTID: 2,
+              TUTKIMUSTAPA: 'VP',
+              TUNNUS2: 'valid-nearby',
+              PAIVAYS: '16052014',
+              ALKUPERAINEN_DATA: [
+                'XY 6675056.430 25496482.180 11.820 16052014 valid-nearby',
+                '  9.40 16052014 12.42 5.42 1.00'
+              ].join('\\n')
+            },
+            geometry: { x: 24.95, y: 60.19 }
+          }
+        ]
+      }), { status: 200 });
+    }
+    throw new Error('Unexpected URL: ' + url);
+  };
+
+  const result = await queryFinlandGroundwater(60.17, 24.94, fetcher);
+  const groundwater = result.find(item => item.id === 'fi-gtk-groundwater-level');
+
+  assert.equal(groundwater?.status, 'VERIFIED');
+  assert.equal((groundwater?.value as any).monitoringPoint, 'valid-nearby');
+  assert.equal((groundwater?.value as any).groundwaterDepthM, 2.42);
+  assert.equal((groundwater?.value as any).measurementDate, '2014-05-16');
+});
