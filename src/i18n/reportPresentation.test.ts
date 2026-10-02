@@ -142,6 +142,11 @@ test('canonical enums and unavailable sentinels never leak into localized presen
     assert.equal(localizePresentationValue('Sandy Loam', language), expected);
   }
   assert.equal(localizePresentationValue('No data', 'hr'), 'Nema podataka');
+  assert.equal(localizePresentationValue('Hydrology proximity data is not available because the spatial query did not complete. No flood-risk classification has been inferred.', 'de'), 'Daten zur Nähe hydrologischer Elemente sind nicht verfügbar, weil die räumliche Abfrage nicht abgeschlossen wurde. Es wurde keine Hochwasserrisikoklassifizierung abgeleitet.');
+  assert.match(localizePresentationValue('The official Mecklenburg-Vorpommern Landesbohrdatenspeicher contains 30 borehole records within 1.5 km of the selected coordinate; the nearest records include Ig Pw 1/1991 — 200 m — 5 m depth — Baumaßnahme — 1991.', 'de'), /Der offizielle Landesbohrdatenspeicher Mecklenburg-Vorpommerns enthält 30 Bohrungsnachweise innerhalb von 1,5 km/);
+  assert.match(localizePresentationValue('The official Mecklenburg-Vorpommern hydrogeological map places the selected coordinate in a mapped groundwater-depth class of >5 - 10 m.', 'de'), /Grundwasserflurabstandsklasse/);
+  assert.match(localizePresentationValue('LUNG M-V groundwater-elevation contours for the uppermost aquifer indicate an interpolated groundwater elevation of approximately 17.8 m NHN at the selected site, between the 17 m and 18 m NHN contours (66 m and 19 m from the site). Compared with the modelled site elevation of 16.0 m NHN, the interpolated groundwater elevation is approximately 1.8 m above the modelled site surface; this triggers a high screening risk of very shallow groundwater and groundwater entering excavations.', 'de'), /17\.8 m NHN.*17 m.*18 m.*1\.8 m.*hohes Screening-Hinweis/s);
+  assert.equal(localizePresentationValue('Nearest adjacent groundwater-elevation contours: 17 m and 18 m NHN; site elevation 16.0 m NHN', 'de'), 'Nächstgelegene benachbarte Grundwasserhöhengleichen: 17 m und 18 m NHN; Geländehöhe am Standort 16.0 m NHN');
   assert.equal(localizePresentationValue('Holocene — sedimentary material', 'hr'), 'Holocen — sedimentni materijal');
   assert.equal(localizePresentationValue('Exact point', 'hr'), 'Točno na odabranoj točki');
   assert.equal(localizePresentationValue('Screened', 'hr'), 'Preliminarno provjereno');

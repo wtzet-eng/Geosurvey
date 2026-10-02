@@ -146,9 +146,63 @@ export function localizePresentationValue(value: unknown, language: string): str
   if (soilClaim && locale === 'es') return `Textura del suelo: ${localizePresentationValue(soilClaim[1], 'es')} (arena ${soilClaim[2]}%, limo ${soilClaim[3]}%, arcilla ${soilClaim[4]}%, densidad media ${soilClaim[5]} g/cm³, pH ${soilClaim[6]}) [MODELADO]`;
 
   if (/^Hydrology proximity data is not available because the spatial query did not complete/i.test(text)) {
+    if (locale === 'de') return 'Daten zur Nähe hydrologischer Elemente sind nicht verfügbar, weil die räumliche Abfrage nicht abgeschlossen wurde. Es wurde keine Hochwasserrisikoklassifizierung abgeleitet.';
     if (locale === 'pl') return 'Dane o bliskości elementów hydrologicznych są niedostępne, ponieważ zapytanie przestrzenne nie zostało ukończone. Nie wyprowadzono klasy ryzyka powodziowego.';
     if (locale === 'es') return 'Los datos de proximidad hidrológica no están disponibles porque la consulta espacial no se completó. No se dedujo ninguna clasificación de riesgo de inundación.';
   }
+
+  const mvBoreholes = text.match(/^The official Mecklenburg-Vorpommern Landesbohrdatenspeicher contains (\d+) borehole records? within 1\.5 km of the selected coordinate; the nearest records include (.+)\.$/i);
+  if (mvBoreholes && locale === 'de') {
+    return `Der offizielle Landesbohrdatenspeicher Mecklenburg-Vorpommerns enthält ${mvBoreholes[1]} Bohrungsnachweise innerhalb von 1,5 km um die ausgewählte Koordinate; die nächstgelegenen Nachweise umfassen ${mvBoreholes[2]}.`;
+  }
+
+  const mvGroundwaterDepth = text.match(/^The official Mecklenburg-Vorpommern hydrogeological map places the selected coordinate in a mapped groundwater-depth class of (.+)\.$/i);
+  if (mvGroundwaterDepth && locale === 'de') {
+    return `Die amtliche hydrogeologische Karte Mecklenburg-Vorpommerns ordnet die ausgewählte Koordinate einer kartierten Grundwasserflurabstandsklasse von ${mvGroundwaterDepth[1]} zu.`;
+  }
+
+  const mvGroundwaterDynamics = text.match(/^LUNG M-V groundwater-elevation contours for the uppermost aquifer indicate an interpolated groundwater elevation of approximately ([\d.,-]+) m NHN at the selected site, between the ([\d.,-]+) m and ([\d.,-]+) m NHN contours \(([\d.,-]+) m and ([\d.,-]+) m from the site\)\. Compared with the modelled site elevation of ([\d.,-]+) m NHN, (.+); this triggers a (high|moderate|lower) screening risk of very shallow groundwater and groundwater entering excavations\.$/i);
+  if (mvGroundwaterDynamics && locale === 'de') {
+    const risk = mvGroundwaterDynamics[8].toLowerCase() === 'high' ? 'hohes' : mvGroundwaterDynamics[8].toLowerCase() === 'moderate' ? 'mittleres' : 'geringeres';
+    const relation = mvGroundwaterDynamics[7]
+      .replace(/the interpolated groundwater elevation is approximately ([\d.,-]+) m above the modelled site surface/i, 'die interpolierte Grundwasserhöhe liegt etwa $1 m über der modellierten Geländehöhe')
+      .replace(/the interpolated groundwater elevation is approximately ([\d.,-]+) m below the modelled site surface/i, 'die interpolierte Grundwasserhöhe liegt etwa $1 m unter der modellierten Geländehöhe');
+    return `Die Grundwasserhöhengleichen des obersten Grundwasserleiters in Mecklenburg-Vorpommern ergeben für den Standort eine interpolierte Grundwasserhöhe von etwa ${mvGroundwaterDynamics[1]} m NHN, zwischen den Höhenlinien von ${mvGroundwaterDynamics[2]} m und ${mvGroundwaterDynamics[3]} m NHN (${mvGroundwaterDynamics[4]} m bzw. ${mvGroundwaterDynamics[5]} m vom Standort entfernt). Im Vergleich zur modellierten Geländehöhe von ${mvGroundwaterDynamics[6]} m NHN ${relation}; dies entspricht einem ${risk} Screening-Hinweis auf sehr oberflächennahes Grundwasser und möglichen Grundwassereintritt in Baugruben.`;
+  }
+
+  const mvGroundwaterSpatial = text.match(/^Nearest adjacent groundwater-elevation contours: ([\d.,-]+) m and ([\d.,-]+) m NHN; site elevation ([\d.,-]+) m NHN$/i);
+  if (mvGroundwaterSpatial && locale === 'de') {
+    return `Nächstgelegene benachbarte Grundwasserhöhengleichen: ${mvGroundwaterSpatial[1]} m und ${mvGroundwaterSpatial[2]} m NHN; Geländehöhe am Standort ${mvGroundwaterSpatial[3]} m NHN`;
+  }
+
+  const mvGroundwaterDepthSpatial = text.match(/^Selected coordinate queried against the LUNG M-V t7_flurabstand layer$/i);
+  if (mvGroundwaterDepthSpatial && locale === 'de') return 'Ausgewählte Koordinate gegen die LUNG-M-V-Ebene t7_flurabstand abgefragt.';
+
+  const mvBoreholeSpatial = text.match(/^(\d+) registered borehole observations within 1\.5 km; nearest ([\d.,-]+) m$/i);
+  if (mvBoreholeSpatial && locale === 'de') return `${mvBoreholeSpatial[1]} registrierte Bohrungsnachweise innerhalb von 1,5 km; nächster Nachweis ${mvBoreholeSpatial[2]} m entfernt`;
+
+  if (/^LUNG M-V WFS 1\.1\.0 bohrdaten query in EPSG:5650; straight-line distance from the selected coordinate; nearest records retained as contextual evidence$/i.test(text) && locale === 'de') {
+    return 'LUNG-M-V-WFS-Abfrage (1.1.0) des Datensatzes bohrdaten in EPSG:5650; Luftliniendistanz von der ausgewählten Koordinate; die nächstgelegenen Nachweise werden als Kontextdaten beibehalten.';
+  }
+
+  if (/^Nearby boreholes are contextual observations, not parcel-specific ground truth\./i.test(text) && locale === 'de') {
+    return 'Nahe Bohrungen sind kontextbezogene Beobachtungen und kein standortbezogener Nachweis für das Flurstück. Bohrtiefe, Profile und Stratigrafie unterscheiden sich je Bohrung; das Fehlen eines nahegelegenen Nachweises belegt nicht das Fehlen von Untergrundbedingungen. Ingenieurtechnische Kennwerte müssen durch eine standortbezogene Untersuchung bestimmt werden.';
+  }
+
+  const mvGroundwaterDepthMethod = text.match(/^WMS 1\.3\.0 GetFeatureInfo point query in EPSG:4326; returned groundwater-depth class parsed from the official layer$/i);
+  if (mvGroundwaterDepthMethod && locale === 'de') return 'WMS-1.3.0-GetFeatureInfo-Punktabfrage in EPSG:4326; die Grundwasserflurabstandsklasse wurde aus der amtlichen Ebene ausgelesen.';
+
+  if (/^Grundwasserflurabstand is a regional hydrogeological screening layer\./i.test(text) && locale === 'de') {
+    return 'Grundwasserflurabstand ist eine regionale hydrogeologische Screeningebene. LUNG definiert ihn bei unbedeckten Aquiferen als Abstand von der Grundwasseroberfläche zur Geländeoberfläche; bei bedeckten Aquiferen entspricht er dem Abstand von der Geländeoberfläche zur Untergrenze der überlagernden Deckschicht. Er ist keine Standortmessung und legt nicht den saisonal höchsten Grundwasserstand für die endgültige Gründungs- oder Abdichtungsplanung fest.';
+  }
+
+  if (/^450 m spatial query buffer around parcel$/i.test(text) && locale === 'de') return '450 m räumlicher Abfragepuffer um das Flurstück';
+
+  const hydroProximity = text.match(/^Proximity vector to nearest mapped open watercourse: ([\d.,-]+) m$/i);
+  if (hydroProximity && locale === 'de') return `Entfernung zum nächsten kartierten offenen Gewässer: ${hydroProximity[1]} m`;
+
+  if (/^Spatial distance transform to nearest mapped hydrology vectors$/i.test(text) && locale === 'de') return 'Räumliche Distanzberechnung zum nächsten kartierten Gewässerverlauf.';
+
   if (/^Nearest public road corridor unconfirmed in open dataset$/i.test(text)) {
     if (locale === 'pl') return 'Najbliższy korytarz drogi publicznej nie został potwierdzony w otwartym zbiorze danych.';
     if (locale === 'es') return 'No se confirmó el corredor viario público más cercano en el conjunto de datos abierto.';
