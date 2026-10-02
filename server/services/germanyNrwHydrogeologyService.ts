@@ -64,6 +64,31 @@ function findCollection(collections: any[], terms: string[]): any | null {
   }) || null;
 }
 
+function pointInRing(x: number, y: number, ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = Number(ring[i]?.[0]), yi = Number(ring[i]?.[1]);
+    const xj = Number(ring[j]?.[0]), yj = Number(ring[j]?.[1]);
+    if (![xi, yi, xj, yj].every(Number.isFinite)) continue;
+    const intersects = ((yi > y) !== (yj > y)) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInGeometry(x: number, y: number, geometry: any): boolean {
+  if (!geometry || typeof geometry !== 'object') return false;
+  if (geometry.type === 'Polygon') {
+    const rings = Array.isArray(geometry.coordinates) ? geometry.coordinates : [];
+    return Array.isArray(rings[0]) && pointInRing(x, y, rings[0]);
+  }
+  if (geometry.type === 'MultiPolygon') {
+    const polygons = Array.isArray(geometry.coordinates) ? geometry.coordinates : [];
+    return polygons.some((polygon: any) => Array.isArray(polygon?.[0]) && pointInRing(x, y, polygon[0]));
+  }
+  return false;
+}
+
 function summarizeProperties(properties: Record<string, unknown> | undefined): string {
   if (!properties) return '';
   return Object.entries(properties)
@@ -99,7 +124,8 @@ async function queryCollection(
   if (!response.ok || !response.data) return { feature: null, url };
 
   const features = Array.isArray(response.data.features) ? response.data.features : [];
-  return { feature: features[0] || null, url };
+  const containing = features.find((feature: any) => pointInGeometry(lng, lat, feature?.geometry));
+  return { feature: containing || null, url };
 }
 
 function buildEvidence(
@@ -123,8 +149,8 @@ function buildEvidence(
     sourceName: SOURCE,
     sourceUrl: url,
     datasetDate: today(),
-    spatialRelationship: 'Official HK100 feature returned within approximately 110 m of the selected coordinate',
-    calculationMethod: 'GD NRW OGC API Features spatial query against the official INSPIRE HK100 dataset using a small WGS84 bounding box around the selected coordinate',
+    spatialRelationship: 'Official HK100 polygon contains the selected coordinate',
+    calculationMethod: 'GD NRW OGC API Features spatial query against the official INSPIRE HK100 dataset using a small WGS84 bounding box followed by local point-in-polygon verification',
     confidence: 'Medium',
     limitation: 'HK100 is regional hydrogeological mapping. It describes the hydrogeological character of the upper groundwater system; it does not provide a site-specific groundwater depth, seasonal water level or excavation dewatering requirement.',
     value: {
