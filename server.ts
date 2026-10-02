@@ -33,6 +33,7 @@ import { enrichGermanyNationalHydrogeology, queryGermanyNationalHydrogeology } f
 import { enrichGermanyBavariaGroundwater, queryGermanyBavariaGroundwater } from './server/services/germanyBavariaGroundwaterService';
 import { enrichGermanyRlpGroundwater, queryGermanyRlpGroundwater } from './server/services/germanyRlpGroundwaterService';
 import { enrichGermanyNrwHydrogeology, queryGermanyNrwHydrogeology } from './server/services/germanyNrwHydrogeologyService';
+import { enrichGermanyBwHydrogeology, queryGermanyBwHydrogeology } from './server/services/germanyBadenWurttembergHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
@@ -597,6 +598,24 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             });
           }
         } catch (e) { console.warn(`[${diagnosticId}] NRW hydrogeology evidence notice:`, e); }
+      if (normalizedGermanState === 'baden-württemberg' || normalizedGermanState.includes('baden-württemberg') || normalizedGermanState.includes('baden-wuerttemberg')) {
+        stage = 'germany-baden-wurttemberg-hydrogeology';
+        try {
+          const bwHydrogeology = await queryGermanyBwHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanyBwHydrogeology(evidenceReport, bwHydrogeology);
+          const verified = bwHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'LGRB Baden-Württemberg — Hydrogeologie HK50')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'LGRB Baden-Württemberg — Hydrogeologie HK50',
+              organization: 'Landesamt für Geologie, Rohstoffe und Bergbau Baden-Württemberg',
+              url: 'https://services.lgrb-bw.de/ms/lgrb_geola_hyd?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Baden-Württemberg hydrogeology evidence notice:`, e); }
+      }
       }
     }
 
