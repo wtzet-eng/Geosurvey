@@ -34,6 +34,7 @@ import { queryRomaniaCadastre, romaniaGroundEvidence } from '../services/romania
 import { queryUkAgsBoreholes } from '../services/ukAgsEvidenceService';
 import { queryCyprusCadastre } from '../services/cyprusCadastreService';
 import { queryIcelandCadastre } from '../services/icelandCadastreService';
+import { albaniaGroundEvidence } from '../services/albaniaGroundEvidenceService';
 
 export interface AnalysisInput {
   lat: number;
@@ -101,6 +102,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   }
   if (countryCode === 'IS' && icelandCadastre) {
     evidenceRegistry.push(...icelandCadastre.evidence);
+  }
+  if (countryCode === 'AL') {
+    evidenceRegistry.push(...albaniaGroundEvidence().evidence);
   }
   if (countryCode === 'CY' && cyprusCadastre) {
     evidenceRegistry.push(...cyprusCadastre.evidence);
