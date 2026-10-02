@@ -143,6 +143,7 @@ function supportRecord(id: string, claim: string, sourceName: string, sourceUrl?
 
 function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdapterProfile, support: CountrySupportProfile): EvidenceItem[] {
   const c = support.capabilities;
+  const germanyStateFloodIntegrated = support.countryCode === 'DE' && report.evidenceRegistry.some(record => /^de-mv-flood-/.test(record.id));
   const modelledValuationAvailable = hasModelledValuation(report, support);
   const filtered = report.evidenceRegistry.flatMap(record => {
     if (support.countryCode === 'DE' && record.id.startsWith('de-mv-')) return [record];
@@ -180,7 +181,7 @@ function visibleEvidenceRecords(report: VerifiedSiteReport, profile: CountryAdap
   const notices: EvidenceItem[] = [];
   if (!c.nationalCadastre) notices.push(supportRecord('country-support-cadastre', 'Automated national cadastre acquisition is not implemented for this country.', profile.cadastreAuthority, profile.cadastrePortalUrl));
   if (!c.nationalGeology || !c.nationalBoreholes || !c.nationalHydrogeology) notices.push(supportRecord('country-support-geoscience', 'One or more national geology, borehole or hydrogeology integrations are not implemented for this country.', profile.geologyAuthority, profile.geologyPortalUrl));
-  if (!c.nationalFlood || !c.nationalRadon || !c.nationalMining) notices.push(supportRecord('country-support-hazards', 'One or more national flood, radon or mining-hazard integrations are not implemented for this country.', profile.floodAuthority, profile.floodPortalUrl));
+  if ((!c.nationalFlood && !germanyStateFloodIntegrated) || !c.nationalRadon || !c.nationalMining) notices.push(supportRecord('country-support-hazards', 'One or more national flood, radon or mining-hazard integrations are not implemented for this country.', profile.floodAuthority, profile.floodPortalUrl));
   if (!c.nationalPlanning) notices.push(supportRecord('country-support-planning', 'Automated binding planning acquisition is not implemented; the named planning instrument is verification guidance only.', profile.planningInstrumentName));
   if (!c.nationalValuation && !modelledValuationAvailable) notices.push(supportRecord('country-support-valuation', 'No implemented national transaction or valuation acquisition supports an automated site value conclusion.', profile.valuationDataSource));
   return [...filtered, ...notices];
@@ -200,6 +201,7 @@ function visibleSourceRecords(report: VerifiedSiteReport, support: CountrySuppor
 function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountrySupportProfile, evidenceRecords: EvidenceItem[], geologyVerified: boolean): CanonicalEvidenceScore {
   const raw = report.evidenceScore.breakdown;
   const c = support.capabilities;
+  const germanyStateFloodIntegrated = support.countryCode === 'DE' && evidenceRecords.some(record => /^de-mv-flood-/.test(record.id));
   const breakdown: CanonicalEvidenceScore['breakdown'] = {
     cadastreAndGeometry: c.nationalCadastre
       ? { ...raw.cadastreAndGeometry, max: 20 }
@@ -209,7 +211,9 @@ function supportAwareEvidenceScore(report: VerifiedSiteReport, support: CountryS
       ? { ...raw.geologyAndGroundwater, score: Math.max(raw.geologyAndGroundwater.score, 18), max: 20, rationale: raw.geologyAndGroundwater.score >= 18 ? raw.geologyAndGroundwater.rationale : 'Verified national mapped geology is available at the selected site. It is credited as screening evidence without treating mapped geology as parcel-specific geotechnical design data.' }
       : { ...raw.geologyAndGroundwater, max: 20 },
     infrastructureAndAccess: { ...raw.infrastructureAndAccess, max: 15 },
-    environmentalAndFlood: { ...raw.environmentalAndFlood, max: 15, rationale: c.nationalFlood ? raw.environmentalAndFlood.rationale : 'Cross-border environmental and hydrology context only; unsupported national flood mapping is excluded from the evidence claim.' },
+    environmentalAndFlood: c.nationalFlood || germanyStateFloodIntegrated
+      ? { ...raw.environmentalAndFlood, max: 15, rationale: germanyStateFloodIntegrated && !c.nationalFlood ? raw.environmentalAndFlood.rationale || 'State-specific official German flood-hazard mapping was queried for the integrated Mecklenburg-Vorpommern layer; returned flood polygons remain explicit evidence even when no polygon contains the selected coordinate.' : raw.environmentalAndFlood.rationale }
+      : { ...raw.environmentalAndFlood, max: 15, rationale: 'Cross-border environmental and hydrology context only; unsupported national flood mapping is excluded from the evidence claim.' },
     planningAndMarket: c.nationalPlanning || c.nationalValuation
       ? { ...raw.planningAndMarket, max: 10 }
       : { score: 0, max: 0, rationale: hasModelledValuation(report, support)
@@ -410,6 +414,8 @@ export function createCanonicalReport(report: VerifiedSiteReport, profile: Count
     },
     flood: countryLocationMismatch
       ? { classification: null, status: 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: mismatchSourceName, reasonCode: 'AUTHORITATIVE_DATA_REQUIRED' }
+      : (support.countryCode === 'DE' && report.evidenceRegistry.some(record => /^de-mv-flood-/.test(record.id)))
+      ? { classification: null, status: report.evidenceRegistry.some(record => /^de-mv-flood-/.test(record.id) && record.status === 'VERIFIED') ? 'VERIFIED' : 'REQUIRES_VERIFICATION', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: 'WasserBLIcK / BfG & Länder flood-hazard mapping', reasonCode: report.evidenceRegistry.some(record => /^de-mv-flood-/.test(record.id) && record.status === 'VERIFIED') ? undefined : evidenceReason(report, /de-mv-flood|flood/i) || 'AUTHORITATIVE_DATA_REQUIRED' }
       : c.nationalFlood
       ? (report.terrain.floodInundationRisk.status === 'VERIFIED' && riskCode(report.terrain.floodInundationRisk.level))
         ? { classification: riskCode(report.terrain.floodInundationRisk.level), status: 'VERIFIED', distanceToWaterwayM: finite(report.terrain.floodInundationRisk.distanceToWaterwayM), sourceName: report.terrain.floodInundationRisk.sourceName, reasonCode: undefined }
