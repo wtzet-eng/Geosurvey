@@ -35,6 +35,7 @@ import { enrichGermanyRlpGroundwater, queryGermanyRlpGroundwater } from './serve
 import { enrichGermanyNrwHydrogeology, queryGermanyNrwHydrogeology } from './server/services/germanyNrwHydrogeologyService';
 import { enrichGermanyBwHydrogeology, queryGermanyBwHydrogeology } from './server/services/germanyBadenWurttembergHydrogeologyService';
 import { enrichGermanyBrandenburgHydrogeology, queryGermanyBrandenburgHydrogeology } from './server/services/germanyBrandenburgHydrogeologyService';
+import { enrichGermanySaxonyHydrogeology, queryGermanySaxonyHydrogeology } from './server/services/germanySaxonyHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
@@ -648,7 +649,26 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
               url: 'https://inspire.brandenburg.de/services/hgk_wms?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0',
               type: 'Regional Hydrogeological Survey',
               status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            })
+      if (normalizedGermanState === 'sachsen' || normalizedGermanState === 'saxony' || normalizedGermanState.includes('sachsen')) {
+        stage = 'germany-saxony-hydrogeology';
+        try {
+          const snHydrogeology = await queryGermanySaxonyHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanySaxonyHydrogeology(evidenceReport, snHydrogeology);
+          const verified = snHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'LfULG Sachsen — Hydrogeologie / Grundwasserdynamik')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'LfULG Sachsen — Hydrogeologie / Grundwasserdynamik',
+              organization: 'Sächsisches Landesamt für Umwelt, Landwirtschaft und Geologie',
+              url: 'https://luis.sachsen.de/wasser/gw/grundwasserdynamik-2022.html',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
             });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Saxony hydrogeology evidence notice:`, e); }
+      }
+;
           }
         } catch (e) { console.warn(`[${diagnosticId}] Brandenburg hydrogeology evidence notice:`, e); }
       }
