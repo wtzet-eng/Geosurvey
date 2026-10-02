@@ -852,6 +852,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     ? `Niniejszy raport due diligence obejmuje ${siteLabel} o powierzchni ${areaSizeM2.toLocaleString()} m² w lokalizacji ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Wskaźnik jakości dowodów: ${totalScore}/100 (${ratingClass}). Teren: ${terrainSummary.replace('not available', 'brak danych')}. Gleba: ${soilSummary.replace('not available', 'brak danych')}. Dostęp drogowy: ${roadSummary.replace('not available', 'brak danych')}. Orientacyjna wycena statystyczna: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Wiążące parametry wymagają dokumentów planistycznych i badań terenowych.`
     : language === 'de'
     ? `Dieser Due-Diligence-Bericht untersucht den Standort ${siteLabel} mit einer Fläche von ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidenz-Qualitätsindex: ${totalScore}/100 (${ratingClass}). Gelände: ${terrainSummary.replace('not available', 'nicht verfügbar')}. Boden: ${soilSummary.replace('not available', 'nicht verfügbar')}. Straßenzugang: ${roadSummary.replace('not available', 'nicht verfügbar')}. Indikative statistische Bewertung: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Verbindliche Parameter erfordern amtliche Planungsunterlagen und Vor-Ort-Untersuchungen.`
+    : language === 'hu'
+    ? `Ez az előzetes helyszínvizsgálati jelentés egy ${siteLabel} területét (${areaSizeM2.toLocaleString()} m²) vizsgálja ${municipality || state || cProfile.countryName} területén (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). A bizonyítékok minőségi mutatója: ${totalScore}/100 (${ratingClass}). Terep: ${terrainSummary.replace('not available', 'nem érhető el')}. Talaj: ${soilSummary.replace('not available', 'nem érhető el')}. Közúti megközelítés: ${roadSummary.replace('not available', 'nem érhető el')}. A kötelező érvényű paramétereket hivatalos tervezési dokumentumokkal és helyszíni vizsgálatokkal kell megerősíteni.`
     : `This spatial due-diligence report assesses the ${siteLabel} with an area of ${areaSizeM2.toLocaleString()} m² in ${municipality || state || cProfile.countryName} (${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E). Evidence Quality Score: ${totalScore}/100 (${ratingClass}). Terrain: ${terrainSummary}. Soil: ${soilSummary}. Road access: ${roadSummary}. Indicative statistical valuation: ${totalMin.toLocaleString()}–${totalMax.toLocaleString()} ${cProfile.symbol}. Binding parameters require official planning documents and on-site investigations.`;
 
   const dataSourcesCited = [
@@ -905,10 +907,18 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       status: 'MODELLED' as const
     }
   ];
+  if (countryCode === 'HU') {
+    dataSourcesCited.push(
+      { name: 'SZTFH / HUGEO — Hungary geological map 1:100,000', organization: 'Szabályozott Tevékenységek Felügyeleti Hatósága — Földtani Szolgálat', url: 'https://map.hugeo.hu/arcgis/services/fdt100/fdt_100/MapServer/WMSServer', type: 'Geological Survey' as const, status: soilInfo.status },
+      { name: 'SZTFH / HUGEO — drilling point WFS', organization: 'Szabályozott Tevékenységek Felügyeleti Hatósága — Földtani Szolgálat', url: 'https://map.hugeo.hu/arcgis/services/furas/map_frs_fdt_web_mercator/MapServer/WFSServer', type: 'Geological Survey' as const, status: evidenceRegistry.some(item => item.id === 'hu-hugeo-borehole-context' && item.status === 'VERIFIED') ? 'VERIFIED' as const : 'REQUIRES_VERIFICATION' as const },
+      { name: 'Lechner Tudásközpont — INSPIRE cadastral parcels', organization: 'Lechner Tudásközpont', url: 'https://inspire.lechnerkozpont.hu/geoserver/CP/ows', type: 'Official National Cadastre' as const, status: parcelInfo.status }
+    );
+  }
 
   const isPl = language === 'pl';
   const isDe = language === 'de';
 
+  const isHu = language === 'hu';
   const statutoryDisclaimers = isPl ? [
     'STATUS I ZAKRES RAPORTU: To automatyczne opracowanie służy wyłącznie wstępnej analizie due diligence. Łączy otwarte dane przestrzenne i nie jest urzędowym zaświadczeniem ani dokumentem administracyjnym.',
     'NIE JEST TO OPERAT ANI URZĘDOWA WYCENA: Pokazane wartości, jeżeli są dostępne, mają charakter orientacyjny i statystyczny. Nie zastępują wyceny wykonanej przez uprawnionego rzeczoznawcę zgodnie z prawem właściwym dla lokalizacji nieruchomości.',
@@ -917,6 +927,15 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     'GRANICE I STAN PRAWNY: Dane mapowe nie zastępują potwierdzenia granic, tytułu prawnego, służebności, obciążeń ani praw osób trzecich we właściwych rejestrach.',
     'MEDIA I INFRASTRUKTURA: Obecność obiektu sieciowego na mapie nie potwierdza możliwości ani kosztu przyłączenia. Warunki należy uzyskać bezpośrednio od właściwych operatorów.',
     'OGRANICZENIE ODPOWIEDZIALNOŚCI: Raport jest narzędziem informacyjnym do analizy wstępnej. Decyzje inwestycyjne powinny opierać się na aktualnych dokumentach urzędowych i odpowiednich opiniach zawodowych.'
+  ] : isHu ? [
+    'JELENTÉS ÁLLAPOTA ÉS TERJEDELME: Ez az automatizált helyszínvizsgálat kizárólag előzetes átvilágításra szolgál. Nyilvános téradatokat foglal össze, és nem hatósági igazolás.',
+    'NEM JOGI VAGY MÉRNÖKI IGAZOLÁS: A térképes és modellezett információk nem helyettesítik a helyszíni geotechnikai, geológiai vagy jogi vizsgálatot.',
+    'TALAJ ÉS FÖLDTANI KÖRÜLMÉNYEK: A HUGEO térképek és a környező fúrási adatok szűrési alapot adnak. Nem állapítják meg a teljes rétegsort, teherbírást, süllyedést vagy a tervezési talajvízszintet a telken.',
+    'TERVEZÉS ÉS BEÉPÍTHETŐSÉG: A kötelező területhasználati és építési feltételeket a hatályos hivatalos dokumentumok és az illetékes hatóság alapján kell megerősíteni.',
+    'TELEKHATÁROK ÉS JOGI HELYZET: A térképi geometria nem helyettesíti a jogilag hiteles telekhatár, tulajdonjog, szolgalmak és terhek ellenőrzését.',
+    'VÍZ, KÖRNYEZET ÉS VESZÉLYEK: Egy hiányzó vagy vissza nem adott adat nem bizonyítja az adott veszély vagy körülmény hiányát.',
+    'MEGBÍZHATÓSÁG: A beruházási döntéseket aktuális hivatalos adatokra és megfelelő szakmai vizsgálatokra kell alapozni.'
+  ] : [
   ] : isDe ? [
     'STATUS UND UMFANG: Diese automatisierte Standortanalyse dient ausschließlich der vorläufigen Due-Diligence-Prüfung. Sie fasst offene Geodaten zusammen und ist keine behördliche Bescheinigung.',
     'KEIN AMTLICHES ODER LIZENZIERTES WERTGUTACHTEN: Angezeigte Werte sind, soweit vorhanden, indikative statistische Orientierungswerte. Sie ersetzen keine Bewertung durch eine nach dem am Standort geltenden Recht qualifizierte Fachperson.',
@@ -956,6 +975,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   };
   if (countryCode === 'HR' && croatiaGroundwater) enrichCroatiaGroundwaterEvidence(report, croatiaGroundwater);
   if (countryCode === 'HR' && croatiaBrownfield) enrichCroatiaBrownfieldEvidence(report, croatiaBrownfield);
+  if (countryCode === 'HU' && hungaryGroundEvidence) enrichHungaryGroundEvidence(report, hungaryGroundEvidence);
   if (countryCode === 'GB' && bgsEvidence) report.geosurvey_context = {
     geological_unit_name: bgsEvidence.geology.unitName,
     lithology_type: bgsEvidence.geology.lithology,
