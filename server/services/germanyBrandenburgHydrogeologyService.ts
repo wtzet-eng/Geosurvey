@@ -201,6 +201,6 @@ export function enrichGermanyBrandenburgHydrogeology(
 
 export const GERMANY_BRANDENBURG_HYDROGEOLOGY_SOURCES = {
   wms: HGK_WMS,
-  capabilities: capabilitiesUrl,
+  capabilities: HGK_WMS + 'REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0',
   dataset: 'LBGR Brandenburg — Hydrogeologisches Kartenwerk 1:50 000 (HYK50)'
 };
