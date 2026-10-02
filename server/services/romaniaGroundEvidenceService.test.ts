@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { queryRomaniaCadastre, romaniaGroundEvidence } from './romaniaGroundEvidenceService';
 
 describe('romaniaGroundEvidenceService', () => {
@@ -11,17 +12,17 @@ describe('romaniaGroundEvidenceService', () => {
     };
     const fetcher = async () => new Response(JSON.stringify(data), { status: 200 });
     const result = await queryRomaniaCadastre(45.0005, 25.0005, fetcher as any);
-    expect(result.success).toBe(true);
-    expect(result.parcel?.parcelId).toBe('RO-123');
-    expect(result.parcel?.officialAreaM2).toBe(512.4);
-    expect(result.parcel?.geometryPoints?.length).toBe(5);
+    assert.equal(result.success, true);
+    assert.equal(result.parcel?.parcelId, 'RO-123');
+    assert.equal(result.parcel?.officialAreaM2, 512.4);
+    assert.equal(result.parcel?.geometryPoints?.length, 5);
   });
 
   it('includes national geology, hydrogeology, flood and urban-geology context', () => {
     const ids = romaniaGroundEvidence().map(e => e.id);
-    expect(ids).toContain('ro-igr-geology');
-    expect(ids).toContain('ro-igr-hydrogeology');
-    expect(ids).toContain('ro-flood-risk');
-    expect(ids).toContain('ro-urban-geology');
+    assert.equal(ids.includes('ro-igr-geology'), true);
+    assert.equal(ids.includes('ro-igr-hydrogeology'), true);
+    assert.equal(ids.includes('ro-flood-risk'), true);
+    assert.equal(ids.includes('ro-urban-geology'), true);
   });
 });
