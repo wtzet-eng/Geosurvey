@@ -212,17 +212,21 @@ export function enrichGermanyMvGroundEvidence(report: VerifiedSiteReport & Recor
   if (!Array.isArray(report.evidenceRegistry)) report.evidenceRegistry = [];
   report.evidenceRegistry.push(...result.evidence);
   const geology = result.evidence.find(item => item.id === 'de-mv-geology-gk50' && item.status === 'VERIFIED');
-  if (!geology) return;
-  const value = (geology.value || {}) as Record<string, unknown>;
+  const groundwater = result.evidence.find(item => item.id === 'de-mv-groundwater-depth' && item.status === 'VERIFIED');
+  if (!geology && !groundwater) return;
+  const value = (geology?.value || {}) as Record<string, unknown>;
+  const groundwaterValue = (groundwater?.value || {}) as Record<string, unknown>;
   report.geosurvey_context = {
     ...(report.geosurvey_context || {}),
     geological_unit_name: value.geologicalUnit || value.lithology || null,
     lithology_type: value.lithology || null,
     geological_period_era: value.geologicalAge || null,
     genetic_origin: value.geneticOrigin || null,
+    groundwater_depth_class: groundwaterValue.depthClass || null,
+    groundwater_depth_source: groundwater?.sourceName || null,
     survey_authority: GEO_SOURCE,
     source_name: GEO_SOURCE,
-    source_url: geology.sourceUrl,
+    source_url: geology?.sourceUrl || groundwater?.sourceUrl || null,
     evidence_level: 'VERIFIED'
   };
   if (report.evidenceScore?.breakdown?.geologyAndGroundwater) {
