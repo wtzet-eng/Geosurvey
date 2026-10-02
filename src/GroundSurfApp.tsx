@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, ChevronRight, CircleHelp, FileText, Globe2,
-  Layers3, Loader2, Map, Search, ShieldCheck, Sparkles, Phone,
+  Layers3, Loader2, Map, Search, ShieldCheck, Sparkles, Phone, Droplets,
   SquareArrowOutUpRight, Sun, Moon, Target
 } from 'lucide-react';
 import { MapPicker } from './components/MapPicker';
@@ -389,6 +389,27 @@ function categoryMatch(report: SiteReport, terms: readonly string[]) {
   });
 }
 
+function groundwaterSpotlightCopy(language: string) {
+  const locale = String(language || '').toLowerCase().split('-')[0];
+  const copy: Record<string, { title: string; ai: string; reading: string }> = {
+    en: { title: 'Groundwater level', ai: 'AI reading from the gathered evidence', reading: 'Reading groundwater evidence…' },
+    de: { title: 'Grundwasserstand', ai: 'KI-Auswertung der gesammelten Belege', reading: 'Grundwasserdaten werden ausgewertet…' },
+    pl: { title: 'Poziom wód gruntowych', ai: 'Interpretacja AI na podstawie zebranych danych', reading: 'Analizuję dane o wodach gruntowych…' },
+    cs: { title: 'Hladina podzemní vody', ai: 'Interpretace AI na základě shromážděných důkazů', reading: 'Vyhodnocuji údaje o podzemní vodě…' },
+    da: { title: 'Grundvandsspejl', ai: 'AI-fortolkning af de indsamlede oplysninger', reading: 'Analyserer grundvandsdata…' },
+    nl: { title: 'Grondwaterstand', ai: 'AI-interpretatie van de verzamelde gegevens', reading: 'Grondwatergegevens worden bekeken…' },
+    hr: { title: 'Razina podzemne vode', ai: 'AI interpretacija prikupljenih podataka', reading: 'Analiziram podatke o podzemnoj vodi…' },
+    es: { title: 'Nivel freático', ai: 'Interpretación de IA a partir de los datos reunidos', reading: 'Analizando los datos de agua subterránea…' },
+    fr: { title: 'Niveau de la nappe', ai: 'Interprétation IA à partir des données recueillies', reading: 'Analyse des données sur les eaux souterraines…' },
+    no: { title: 'Grunnvannsnivå', ai: 'KI-tolkning av de innsamlede dataene', reading: 'Analyserer grunnvannsdata…' },
+    fi: { title: 'Pohjaveden pinnan taso', ai: 'Tekoälyn tulkinta kerätyistä tiedoista', reading: 'Analysoidaan pohjavesitietoja…' },
+    sv: { title: 'Grundvattennivå', ai: 'AI-tolkning av de insamlade uppgifterna', reading: 'Analyserar grundvattenuppgifter…' },
+    hu: { title: 'Talajvízszint', ai: 'AI-értelmezés az összegyűjtött adatok alapján', reading: 'A talajvízadatok értékelése…' },
+    is: { title: 'Grunnvatnsstaða', ai: 'Gervigreindartúlkun á söfnuðum gögnum', reading: 'Grunnvatnsgögn eru metin…' }
+  };
+  return copy[locale] || copy.en;
+}
+
 function statusLabel(status: string, language = 'en') {
   const locale = String(language || '').toLowerCase().split('-')[0];
   if (locale === 'pl') {
@@ -498,6 +519,8 @@ export const GroundSurfApp: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [chat, setChat] = useState<ChatTurn[]>([]);
   const [asking, setAsking] = useState(false);
+  const [groundwaterSpotlight, setGroundwaterSpotlight] = useState<{ answer: string; evidenceIds: string[] } | null>(null);
+  const [groundwaterSpotlightLoading, setGroundwaterSpotlightLoading] = useState(false);
   const languageWasManuallySelected = React.useRef(false);
   const [error, setError] = useState('');
 
@@ -515,6 +538,69 @@ export const GroundSurfApp: React.FC = () => {
       })
       .catch(() => {});
   }, []);
+
+  React.useEffect(() => {
+    if (!report) {
+      setGroundwaterSpotlight(null);
+      setGroundwaterSpotlightLoading(false);
+      return;
+    }
+    const groundwaterEvidence = evidenceRecords(report).filter((record) => {
+      const haystack = [record.category, record.claim, record.sourceName, record.id].join(' ').toLowerCase();
+      return ['groundwater', 'grundwasser', 'hydrogeology', 'groundwater level', 'groundwater depth', 'flurabstand'].some(term => haystack.includes(term));
+    });
+    if (!groundwaterEvidence.length) {
+      setGroundwaterSpotlight(null);
+      setGroundwaterSpotlightLoading(false);
+      return;
+    }
+
+    const cacheKey = 'groundsurf_groundwater_ai_' + report.id + '_' + String(language || 'en').toLowerCase();
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cached?.answer && Array.isArray(cached.evidenceIds) && cached.evidenceIds.length) {
+        setGroundwaterSpotlight(cached);
+        setGroundwaterSpotlightLoading(false);
+        return;
+      }
+    } catch {}
+
+    let cancelled = false;
+    setGroundwaterSpotlight(null);
+    setGroundwaterSpotlightLoading(true);
+    const question = 'Using only the gathered evidence, give the groundwater level or groundwater depth for this site. When an explicit numeric level or depth is available, state it with units and say whether it is measured, modelled, or from a nearby observation. If both groundwater elevation and depth below ground are explicitly available, lead with depth below ground. Never calculate or invent a number. Keep the answer to one concise sentence and cite the supporting evidence IDs.';
+    apiFetch('/api/ai/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report, question, language })
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json().catch(() => null);
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        const validIds = Array.isArray(payload?.evidenceIds)
+          ? payload.evidenceIds.filter((id: any) => groundwaterEvidence.some((record) => record.id === id))
+          : [];
+        const answer = typeof payload?.answer === 'string' ? payload.answer.trim() : '';
+        if (answer && validIds.length) {
+          const next = { answer, evidenceIds: validIds };
+          setGroundwaterSpotlight(next);
+          try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
+        } else {
+          setGroundwaterSpotlight(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setGroundwaterSpotlight(null);
+      })
+      .finally(() => {
+        if (!cancelled) setGroundwaterSpotlightLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [report, language]);
 
   const currentCountry = EUROPEAN_COUNTRIES.find((c) => c.code === countryCode) || defaultCountry;
   const availableLanguages = getAvailableReportLanguages(countryCode, currentCountry.language);
@@ -859,6 +945,25 @@ export const GroundSurfApp: React.FC = () => {
                       </div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{evidenceRecords(report).length} {appUiCopy(language, 'itemsGathered')}</div>
                     </div>
+                    {(groundwaterSpotlightLoading || groundwaterSpotlight) && (
+                      <div className="mt-4 rounded-2xl border border-cyan-200/80 bg-cyan-50/70 px-4 py-4 dark:border-cyan-900/60 dark:bg-cyan-950/20">
+                        <div className="flex items-start gap-3">
+                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-cyan-700 shadow-sm dark:bg-[#19201c] dark:text-cyan-300">
+                            <Droplets className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{groundwaterSpotlightCopy(language).title}</div>
+                              <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{groundwaterSpotlightCopy(language).ai}</span>
+                            </div>
+                            <div className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                              {groundwaterSpotlight?.answer || groundwaterSpotlightCopy(language).reading}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {report.report_data.summary && (
                       <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{report.report_data.summary}</p>
                     )}
