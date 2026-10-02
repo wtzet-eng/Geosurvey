@@ -43,6 +43,7 @@ import { enrichGermanySchleswigHolsteinHydrogeology, queryGermanySchleswigHolste
 import { enrichGermanySaarlandHydrogeology, queryGermanySaarlandHydrogeology } from './server/services/germanySaarlandHydrogeologyService';
 import { enrichGermanyHamburgHydrogeology, queryGermanyHamburgHydrogeology } from './server/services/germanyHamburgHydrogeologyService';
 import { enrichGermanyBerlinHydrogeology, queryGermanyBerlinHydrogeology } from './server/services/germanyBerlinHydrogeologyService';
+import { enrichGermanyBremenHydrogeology, queryGermanyBremenHydrogeology } from './server/services/germanyBremenHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
@@ -745,6 +746,25 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             });
           }
         } catch (e) { console.warn(`[${diagnosticId}] Hesse hydrogeology evidence notice:`, e); }
+      }
+
+      if (normalizedGermanState === 'bremen') {
+        stage = 'germany-bremen-hydrogeology';
+        try {
+          const bremenHydrogeology = await queryGermanyBremenHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanyBremenHydrogeology(evidenceReport, bremenHydrogeology);
+          const verified = bremenHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'Geologischer Dienst Bremen / SUKW — Hydrogeologie und Grundwasser')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'Geologischer Dienst Bremen / SUKW — Hydrogeologie und Grundwasser',
+              organization: 'Freie Hansestadt Bremen — Senatorin für Umwelt, Klima und Wissenschaft / Geologischer Dienst Bremen',
+              url: 'https://www.umwelt.bremen.de/umwelt/hochwasser-und-kuestenschutz-quantitative-wasserwirtschaft/grundwasserstaende-2384530',
+              type: 'Groundwater Monitoring / Hydrogeology',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Bremen hydrogeology evidence notice:`, e); }
       }
 
       if (normalizedGermanState === 'berlin') {
