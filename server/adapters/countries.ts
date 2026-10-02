@@ -223,6 +223,15 @@ export const COUNTRY_ADAPTERS: Record<string, CountryAdapterProfile> = {
     standardSetbackRule: 'Determined by the applicable local physical plan and building regulations; requires official confirmation',
     baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
   },
+  CY: {
+    countryCode: 'CY', countryName: 'Cyprus', currency: 'EUR', symbol: '€',
+    cadastreAuthority: 'Cyprus Department of Lands and Surveys (DLS) / INSPIRE', cadastrePortalUrl: 'https://www.data.gov.cy/en/dataset/537',
+    geologyAuthority: 'Cyprus Geological Survey Department', geologyPortalUrl: 'https://www.moa.gov.cy/moa/gsd/gsd.nsf/index_en/index_en?OpenDocument',
+    floodAuthority: 'Cyprus Department of Environment / Water Development Department', floodPortalUrl: 'https://www.data.gov.cy/',
+    planningInstrumentName: 'Local development plan / planning-zone controls',
+    standardSetbackRule: 'Determined by the applicable local planning and building controls; requires official confirmation',
+    baseValuationPerSqm: 0, valuationDataSource: NO_GENERIC_VALUE
+  },
   MT: {
     countryCode: 'MT', countryName: 'Malta', currency: 'EUR', symbol: '€',
     cadastreAuthority: 'Malta Land Registry / Planning Authority — Parcels of Registered Land', cadastrePortalUrl: 'https://portal.data.gov.mt/dataset/parcels-of-registered-land',
