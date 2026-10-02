@@ -38,6 +38,7 @@ import { enrichGermanyBrandenburgHydrogeology, queryGermanyBrandenburgHydrogeolo
 import { enrichGermanySaxonyAnhaltHydrogeology, queryGermanySaxonyAnhaltHydrogeology } from './server/services/germanySaxonyAnhaltHydrogeologyService';
 import { enrichGermanySaxonyHydrogeology, queryGermanySaxonyHydrogeology } from './server/services/germanySaxonyHydrogeologyService';
 import { enrichGermanyThuringiaHydrogeology, queryGermanyThuringiaHydrogeology } from './server/services/germanyThuringiaHydrogeologyService';
+import { enrichGermanyHesseHydrogeology, queryGermanyHesseHydrogeology } from './server/services/germanyHesseHydrogeologyService';
 import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
@@ -721,6 +722,25 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             });
           }
         } catch (e) { console.warn(`[${diagnosticId}] Thuringia hydrogeology evidence notice:`, e); }
+      }
+
+      if (normalizedGermanState === 'hessen' || normalizedGermanState === 'hesse') {
+        stage = 'germany-hesse-hydrogeology';
+        try {
+          const heHydrogeology = await queryGermanyHesseHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanyHesseHydrogeology(evidenceReport, heHydrogeology);
+          const verified = heHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'HLNUG / BGR Hessen — Hydrogeologie und Grundwasser')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'HLNUG / BGR Hessen — Hydrogeologie und Grundwasser',
+              organization: 'Hessisches Landesamt für Naturschutz, Umwelt und Geologie / Bundesanstalt für Geowissenschaften und Rohstoffe',
+              url: 'https://www.hlnug.de/themen/wasser/grundwasser/grundwasserkarten',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Hesse hydrogeology evidence notice:`, e); }
       }
 
     const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
