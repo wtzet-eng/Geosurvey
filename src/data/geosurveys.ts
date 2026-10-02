@@ -126,6 +126,12 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
     description: '2021–2022 geological resurvey of the Maltese Islands at 1:10,000 with official WFS layers for geology, ground features, water and environmental screening.',
     datasets: ['Geological Map of the Maltese Islands 1:10,000 — bedrock', 'Superficial geology 1:10,000', 'Artificial / worked ground 1:10,000', 'Faults and solution-subsidence features 1:10,000', 'Flood Hazard and Flood Risk Areas — Floods Directive', 'Ground Water Body Malta / Groundwater Protection Zone', 'Parcels of Registered Land', 'Natura 2000 Sites', 'Digital Terrain Model 2018 — 1 m resolution (verification / future direct integration)']
   },
+  AL: {
+    countryCode: 'AL', countryName: 'Albania', authorityName: 'State Authority for Geospatial Information', acronym: 'ASIG',
+    officialPortalUrl: 'https://geoportal.asig.gov.al/en', mapViewerUrl: 'https://geoportal.asig.gov.al/map/', cadastrePortalUrl: 'https://geoportal.asig.gov.al/en/services?category=cadastral%20parcels', hazardPortalUrl: 'https://geoportal.asig.gov.al/en/node/1696',
+    description: 'ASIG national geospatial infrastructure with cadastral, geology, engineering geology, hydrogeology, soil, land-use and natural-risk themes',
+    datasets: ['Cadastral Parcels and Cadastral Buildings (ALBSCAD)', 'Geological maps 1:100,000 and 1:200,000', 'Engineering Geology thematic maps for 12 counties', 'Hydrogeology thematic maps', 'Geological Hazard thematic maps', 'Flood Risk Maps for the six main basins', 'Pedology, Land Cover and Land Use', 'Elevation and Hydrography']
+  },
   IS: {
     countryCode: 'IS', countryName: 'Iceland', authorityName: 'Iceland GeoSurvey / National Land Survey / HMS', acronym: 'ÍSOR / NLSI / HMS',
     officialPortalUrl: 'https://isor.is/en', mapViewerUrl: 'https://isor.is/en', cadastrePortalUrl: 'https://gatt.lmi.is/geonetwork/srv/search?keyword=Cadastral%20parcels', hazardPortalUrl: 'https://www.vedur.is/',
