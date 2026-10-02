@@ -71,7 +71,8 @@ const SUPPORT: Record<string, CountrySupportProfile> = {
   MT: { countryCode: 'MT', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
   HR: { countryCode: 'HR', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalHydrogeology: true, nationalFlood: true } },
   SI: { countryCode: 'SI', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true } },
-  UA: { countryCode: 'UA', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } }
+  UA: { countryCode: 'UA', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true, nationalHydrogeology: true } },
+  HU: { countryCode: 'HU', maturity: 'LIMITED', capabilities: { ...NONE, nationalCadastre: true, nationalGeology: true, nationalBoreholes: true } }
 };
 
 export function getCountrySupport(countryCode: string): CountrySupportProfile {
@@ -93,7 +94,8 @@ const labels = {
   es: { SUPPORTED: 'Compatible', LIMITED: 'Cobertura limitada' },
   uk: { SUPPORTED: 'Підтримується', LIMITED: 'Обмежене покриття' },
   fi: { SUPPORTED: 'Tuettu', LIMITED: 'Rajoitettu kattavuus' },
-  sl: { SUPPORTED: 'Podprto', LIMITED: 'Omejena pokritost' }
+  sl: { SUPPORTED: 'Podprto', LIMITED: 'Omejena pokritost' },
+  hu: { SUPPORTED: 'Támogatott', LIMITED: 'Korlátozott lefedettség' }
 } as const;
 
 const notices = {
@@ -137,6 +139,11 @@ const notices = {
     LIMITED: 'Omejena pokritost: za Slovenijo so vključeni uradni katastrski in geološki viri, druge nacionalne kategorije pa še zahtevajo uradno preverjanje.',
     PARTIAL: 'Omejena pokritost: vključeni so izbrani nacionalni viri, druge kategorije pa še zahtevajo uradno preverjanje. Poročilo uporablja tudi preverjene podatke o terenu, OpenStreetMap in SoilGrids, kjer so na voljo.'
   },
+  hu: {
+    SUPPORTED: 'A kiválasztott területeken nemzeti forrásintegrációk érhetők el. A nem támogatott kategóriákat továbbra is hivatalosan kell ellenőrizni.',
+    LIMITED: 'Korlátozott lefedettség: a magyar kataszteri, földtani és fúrási források közül csak a jelenleg automatizált rétegek jelennek meg. A nyilvános kataszteri WFS jelenleg Mesterszállás adatkészletét teszi elérhetővé, ezért országos automatikus telekazonosítást nem állítunk. A többi kategóriánál a hivatalos forrásokat kell ellenőrizni.',
+    PARTIAL: 'Korlátozott lefedettség: egyes magyar nemzeti források automatizáltan elérhetők, míg más kategóriákat továbbra is hivatalosan kell ellenőrizni. A jelentés a validált terepi, OpenStreetMap és SoilGrids adatokat is megtartja, ahol elérhetők.'
+  },
   fi: {
     SUPPORTED: 'Valituissa luokissa on käytettävissä kansallisia lähdeintegraatioita. Tukemattomat luokat on edelleen tarkistettava virallisista lähteistä.',
     LIMITED: 'Rajoitettu kattavuus: kansallisia kiinteistörekisteri-, geologia-, kaavoitus-, tulva- ja maan arvon lähteitä ei ole kaikilta osin automatisoitu tälle maalle. Raportti käyttää lisäksi validoituja rajat ylittäviä maasto-, OpenStreetMap- ja SoilGrids-aineistoja niiden ollessa saatavilla ja ohjaa viranomaislähteisiin tarkistusta varten.',
@@ -147,7 +154,7 @@ const notices = {
 type SupportLanguage = keyof typeof labels;
 const normalizeLanguage = (language: string): SupportLanguage => {
   const code = String(language || '').toLowerCase().split('-')[0];
-  return (['de', 'pl', 'sk', 'da', 'fr', 'es', 'fi', 'sl'] as SupportLanguage[]).includes(code as SupportLanguage) ? code as SupportLanguage : 'en';
+  return (['de', 'pl', 'sk', 'da', 'fr', 'es', 'fi', 'sl', 'hu'] as SupportLanguage[]).includes(code as SupportLanguage) ? code as SupportLanguage : 'en';
 };
 
 export function getCountrySupportLabel(countryCode: string, language = 'en'): string {
