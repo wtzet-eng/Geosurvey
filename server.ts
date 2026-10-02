@@ -50,6 +50,7 @@ import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeolo
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
+import { enrichLuxembourgGroundwater, queryLuxembourgGroundwater } from './server/services/luxembourgGroundwaterService';
 import { applyBelgiumCadastreToReport, queryBelgiumCadastre } from './server/services/belgiumCadastreService';
 import { enrichBelgiumNationalEvidence, queryBelgiumNationalEvidence } from './server/services/belgiumNationalEvidenceService';
 import { applySwitzerlandCadastreToReport, querySwitzerlandCadastre } from './server/services/switzerlandCadastreService';
@@ -1202,13 +1203,20 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     } else if (!countryLocationMismatch && countryCode === 'LU' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology || support.capabilities.nationalFlood || support.capabilities.nationalPlanning)) {
       stage = 'luxembourg-national-evidence';
       try { luxembourgNationalEvidence = await queryLuxembourgNationalEvidence(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Luxembourg national evidence notice:`, e); }
+      stage = 'luxembourg-groundwater';
+      let luxembourgGroundwater: any[] = [];
+      try { luxembourgGroundwater = await queryLuxembourgGroundwater(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] Luxembourg groundwater evidence notice:`, e); }
       stage = 'luxembourg-report-enrichment';
       if (luxembourgNationalEvidence.length) evidenceReport.evidenceRegistry.push(...luxembourgNationalEvidence);
+      if (luxembourgGroundwater.length) enrichLuxembourgGroundwater(evidenceReport, luxembourgGroundwater);
       try { enrichLuxembourgNationalEvidence(evidenceReport, luxembourgNationalEvidence); } catch (e) { console.warn(`[${diagnosticId}] Luxembourg evidence enrichment notice:`, e); }
+      const verifiedGroundwater = luxembourgGroundwater.some((item: any) => item.status === 'VERIFIED' && item.id === 'lu-geo-groundwater-level');
       const verifiedGround = luxembourgNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['lu-geo-geology', 'lu-geo-aquifer', 'lu-geo-groundwater-body', 'lu-geo-boreholes'].includes(item.id));
-      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+      if ((verifiedGround || verifiedGroundwater) && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
         evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
-        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'Luxembourg Geoportail returned official national geology, hydrogeology and/or borehole context. These sources are credited as screening evidence without inferring parcel engineering parameters.';
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = verifiedGroundwater
+          ? 'Luxembourg Geoportail returned an official recorded groundwater-level elevation from a nearby reference borehole. The observation is credited as vicinity evidence rather than a current parcel measurement.'
+          : 'Luxembourg Geoportail returned official national geology, hydrogeology and/or borehole context. These sources are credited as screening evidence without inferring parcel engineering parameters.';
       }
       const pagVerified = luxembourgNationalEvidence.some((item: any) => item.id === 'lu-pag-zoning' && item.status === 'VERIFIED');
       if (pagVerified && evidenceReport.evidenceScore?.breakdown?.planningAndMarket) {
@@ -1221,7 +1229,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
         evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'Official Luxembourg HQ100 and extreme-flood layers responded for a direct-overlap screen at the selected coordinate; this does not replace full-parcel or hydraulic review.';
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.type !== 'Geological Survey') : [];
-      evidenceReport.dataSourcesCited.push({ name: 'Geoportail Luxembourg — geology / groundwater / boreholes / PAG / flood zones', organization: 'Grand Duchy of Luxembourg public geodata authorities', url: 'https://map.geoportail.lu/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+      evidenceReport.dataSourcesCited.push({ name: 'Geoportail Luxembourg — geology / groundwater / boreholes / PAG / flood zones', organization: 'Grand Duchy of Luxembourg public geodata authorities', url: 'https://map.geoportail.lu/', type: 'Geological Survey', status: (verifiedGround || verifiedGroundwater) ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'BE' && support.capabilities.nationalGeology) {
       stage = 'belgium-national-evidence';
       try { belgiumNationalEvidence = await queryBelgiumNationalEvidence(lat, lng, { regionCode: resolvedRegionCode, state: stateName, county: countyName }); } catch (e) { console.warn(`[${diagnosticId}] Belgium regional evidence notice:`, e); }
