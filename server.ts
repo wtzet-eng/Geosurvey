@@ -76,6 +76,7 @@ import { applyLatviaCadastreToReport, queryLatviaCadastre } from './server/servi
 import { applyLatviaNationalEvidenceToReport, queryLatviaNationalEvidence } from './server/services/latviaNationalEvidenceService';
 import { applyEstoniaNationalEvidenceToReport, queryEstoniaNationalEvidence } from './server/services/estoniaNationalEvidenceService';
 import { enrichEstoniaUrbanEvidence, queryEstoniaUrbanGeology } from './server/services/estoniaUrbanGeologyService';
+import { renderCountrySeoPage } from './server/seo/renderCountrySeoPage';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -1277,6 +1278,11 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    app.get('/country/:countryCode/', (req, res) => {
+      const page = renderCountrySeoPage(String(req.params.countryCode || ''));
+      if (!page) return res.status(404).send('Not found');
+      res.type('html').send(page);
+    });
     app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
   app.listen(PORT, '0.0.0.0', () => console.log(`Geospatial Evidence Land Survey Server running on http://0.0.0.0:${PORT}`));
