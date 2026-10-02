@@ -5,6 +5,7 @@ export interface GermanyMvGroundEvidenceResult {
   evidence: EvidenceItem[];
   geologyFound: boolean;
   boreholeCount: number;
+  groundwaterDepthClassFound: boolean;
 }
 
 const GEOLOGY_WFS = 'https://www.umweltkarten.mv-regierung.de/script/mv_a7_geol_karten_wfs.php';
@@ -157,6 +158,21 @@ function parseBoreholes(xml: string, x: number, y: number) {
   }).sort((a, b) => a.distanceM - b.distanceM);
 }
 
+async function queryMvGroundwaterDepth(lat: number, lng: number, fetcher: typeof fetch): Promise<EvidenceItem> {
+  const service = 'https://www.umweltkarten.mv-regierung.de/script/mv_a7_hydrogeologie_wms.php';
+  const halfSpan = 0.002;
+  const bbox = [lat - halfSpan, lng - halfSpan, lat + halfSpan, lng + halfSpan].join(',');
+  const params = new URLSearchParams({ SERVICE: 'WMS', VERSION: '1.3.0', REQUEST: 'GetFeatureInfo', LAYERS: 't7_flurabstand', QUERY_LAYERS: 't7_flurabstand', INFO_FORMAT: 'text/plain', CRS: 'EPSG:4326', BBOX: bbox, WIDTH: '201', HEIGHT: '201', I: '100', J: '100', FEATURE_COUNT: '5' });
+  const url = service + '?' + params.toString();
+  const response = await fetchXml(url, fetcher);
+  if (!response.ok) return noData('de-mv-groundwater-depth-unavailable', 'The official Mecklenburg-Vorpommern groundwater-depth map could not be reached.', 'LUNG M-V — Hydrogeologische Karte / Grundwasserflurabstand', url, 'SOURCE_UNAVAILABLE');
+  const text = response.xml || '';
+  if (!text.trim() || /Search returned no results/i.test(text)) return noData('de-mv-groundwater-depth-no-data', 'The official Mecklenburg-Vorpommern groundwater-depth map returned no mapped class at the selected coordinate.', 'LUNG M-V — Hydrogeologische Karte / Grundwasserflurabstand', url, 'NO_DATA');
+  const match = text.match(/FLURABSTAN\\s*=\\s*'([^']+)'/i);
+  if (!match) return noData('de-mv-groundwater-depth-malformed', 'The official Mecklenburg-Vorpommern groundwater-depth service returned no usable depth class.', 'LUNG M-V — Hydrogeologische Karte / Grundwasserflurabstand', url, 'MALFORMED_DATA');
+  const depthClass = match[1].trim();
+  return { id: 'de-mv-groundwater-depth', category: 'Hydrogeology', claim: `The official Mecklenburg-Vorpommern hydrogeological map places the selected coordinate in a mapped groundwater-depth class of ${depthClass}.`, status: 'VERIFIED', sourceName: 'LUNG M-V — Hydrogeologische Karte / Grundwasserflurabstand', sourceUrl: url, datasetDate: today(), spatialRelationship: 'Selected coordinate queried against the LUNG M-V t7_flurabstand layer', calculationMethod: 'WMS 1.3.0 GetFeatureInfo point query in EPSG:4326; returned groundwater-depth class parsed from the official layer', confidence: 'Medium', limitation: 'Grundwasserflurabstand is a regional hydrogeological screening layer. LUNG defines it as the distance from groundwater surface to terrain for unconfined aquifers, but for covered aquifers it represents the distance from terrain to the lower boundary of the overlying confining layer. It is not a site measurement and does not establish the seasonal high groundwater level relevant to final foundation or waterproofing design.', value: { depthClass, layer: 't7_flurabstand' } };
+}
 async function queryMvBoreholes(lat: number, lng: number, fetcher: typeof fetch): Promise<EvidenceItem> {
   const [x, y] = toGermanyMvNative(lat, lng);
   const radius = 1500;
@@ -187,9 +203,9 @@ export async function queryGermanyMvGroundEvidence(lat: number, lng: number, sta
   if (!stateOk) {
     return { state: STATE, geologyFound: false, boreholeCount: 0, evidence: [] };
   }
-  const [geology, boreholes] = await Promise.all([queryMvGeology(lat, lng, fetcher), queryMvBoreholes(lat, lng, fetcher)]);
+  const [geology, boreholes, groundwaterDepth] = await Promise.all([queryMvGeology(lat, lng, fetcher), queryMvBoreholes(lat, lng, fetcher), queryMvGroundwaterDepth(lat, lng, fetcher)]);
   const boreholeCount = boreholes.status === 'VERIFIED' && typeof (boreholes.value as any)?.count === 'number' ? Number((boreholes.value as any).count) : 0;
-  return { state: STATE, geologyFound: geology.status === 'VERIFIED', boreholeCount, evidence: [geology, boreholes] };
+  return { state: STATE, geologyFound: geology.status === 'VERIFIED', boreholeCount, groundwaterDepthClassFound: groundwaterDepth.status === 'VERIFIED', evidence: [geology, boreholes, groundwaterDepth] };
 }
 
 export function enrichGermanyMvGroundEvidence(report: VerifiedSiteReport & Record<string, any>, result: GermanyMvGroundEvidenceResult): void {
@@ -218,5 +234,7 @@ export function enrichGermanyMvGroundEvidence(report: VerifiedSiteReport & Recor
 export const GERMANY_MV_SOURCES = {
   geologyWfs: GEOLOGY_WFS,
   boreholeWfs: BOREHOLE_WFS,
+  groundwaterWms: 'https://www.umweltkarten.mv-regierung.de/script/mv_a7_hydrogeologie_wms.php',
+  groundwaterDepthLayer: 't7_flurabstand',
   nativeCrs: NATIVE_CRS
 };
