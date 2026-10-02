@@ -48,7 +48,7 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
     countryCode: 'GB', countryName: 'United Kingdom', authorityName: 'British Geological Survey', acronym: 'BGS',
     officialPortalUrl: 'https://www.bgs.ac.uk', mapViewerUrl: 'https://mapapps2.bgs.ac.uk/geoindex/home.html', cadastrePortalUrl: 'https://www.gov.uk/search-property-information-service', hazardPortalUrl: 'https://check-long-term-flood-risk.service.gov.uk',
     description: 'BGS Geology 1:50 000 (GeoIndex) & Environment Agency Flood Data',
-    datasets: ['BGS GeoIndex Onshore – 1:50 000 Bedrock & Superficial Geology', 'BGS GeoSure – Ground Stability & Shrink-Swell Hazard Datasets', 'BGS National Borehole Record Archive', 'BGS AGS open site-investigation boreholes — spatial index and downloadable AGS records', 'Environment Agency – Risk of Flooding from Rivers and Sea (RoFRS)', 'HM Land Registry Price Paid Data (PPD)']
+    datasets: ['BGS GeoIndex Onshore – 1:50 000 Bedrock & Superficial Geology', 'BGS GeoSure – Ground Stability & Shrink-Swell Hazard Datasets', 'BGS National Borehole Record Archive', 'BGS AGS open site-investigation boreholes — spatial index and downloadable AGS records', 'BGS National Geotechnical Properties Database — site investigations, boreholes, samples and geotechnical tests', 'Environment Agency – Risk of Flooding from Rivers and Sea (RoFRS)', 'HM Land Registry Price Paid Data (PPD)']
   },
   ES: {
     countryCode: 'ES', countryName: 'Spain', authorityName: 'Instituto Geológico y Minero de España', acronym: 'IGME-CSIC',
@@ -130,7 +130,7 @@ export const EUROPEAN_GEOSURVEYS: Record<string, GeoSurveyRegistry> = {
     countryCode: 'EU', countryName: 'European Union', authorityName: 'EuroGeoSurveys – The Geological Surveys of Europe', acronym: 'EuroGeoSurveys / EGDI',
     officialPortalUrl: 'https://www.eurogeosurveys.org', mapViewerUrl: 'https://www.europe-geology.eu', cadastrePortalUrl: 'https://eurodatacube.com', hazardPortalUrl: 'https://emergency.copernicus.eu',
     description: 'European Geological Data Infrastructure (EGDI 1:1,000,000 Pan-European Map)',
-    datasets: ['EGDI Pan-European Geological Surface & Bedrock Map 1:1M', 'European Flood Awareness System (EFAS / Copernicus EMS)', 'European Environment Agency (EEA) Natura 2000 European Registry', 'European Seismic Hazard Model (ESHM20 / SHARE - Eurocode 8)']
+    datasets: ['EGDI Pan-European Geological Surface & Bedrock Map 1:1M', 'EGDI / EPOS European Borehole Index — basic borehole location, purpose, age and depth harvested from national geological-survey databases', 'European Flood Awareness System (EFAS / Copernicus EMS)', 'European Environment Agency (EEA) Natura 2000 European Registry', 'European Seismic Hazard Model (ESHM20 / SHARE - Eurocode 8)']
   }
 };
 
