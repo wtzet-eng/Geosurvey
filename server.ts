@@ -562,6 +562,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       } catch (e) { console.warn(`[${diagnosticId}] Mecklenburg-Vorpommern regional evidence notice:`, e); }
 
       const normalizedGermanState = String(stateName || '').trim().toLowerCase();
+
       if (normalizedGermanState === 'bayern' || normalizedGermanState === 'bavaria' || normalizedGermanState.includes('bayern')) {
         stage = 'germany-bavaria-groundwater';
         try {
@@ -574,6 +575,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: 'Bayerisches Landesamt für Umwelt — Hydrogeologie', organization: 'Bayerisches Landesamt für Umwelt (LfU)', url: 'https://www.lfu.bayern.de/gdi/wms/geologie/hk500?', type: 'Regional Hydrogeological Survey', status: modelled ? 'MODELLED' : verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
         } catch (e) { console.warn(`[${diagnosticId}] Bavaria groundwater evidence notice:`, e); }
       }
+
       if (normalizedGermanState === 'rheinland-pfalz' || normalizedGermanState === 'rhineland-palatinate' || normalizedGermanState.includes('rheinland-pfalz')) {
         stage = 'germany-rheinland-pfalz-groundwater';
         try {
@@ -585,6 +587,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited.push({ name: 'LGB — GWO-RLP 2025', organization: 'Landesamt für Geologie und Bergbau Rheinland-Pfalz', url: 'https://mapserver.lgb-rlp.de/cgi-bin/mc_gwo?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities', type: 'Regional Hydrogeological Survey', status: modelled ? 'MODELLED' : 'REQUIRES_VERIFICATION' });
         } catch (e) { console.warn(`[${diagnosticId}] Rheinland-Pfalz groundwater evidence notice:`, e); }
       }
+
       if (normalizedGermanState === 'nordrhein-westfalen' || normalizedGermanState === 'north rhine-westphalia' || normalizedGermanState.includes('nordrhein-westfalen')) {
         stage = 'germany-nrw-hydrogeology';
         try {
@@ -603,6 +606,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           }
         } catch (e) { console.warn(`[${diagnosticId}] NRW hydrogeology evidence notice:`, e); }
       }
+
       if (normalizedGermanState === 'baden-württemberg' || normalizedGermanState.includes('baden-württemberg') || normalizedGermanState.includes('baden-wuerttemberg')) {
         stage = 'germany-baden-wurttemberg-hydrogeology';
         try {
@@ -621,6 +625,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           }
         } catch (e) { console.warn(`[${diagnosticId}] Baden-Württemberg hydrogeology evidence notice:`, e); }
       }
+
       if (normalizedGermanState === 'niedersachsen' || normalizedGermanState === 'lower saxony' || normalizedGermanState.includes('niedersachsen')) {
         stage = 'germany-lower-saxony-hydrogeology';
         try {
@@ -635,7 +640,11 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
               url: 'https://nibis.lbeg.de/net3/public/ogc.ashx?NodeId=200&Service=WMS&Request=GetCapabilities&',
               type: 'Regional Hydrogeological Survey',
               status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
-            })
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Lower Saxony hydrogeology evidence notice:`, e); }
+      }
+
       if (normalizedGermanState === 'brandenburg' || normalizedGermanState.includes('brandenburg')) {
         stage = 'germany-brandenburg-hydrogeology';
         try {
@@ -650,22 +659,12 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
               url: 'https://inspire.brandenburg.de/services/hgk_wms?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0',
               type: 'Regional Hydrogeological Survey',
               status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
-            })
-      if (normalizedGermanState === 'sachsen' || normalizedGermanState === 'saxony' || normalizedGermanState.includes('sachsen')) {
-        stage = 'germany-saxony-hydrogeology';
-        try {
-          const snHydrogeology = await queryGermanySaxonyHydrogeology(lat, lng, stateName, fetch);
-          enrichGermanySaxonyHydrogeology(evidenceReport, snHydrogeology);
-          const verified = snHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
-          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
-          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'LfULG Sachsen — Hydrogeologie / Grundwasserdynamik')) {
-            evidenceReport.dataSourcesCited.push({
-              name: 'LfULG Sachsen — Hydrogeologie / Grundwasserdynamik',
-              organization: 'Sächsisches Landesamt für Umwelt, Landwirtschaft und Geologie',
-              url: 'https://luis.sachsen.de/wasser/gw/grundwasserdynamik-2022.html',
-              type: 'Regional Hydrogeological Survey',
-              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
-            })
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Brandenburg hydrogeology evidence notice:`, e); }
+      }
+
+      // Check Sachsen-Anhalt before Sachsen: "Sachsen-Anhalt" contains "Sachsen".
       if (normalizedGermanState === 'sachsen-anhalt' || normalizedGermanState === 'saxony-anhalt' || normalizedGermanState.includes('sachsen-anhalt')) {
         stage = 'germany-saxony-anhalt-hydrogeology';
         try {
@@ -684,19 +683,44 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           }
         } catch (e) { console.warn(`[${diagnosticId}] Saxony-Anhalt hydrogeology evidence notice:`, e); }
       }
-;
+
+      if (normalizedGermanState === 'sachsen' || normalizedGermanState === 'saxony') {
+        stage = 'germany-saxony-hydrogeology';
+        try {
+          const snHydrogeology = await queryGermanySaxonyHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanySaxonyHydrogeology(evidenceReport, snHydrogeology);
+          const verified = snHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'LfULG Sachsen — Hydrogeologie / Grundwasserdynamik')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'LfULG Sachsen — Hydrogeologie / Grundwasserdynamik',
+              organization: 'Sächsisches Landesamt für Umwelt, Landwirtschaft und Geologie',
+              url: 'https://luis.sachsen.de/wasser/gw/grundwasserdynamik-2022.html',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
           }
         } catch (e) { console.warn(`[${diagnosticId}] Saxony hydrogeology evidence notice:`, e); }
       }
-;
+
+      if (normalizedGermanState === 'thüringen' || normalizedGermanState === 'thueringen' || normalizedGermanState === 'thuringia') {
+        stage = 'germany-thuringia-hydrogeology';
+        try {
+          const thHydrogeology = await queryGermanyThuringiaHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanyThuringiaHydrogeology(evidenceReport, thHydrogeology);
+          const verified = thHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'TLUBN Thüringen — Hydrogeologie / Grundwasser')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'TLUBN Thüringen — Hydrogeologie / Grundwasser',
+              organization: 'Thüringer Landesamt für Umwelt, Bergbau und Naturschutz',
+              url: 'https://www.geoproxy.geoportal-th.de/geoproxy/services/hydrogeologie?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
           }
-        } catch (e) { console.warn(`[${diagnosticId}] Brandenburg hydrogeology evidence notice:`, e); }
+        } catch (e) { console.warn(`[${diagnosticId}] Thuringia hydrogeology evidence notice:`, e); }
       }
-;
-          }
-        } catch (e) { console.warn(`[${diagnosticId}] Lower Saxony hydrogeology evidence notice:`, e); }
-      }
-    }
 
     const samplingBoundary = evidenceReport.parcel?.isOfficialGeometry && evidenceReport.parcel?.geometryPoints?.length >= 3
       ? { type: 'polygon' as const, points: evidenceReport.parcel.geometryPoints }
