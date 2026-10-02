@@ -86,13 +86,13 @@ export async function queryFinlandNationalEvidence(lat: number, lng: number, mun
     ));
   }
 
-  const [bedrock, soil20k, acidSulphate, pressureSoundings, rockDrillings, groundwaterWells] = await Promise.all([
+  const [bedrock, soil20k, acidSulphate, pressureSoundings, rockDrillings, additionalGroundRecords] = await Promise.all([
     pointQuery(GTK_BEDROCK, 51, lat, lng, undefined, fetcher),
     pointQuery(GTK_SOIL, 46, lat, lng, undefined, fetcher),
     pointQuery(GTK_SOIL, 34, lat, lng, undefined, fetcher),
     pointQuery(GTK_GROUND, 1, lat, lng, 5000, fetcher),
     pointQuery(GTK_GROUND, 15, lat, lng, 5000, fetcher),
-    pointQuery(GTK_GROUND, 19, lat, lng, 5000, fetcher)
+    pointQuery(GTK_GROUND, 17, lat, lng, 5000, fetcher)
   ]);
 
   const b = bedrock[0]?.attributes || {};
@@ -169,16 +169,16 @@ export async function queryFinlandNationalEvidence(lat: number, lng: number, mun
   }
 
   const groundCount = pressureSoundings.length + rockDrillings.length;
-  if (groundCount || groundwaterWells.length) {
+  if (groundCount || additionalGroundRecords.length) {
     evidence.push(sourceEvidence(
       'fi-gtk-ground-investigations',
       'Ground investigations',
-      `GTK returned ${groundCount + groundwaterWells.length} nearby ground-investigation or groundwater records within approximately 5 km of the selected coordinate across pressure-sounding, rock-drilling and groundwater-well layers.`,
+      `GTK returned ${groundCount + additionalGroundRecords.length} nearby ground-investigation records within approximately 5 km of the selected coordinate across pressure-sounding, rock-drilling and groundwater-well layers.`,
       GTK_PORTAL,
       'Vicinity screening within approximately 5 km',
       'ArcGIS distance query against selected GTK ground-investigation layers',
       'Medium',
-      { pressureSoundings: pressureSoundings.length, rockDrillings: rockDrillings.length, groundwaterWells: groundwaterWells.length, searchRadiusM: 5000 },
+      { pressureSoundings: pressureSoundings.length, rockDrillings: rockDrillings.length, additionalGroundRecords: additionalGroundRecords.length, searchRadiusM: 5000 },
       'Nearby investigations are contextual observations and do not establish the conditions beneath the selected parcel. Individual logs should be reviewed where foundation or groundwater questions are material.'
     ));
   } else {
