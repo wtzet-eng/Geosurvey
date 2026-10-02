@@ -34,6 +34,7 @@ import { enrichGermanyBavariaGroundwater, queryGermanyBavariaGroundwater } from 
 import { enrichGermanyRlpGroundwater, queryGermanyRlpGroundwater } from './server/services/germanyRlpGroundwaterService';
 import { enrichGermanyNrwHydrogeology, queryGermanyNrwHydrogeology } from './server/services/germanyNrwHydrogeologyService';
 import { enrichGermanyBwHydrogeology, queryGermanyBwHydrogeology } from './server/services/germanyBadenWurttembergHydrogeologyService';
+import { enrichGermanyLowerSaxonyHydrogeology, queryGermanyLowerSaxonyHydrogeology } from './server/services/germanyLowerSaxonyHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
@@ -598,6 +599,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
             });
           }
         } catch (e) { console.warn(`[${diagnosticId}] NRW hydrogeology evidence notice:`, e); }
+      }
       if (normalizedGermanState === 'baden-württemberg' || normalizedGermanState.includes('baden-württemberg') || normalizedGermanState.includes('baden-wuerttemberg')) {
         stage = 'germany-baden-wurttemberg-hydrogeology';
         try {
@@ -616,6 +618,23 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           }
         } catch (e) { console.warn(`[${diagnosticId}] Baden-Württemberg hydrogeology evidence notice:`, e); }
       }
+      if (normalizedGermanState === 'niedersachsen' || normalizedGermanState === 'lower saxony' || normalizedGermanState.includes('niedersachsen')) {
+        stage = 'germany-lower-saxony-hydrogeology';
+        try {
+          const niHydrogeology = await queryGermanyLowerSaxonyHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanyLowerSaxonyHydrogeology(evidenceReport, niHydrogeology);
+          const verified = niHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'LBEG Niedersachsen — Hydrogeologie / HK50')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'LBEG Niedersachsen — Hydrogeologie / HK50',
+              organization: 'Landesamt für Bergbau, Energie und Geologie Niedersachsen',
+              url: 'https://nibis.lbeg.de/net3/public/ogc.ashx?NodeId=200&Service=WMS&Request=GetCapabilities&',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] Lower Saxony hydrogeology evidence notice:`, e); }
       }
     }
 
