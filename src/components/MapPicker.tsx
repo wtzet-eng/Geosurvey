@@ -81,6 +81,31 @@ const EUROPE_BOREHOLE_CONTEXT = {
   attribution: '© EGDI / EPOS — European Borehole Index'
 };
 
+const GROUNDSURF_COVERAGE_FLAGS: Array<{ code: string; name: string; lat: number; lng: number }> = [
+  { code: 'PT', name: 'Portugal', lat: 39.6, lng: -8.0 }, { code: 'ES', name: 'Spain', lat: 40.2, lng: -3.5 },
+  { code: 'FR', name: 'France', lat: 46.5, lng: 2.2 }, { code: 'IE', name: 'Ireland', lat: 53.3, lng: -8.0 },
+  { code: 'GB', name: 'United Kingdom', lat: 54.5, lng: -2.5 }, { code: 'BE', name: 'Belgium', lat: 50.8, lng: 4.5 },
+  { code: 'NL', name: 'Netherlands', lat: 52.2, lng: 5.3 }, { code: 'LU', name: 'Luxembourg', lat: 49.8, lng: 6.1 },
+  { code: 'DE', name: 'Germany', lat: 51.2, lng: 10.4 }, { code: 'DK', name: 'Denmark', lat: 56.1, lng: 9.4 },
+  { code: 'NO', name: 'Norway', lat: 64.2, lng: 11.0 }, { code: 'SE', name: 'Sweden', lat: 62.0, lng: 15.0 },
+  { code: 'FI', name: 'Finland', lat: 64.5, lng: 26.0 }, { code: 'IS', name: 'Iceland', lat: 64.9, lng: -18.6 },
+  { code: 'CH', name: 'Switzerland', lat: 46.8, lng: 8.2 }, { code: 'AT', name: 'Austria', lat: 47.6, lng: 14.1 },
+  { code: 'IT', name: 'Italy', lat: 42.8, lng: 12.5 }, { code: 'MT', name: 'Malta', lat: 35.9, lng: 14.4 },
+  { code: 'CZ', name: 'Czechia', lat: 49.8, lng: 15.5 }, { code: 'SK', name: 'Slovakia', lat: 48.7, lng: 19.5 },
+  { code: 'PL', name: 'Poland', lat: 52.1, lng: 19.2 }, { code: 'HU', name: 'Hungary', lat: 47.2, lng: 19.3 },
+  { code: 'HR', name: 'Croatia', lat: 45.2, lng: 15.5 }, { code: 'SI', name: 'Slovenia', lat: 46.1, lng: 14.9 },
+  { code: 'RO', name: 'Romania', lat: 45.9, lng: 24.9 }, { code: 'BG', name: 'Bulgaria', lat: 42.7, lng: 25.3 },
+  { code: 'GR', name: 'Greece', lat: 39.1, lng: 22.9 }, { code: 'EE', name: 'Estonia', lat: 58.6, lng: 25.5 },
+  { code: 'LV', name: 'Latvia', lat: 56.9, lng: 24.6 }, { code: 'LT', name: 'Lithuania', lat: 55.2, lng: 23.9 },
+  { code: 'CY', name: 'Cyprus', lat: 35.1, lng: 33.4 }, { code: 'UA', name: 'Ukraine', lat: 49.0, lng: 31.0 }
+];
+
+const countryFlag = (code: string): string => {
+  const normalized = String(code || '').toUpperCase();
+  if (normalized.length !== 2) return '🌍';
+  return String.fromCodePoint(...[...normalized].map(char => 127397 + char.charCodeAt(0)));
+};
+
 // Keep the site marker inside the selected cadastral parcel rather than at the
 // original search point, which can sit near a parcel edge and obscure controls.
 const getPolygonCentroid = (points: [number, number][]): L.LatLng => {
@@ -258,6 +283,19 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       minZoom: 5,
       maxZoom: 18
     }).addTo(map);
+
+    // Geographic coverage flags — separate from the search controls and property marker.
+    const coverageLayer = L.layerGroup().addTo(map);
+    GROUNDSURF_COVERAGE_FLAGS.forEach(({ code, name, lat, lng }) => {
+      const icon = L.divIcon({
+        className: 'groundsurf-coverage-flag',
+        html: '<div style="display:flex;align-items:center;gap:5px;padding:3px 7px;border-radius:999px;background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.12);box-shadow:0 2px 7px rgba(15,23,42,.16);font-size:16px;line-height:1;white-space:nowrap;"><span>' + countryFlag(code) + '</span><span style="font-size:10px;font-weight:700;color:#334155;letter-spacing:.02em;">GroundSurf</span></div>',
+        iconSize: [0, 0],
+        iconAnchor: [45, 14]
+      });
+      L.marker([lat, lng], { icon, interactive: true, keyboard: false, zIndexOffset: 200 }).addTo(coverageLayer)
+        .bindTooltip(name, { direction: 'top', offset: [0, -8], className: 'text-xs font-medium' });
+    });
 
     if (countryCode.toUpperCase() === 'PT') {
       L.tileLayer.wms(PORTUGAL_CADASTRAL_CONTEXT.viewServiceUrl, {
