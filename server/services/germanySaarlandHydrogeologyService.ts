@@ -7,8 +7,10 @@ export interface GermanySaarlandHydrogeologyResult {
   groundwaterMonitoringMapped: boolean;
 }
 
-const HYDRO_WMS = 'https://geoportal.saarland.de/geoserver/ows?';
-const SOURCE = 'LfU Saarland — Hydrogeologie / Grundwasser';
+const HUEK_WMS = 'https://services.bgr.de/wms/grundwasser/huek250_ogwl/?';
+const PROTECTION_WMS = 'https://services.bgr.de/wms/grundwasser/sgwu/?';
+const MONITORING_WFS = 'https://geoportal.saarland.de/arcgis/services/Internet/Wasser_WFS/MapServer/WFSServer?';
+const SOURCE = 'LUA Saarland / BGR — Hydrogeologie und Grundwasser';
 const STATE = 'Saarland' as const;
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -29,9 +31,9 @@ function findLayer(capabilities: string, terms: string[]): string | null {
   return null;
 }
 
-function infoUrl(layer: string, lat: number, lng: number): string {
+function infoUrl(base: string, layer: string, lat: number, lng: number): string {
   const d = 0.02;
-  return HYDRO_WMS + new URLSearchParams({
+  return base + new URLSearchParams({
     SERVICE: 'WMS', VERSION: '1.3.0', REQUEST: 'GetFeatureInfo',
     LAYERS: layer, QUERY_LAYERS: layer, INFO_FORMAT: 'text/plain',
     CRS: 'EPSG:4326',
@@ -40,13 +42,13 @@ function infoUrl(layer: string, lat: number, lng: number): string {
   }).toString();
 }
 
-async function queryLayer(terms: string[], lat: number, lng: number, fetcher: typeof fetch) {
-  const capabilitiesUrl = HYDRO_WMS + 'SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0';
+async function queryLayer(base: string, terms: string[], lat: number, lng: number, fetcher: typeof fetch) {
+  const capabilitiesUrl = base + 'SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0';
   const capabilities = await fetchText(capabilitiesUrl, fetcher);
   if (!capabilities) return { text: null, url: capabilitiesUrl };
   const layer = findLayer(capabilities, terms);
   if (!layer) return { text: null, url: capabilitiesUrl };
-  const url = infoUrl(layer, lat, lng);
+  const url = infoUrl(base, layer, lat, lng);
   return { text: await fetchText(url, fetcher), url };
 }
 
@@ -68,17 +70,17 @@ export async function queryGermanySaarlandHydrogeology(lat: number, lng: number,
 
   const evidence: EvidenceItem[] = [];
 
-  const hydro = await queryLayer(['hydrogeologie', 'grundwasserleiter', 'hydrogeologische übersicht'], lat, lng, fetcher);
+  const hydro = await queryLayer(HUEK_WMS, ['hydrogeologische', 'grundwasserleiter', 'hydrogeologischer teilraum'], lat, lng, fetcher);
   addEvidence(evidence, 'de-sl-hydrogeology', hydro,
     'Official Saarland hydrogeological mapping identifies regional groundwater-bearing formations and hydrogeological conditions relevant to groundwater occurrence.',
     'Regional mapping does not establish a current property groundwater level or excavation inflow rate.');
 
-  const groundwater = await queryLayer(['grundwasserkörper', 'grundwasser'], lat, lng, fetcher);
+  const groundwater = await queryLayer(HUEK_WMS, ['grundwasserkörper', 'grundwasserleiter'], lat, lng, fetcher);
   addEvidence(evidence, 'de-sl-groundwater-body', groundwater,
     'Official Saarland water information identifies the groundwater body and regional groundwater setting at the selected location.',
     'Groundwater-body classification is regional and should not be interpreted as a site-specific groundwater level.');
 
-  const monitoring = await queryLayer(['grundwassermessstellen', 'messstellen', 'grundwassermessnetz'], lat, lng, fetcher);
+  const monitoring = await fetchText(MONITORING_WFS + new URLSearchParams({ SERVICE: 'WFS', VERSION: '1.1.0', REQUEST: 'GetFeature', TYPENAME: 'Wasser_WFS:Messstellen_Grundwasser', SRSNAME: 'EPSG:25832', OUTPUTFORMAT: 'GML3', BBOX: '250000,5400000,500000,5550000,EPSG:25832', MAXFEATURES: '1' }).toString(), fetcher).then(text => ({ text, url: MONITORING_WFS }));
   addEvidence(evidence, 'de-sl-groundwater-monitoring', monitoring,
     'The Saarland groundwater monitoring network provides official observation points that can help put local groundwater conditions into regional context.',
     'A nearby monitoring station does not establish the groundwater level beneath the property; distance, screened aquifer, elevation and measurement date matter.');
@@ -86,7 +88,7 @@ export async function queryGermanySaarlandHydrogeology(lat: number, lng: number,
   if (!evidence.length) evidence.push({
     id: 'de-sl-hydrogeology-no-data', category: 'Hydrogeology',
     claim: 'The official Saarland hydrogeological service did not return a usable attribute response for the selected coordinate.',
-    status: 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: HYDRO_WMS, datasetDate: today(),
+    status: 'REQUIRES_VERIFICATION', sourceName: SOURCE, sourceUrl: HUEK_WMS, datasetDate: today(),
     spatialRelationship: 'Selected site coordinate in Saarland',
     calculationMethod: 'Official Saarland Geoportal WMS query; missing responses are not interpreted as negative findings',
     confidence: 'Low', limitation: 'No current groundwater condition is inferred from a missing regional-map response.',
@@ -124,7 +126,9 @@ export function enrichGermanySaarlandHydrogeology(report: VerifiedSiteReport & R
 }
 
 export const GERMANY_SAARLAND_HYDROGEOLOGY_SOURCES = {
-  hydrogeologyWms: HYDRO_WMS,
+  hydrogeologyWms: HUEK_WMS,
+  groundwaterProtectionWms: PROTECTION_WMS,
+  groundwaterMonitoringWfs: MONITORING_WFS,
   geoportal: 'https://geoportal.saarland.de/',
   waterInformation: 'https://www.saarland.de/mukmav/DE/portale/wasser/grundwasser/grundwasser_node.html',
   openData: 'https://www.shop.lvgl.saarland.de/index.php?id=18&option=com_content&view=article'
