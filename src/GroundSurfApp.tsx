@@ -49,7 +49,8 @@ const STARTER_QUESTIONS = {
   fr: ['Ce terrain peut-il être inondé ?', 'Qu’y a-t-il sous le terrain ?', 'Peut-on construire ici ?', 'Y a-t-il un risque de pollution ?', 'Quelles sont les principales inconnues ?', 'Que dois-je vérifier avant l’achat ?'],
   no: ['Kan denne eiendommen bli oversvømt?', 'Hva ligger under eiendommen?', 'Kan jeg bygge her?', 'Kan det finnes forurensning?', 'Hva er de største usikkerhetene?', 'Hva bør jeg undersøke før kjøp?'],
   fi: ['Voiko tämä maa-alue tulvia?', 'Mitä maa-alueen alla on?', 'Voiko tänne rakentaa?', 'Voiko alueella olla saastumista?', 'Mitkä ovat suurimmat epävarmuudet?', 'Mitä pitäisi tarkistaa ennen ostoa?'],
-  sv: ['Kan marken översvämmas?', 'Vad finns under marken?', 'Går det att bygga här?', 'Kan det finnas föroreningar?', 'Vilka är de största osäkerheterna?', 'Vad bör jag kontrollera före köp?']
+  sv: ['Kan marken översvämmas?', 'Vad finns under marken?', 'Går det att bygga här?', 'Kan det finnas föroreningar?', 'Vilka är de största osäkerheterna?', 'Vad bör jag kontrollera före köp?'],
+  hu: ['Lehet árvízveszély ezen a területen?', 'Mi található a felszín alatt?', 'Építhetek-e itt?', 'Lehet-e szennyezés a területen?', 'Melyek a legfontosabb nyitott kérdések?', 'Mit érdemes ellenőrizni a vásárlás előtt?']
 } as const;
 
 function starterQuestions(language: string): readonly string[] {
@@ -1088,6 +1089,4 @@ export const GroundSurfApp: React.FC = () => {
       </main>
       <FloatingSupportLandSurf language={report.language} destination="groundsurf" />
     </div>
-  );  hu: ['Lehet árvízveszély ezen a területen?', 'Mi található a felszín alatt?', 'Építhetek-e itt?', 'Lehet-e szennyezés a területen?', 'Melyek a legfontosabb nyitott kérdések?', 'Mit érdemes ellenőrizni a vásárlás előtt?'],
-
-};
+  );
