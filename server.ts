@@ -29,6 +29,7 @@ import { enrichIrelandNationalEvidence, queryIrelandNationalEvidence } from './s
 import { applyLuxembourgCadastreToReport, queryLuxembourgCadastre } from './server/services/luxembourgCadastreService';
 import { applyGermanyCadastreToReport, queryGermanyCadastre } from './server/services/germanyCadastreService';
 import { enrichGermanyMvGroundEvidence, queryGermanyMvGroundEvidence } from './server/services/germanyMvEvidenceService';
+import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
 import { applyBelgiumCadastreToReport, queryBelgiumCadastre } from './server/services/belgiumCadastreService';
 import { enrichBelgiumNationalEvidence, queryBelgiumNationalEvidence } from './server/services/belgiumNationalEvidenceService';
@@ -240,6 +241,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     let latviaCadastre: any = null;
     let germanyCadastre: any = null;
     let germanyMvEvidence: any[] = [];
+    let germanyBoreholeEvidence: any[] = [];
     if (!countryLocationMismatch && countryCode === 'CZ' && support.capabilities.nationalCadastre) {
       stage = 'czechia-cadastre';
       try {
@@ -477,6 +479,16 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     }
 
     if (!countryLocationMismatch && countryCode === 'DE') {
+      stage = 'germany-borehole-evidence';
+      try {
+        const boreholeResult = await queryGermanyBoreholes(lat, lng, fetch);
+        germanyBoreholeEvidence = [boreholeResult];
+        evidenceReport.evidenceRegistry.push(boreholeResult);
+        if (boreholeResult.status === 'VERIFIED') {
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          evidenceReport.dataSourcesCited.push({ name: boreholeResult.sourceName, organization: 'Bundesanstalt für Geowissenschaften und Rohstoffe (BGR)', url: boreholeResult.sourceUrl, type: 'National Borehole Register', status: 'VERIFIED' });
+        }
+      } catch (e) { console.warn(`[${diagnosticId}] BGR German Borehole Locations notice:`, e); }
       stage = 'germany-mv-ground-evidence';
       try {
         const mvResult = await queryGermanyMvGroundEvidence(lat, lng, stateName, fetch);
@@ -1105,6 +1117,7 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
       northern_ireland_land_registry_evidence_count: northernIrelandLandRegistryEvidence.length,
       france_site_evidence_count: franceSiteEvidence.length,
       germany_mv_evidence_count: germanyMvEvidence.length,
+      germany_borehole_evidence_count: germanyBoreholeEvidence.length,
       austria_ground_evidence_count: austriaGroundEvidence.length,
       portugal_cadastre_evidence_count: Array.isArray(portugalCadastre?.evidence) ? portugalCadastre.evidence.length : 0,
       portugal_national_evidence_count: portugalNationalEvidence.length,
