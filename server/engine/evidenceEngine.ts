@@ -58,7 +58,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, ukAgsEvidence, croatiaFloodEvidence, croatiaCadastre, cyprusCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence, romaniaCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, ukAgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence, bulgariaUrbanGeology, romaniaCadastre, cyprusCadastre, icelandCadastre] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
