@@ -50,7 +50,8 @@ const STARTER_QUESTIONS = {
   no: ['Kan denne eiendommen bli oversvømt?', 'Hva ligger under eiendommen?', 'Kan jeg bygge her?', 'Kan det finnes forurensning?', 'Hva er de største usikkerhetene?', 'Hva bør jeg undersøke før kjøp?'],
   fi: ['Voiko tämä maa-alue tulvia?', 'Mitä maa-alueen alla on?', 'Voiko tänne rakentaa?', 'Voiko alueella olla saastumista?', 'Mitkä ovat suurimmat epävarmuudet?', 'Mitä pitäisi tarkistaa ennen ostoa?'],
   sv: ['Kan marken översvämmas?', 'Vad finns under marken?', 'Går det att bygga här?', 'Kan det finnas föroreningar?', 'Vilka är de största osäkerheterna?', 'Vad bör jag kontrollera före köp?'],
-  hu: ['Lehet árvízveszély ezen a területen?', 'Mi található a felszín alatt?', 'Építhetek-e itt?', 'Lehet-e szennyezés a területen?', 'Melyek a legfontosabb nyitott kérdések?', 'Mit érdemes ellenőrizni a vásárlás előtt?']
+  hu: ['Lehet árvízveszély ezen a területen?', 'Mi található a felszín alatt?', 'Építhetek-e itt?', 'Lehet-e szennyezés a területen?', 'Melyek a legfontosabb nyitott kérdések?', 'Mit érdemes ellenőrizni a vásárlás előtt?'],
+  is: ['Getur þetta land orðið fyrir flóði?', 'Hvað er undir yfirborðinu?', 'Er heimilt að byggja hér?', 'Gæti verið mengun á svæðinu?', 'Hverjar eru helstu óvissurnar?', 'Hvað ætti ég að kanna áður en ég kaupi?']
 } as const;
 
 function starterQuestions(language: string): readonly string[] {
@@ -66,6 +67,7 @@ function starterQuestions(language: string): readonly string[] {
   if (locale === 'no') return STARTER_QUESTIONS.no;
   if (locale === 'fi') return STARTER_QUESTIONS.fi;
   if (locale === 'sv') return STARTER_QUESTIONS.sv;
+  if (locale === 'is') return STARTER_QUESTIONS.is;
   return STARTER_QUESTIONS.en;
 }
 
@@ -209,6 +211,23 @@ function groundSurfCopy(language: string, key: GroundSurfCopyKey): string {
 }
 
 const APP_UI_COPY = {
+  is: {
+    evidenceGathered: 'Gögnum safnað', detailedReport: 'Ítarleg skýrsla', adviser: 'GroundSurf ráðgjafi', askDirectly: 'Spyrja beint',
+    gathered: 'Ég safnaði saman opinberum gögnum.', askIntro: 'Hvað viltu vita?', evidenceItems: 'Gagnaliðir',
+    found: 'Hér er það sem ég fann.', orientation: 'Fyrsta yfirlit áður en þú byrjar að spyrja.',
+    itemsGathered: 'gagnaliðir fundust', detailedTrail: 'Í ítarlegu skýrslunni eru öll gögn, aðferð og heimildir varðveitt.',
+    openDetailed: 'Opna ítarlega skýrslu', askAnything: 'Spyrðu hvað sem er.', promptsHint: 'Þetta eru ábendingar, ekki valmynd. Þú getur líka spurt með eigin orðum.',
+    where: 'Hvar er það?', ground: 'Jarðvegur', water: 'Vatn', planning: 'Skipulag',
+    established: 'Staðfest', mapped: 'Kortlagt', open: 'Óafgreitt',
+    place: 'Staðsetning', area: 'Flatarmál', parcel: 'Lóð', official: 'Opinbert', notConfirmed: 'Ekki staðfest',
+    evidenceMap: 'Gagnakort', evidenceItem: 'gagnaliður', evidenceItemsPlural: 'gagnaliðir', noMatching: 'Engin samsvarandi færsla fannst',
+    behindAnswer: 'Gögnin á bak við þetta svar', goDeeper: 'Kanna nánar', landRecord: 'Gögnin geta orðið að landsskrá.',
+    keepRecord: 'Haltu forskoðun, heimildum og opnum spurningum saman í stað þess að prenta skýrslu og missa gagnaslóðina.',
+    sources: 'Heimildir', searchAnything: 'Spyrðu um þetta land…', looking: 'Leita í gögnunum…',
+    stillOpen: 'Enn óafgreitt', whatNext: 'Hvað myndi hjálpa næst?', localHelp: 'Staðbundin aðstoð',
+    website: 'Vefsvæði', noLocalListing: 'Engin staðbundin skráning fannst', nearbySearch: 'Leita að sérfræðingum í nágrenninu',
+    askNext: 'Þetta gætirðu spurt næst'
+  },
   en: {
     evidenceGathered: 'Evidence gathered', detailedReport: 'Detailed report', adviser: 'GroundSurf adviser', askDirectly: 'Ask directly',
     gathered: 'I gathered the public evidence.', askIntro: 'What would you like to know?', evidenceItems: 'Evidence items',
@@ -312,7 +331,7 @@ type AppUiCopyKey = keyof typeof APP_UI_COPY.en;
 
 function appUiCopy(language: string, key: AppUiCopyKey): string {
   const locale = String(language || '').toLowerCase().split('-')[0];
-  const selected = locale === 'uk' ? 'uk' : locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : locale === 'cs' ? 'cs' : locale === 'da' ? 'da' : locale === 'nl' ? 'nl' : locale === 'hr' ? 'hr' : locale === 'es' ? 'es' : locale === 'fr' ? 'fr' : locale === 'no' ? 'no' : locale === 'fi' ? 'fi' : locale === 'sv' ? 'sv' : 'en';
+  const selected = locale === 'is' ? 'is' : locale === 'uk' ? 'uk' : locale === 'de' ? 'de' : locale === 'pl' ? 'pl' : locale === 'cs' ? 'cs' : locale === 'da' ? 'da' : locale === 'nl' ? 'nl' : locale === 'hr' ? 'hr' : locale === 'es' ? 'es' : locale === 'fr' ? 'fr' : locale === 'no' ? 'no' : locale === 'fi' ? 'fi' : locale === 'sv' ? 'sv' : 'en';
   return APP_UI_COPY[selected][key];
 }
 
