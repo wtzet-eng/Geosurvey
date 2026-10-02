@@ -28,6 +28,7 @@ import { querySloveniaCadastre } from '../services/sloveniaCadastreService';
 import { queryHungaryCadastre } from '../services/hungaryCadastreService';
 import { enrichHungaryGroundEvidence, queryHungaryGroundEvidence } from '../services/hungaryGroundEvidenceService';
 import { queryHungaryWaterEvidence } from '../services/hungaryWaterEvidenceService';
+import { queryBulgariaGroundEvidence } from '../services/bulgariaGroundEvidenceService';
 
 export interface AnalysisInput {
   lat: number;
@@ -51,7 +52,7 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
@@ -65,7 +66,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'SI' ? querySloveniaCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'HU' ? queryHungaryCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'HU' ? queryHungaryGroundEvidence(lat, lng) : Promise.resolve(null),
-    countryCode === 'HU' ? queryHungaryWaterEvidence(lat, lng) : Promise.resolve(null)
+    countryCode === 'HU' ? queryHungaryWaterEvidence(lat, lng) : Promise.resolve(null),
+    countryCode === 'BG' ? queryBulgariaGroundEvidence(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
@@ -77,6 +79,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   }
   if (countryCode === 'HU' && hungaryWaterEvidence) {
     evidenceRegistry.push(...hungaryWaterEvidence.evidence);
+  }
+  if (countryCode === 'BG' && bulgariaGroundEvidence) {
+    evidenceRegistry.push(...bulgariaGroundEvidence.evidence);
   }
   if (countryCode === 'HU') {
     // The HUGEO point query provides verified regional geology context without implying parcel-scale engineering conclusions.
@@ -912,6 +917,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
       status: 'MODELLED' as const
     }
   ];
+  if (countryCode === 'BG') {
+    dataSourcesCited.push(
+      { name: 'Geological Institute, Bulgarian Academy of Sciences', organization: 'Bulgarian Academy of Sciences', url: 'https://www.geology.bas.bg/en', type: 'Geological Survey' as const, status: 'REQUIRES_VERIFICATION' as const },
+      { name: 'Bulgaria flood-risk mapping / MOEW', organization: 'Ministry of Environment and Water', url: 'https://www.moew.government.bg/bg/vodi/planove-za-upravlenie/planove-za-upravlenie-na-riska-ot-navodneniya-purn/', type: 'Hydrological Registry' as const, status: 'REQUIRES_VERIFICATION' as const },
+      { name: 'AGCC / KAIS / INSPIRE cadastral services', organization: 'Geodesy, Cartography and Cadastre Agency', url: 'https://kais.cadastre.bg/bg/Map', type: 'Official National Cadastre' as const, status: bulgariaGroundEvidence?.context.cadastralServiceAvailable ? 'VERIFIED' as const : 'REQUIRES_VERIFICATION' as const }
+    );
+  }
   if (countryCode === 'HU') {
     dataSourcesCited.push(
       { name: 'SZTFH / HUGEO — Hungary geological map 1:100,000', organization: 'Szabályozott Tevékenységek Felügyeleti Hatósága — Földtani Szolgálat', url: 'https://map.hugeo.hu/arcgis/services/fdt100/fdt_100/MapServer/WMSServer', type: 'Geological Survey' as const, status: soilInfo.status },
@@ -980,6 +992,11 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   if (countryCode === 'HR' && croatiaGroundwater) enrichCroatiaGroundwaterEvidence(report, croatiaGroundwater);
   if (countryCode === 'HR' && croatiaBrownfield) enrichCroatiaBrownfieldEvidence(report, croatiaBrownfield);
   if (countryCode === 'HU' && hungaryGroundEvidence) enrichHungaryGroundEvidence(report, hungaryGroundEvidence);
+  if (countryCode === 'BG' && bulgariaGroundEvidence) report.geosurvey_context = {
+    ...(report.geosurvey_context || {}),
+    bg_cadastral_service_available: bulgariaGroundEvidence.context.cadastralServiceAvailable,
+    bg_sofia_urban_geology_available: bulgariaGroundEvidence.context.sofiaUrbanGeologyAvailable
+  };
   if (countryCode === 'HU' && hungaryWaterEvidence) report.geosurvey_context = {
     ...(report.geosurvey_context || {}),
     hu_inundation_area: hungaryWaterEvidence.context.inundation_area ?? false,
