@@ -61,7 +61,7 @@ interface ParsedWaterObservation {
 }
 
 function parseGroundwaterRecord(raw: unknown): { referenceElevationM: number; observations: ParsedWaterObservation[] } | null {
-  const text = clean(raw);
+  const text = typeof raw === 'string' ? raw.trim() : '';
   if (!text) return null;
 
   const header = text.match(/^\s*XY\s+\S+\s+\S+\s+(-?\d+(?:\.\d+)?)\s+(\d{8})\s+\S+/mi);
