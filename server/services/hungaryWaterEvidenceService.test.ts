@@ -4,7 +4,7 @@ import { queryHungaryWaterEvidence } from './hungaryWaterEvidenceService';
 
 test('Hungarian water evidence reads OVF intersecting layers and groundwater source', async () => {
   const fetcher = async (url: string) => {
-    const layer = Number(url.match(/MapServer\\/(\\d+)\\/query/)?.[1] ?? -1);
+    const layer = Number(url.match(/MapServer\/(\d+)\/query/)?.[1] ?? -1);
     const hit = [14, 16, 20, 21, 24].includes(layer) && layer !== 21;
     return new Response(JSON.stringify({
       type: 'FeatureCollection',
