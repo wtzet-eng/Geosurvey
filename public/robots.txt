@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://surveyland.ai.studio/sitemap.xml
+Sitemap: https://groundsurf.net/sitemap.xml
