@@ -31,6 +31,7 @@ import { queryHungaryWaterEvidence } from '../services/hungaryWaterEvidenceServi
 import { queryBulgariaGroundEvidence } from '../services/bulgariaGroundEvidenceService';
 import { queryBulgariaUrbanGeology } from '../services/bulgariaUrbanGeologyService';
 import { queryRomaniaCadastre, romaniaGroundEvidence } from '../services/romaniaGroundEvidenceService';
+import { queryUkAgsBoreholes } from '../services/ukAgsEvidenceService';
 
 export interface AnalysisInput {
   lat: number;
@@ -54,12 +55,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   const evidenceRegistry: EvidenceItem[] = [];
 
   // Parallel data fetching across authoritative spatial APIs & scientific datasets
-  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence, romaniaCadastre] = await Promise.all([
+  const [terrainGrid, osmFeatures, soilGridsData, polandCadastre, bgsEvidence, ukAgsEvidence, croatiaFloodEvidence, croatiaCadastre, croatiaGroundwater, croatiaBrownfield, ukraineCadastre, sloveniaCadastre, hungaryCadastre, hungaryGroundEvidence, hungaryWaterEvidence, bulgariaGroundEvidence, romaniaCadastre] = await Promise.all([
     calculateTerrainFromGrid(lat, lng, Math.max(25, Math.sqrt(areaSizeM2 / Math.PI))),
     queryOverpassSurroundings(lat, lng, Math.max(20, Math.sqrt(areaSizeM2 / Math.PI))),
     fetchGenuineSoilGridsData(lat, lng),
     countryCode === 'PL' ? fetchPolandCadastralParcel(lat, lng) : Promise.resolve(null),
     countryCode === 'GB' ? fetchBgsSiteEvidence(lat, lng) : Promise.resolve(null),
+    countryCode === 'GB' ? queryUkAgsBoreholes(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaFloodEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? queryCroatiaCadastre(lat, lng) : Promise.resolve(null),
     countryCode === 'HR' ? fetchCroatiaGroundwaterEvidence(lat, lng) : Promise.resolve(null),
@@ -89,6 +91,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   }
   if (countryCode === 'BG' && bulgariaUrbanGeology) {
     evidenceRegistry.push(...bulgariaUrbanGeology);
+  }
+  if (countryCode === 'GB' && ukAgsEvidence?.evidence) {
+    evidenceRegistry.push(ukAgsEvidence.evidence);
   }
   if (countryCode === 'RO' && romaniaCadastre) {
     evidenceRegistry.push(...romaniaCadastre.evidence);
@@ -1035,6 +1040,13 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     hu_floodplain_area: hungaryWaterEvidence.context.floodplain_area ?? false,
     hu_inland_water_basin: hungaryWaterEvidence.context.inland_water_basin ?? false,
     hu_groundwater_source_available: hungaryWaterEvidence.context.groundwater_source_available
+  };
+  if (countryCode === 'GB' && ukAgsEvidence) report.geosurvey_context = {
+    ...(report.geosurvey_context || {}),
+    ags_borehole_count: ukAgsEvidence.count,
+    nearest_ags_borehole_distance_m: ukAgsEvidence.nearestDistanceM,
+    nearest_ags_borehole_id: ukAgsEvidence.boreholes[0]?.id || null,
+    ags_source_url: ukAgsEvidence.sourceUrl
   };
   if (countryCode === 'GB' && bgsEvidence) report.geosurvey_context = {
     geological_unit_name: bgsEvidence.geology.unitName,
