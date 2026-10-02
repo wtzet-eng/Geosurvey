@@ -15,7 +15,8 @@ const EXTRA_REPORT_LANGUAGES: ReportLanguage[] = [
   { code: 'sl', label: 'Slovenščina (Slovenian)' },
   { code: 'hu', label: 'Magyar (Hungarian)' },
   { code: 'ro', label: 'Română (Romanian)' },
-  { code: 'sq', label: 'Shqip (Albanian)' }
+  { code: 'sq', label: 'Shqip (Albanian)' },
+  { code: 'is', label: 'Íslenska (Icelandic)' }
 ];
 
 export const REPORT_LANGUAGE_OPTIONS: ReportLanguage[] = [
