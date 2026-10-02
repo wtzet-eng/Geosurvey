@@ -33,6 +33,7 @@ import { queryBulgariaUrbanGeology } from '../services/bulgariaUrbanGeologyServi
 import { queryRomaniaCadastre, romaniaGroundEvidence } from '../services/romaniaGroundEvidenceService';
 import { queryUkAgsBoreholes } from '../services/ukAgsEvidenceService';
 import { queryCyprusCadastre } from '../services/cyprusCadastreService';
+import { queryIcelandCadastre } from '../services/icelandCadastreService';
 
 export interface AnalysisInput {
   lat: number;
@@ -75,7 +76,8 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
     countryCode === 'BG' ? queryBulgariaGroundEvidence(lat, lng) : Promise.resolve(null),
     countryCode === 'BG' ? queryBulgariaUrbanGeology(lat, lng) : Promise.resolve([]),
     countryCode === 'RO' ? queryRomaniaCadastre(lat, lng) : Promise.resolve(null),
-    countryCode === 'CY' ? queryCyprusCadastre(lat, lng) : Promise.resolve(null)
+    countryCode === 'CY' ? queryCyprusCadastre(lat, lng) : Promise.resolve(null),
+    countryCode === 'IS' ? queryIcelandCadastre(lat, lng) : Promise.resolve(null)
   ]);
   const terrainAvailable = Number.isFinite(terrainGrid.centerElevationM) && Number.isFinite(terrainGrid.slopeDegrees);
   const osmAvailable = osmFeatures.success;
@@ -96,6 +98,9 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   }
   if (countryCode === 'GB' && ukAgsEvidence?.evidence) {
     evidenceRegistry.push(ukAgsEvidence.evidence);
+  }
+  if (countryCode === 'IS' && icelandCadastre) {
+    evidenceRegistry.push(...icelandCadastre.evidence);
   }
   if (countryCode === 'CY' && cyprusCadastre) {
     evidenceRegistry.push(...cyprusCadastre.evidence);
@@ -150,7 +155,10 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
 
-  if (countryCode === 'CY' && cyprusCadastre?.success && cyprusCadastre.parcel) {
+  if (countryCode === 'IS' && icelandCadastre?.success && icelandCadastre.parcel) {
+    const p = icelandCadastre.parcel;
+    parcelInfo = { status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'IS', geometryPoints: p.geometryPoints, isOfficialGeometry: Boolean(p.geometryPoints?.length), areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2 ?? null, cadastralSource: icelandCadastre.sourceName, datasetDate: todayStr, limitation: icelandCadastre.limitation };
+  } else if (countryCode === 'CY' && cyprusCadastre?.success && cyprusCadastre.parcel) {
     const p = cyprusCadastre.parcel;
     parcelInfo = {
       status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'CY',
