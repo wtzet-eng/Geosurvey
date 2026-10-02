@@ -170,6 +170,32 @@ const GROUND_SURF_COPY = {
   lv: { badge: 'Publiskie dati vienuviet', heroTitle: 'Vispirms apkopoju datus.', heroSubTitle: 'Pēc tam tu izlem, ko vēlies jautāt.', heroText: 'GroundSurf meklē publiski pieejamo informāciju par tevi interesējošo zemesgabalu — kadastra datus, grunti, ūdeni, plānošanu, vidi un vietējo kontekstu — un padara to izpētāmu.', whereTitle: 'Kur meklēt?', whereHint: 'Meklē adresi vai izvēlies zemesgabalu kartē.', addressFlow: 'Adrese → zemesgabals → dati', promiseLabel: 'Solījums', promiseMain: 'Es apkopoju publiski pieejamos datus, ko varu atrast.', promiseQuestion: 'Ko vēlies uzzināt?', evidenceFirst: 'Dati pirms skaidrojuma.', unknownsVisible: 'Nezināmais paliek redzams.', sourceTrail: 'Katra atbilde var aizvest pie avota.', gatherButton: 'Apkopot datus', screeningNote: 'Šī ir sākotnēja pārbaude, nevis juridisks vai inženiertehnisks apstiprinājums.', findingParcel: 'Meklē oficiālo zemesgabalu…', officialParcel: 'Oficiālais zemesgabals identificēts.', landReady: 'Zemesgabals izvēlēts un gatavs.', chooseLand: 'Izvēlies zemesgabalu kartē.', menuLanguage: 'Valoda', themeSystem: 'Sekot pārlūkam', themeUseLight: 'Izmantot gaišu fonu', themeUseDark: 'Izmantot tumšu fonu', gatheringEvidence: 'Tiek apkopoti publiskie dati…' },
   pt: { badge: 'Dados públicos reunidos num só lugar', heroTitle: 'Primeiro, reúno os dados.', heroSubTitle: 'Depois, decides o que queres perguntar.', heroText: 'O GroundSurf procura a informação pública disponível sobre o terreno em que estás interessado — cadastro, subsolo, água, planeamento, ambiente e contexto local — e torna-a explorável.', whereTitle: 'Onde devemos procurar?', whereHint: 'Pesquisa uma morada ou escolhe o terreno no mapa.', addressFlow: 'Morada → parcela → dados', promiseLabel: 'O compromisso', promiseMain: 'Reúno os dados públicos que consigo encontrar.', promiseQuestion: 'O que gostarias de saber?', evidenceFirst: 'Dados antes da explicação.', unknownsVisible: 'O que é desconhecido continua visível.', sourceTrail: 'Cada resposta pode levar de volta à fonte.', gatherButton: 'Reunir dados', screeningNote: 'Esta é uma análise preliminar, não uma certificação jurídica ou de engenharia.', findingParcel: 'A procurar a parcela oficial…', officialParcel: 'Parcela oficial identificada.', landReady: 'Terreno selecionado e pronto.', chooseLand: 'Escolhe o terreno no mapa.', menuLanguage: 'Idioma', themeSystem: 'Seguir o navegador', themeUseLight: 'Usar fundo claro', themeUseDark: 'Usar fundo escuro', gatheringEvidence: 'A reunir dados públicos…' },
   sk: { badge: 'Verejné údaje zhromaždené na jednom mieste', heroTitle: 'Najprv zhromaždím údaje.', heroSubTitle: 'Potom rozhodneš, na čo sa chceš opýtať.', heroText: 'GroundSurf vyhľadáva verejne dostupné informácie o pozemku, ktorý ťa zaujíma — kataster, podložie, vodu, plánovanie, životné prostredie a miestny kontext — a sprístupňuje ich na preskúmanie.', whereTitle: 'Kde máme hľadať?', whereHint: 'Vyhľadaj adresu alebo vyber pozemok na mape.', addressFlow: 'Adresa → parcela → údaje', promiseLabel: 'Sľub', promiseMain: 'Zhromaždím verejne dostupné údaje, ktoré nájdem.', promiseQuestion: 'Čo chceš vedieť?', evidenceFirst: 'Údaje pred vysvetlením.', unknownsVisible: 'Neznáme zostáva viditeľné.', sourceTrail: 'Každá odpoveď môže viesť späť k zdroju.', gatherButton: 'Zhromaždiť údaje', screeningNote: 'Ide o predbežné preverenie, nie právne ani inžinierske potvrdenie.', findingParcel: 'Hľadá sa oficiálna parcela…', officialParcel: 'Oficiálna parcela identifikovaná.', landReady: 'Pozemok je vybraný a pripravený.', chooseLand: 'Vyber pozemok na mape.', menuLanguage: 'Jazyk', themeSystem: 'Podľa prehliadača', themeUseLight: 'Použiť svetlé pozadie', themeUseDark: 'Použiť tmavé pozadie', gatheringEvidence: 'Zhromažďujú sa verejné údaje…' }
+  hu: {
+    badge: 'Nyilvános adatok egy helyen',
+    heroTitle: 'Először összegyűjtöm a bizonyítékokat.',
+    heroSubTitle: 'Ezután te döntöd el, mire szeretnél rákérdezni.',
+    heroText: 'A GroundSurf összegyűjti a nyilvánosan elérhető információkat az általad vizsgált területről — katasztert, földtant, talajt, vizet, tervezést, környezetet és helyi környezetet — és áttekinthetővé teszi őket.',
+    whereTitle: 'Hol keresünk?',
+    whereHint: 'Keress rá egy címre, vagy válassz területet a térképen.',
+    addressFlow: 'Cím → telek → adatok',
+    promiseLabel: 'A cél',
+    promiseMain: 'Összegyűjtöm a megtalálható nyilvános adatokat.',
+    promiseQuestion: 'Mit szeretnél megtudni?',
+    evidenceFirst: 'Először az adatok, aztán a magyarázat.',
+    unknownsVisible: 'Az ismeretlen dolgok láthatók maradnak.',
+    sourceTrail: 'Minden válasz visszavezethet a forráshoz.',
+    gatherButton: 'Adatok összegyűjtése',
+    screeningNote: 'Ez előzetes vizsgálat, nem jogi vagy mérnöki igazolás.',
+    findingParcel: 'Hivatalos telek keresése…',
+    officialParcel: 'Hivatalos telek azonosítva.',
+    landReady: 'A terület kiválasztva és kész.',
+    chooseLand: 'Válassz területet a térképen.',
+    menuLanguage: 'Nyelv',
+    themeSystem: 'Böngésző beállítása szerint',
+    themeUseLight: 'Világos háttér',
+    themeUseDark: 'Sötét háttér',
+    gatheringEvidence: 'Nyilvános adatok gyűjtése…'
+  },
 } as const;
 
 type GroundSurfCopyKey = keyof typeof GROUND_SURF_COPY.en;
@@ -1062,5 +1088,6 @@ export const GroundSurfApp: React.FC = () => {
       </main>
       <FloatingSupportLandSurf language={report.language} destination="groundsurf" />
     </div>
-  );
+  );  hu: ['Lehet árvízveszély ezen a területen?', 'Mi található a felszín alatt?', 'Építhetek-e itt?', 'Lehet-e szennyezés a területen?', 'Melyek a legfontosabb nyitott kérdések?', 'Mit érdemes ellenőrizni a vásárlás előtt?'],
+
 };
