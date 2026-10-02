@@ -140,7 +140,16 @@ export async function runGeospatialAnalysisPipeline(input: AnalysisInput): Promi
   // =========================================================================
   let parcelInfo: CadastralParcelInfo;
 
-  if (countryCode === 'HU' && hungaryCadastre?.success && hungaryCadastre.parcel) {
+  if (countryCode === 'RO' && romaniaCadastre?.success && romaniaCadastre.parcel) {
+    const p = romaniaCadastre.parcel;
+    parcelInfo = {
+      status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'RO',
+      geometryPoints: p.geometryPoints, isOfficialGeometry: Boolean(p.geometryPoints?.length),
+      areaCalculatedM2: areaSizeM2, officialAreaM2: p.officialAreaM2 ?? null,
+      cadastralSource: romaniaCadastre.sourceName, datasetDate: todayStr,
+      limitation: romaniaCadastre.limitation
+    };
+  } else if (countryCode === 'HU' && hungaryCadastre?.success && hungaryCadastre.parcel) {
     const p = hungaryCadastre.parcel;
     parcelInfo = {
       status: 'VERIFIED', parcelId: p.parcelId, countryCode: 'HU', geometryPoints: p.geometryPoints,
