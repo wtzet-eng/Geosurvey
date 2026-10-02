@@ -32,6 +32,7 @@ import { enrichGermanyMvGroundEvidence, queryGermanyMvGroundEvidence } from './s
 import { enrichGermanyNationalHydrogeology, queryGermanyNationalHydrogeology } from './server/services/germanyNationalHydrogeologyService';
 import { enrichGermanyBavariaGroundwater, queryGermanyBavariaGroundwater } from './server/services/germanyBavariaGroundwaterService';
 import { enrichGermanyRlpGroundwater, queryGermanyRlpGroundwater } from './server/services/germanyRlpGroundwaterService';
+import { enrichGermanyNrwHydrogeology, queryGermanyNrwHydrogeology } from './server/services/germanyNrwHydrogeologyService';
 import { queryGermanyFloodEvidence } from './server/services/germanyFloodEvidenceService';
 import { queryGermanyBoreholes } from './server/services/germanyBoreholeEvidenceService';
 import { enrichLuxembourgNationalEvidence, queryLuxembourgNationalEvidence } from './server/services/luxembourgNationalEvidenceService';
@@ -578,6 +579,24 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
           evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
           evidenceReport.dataSourcesCited.push({ name: 'LGB — GWO-RLP 2025', organization: 'Landesamt für Geologie und Bergbau Rheinland-Pfalz', url: 'https://mapserver.lgb-rlp.de/cgi-bin/mc_gwo?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities', type: 'Regional Hydrogeological Survey', status: modelled ? 'MODELLED' : 'REQUIRES_VERIFICATION' });
         } catch (e) { console.warn(`[${diagnosticId}] Rheinland-Pfalz groundwater evidence notice:`, e); }
+      }
+      if (normalizedGermanState === 'nordrhein-westfalen' || normalizedGermanState === 'north rhine-westphalia' || normalizedGermanState.includes('nordrhein-westfalen')) {
+        stage = 'germany-nrw-hydrogeology';
+        try {
+          const nrwHydrogeology = await queryGermanyNrwHydrogeology(lat, lng, stateName, fetch);
+          enrichGermanyNrwHydrogeology(evidenceReport, nrwHydrogeology);
+          const verified = nrwHydrogeology.evidence.some((item: any) => item.status === 'VERIFIED');
+          evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited : [];
+          if (!evidenceReport.dataSourcesCited.some((source: any) => source?.name === 'Geologischer Dienst NRW — HK100')) {
+            evidenceReport.dataSourcesCited.push({
+              name: 'Geologischer Dienst NRW — HK100',
+              organization: 'Geologischer Dienst Nordrhein-Westfalen',
+              url: 'https://ogc-api.nrw.de/inspire-ge-hk100/v1',
+              type: 'Regional Hydrogeological Survey',
+              status: verified ? 'VERIFIED' : 'REQUIRES_VERIFICATION'
+            });
+          }
+        } catch (e) { console.warn(`[${diagnosticId}] NRW hydrogeology evidence notice:`, e); }
       }
     }
 
