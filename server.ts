@@ -89,6 +89,7 @@ import { getCountrySupport } from './src/data/countrySupport';
 import { queryAustriaGroundEvidence } from './server/services/austriaGroundEvidenceService';
 import { applyFinlandCadastreToReport, queryFinlandCadastre } from './server/services/finlandCadastreService';
 import { queryFinlandNationalEvidence } from './server/services/finlandNationalEvidenceService';
+import { enrichFinlandGroundwater, queryFinlandGroundwater } from './server/services/finlandGroundwaterService';
 import { applyPortugalCadastreToReport, queryPortugalCadastre } from './server/services/portugalCadastreService';
 import { enrichPortugalNationalEvidence, queryPortugalNationalEvidence } from './server/services/portugalNationalEvidenceService';
 import { enrichLisbonUrbanEvidence, queryLisbonUrbanGeology } from './server/services/lisbonUrbanGeologyService';
@@ -1066,19 +1067,26 @@ async function handleAnalyzeSite(req: express.Request, res: express.Response) {
     } else if (!countryLocationMismatch && countryCode === 'FI' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes)) {
       stage = 'finland-national-evidence';
       try { finlandNationalEvidence = (await queryFinlandNationalEvidence(lat, lng, municipality)).evidence; } catch (e) { console.warn(`[${diagnosticId}] GTK Finland evidence notice:`, e); }
+      stage = 'finland-groundwater';
+      let finlandGroundwater: any[] = [];
+      try { finlandGroundwater = await queryFinlandGroundwater(lat, lng); } catch (e) { console.warn(`[${diagnosticId}] GTK Finland groundwater evidence notice:`, e); }
       stage = 'finland-report-enrichment';
       if (finlandNationalEvidence.length) evidenceReport.evidenceRegistry.push(...finlandNationalEvidence);
+      if (finlandGroundwater.length) enrichFinlandGroundwater(evidenceReport, finlandGroundwater);
       const verifiedGround = finlandNationalEvidence.some((item: any) => item.status === 'VERIFIED' && ['fi-gtk-bedrock', 'fi-gtk-soil'].includes(item.id));
-      if (verifiedGround && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
+      const verifiedGroundwater = finlandGroundwater.some((item: any) => item.status === 'VERIFIED' && item.id === 'fi-gtk-groundwater-level');
+      if ((verifiedGround || verifiedGroundwater) && evidenceReport.evidenceScore?.breakdown?.geologyAndGroundwater) {
         evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score = Math.max(18, Number(evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.score) || 0);
-        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = 'GTK Finland returned verified national mapped bedrock and/or detailed soil context at the selected coordinate. These sources are credited as screening evidence without inferring parcel-scale stratigraphy or engineering parameters.';
+        evidenceReport.evidenceScore.breakdown.geologyAndGroundwater.rationale = verifiedGroundwater
+          ? 'GTK Finland returned a dated measured groundwater observation from a nearby groundwater pipe, credited as vicinity evidence rather than a parcel measurement.'
+          : 'GTK Finland returned verified national mapped bedrock and/or detailed soil context at the selected coordinate. These sources are credited as screening evidence without inferring parcel-scale stratigraphy or engineering parameters.';
       }
       if (finlandNationalEvidence.some((item: any) => item.id === 'fi-gtk-acid-sulphate-soils' && item.status === 'VERIFIED') && evidenceReport.evidenceScore?.breakdown?.environmentalAndFlood) {
         evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score = Math.max(6, Number(evidenceReport.evidenceScore.breakdown.environmentalAndFlood.score) || 0);
         evidenceReport.evidenceScore.breakdown.environmentalAndFlood.rationale = 'GTK acid sulphate soil mapping returned a mapped screening overlap at the selected coordinate. This is not a site-specific soil chemistry or excavation assessment.';
       }
       evidenceReport.dataSourcesCited = Array.isArray(evidenceReport.dataSourcesCited) ? evidenceReport.dataSourcesCited.filter((source: any) => source?.organization !== 'Geological Survey of Finland (GTK)') : [];
-      evidenceReport.dataSourcesCited.push({ name: 'Geological Survey of Finland (GTK) — bedrock / soil / ground investigations', organization: 'Geological Survey of Finland (GTK)', url: 'https://www.gtk.fi/en/services/data-sets-and-online-services-geo-fi/interface-services/', type: 'Geological Survey', status: verifiedGround ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
+      evidenceReport.dataSourcesCited.push({ name: 'Geological Survey of Finland (GTK) — bedrock / soil / ground investigations', organization: 'Geological Survey of Finland (GTK)', url: 'https://www.gtk.fi/en/services/data-sets-and-online-services-geo-fi/interface-services/', type: 'Geological Survey', status: (verifiedGround || verifiedGroundwater) ? 'VERIFIED' : 'REQUIRES_VERIFICATION' });
     } else if (!countryLocationMismatch && countryCode === 'EE' && (support.capabilities.nationalGeology || support.capabilities.nationalBoreholes || support.capabilities.nationalHydrogeology)) {
       stage = 'estonia-national-evidence';
       try { estoniaNationalEvidence = (await queryEstoniaNationalEvidence(lat, lng)).evidence; } catch (e) { console.warn(`[${diagnosticId}] Estonian Geological Survey evidence notice:`, e); }
